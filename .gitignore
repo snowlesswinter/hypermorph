@@ -1,0 +1,9 @@
+/build/Debug
+
+/*.suo
+/build/Release
+
+/*.opensdf
+
+/*.sdf
+/ipch
