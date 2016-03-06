@@ -151,7 +151,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             deltaTime = elapsed * 1000000.0 / freqTime.QuadPart;
             previousTime = currentTime;
 
-            PezUpdate((unsigned int) deltaTime);
+            PezUpdateCoolRun((unsigned int)deltaTime);
             PezRender(0);
             SwapBuffers(hDC);
             PezCheckCondition(glGetError() == GL_NO_ERROR, "OpenGL error.\n");

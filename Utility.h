@@ -62,7 +62,7 @@ void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, Surfac
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, SurfacePod dest);
 void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest);
 void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);
-void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, float value);
+void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 value, int time_delta);
 void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod density, SurfacePod dest);
 
 extern const float CellSize;

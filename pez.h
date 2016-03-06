@@ -18,6 +18,7 @@ PezConfig PezGetConfig();
 void PezInitialize();
 void PezRender();
 void PezUpdate(unsigned int microseconds);
+void PezUpdateCoolRun(unsigned int microseconds);
 void PezHandleMouse(int x, int y, int action);
 void PezHandleKey(char c);
 

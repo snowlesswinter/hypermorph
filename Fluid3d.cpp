@@ -127,8 +127,48 @@ void PezUpdate(unsigned int microseconds)
         SwapSurfaces(&Slabs.Density);
         ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong);
         SwapSurfaces(&Slabs.Velocity);
-        ApplyImpulse(Slabs.Temperature.Ping, ImpulsePosition, ImpulseTemperature);
-        ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, ImpulseDensity);
+        ApplyImpulse(Slabs.Temperature.Ping, ImpulsePosition, Vector3(ImpulseTemperature, ImpulseTemperature, ImpulseTemperature), microseconds);
+        ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, Vector3(ImpulseDensity, ImpulseDensity, ImpulseDensity), microseconds);
+        ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
+        ClearSurface(Slabs.Pressure.Ping, 0);
+        for (int i = 0; i < NumJacobiIterations; ++i) {
+            Jacobi(Slabs.Pressure.Ping, Surfaces.Divergence, Surfaces.Obstacles, Slabs.Pressure.Pong);
+            SwapSurfaces(&Slabs.Pressure);
+        }
+        SubtractGradient(Slabs.Velocity.Ping, Slabs.Pressure.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong);
+        SwapSurfaces(&Slabs.Velocity);
+    }
+}
+
+void PezUpdateCoolRun(unsigned int microseconds)
+{
+    float dt = microseconds * 0.000001f;
+    Trackball->Update(microseconds);
+    EyePosition = Point3(0, 0, 3.5f + Trackball->GetZoom());
+    Vector3 up(0, 1, 0); Point3 target(0);
+    Matrices.View = Matrix4::lookAt(EyePosition, target, up);
+    Matrix4 modelMatrix(transpose(Trackball->GetRotation()), Vector3(0));
+    modelMatrix *= Matrix4::rotationY(0.5f);
+    Matrices.Modelview = Matrices.View * modelMatrix;
+
+    Matrices.Projection = Matrix4::perspective(
+        FieldOfView,
+        float(ViewportWidth) / ViewportHeight, // Aspect Ratio
+        0.0f,   // Near Plane
+        1.0f);  // Far Plane
+
+    Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
+
+    if (SimulateFluid) {
+        glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
+        glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
+        glViewport(0, 0, GridWidth, GridHeight);
+        Advect(Slabs.Velocity.Ping, Slabs.Velocity.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong, 1.0f);
+        SwapSurfaces(&Slabs.Velocity);
+        Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, DensityDissipation);
+        SwapSurfaces(&Slabs.Density);
+        ApplyImpulse(Slabs.Velocity.Ping, ImpulsePosition, Vector3(0.0f, -10.0f, 0.0f), microseconds);
+        ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, Vector3(ImpulseDensity, ImpulseDensity, ImpulseDensity), microseconds);
         ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
         ClearSurface(Slabs.Pressure.Ping, 0);
         for (int i = 0; i < NumJacobiIterations; ++i) {

@@ -228,11 +228,7 @@ void main()
 {
     float d = distance(Point, vec3(gl_FragCoord.xy, gLayer));
     if (d < Radius) {
-        float a = (Radius - d) * 0.5;
-        a = min(a, 1.0);
-        FragColor = vec4(FillColor, a);
-    } else {
-        FragColor = vec4(0);
+        FragColor = vec4(FillColor, 1.0);
     }
 }
 
@@ -259,6 +255,6 @@ void main()
 
     if (T > AmbientTemperature) {
         float D = texelFetch(Density, TC, 0).x;
-        FragColor += (TimeStep * (T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, -1, 0);
+        FragColor += (TimeStep * (T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(-1, -1, 0);
     }
 }

@@ -15,12 +15,12 @@ static struct {
 } Programs;
 
 const float CellSize = 1.25f;
-const int ViewportWidth = 320;
-const int GridWidth = 96;
+const int ViewportWidth = 700;
+const int GridWidth = 128;
 const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
-const float SplatRadius = GridWidth / 8.0f;
+const float SplatRadius = GridWidth / 16.0f;
 const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 10.0f;
 const float ImpulseDensity = 1.0f;
@@ -414,14 +414,17 @@ void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod des
     ResetState();
 }
 
-void ApplyImpulse(SurfacePod dest, Vector3 position, float value)
+void ApplyImpulse(SurfacePod dest, Vector3 position, vmath::Vector3 value, int time_delta)
 {
+    static double time_elapsed = 0.0;
+    time_elapsed += time_delta;
+
     GLuint p = Programs.ApplyImpulse;
     glUseProgram(p);
 
     SetUniform("Point", position);
-    SetUniform("Radius", SplatRadius);
-    SetUniform("FillColor", Vector3(value, value, value));
+    SetUniform("Radius", float(SplatRadius * (sin(time_elapsed / 2000000.0 * 3.14159265 * 2.0) + 2.0) / 2.0));
+    SetUniform("FillColor", value);
 
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
     glEnable(GL_BLEND);
