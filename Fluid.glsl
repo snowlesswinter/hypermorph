@@ -65,10 +65,22 @@ void main()
         return;
     }
 
-    vec3 u = texture(VelocityTexture, InverseSize * fragCoord).xyz;
+    vec4 o = texture(VelocityTexture, InverseSize * fragCoord);
+    vec3 u = o.xyz;
 
-    vec3 coord = InverseSize * (fragCoord - TimeStep * u);
-    FragColor = Dissipation * texture(SourceTexture, coord);
+    vec3 coord = fragCoord - TimeStep * u;
+
+    // Boundary check
+    ivec3 tex_size = textureSize(VelocityTexture, 0);
+    ivec3 icoord = ivec3(coord);
+    if ((icoord.y > tex_size.y - 1) || (icoord.y < 0) ||
+            (icoord.x > tex_size.x - 1) || (icoord.x < 0) ||
+            (icoord.z > tex_size.z - 1) || (icoord.z < 0)) {
+        // Why not FragColor = vec4(0); ????
+        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord);
+    } else {
+        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord);
+    }
 }
 
 -- Jacobi
@@ -189,38 +201,32 @@ void main()
 
     // Handle boundary problem
     ivec3 tex_size = textureSize(Pressure, 0);
-    if (T.y >= tex_size.y - 1)
-    {
+    if (T.y >= tex_size.y - 1) {
         pN = pC;
         oN = vec3(1, 0, 0);
     }
 
-    if (T.y <= 0)
-    {
+    if (T.y <= 0) {
         pS = pC;
         oS = vec3(1, 0, 0);
     }
 
-    if (T.x >= tex_size.x - 1)
-    {
+    if (T.x >= tex_size.x - 1) {
         pE = pC;
         oE = vec3(1, 0, 0);
     }
 
-    if (T.x <= 0)
-    {
+    if (T.x <= 0) {
         pW = pC;
         oW = vec3(1, 0, 0);
     }
 
-    if (T.z >= tex_size.z - 1)
-    {
+    if (T.z >= tex_size.z - 1) {
         pU = pC;
         oU = vec3(1, 0, 0);
     }
 
-    if (T.z <= 0)
-    {
+    if (T.z <= 0) {
         pD = pC;
         oD = vec3(1, 0, 0);
     }
@@ -264,6 +270,7 @@ void main()
     vec3 vW = texelFetchOffset(Velocity, T, 0, ivec3(-1, 0, 0)).xyz;
     vec3 vU = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, 1)).xyz;
     vec3 vD = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, -1)).xyz;
+    vec3 vC = texelFetch(Velocity, T, 0).xyz;
 
     // Find neighboring obstacles:
     vec3 oN = texelFetchOffset(Obstacles, T, 0, ivec3(0, 1, 0)).xyz;
@@ -281,14 +288,31 @@ void main()
     if (oU.x > 0) vU = oU.yzx;
     if (oD.x > 0) vD = oD.yzx;
 
+    float diff_ew = vE.x - vW.x;
+    float diff_ns = vN.y - vS.y;
+    float diff_ud = vU.z - vD.z;
+
     // Handle boundary problem
     ivec3 tex_size = textureSize(Velocity, 0);
-    if ((T.y >= tex_size.y - 1) || (T.y <= 0) || (T.x >= tex_size.x - 1) ||
-            (T.x <= 0) || (T.z >= tex_size.z - 1) || (T.z <= 0)) {
-        FragColor = 0;
-    } else {
-        FragColor = HalfInverseCellSize * (vE.x - vW.x + vN.y - vS.y + vU.z - vD.z);
-    }
+    if (T.x >= tex_size.x - 1)
+        diff_ew = -vC.x - vW.x;
+
+    if (T.x <= 0)
+        diff_ew = vE.x + vC.x;
+
+    if (T.y >= tex_size.y - 1)
+        diff_ns = -vC.y - vS.y;
+
+    if (T.y <= 0)
+        diff_ns = vN.y + vC.y;
+
+    if (T.z >= tex_size.z - 1)
+        diff_ud = -vC.z - vD.z;
+
+    if (T.z <= 0)
+        diff_ud = vU.z + vC.z;
+
+    FragColor = HalfInverseCellSize * (diff_ew + diff_ns + diff_ud);
 }
 
 -- Splat
