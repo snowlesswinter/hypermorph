@@ -32,7 +32,7 @@ uniform float InverseSize;
 void main()
 {
     gl_Layer = vInstance[0];
-    gLayer = float(gl_Layer) + 0.47;
+    gLayer = float(gl_Layer) + 0.5;
     gl_Position = gl_in[0].gl_Position;
     EmitVertex();
     gl_Position = gl_in[1].gl_Position;
@@ -105,6 +105,38 @@ void main()
     vec3 oU = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, 1)).xyz;
     vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
 
+    // Handle boundary problem
+    ivec3 tex_size = textureSize(Pressure, 0);
+    if (T.y >= tex_size.y - 1) {
+        pN = pC;
+        oN = vec3(1, 0, 0);
+    }
+
+    if (T.y <= 0) {
+        pS = pC;
+        oS = vec3(1, 0, 0);
+    }
+
+    if (T.x >= tex_size.x - 1) {
+        pE = pC;
+        oE = vec3(1, 0, 0);
+    }
+
+    if (T.x <= 0) {
+        pW = pC;
+        oW = vec3(1, 0, 0);
+    }
+
+    if (T.z >= tex_size.z - 1) {
+        pU = pC;
+        oU = vec3(1, 0, 0);
+    }
+
+    if (T.z <= 0) {
+        pD = pC;
+        oD = vec3(1, 0, 0);
+    }
+
     // Use center pressure for solid cells:
     if (oN.x > 0) pN = pC;
     if (oS.x > 0) pS = pC;
@@ -154,6 +186,44 @@ void main()
     vec3 oW = texelFetchOffset(Obstacles, T, 0, ivec3(-1, 0, 0)).xyz;
     vec3 oU = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, 1)).xyz;
     vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
+
+    // Handle boundary problem
+    ivec3 tex_size = textureSize(Pressure, 0);
+    if (T.y >= tex_size.y - 1)
+    {
+        pN = pC;
+        oN = vec3(1, 0, 0);
+    }
+
+    if (T.y <= 0)
+    {
+        pS = pC;
+        oS = vec3(1, 0, 0);
+    }
+
+    if (T.x >= tex_size.x - 1)
+    {
+        pE = pC;
+        oE = vec3(1, 0, 0);
+    }
+
+    if (T.x <= 0)
+    {
+        pW = pC;
+        oW = vec3(1, 0, 0);
+    }
+
+    if (T.z >= tex_size.z - 1)
+    {
+        pU = pC;
+        oU = vec3(1, 0, 0);
+    }
+
+    if (T.z <= 0)
+    {
+        pD = pC;
+        oD = vec3(1, 0, 0);
+    }
 
     // Use center pressure for solid cells:
     vec3 obstV = vec3(0);
@@ -211,7 +281,14 @@ void main()
     if (oU.x > 0) vU = oU.yzx;
     if (oD.x > 0) vD = oD.yzx;
 
-    FragColor = HalfInverseCellSize * (vE.x - vW.x + vN.y - vS.y + vU.z - vD.z);
+    // Handle boundary problem
+    ivec3 tex_size = textureSize(Velocity, 0);
+    if ((T.y >= tex_size.y - 1) || (T.y <= 0) || (T.x >= tex_size.x - 1) ||
+            (T.x <= 0) || (T.z >= tex_size.z - 1) || (T.z <= 0)) {
+        FragColor = 0;
+    } else {
+        FragColor = HalfInverseCellSize * (vE.x - vW.x + vN.y - vS.y + vU.z - vD.z);
+    }
 }
 
 -- Splat
@@ -257,6 +334,6 @@ void main()
 
     if (T > AmbientTemperature) {
         float D = texelFetch(Density, TC, 0).x;
-        FragColor += (TimeStep * (T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, 1, 0);
+        FragColor += TimeStep * ((T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, 1, 0);
     }
 }

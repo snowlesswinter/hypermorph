@@ -58,7 +58,7 @@ SlabPod CreateSlab(GLsizei width, GLsizei height, GLsizei depth, int numComponen
 void InitSlabOps();
 void SwapSurfaces(SlabPod* slab);
 void ClearSurface(SurfacePod s, float v);
-void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float dissipation);
+void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, SurfacePod dest);
 void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest);
 void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);

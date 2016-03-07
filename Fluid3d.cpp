@@ -115,17 +115,19 @@ void PezUpdate(unsigned int microseconds)
 
     Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
 
+    float delta_time = 0.33f;// dt * 10.0f;
+
     if (SimulateFluid) {
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
-        Advect(Slabs.Velocity.Ping, Slabs.Velocity.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong, VelocityDissipation);
+        Advect(Slabs.Velocity.Ping, Slabs.Velocity.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong, delta_time, VelocityDissipation);
         SwapSurfaces(&Slabs.Velocity);
-        Advect(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Surfaces.Obstacles, Slabs.Temperature.Pong, TemperatureDissipation);
+        Advect(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Surfaces.Obstacles, Slabs.Temperature.Pong, delta_time, TemperatureDissipation);
         SwapSurfaces(&Slabs.Temperature);
-        Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, DensityDissipation);
+        Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, delta_time, DensityDissipation);
         SwapSurfaces(&Slabs.Density);
-        ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong, dt * 10.0f);
+        ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong, delta_time);
         SwapSurfaces(&Slabs.Velocity);
         ApplyImpulse(Slabs.Temperature.Ping, ImpulsePosition, ImpulseTemperature);
         ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, ImpulseDensity);

@@ -122,13 +122,13 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
         wglSwapIntervalEXT(0);
     }
 
+    QueryPerformanceFrequency(&freqTime);
+    QueryPerformanceCounter(&previousTime);
+
     {
         PezInitialize();
         SetWindowTextA(hWnd, PezGetConfig().Title);
     }
-
-    QueryPerformanceFrequency(&freqTime);
-    QueryPerformanceCounter(&previousTime);
 
     // -------------------
     // Start the Game Loop
