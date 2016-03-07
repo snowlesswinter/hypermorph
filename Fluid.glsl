@@ -32,7 +32,7 @@ uniform float InverseSize;
 void main()
 {
     gl_Layer = vInstance[0];
-    gLayer = float(gl_Layer) + 0.5;
+    gLayer = float(gl_Layer) + 0.47;
     gl_Position = gl_in[0].gl_Position;
     EmitVertex();
     gl_Position = gl_in[1].gl_Position;
@@ -231,8 +231,6 @@ void main()
         float a = (Radius - d) * 0.5;
         a = min(a, 1.0);
         FragColor = vec4(FillColor, a);
-    } else {
-        FragColor = vec4(0);
     }
 }
 
@@ -259,6 +257,6 @@ void main()
 
     if (T > AmbientTemperature) {
         float D = texelFetch(Density, TC, 0).x;
-        FragColor += (TimeStep * (T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, -1, 0);
+        FragColor += (TimeStep * (T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, 1, 0);
     }
 }

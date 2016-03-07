@@ -125,7 +125,7 @@ void PezUpdate(unsigned int microseconds)
         SwapSurfaces(&Slabs.Temperature);
         Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, DensityDissipation);
         SwapSurfaces(&Slabs.Density);
-        ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong);
+        ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong, dt * 10.0f);
         SwapSurfaces(&Slabs.Velocity);
         ApplyImpulse(Slabs.Temperature.Ping, ImpulsePosition, ImpulseTemperature);
         ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, ImpulseDensity);

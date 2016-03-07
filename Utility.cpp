@@ -14,25 +14,25 @@ static struct {
     GLuint ApplyBuoyancy;
 } Programs;
 
-const float CellSize = 1.25f;
-const int ViewportWidth = 320;
+const float CellSize = 0.15f;
+const int ViewportWidth = 500;
 const int GridWidth = 96;
 const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
-const float SplatRadius = GridWidth / 8.0f;
+const float SplatRadius = GridWidth / 24.0f;
 const float AmbientTemperature = 0.0f;
-const float ImpulseTemperature = 10.0f;
-const float ImpulseDensity = 1.0f;
+const float ImpulseTemperature = 30.0f;
+const float ImpulseDensity = 3.5f;
 const int NumJacobiIterations = 40;
 const float TimeStep = 0.25f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0125f;
 const float GradientScale = 1.125f / CellSize;
-const float TemperatureDissipation = 0.99f;
+const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.99f;
 const float DensityDissipation = 0.9995f;
-const Vector3 ImpulsePosition( GridWidth / 2.0f, GridHeight - (int) SplatRadius / 2.0f, GridDepth / 2.0f);
+const Vector3 ImpulsePosition( GridWidth / 2.0f, (int) SplatRadius / 2.0f, GridDepth / 2.0f);
 
 void CreateObstacles(SurfacePod dest)
 {
@@ -429,7 +429,7 @@ void ApplyImpulse(SurfacePod dest, Vector3 position, float value)
     ResetState();
 }
 
-void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod density, SurfacePod dest)
+void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod density, SurfacePod dest, float delta_time)
 {
     GLuint p = Programs.ApplyBuoyancy;
     glUseProgram(p);
@@ -437,7 +437,7 @@ void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod densi
     SetUniform("Temperature", 1);
     SetUniform("Density", 2);
     SetUniform("AmbientTemperature", AmbientTemperature);
-    SetUniform("TimeStep", TimeStep);
+    SetUniform("TimeStep", delta_time);
     SetUniform("Sigma", SmokeBuoyancy);
     SetUniform("Kappa", SmokeWeight);
 
