@@ -20,7 +20,7 @@ const int GridWidth = 128;
 const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
-const float SplatRadius = GridWidth / 16.0f;
+const float SplatRadius = GridWidth / 24.0f;
 const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 10.0f;
 const float ImpulseDensity = 1.0f;
@@ -32,7 +32,7 @@ const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.99f;
 const float VelocityDissipation = 0.99f;
 const float DensityDissipation = 0.9995f;
-const Vector3 ImpulsePosition( GridWidth / 2.0f, GridHeight - (int) SplatRadius / 2.0f, GridDepth / 2.0f);
+const Vector3 ImpulsePosition( GridWidth / 2.0f, (int) SplatRadius / 2.0f, GridDepth / 2.0f);
 
 void CreateObstacles(SurfacePod dest)
 {

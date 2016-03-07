@@ -167,7 +167,7 @@ void PezUpdateCoolRun(unsigned int microseconds)
         SwapSurfaces(&Slabs.Velocity);
         Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, DensityDissipation);
         SwapSurfaces(&Slabs.Density);
-        ApplyImpulse(Slabs.Velocity.Ping, ImpulsePosition, Vector3(0.0f, -10.0f, 0.0f), microseconds);
+        ApplyImpulse(Slabs.Velocity.Ping, ImpulsePosition, Vector3(0.0f, 10.0f, 0.0f), microseconds);
         ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, Vector3(ImpulseDensity, ImpulseDensity, ImpulseDensity), microseconds);
         ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
         ClearSurface(Slabs.Pressure.Ping, 0);
