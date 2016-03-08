@@ -118,44 +118,25 @@ void main()
     vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
 
     // Handle boundary problem
+    // Use center pressure for solid cells
     ivec3 tex_size = textureSize(Pressure, 0);
-    if (T.y >= tex_size.y - 1) {
+    if (T.y >= tex_size.y - 1 || oN.x > 0)
         pN = pC;
-        oN = vec3(1, 0, 0);
-    }
 
-    if (T.y <= 0) {
+    if (T.y <= 0 || oS.x > 0)
         pS = pC;
-        oS = vec3(1, 0, 0);
-    }
 
-    if (T.x >= tex_size.x - 1) {
+    if (T.x >= tex_size.x - 1 || oE.x > 0)
         pE = pC;
-        oE = vec3(1, 0, 0);
-    }
 
-    if (T.x <= 0) {
+    if (T.x <= 0 || oW.x > 0)
         pW = pC;
-        oW = vec3(1, 0, 0);
-    }
 
-    if (T.z >= tex_size.z - 1) {
+    if (T.z >= tex_size.z - 1 || oU.x > 0)
         pU = pC;
-        oU = vec3(1, 0, 0);
-    }
 
-    if (T.z <= 0) {
+    if (T.z <= 0 || oD.x > 0)
         pD = pC;
-        oD = vec3(1, 0, 0);
-    }
-
-    // Use center pressure for solid cells:
-    if (oN.x > 0) pN = pC;
-    if (oS.x > 0) pS = pC;
-    if (oE.x > 0) pE = pC;
-    if (oW.x > 0) pW = pC;
-    if (oU.x > 0) pU = pC;
-    if (oD.x > 0) pD = pC;
 
     vec4 bC = texelFetch(Divergence, T, 0);
     FragColor = (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
@@ -200,53 +181,52 @@ void main()
     vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
 
     // Handle boundary problem
-    ivec3 tex_size = textureSize(Pressure, 0);
-    if (T.y >= tex_size.y - 1) {
-        pN = pC;
-        oN = vec3(1, 0, 0);
-    }
-
-    if (T.y <= 0) {
-        pS = pC;
-        oS = vec3(1, 0, 0);
-    }
-
-    if (T.x >= tex_size.x - 1) {
-        pE = pC;
-        oE = vec3(1, 0, 0);
-    }
-
-    if (T.x <= 0) {
-        pW = pC;
-        oW = vec3(1, 0, 0);
-    }
-
-    if (T.z >= tex_size.z - 1) {
-        pU = pC;
-        oU = vec3(1, 0, 0);
-    }
-
-    if (T.z <= 0) {
-        pD = pC;
-        oD = vec3(1, 0, 0);
-    }
-
     // Use center pressure for solid cells:
     vec3 obstV = vec3(0);
     vec3 vMask = vec3(1);
 
-    if (oN.x > 0) { pN = pC; obstV.y = oN.z; vMask.y = 0; }
-    if (oS.x > 0) { pS = pC; obstV.y = oS.z; vMask.y = 0; }
-    if (oE.x > 0) { pE = pC; obstV.x = oE.y; vMask.x = 0; }
-    if (oW.x > 0) { pW = pC; obstV.x = oW.y; vMask.x = 0; }
-    if (oU.x > 0) { pU = pC; obstV.z = oU.x; vMask.z = 0; }
-    if (oD.x > 0) { pD = pC; obstV.z = oD.x; vMask.z = 0; }
+    ivec3 tex_size = textureSize(Pressure, 0);
+    if (T.y >= tex_size.y - 1 || oN.x > 0) {
+        pN = pC;
+        obstV.y = oN.z;
+        vMask.y = 0;
+    }
+
+    if (T.y <= 0 || oS.x > 0) {
+        pS = pC;
+        obstV.y = oS.z;
+        vMask.y = 0;
+    }
+
+    if (T.x >= tex_size.x - 1 || oE.x > 0) {
+        pE = pC;
+        obstV.x = oE.y;
+        vMask.x = 0;
+    }
+
+    if (T.x <= 0 || oW.x > 0) {
+        pW = pC;
+        obstV.x = oW.y;
+        vMask.x = 0;
+    }
+
+    if (T.z >= tex_size.z - 1 || oU.x > 0) {
+        pU = pC;
+        obstV.z = oU.x;
+        vMask.z = 0;
+    }
+
+    if (T.z <= 0 || oD.x > 0) {
+        pD = pC;
+        obstV.z = oD.x;
+        vMask.z = 0;
+    }
 
     // Enforce the free-slip boundary condition:
     vec3 oldV = texelFetch(Velocity, T, 0).xyz;
     vec3 grad = vec3(pE - pW, pN - pS, pU - pD) * GradientScale;
     vec3 newV = oldV - grad;
-    FragColor = (vMask * newV) + obstV;  
+    FragColor = (vMask * newV) + obstV;
 }
 
 -- ComputeDivergence
@@ -327,12 +307,17 @@ in float gLayer;
 
 void main()
 {
-    float d = distance(Point, vec3(gl_FragCoord.xy, gLayer));
-    if (d < Radius) {
-        float a = (Radius - d) * 0.5;
-        a = min(a, 1.0);
-        FragColor = vec4(FillColor, a);
+    if (gl_FragCoord.y > 1 && gl_FragCoord.y < 3) {
+        float d = distance(Point.xz, vec2(gl_FragCoord.x, gLayer));
+        if (d < Radius) {
+            float scale = (Radius - d) * 0.5;
+            scale = min(scale, 1.0);
+            FragColor = vec4(scale * FillColor, 1.0);
+            return;
+        }
     }
+
+    FragColor = vec4(0);
 }
 
 -- Buoyancy
