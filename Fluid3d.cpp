@@ -76,7 +76,7 @@ void PezRender()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     PezConfig cfg = PezGetConfig();
     glViewport(0, 0, cfg.Width, cfg.Height);
-    glClearColor(0, 0.125f, 0.25f, 0);
+    glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
