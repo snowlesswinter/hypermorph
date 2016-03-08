@@ -59,12 +59,6 @@ in float gLayer;
 void main()
 {
     vec3 fragCoord = vec3(gl_FragCoord.xy, gLayer);
-    float solid = texture(Obstacles, InverseSize * fragCoord).x;
-    if (solid > 0) {
-        FragColor = vec4(0);
-        return;
-    }
-
     vec4 o = texture(VelocityTexture, InverseSize * fragCoord);
     vec3 u = o.xyz;
 
@@ -109,33 +103,25 @@ void main()
     vec4 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1));
     vec4 pC = texelFetch(Pressure, T, 0);
 
-    // Find neighboring obstacles:
-    vec3 oN = texelFetchOffset(Obstacles, T, 0, ivec3(0, 1, 0)).xyz;
-    vec3 oS = texelFetchOffset(Obstacles, T, 0, ivec3(0, -1, 0)).xyz;
-    vec3 oE = texelFetchOffset(Obstacles, T, 0, ivec3(1, 0, 0)).xyz;
-    vec3 oW = texelFetchOffset(Obstacles, T, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 oU = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, 1)).xyz;
-    vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
-
     // Handle boundary problem
     // Use center pressure for solid cells
     ivec3 tex_size = textureSize(Pressure, 0);
-    if (T.y >= tex_size.y - 1 || oN.x > 0)
+    if (T.y >= tex_size.y - 1)
         pN = pC;
 
-    if (T.y <= 0 || oS.x > 0)
+    if (T.y <= 0)
         pS = pC;
 
-    if (T.x >= tex_size.x - 1 || oE.x > 0)
+    if (T.x >= tex_size.x - 1)
         pE = pC;
 
-    if (T.x <= 0 || oW.x > 0)
+    if (T.x <= 0)
         pW = pC;
 
-    if (T.z >= tex_size.z - 1 || oU.x > 0)
+    if (T.z >= tex_size.z - 1)
         pU = pC;
 
-    if (T.z <= 0 || oD.x > 0)
+    if (T.z <= 0)
         pD = pC;
 
     vec4 bC = texelFetch(Divergence, T, 0);
@@ -157,12 +143,6 @@ void main()
 {
     ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
 
-    vec3 oC = texelFetch(Obstacles, T, 0).xyz;
-    if (oC.x > 0) {
-        FragColor = oC.yzx;
-        return;
-    }
-
     // Find neighboring pressure:
     float pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0)).r;
     float pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0)).r;
@@ -172,53 +152,38 @@ void main()
     float pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1)).r;
     float pC = texelFetch(Pressure, T, 0).r;
 
-    // Find neighboring obstacles:
-    vec3 oN = texelFetchOffset(Obstacles, T, 0, ivec3(0, 1, 0)).xyz;
-    vec3 oS = texelFetchOffset(Obstacles, T, 0, ivec3(0, -1, 0)).xyz;
-    vec3 oE = texelFetchOffset(Obstacles, T, 0, ivec3(1, 0, 0)).xyz;
-    vec3 oW = texelFetchOffset(Obstacles, T, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 oU = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, 1)).xyz;
-    vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
-
     // Handle boundary problem
     // Use center pressure for solid cells:
-    vec3 obstV = vec3(0);
     vec3 vMask = vec3(1);
 
     ivec3 tex_size = textureSize(Pressure, 0);
-    if (T.y >= tex_size.y - 1 || oN.x > 0) {
+    if (T.y >= tex_size.y - 1) {
         pN = pC;
-        obstV.y = oN.z;
         vMask.y = 0;
     }
 
-    if (T.y <= 0 || oS.x > 0) {
+    if (T.y <= 0) {
         pS = pC;
-        obstV.y = oS.z;
         vMask.y = 0;
     }
 
-    if (T.x >= tex_size.x - 1 || oE.x > 0) {
+    if (T.x >= tex_size.x - 1) {
         pE = pC;
-        obstV.x = oE.y;
         vMask.x = 0;
     }
 
-    if (T.x <= 0 || oW.x > 0) {
+    if (T.x <= 0) {
         pW = pC;
-        obstV.x = oW.y;
         vMask.x = 0;
     }
 
-    if (T.z >= tex_size.z - 1 || oU.x > 0) {
+    if (T.z >= tex_size.z - 1) {
         pU = pC;
-        obstV.z = oU.x;
         vMask.z = 0;
     }
 
-    if (T.z <= 0 || oD.x > 0) {
+    if (T.z <= 0) {
         pD = pC;
-        obstV.z = oD.x;
         vMask.z = 0;
     }
 
@@ -226,7 +191,7 @@ void main()
     vec3 oldV = texelFetch(Velocity, T, 0).xyz;
     vec3 grad = vec3(pE - pW, pN - pS, pU - pD) * GradientScale;
     vec3 newV = oldV - grad;
-    FragColor = (vMask * newV) + obstV;
+    FragColor = vMask * newV;
 }
 
 -- ComputeDivergence
@@ -251,22 +216,6 @@ void main()
     vec3 vU = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, 1)).xyz;
     vec3 vD = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, -1)).xyz;
     vec3 vC = texelFetch(Velocity, T, 0).xyz;
-
-    // Find neighboring obstacles:
-    vec3 oN = texelFetchOffset(Obstacles, T, 0, ivec3(0, 1, 0)).xyz;
-    vec3 oS = texelFetchOffset(Obstacles, T, 0, ivec3(0, -1, 0)).xyz;
-    vec3 oE = texelFetchOffset(Obstacles, T, 0, ivec3(1, 0, 0)).xyz;
-    vec3 oW = texelFetchOffset(Obstacles, T, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 oU = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, 1)).xyz;
-    vec3 oD = texelFetchOffset(Obstacles, T, 0, ivec3(0, 0, -1)).xyz;
-
-    // Use obstacle velocities for solid cells:
-    if (oN.x > 0) vN = oN.yzx;
-    if (oS.x > 0) vS = oS.yzx;
-    if (oE.x > 0) vE = oE.yzx;
-    if (oW.x > 0) vW = oW.yzx;
-    if (oU.x > 0) vU = oU.yzx;
-    if (oD.x > 0) vD = oD.yzx;
 
     float diff_ew = vE.x - vW.x;
     float diff_ns = vN.y - vS.y;
