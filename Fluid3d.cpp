@@ -114,10 +114,17 @@ void PezUpdate(unsigned int microseconds)
         1.0f);  // Far Plane
 
     Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
-
+    static double time_elapsed = 0;
+    time_elapsed += dt;
     float delta_time = 0.33f;// dt * 10.0f;
 
     if (SimulateFluid) {
+        double hotspot_x = cos(time_elapsed * Pi) * SplatRadius * 0.8 +
+            impulse_position.getX();
+        double hotspot_z = sin(time_elapsed * Pi) * SplatRadius * 0.8 +
+            impulse_position.getZ();
+        Vector3 hotspot(hotspot_x, 0, hotspot_z);
+
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
@@ -129,8 +136,8 @@ void PezUpdate(unsigned int microseconds)
         SwapSurfaces(&Slabs.Density);
         ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong, delta_time);
         SwapSurfaces(&Slabs.Velocity);
-        ApplyImpulse(Slabs.Temperature.Ping, ImpulsePosition, ImpulseTemperature);
-        ApplyImpulse(Slabs.Density.Ping, ImpulsePosition, ImpulseDensity);
+        ApplyImpulse(Slabs.Temperature.Ping, impulse_position, hotspot, ImpulseTemperature);
+        ApplyImpulse(Slabs.Density.Ping, impulse_position, hotspot, ImpulseDensity);
         ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
         ClearSurface(Slabs.Pressure.Ping, 0);
         for (int i = 0; i < NumJacobiIterations; ++i) {

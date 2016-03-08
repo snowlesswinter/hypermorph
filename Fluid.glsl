@@ -248,7 +248,8 @@ void main()
 
 out vec4 FragColor;
 
-uniform vec3 Point;
+uniform vec3 center_point;
+uniform vec3 hotspot;
 uniform float Radius;
 uniform vec3 FillColor;
 
@@ -257,10 +258,10 @@ in float gLayer;
 void main()
 {
     if (gl_FragCoord.y > 1 && gl_FragCoord.y < 3) {
-        float d = distance(Point.xz, vec2(gl_FragCoord.x, gLayer));
+        float d = distance(center_point.xz, vec2(gl_FragCoord.x, gLayer));
         if (d < Radius) {
-            float scale = (Radius - d) * 0.5;
-            scale = min(scale, 1.0);
+            float scale = (Radius - distance(hotspot.xz, vec2(gl_FragCoord.x, gLayer))) / Radius;
+            scale = max(scale, 0.5);
             FragColor = vec4(scale * FillColor, 1.0);
             return;
         }

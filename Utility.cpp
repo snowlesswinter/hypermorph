@@ -22,8 +22,8 @@ const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
 const float SplatRadius = GridWidth / 24.0f;
 const float AmbientTemperature = 0.0f;
-const float ImpulseTemperature = 30.0f;
-const float ImpulseDensity = 2.0f;
+const float ImpulseTemperature = 40.0f;
+const float ImpulseDensity = 4.0f;
 const int NumJacobiIterations = 40;
 //const float TimeStep = 0.25f;
 const float SmokeBuoyancy = 1.0f;
@@ -32,7 +32,7 @@ const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.99f;
 const float DensityDissipation = 0.9980f;
-const Vector3 ImpulsePosition( GridWidth / 2.0f, (int) SplatRadius / 2.0f, GridDepth / 2.0f);
+const Vector3 impulse_position(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 
 void CreateObstacles(SurfacePod dest)
 {
@@ -414,12 +414,13 @@ void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod des
     ResetState();
 }
 
-void ApplyImpulse(SurfacePod dest, Vector3 position, float value)
+void ApplyImpulse(SurfacePod dest, Vector3 position, Vector3 hotspot, float value)
 {
     GLuint p = Programs.ApplyImpulse;
     glUseProgram(p);
 
-    SetUniform("Point", position);
+    SetUniform("center_point", position);
+    SetUniform("hotspot", hotspot);
     SetUniform("Radius", SplatRadius);
     SetUniform("FillColor", Vector3(value, value, value));
 
