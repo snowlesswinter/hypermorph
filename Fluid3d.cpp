@@ -7,11 +7,12 @@ using std::string;
 static struct {
     SlabPod Velocity;
     SlabPod Density;
-    SlabPod Pressure;
     SlabPod Temperature;
 } Slabs;
 
-static struct {
+static struct
+{
+    SurfacePod Pressure;
     SurfacePod Divergence;
     SurfacePod Obstacles;
     SurfacePod HiresObstacles;
@@ -57,8 +58,8 @@ void PezInitialize()
 
     Slabs.Velocity = CreateSlab(GridWidth, GridHeight, GridDepth, 3);
     Slabs.Density = CreateSlab(GridWidth, GridHeight, GridDepth, 1);
-    Slabs.Pressure = CreateSlab(GridWidth, GridHeight, GridDepth, 1);
     Slabs.Temperature = CreateSlab(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.Pressure = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     Surfaces.Divergence = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     InitSlabOps();
     Surfaces.Obstacles = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
@@ -123,7 +124,8 @@ void PezUpdate(unsigned int microseconds)
             impulse_position.getX();
         double hotspot_z = sin(time_elapsed * Pi) * SplatRadius * 0.8 +
             impulse_position.getZ();
-        Vector3 hotspot(hotspot_x, 0, hotspot_z);
+        Vector3 hotspot(static_cast<float>(hotspot_x), 0,
+                        static_cast<float>(hotspot_z));
 
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
@@ -139,8 +141,8 @@ void PezUpdate(unsigned int microseconds)
         ApplyImpulse(Slabs.Temperature.Ping, impulse_position, hotspot, ImpulseTemperature);
         ApplyImpulse(Slabs.Density.Ping, impulse_position, hotspot, ImpulseDensity);
         ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
-        SolvePressure(&Slabs.Pressure, Surfaces.Divergence, Surfaces.Obstacles);
-        SubtractGradient(Slabs.Velocity.Ping, Slabs.Pressure.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong);
+        SolvePressure(Surfaces.Pressure, Surfaces.Divergence, Surfaces.Obstacles);
+        SubtractGradient(Slabs.Velocity.Ping, Surfaces.Pressure, Surfaces.Obstacles, Slabs.Velocity.Pong);
         SwapSurfaces(&Slabs.Velocity);
     }
 }

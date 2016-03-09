@@ -358,7 +358,7 @@ void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, Surfac
     ResetState();
 }
 
-void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, SurfacePod dest)
+void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)
 {
     GLuint p = Programs.Jacobi;
     glUseProgram(p);
@@ -368,18 +368,19 @@ void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, Su
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, pressure.FboHandle);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
     ResetState();
 }
 
-void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, SurfacePod dest)
+void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
+                  SurfacePod obstacles)
 {
     GLuint p = Programs.DampedJacobi;
     glUseProgram(p);
@@ -390,42 +391,43 @@ void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacl
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, pressure.FboHandle);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
     ResetState();
 }
 
-void SolvePressure(SlabPod* pressure_slab, SurfacePod divergence, SurfacePod obstacles)
+void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence,
+                              SurfacePod obstacles)
+{
+}
+
+void SolvePressure(SurfacePod pressure, SurfacePod divergence,
+                   SurfacePod obstacles)
 {
     switch (kSolverChoice)
     {
         case POISSON_SOLVER_JACOBI:
-            ClearSurface(pressure_slab->Ping, 0);
+        case POISSON_SOLVER_GAUSS_SEIDEL: // Bad in parallelism. Hard to be
+                                          // implemented by shader.
+            ClearSurface(pressure, 0);
             for (int i = 0; i < NumJacobiIterations; ++i) {
-                Jacobi(pressure_slab->Ping, divergence, obstacles,
-                       pressure_slab->Pong);
-                SwapSurfaces(pressure_slab);
+                Jacobi(pressure, divergence, obstacles);
             }
             break;
         case POISSON_SOLVER_DAMPED_JACOBI:
-            ClearSurface(pressure_slab->Ping, 0);
-            ClearSurface(pressure_slab->Pong, 0);
-            for (int i = 0; i < NumJacobiIterations; ++i)
-            {
-                DampedJacobi(pressure_slab->Ping, divergence, obstacles,
-                             pressure_slab->Pong);
-                SwapSurfaces(pressure_slab);
+            ClearSurface(pressure, 0);
+            for (int i = 0; i < NumJacobiIterations; ++i) {
+                DampedJacobi(pressure, divergence, obstacles);
             }
             break;
-        case POISSON_SOLVER_GAUSS_SEIDEL:
-            break;
         case POISSON_SOLVER_MULTI_GRID:
+            SolvePressureByMultiGrid(pressure, divergence, obstacles);
             break;
         default:
             break;
