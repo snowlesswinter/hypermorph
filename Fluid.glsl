@@ -64,6 +64,9 @@ void main()
 
     vec3 coord = fragCoord - TimeStep * u;
 
+    FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
+    return;
+
     // Boundary check
     ivec3 tex_size = textureSize(VelocityTexture, 0);
     ivec3 icoord = ivec3(coord);
@@ -71,9 +74,9 @@ void main()
             (icoord.x > tex_size.x - 1) || (icoord.x < 0) ||
             (icoord.z > tex_size.z - 1) || (icoord.z < 0)) {
         // Why not FragColor = vec4(0); ????
-        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord);
+        FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
     } else {
-        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord);
+        FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
     }
 }
 
@@ -126,6 +129,59 @@ void main()
 
     vec4 bC = texelFetch(Divergence, T, 0);
     FragColor = (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
+}
+
+-- DampedJacobi
+
+out vec4 FragColor;
+
+uniform sampler3D Pressure;
+uniform sampler3D Divergence;
+uniform sampler3D Obstacles;
+
+uniform float one_minus_omega;
+uniform float Alpha;
+uniform float InverseBeta;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
+
+    // Find neighboring pressure:
+    vec4 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0));
+    vec4 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0));
+    vec4 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0));
+    vec4 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0));
+    vec4 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1));
+    vec4 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1));
+    vec4 pC = texelFetch(Pressure, T, 0);
+
+    // Handle boundary problem
+    // Use center pressure for solid cells
+    ivec3 tex_size = textureSize(Pressure, 0);
+    if (T.y >= tex_size.y - 1)
+        pN = pC;
+
+    if (T.y <= 0)
+        pS = pC;
+
+    if (T.x >= tex_size.x - 1)
+        pE = pC;
+
+    if (T.x <= 0)
+        pW = pC;
+
+    if (T.z >= tex_size.z - 1)
+        pU = pC;
+
+    if (T.z <= 0)
+        pD = pC;
+
+    vec4 bC = texelFetch(Divergence, T, 0);
+    FragColor = one_minus_omega * pC +
+        (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
 }
 
 -- SubtractGradient

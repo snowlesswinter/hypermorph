@@ -8,6 +8,7 @@ using namespace vmath;
 static struct {
     GLuint Advect;
     GLuint Jacobi;
+    GLuint DampedJacobi;
     GLuint SubtractGradient;
     GLuint ComputeDivergence;
     GLuint ApplyImpulse;
@@ -16,7 +17,7 @@ static struct {
 
 const float CellSize = 0.15f;
 const int ViewportWidth = 512;
-const int GridWidth = 108;
+const int GridWidth = 128;
 const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
@@ -27,11 +28,12 @@ const float ImpulseDensity = 4.0f;
 const int NumJacobiIterations = 40;
 //const float TimeStep = 0.25f;
 const float SmokeBuoyancy = 1.0f;
-const float SmokeWeight = 0.0125f;
+const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
-const float VelocityDissipation = 0.99f;
-const float DensityDissipation = 0.9980f;
+const float VelocityDissipation = 0.999f;
+const float DensityDissipation = 0.999f;
+const PoissonSolver kSolverChoice = POISSON_SOLVER_DAMPED_JACOBI;
 const Vector3 impulse_position(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 
 void CreateObstacles(SurfacePod dest)
@@ -313,6 +315,7 @@ void InitSlabOps()
 {
     Programs.Advect = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Advect");
     Programs.Jacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Jacobi");
+    Programs.DampedJacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.DampedJacobi");
     Programs.SubtractGradient = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.SubtractGradient");
     Programs.ComputeDivergence = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.ComputeDivergence");
     Programs.ApplyImpulse = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Splat");
@@ -374,6 +377,59 @@ void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, Su
     glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
+}
+
+void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, SurfacePod dest)
+{
+    GLuint p = Programs.DampedJacobi;
+    glUseProgram(p);
+
+    SetUniform("Alpha", -CellSize * CellSize);
+    SetUniform("InverseBeta", 0.111111f);
+    SetUniform("one_minus_omega", 0.333333f);
+    SetUniform("Divergence", 1);
+    SetUniform("Obstacles", 2);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+    ResetState();
+}
+
+void SolvePressure(SlabPod* pressure_slab, SurfacePod divergence, SurfacePod obstacles)
+{
+    switch (kSolverChoice)
+    {
+        case POISSON_SOLVER_JACOBI:
+            ClearSurface(pressure_slab->Ping, 0);
+            for (int i = 0; i < NumJacobiIterations; ++i) {
+                Jacobi(pressure_slab->Ping, divergence, obstacles,
+                       pressure_slab->Pong);
+                SwapSurfaces(pressure_slab);
+            }
+            break;
+        case POISSON_SOLVER_DAMPED_JACOBI:
+            ClearSurface(pressure_slab->Ping, 0);
+            ClearSurface(pressure_slab->Pong, 0);
+            for (int i = 0; i < NumJacobiIterations; ++i)
+            {
+                DampedJacobi(pressure_slab->Ping, divergence, obstacles,
+                             pressure_slab->Pong);
+                SwapSurfaces(pressure_slab);
+            }
+            break;
+        case POISSON_SOLVER_GAUSS_SEIDEL:
+            break;
+        case POISSON_SOLVER_MULTI_GRID:
+            break;
+        default:
+            break;
+    }
 }
 
 void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest)

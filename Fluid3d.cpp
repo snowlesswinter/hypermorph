@@ -139,11 +139,7 @@ void PezUpdate(unsigned int microseconds)
         ApplyImpulse(Slabs.Temperature.Ping, impulse_position, hotspot, ImpulseTemperature);
         ApplyImpulse(Slabs.Density.Ping, impulse_position, hotspot, ImpulseDensity);
         ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
-        ClearSurface(Slabs.Pressure.Ping, 0);
-        for (int i = 0; i < NumJacobiIterations; ++i) {
-            Jacobi(Slabs.Pressure.Ping, Surfaces.Divergence, Surfaces.Obstacles, Slabs.Pressure.Pong);
-            SwapSurfaces(&Slabs.Pressure);
-        }
+        SolvePressure(&Slabs.Pressure, Surfaces.Divergence, Surfaces.Obstacles);
         SubtractGradient(Slabs.Velocity.Ping, Slabs.Pressure.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong);
         SwapSurfaces(&Slabs.Velocity);
     }
