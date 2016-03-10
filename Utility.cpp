@@ -315,6 +315,25 @@ void ClearSurface(SurfacePod s, float v)
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
+void RenderMesh(const MeshPod& mesh)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.positions_buffer_);
+    glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
+                          3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(SlotPosition);
+
+    if (mesh.coords_buffer_)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.coords_buffer_);
+        glVertexAttribPointer(SlotTexCoord, 2, GL_FLOAT, GL_FALSE,
+                              2 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(SlotTexCoord);
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.index_buffer_);
+    glDrawElements(GL_TRIANGLES, mesh.index_count_, GL_UNSIGNED_INT, nullptr);
+}
+
 void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation)
 {
     GLuint p = Programs.Advect;
@@ -623,4 +642,47 @@ GLuint CreateQuadVbo()
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
     return vbo;
+}
+
+MeshPod CreateQuadMesh(float left, float top, float right, float bottom)
+{
+    MeshPod pod;
+    pod.vertex_count_ = 4;
+    pod.index_count_ = 6;
+
+    float positions[] = {
+        left, top, 0,
+        right, top, 0,
+        right, bottom, 0,
+        left, bottom, 0,
+    };
+
+    glGenBuffers(1, &pod.positions_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, pod.positions_buffer_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+
+    float texture_coords[] = {
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+    };
+
+    glGenBuffers(1, &pod.coords_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, pod.coords_buffer_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(texture_coords), texture_coords,
+                 GL_STATIC_DRAW);
+
+    int faces[] = {3, 2, 1, 1, 0, 3};
+    int facesAnti[] = {0, 1, 2, 0, 2, 3};
+
+    int* p = faces;
+    if (top < bottom)
+        p = facesAnti;
+
+    glGenBuffers(1, &pod.index_buffer_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pod.index_buffer_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), p, GL_STATIC_DRAW);
+
+    return pod;
 }

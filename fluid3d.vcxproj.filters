@@ -19,6 +19,8 @@
     <ClInclude Include="vmath.hpp" />
     <ClInclude Include="raycast_shader.h" />
     <ClInclude Include="fluid_shader.h" />
+    <ClInclude Include="overlay_content.h" />
+    <ClInclude Include="overlay_shader.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -43,5 +45,7 @@
     <ClCompile Include="pez.win.c" />
     <ClCompile Include="raycast_shader.cpp" />
     <ClCompile Include="fluid_shader.cpp" />
+    <ClCompile Include="overlay_content.cpp" />
+    <ClCompile Include="overlay_shader.cpp" />
   </ItemGroup>
 </Project>

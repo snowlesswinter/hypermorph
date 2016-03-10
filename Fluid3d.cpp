@@ -1,12 +1,16 @@
 #include "Utility.h"
 #include <cmath>
+#include <algorithm>
 
 #include "raycast_shader.h"
+#include "overlay_content.h"
 
 using namespace vmath;
 using std::string;
 
-static struct
+namespace
+{
+struct
 {
     SurfacePod Velocity;
     SurfacePod density_;
@@ -14,29 +18,33 @@ static struct
     SurfacePod Pressure;
 } Surfaces;
 
-static struct
+struct
 {
     SurfacePod general_buffer_1;
     SurfacePod general_buffer_3;
 } general_buffers;
 
-static struct {
+struct
+{
     Matrix4 Projection;
     Matrix4 Modelview;
     Matrix4 View;
     Matrix4 ModelviewProjection;
 } Matrices;
 
-static struct {
+struct
+{
     GLuint CubeCenter;
     GLuint FullscreenQuad;
 } Vbos;
 
-static ITrackball* track_ball;
-static Point3 EyePosition;
-static GLuint RaycastProgram;
-static float FieldOfView = 0.7f;
-static bool SimulateFluid = true;
+ITrackball* track_ball;
+Point3 EyePosition;
+GLuint RaycastProgram;
+float FieldOfView = 0.7f;
+bool SimulateFluid = true;
+OverlayContent overlay;
+}
 
 PezConfig PezGetConfig()
 {
@@ -96,6 +104,8 @@ void PezRender()
     SetUniform("FocalLength", 1.0f / std::tan(FieldOfView / 2));
     SetUniform("WindowSize", float(cfg.Width), float(cfg.Height));
     glDrawArrays(GL_POINTS, 0, 1);
+
+    overlay.RenderText("text");
 }
 
 void PezUpdate(unsigned int microseconds)
@@ -183,7 +193,7 @@ void PezHandleMouse(int x, int y, int action, int delta)
     } else if (action & PEZ_MOVE) {
         track_ball->MouseMove(x, y);
     } else if (action & PEZ_WHEEL) {
-        float d = abs(delta) < 200 ? (float)delta / 500 : (float)delta / 100;
+        float d = (float)delta / 1000 * std::max(abs(track_ball->GetZoom()), 1.0f);
         track_ball->MouseWheel(x, y, -d);
     } else if (action & PEZ_DOUBLECLICK) {
         track_ball->ReturnHome();
