@@ -9,6 +9,7 @@ static struct {
     GLuint Advect;
     GLuint Jacobi;
     GLuint DampedJacobi;
+    GLuint compute_residual;
     GLuint SubtractGradient;
     GLuint ComputeDivergence;
     GLuint ApplyImpulse;
@@ -195,14 +196,6 @@ GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey)
     return programHandle;
 }
 
-SlabPod CreateSlab(GLsizei width, GLsizei height, GLsizei depth, int numComponents)
-{
-    SlabPod slab;
-    slab.Ping = CreateVolume(width, height, depth, numComponents);
-    slab.Pong = CreateVolume(width, height, depth, numComponents);
-    return slab;
-}
-
 SurfacePod CreateSurface(GLsizei width, GLsizei height, int numComponents)
 {
     GLuint fboHandle;
@@ -316,17 +309,11 @@ void InitSlabOps()
     Programs.Advect = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Advect");
     Programs.Jacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Jacobi");
     Programs.DampedJacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.DampedJacobi");
+    Programs.compute_residual = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.ComputeResidual");
     Programs.SubtractGradient = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.SubtractGradient");
     Programs.ComputeDivergence = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.ComputeDivergence");
     Programs.ApplyImpulse = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Splat");
     Programs.ApplyBuoyancy = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Buoyancy");
-}
-
-void SwapSurfaces(SlabPod* slab)
-{
-    SurfacePod temp = slab->Ping;
-    slab->Ping = slab->Pong;
-    slab->Pong = temp;
 }
 
 void ClearSurface(SurfacePod s, float v)
@@ -352,8 +339,6 @@ void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, Surfac
     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
 }
@@ -373,8 +358,6 @@ void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)
     glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
     ResetState();
 }
@@ -396,15 +379,64 @@ void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
     glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
+    ResetState();
+}
+
+void ComputeResidual(SurfacePod residual, SurfacePod divergence,
+                     SurfacePod pressure)
+{
+    GLuint p = Programs.compute_residual;
+    glUseProgram(p);
+
+    SetUniform("divergence", 1);
+    SetUniform("obstacles", 2);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, residual.ColorTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual.Depth);
     ResetState();
 }
 
 void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence,
                               SurfacePod obstacles)
 {
+    typedef std::vector<std::pair<SurfacePod, SurfacePod>> MultiGridSurfaces;
+    static MultiGridSurfaces* multi_grid_surfaces = nullptr;
+    static int level = 1;
+    if (!multi_grid_surfaces)
+    {
+        multi_grid_surfaces = new MultiGridSurfaces();
+        multi_grid_surfaces->push_back(std::make_pair(pressure, SurfacePod()));
+
+        int width = GridWidth >> 1;
+        while (width)
+        {
+            multi_grid_surfaces->push_back(
+                std::make_pair(
+                    CreateVolume(width, width, width, 1), SurfacePod()));
+            level++;
+            width >>= 1;
+        }
+
+        for (auto& i : *multi_grid_surfaces) {
+            i.second = CreateVolume(i.first.Width, i.first.Height,
+                                    i.first.Depth, 1);
+        }
+    }
+
+    for (int i = 0; i < level; i++)
+    {
+        MultiGridSurfaces::value_type surface = (*multi_grid_surfaces)[i];
+        ClearSurface(surface.first, 0);
+        DampedJacobi(surface.first, divergence, obstacles);
+        DampedJacobi(surface.first, divergence, obstacles);
+    }
 }
 
 void SolvePressure(SurfacePod pressure, SurfacePod divergence,
@@ -449,8 +481,6 @@ void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obsta
     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
 }
@@ -466,8 +496,6 @@ void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod des
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, obstacles.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
 }

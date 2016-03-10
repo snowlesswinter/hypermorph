@@ -33,11 +33,6 @@ struct SurfacePod {
     GLsizei Depth;
 };
 
-struct SlabPod {
-    SurfacePod Ping;
-    SurfacePod Pong;
-};
-
 enum PoissonSolver
 {
     POISSON_SOLVER_JACOBI,
@@ -62,13 +57,12 @@ SurfacePod CreateVolume(int width, int height, int depth, int numComponents = 4)
 GLuint CreatePointVbo(float x, float y, float z);
 GLuint CreateQuadVbo();
 void CreateObstacles(SurfacePod dest);
-SlabPod CreateSlab(GLsizei width, GLsizei height, GLsizei depth, int numComponents);
 void InitSlabOps();
-void SwapSurfaces(SlabPod* slab);
 void ClearSurface(SurfacePod s, float v);
 void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
+void ComputeResidual(SurfacePod residual, SurfacePod divergence, SurfacePod pressure);
 void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void SolvePressure(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest);

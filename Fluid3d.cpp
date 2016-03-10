@@ -4,19 +4,19 @@
 using namespace vmath;
 using std::string;
 
-static struct {
-    SlabPod Velocity;
-    SlabPod Density;
-    SlabPod Temperature;
-} Slabs;
+static struct
+{
+    SurfacePod Velocity;
+    SurfacePod density_;
+    SurfacePod temperature_;
+    SurfacePod Pressure;
+} Surfaces;
 
 static struct
 {
-    SurfacePod Pressure;
-    SurfacePod Divergence;
-    SurfacePod Obstacles;
-    SurfacePod HiresObstacles;
-} Surfaces;
+    SurfacePod general_buffer_1;
+    SurfacePod general_buffer_3;
+} general_buffers;
 
 static struct {
     Matrix4 Projection;
@@ -38,7 +38,7 @@ static bool SimulateFluid = true;
 
 PezConfig PezGetConfig()
 {
-    PezConfig config;
+    static PezConfig config;
     config.Title = "Fluid3d";
     config.Width = ViewportWidth;
     config.Height = ViewportHeight;
@@ -56,15 +56,14 @@ void PezInitialize()
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
-    Slabs.Velocity = CreateSlab(GridWidth, GridHeight, GridDepth, 3);
-    Slabs.Density = CreateSlab(GridWidth, GridHeight, GridDepth, 1);
-    Slabs.Temperature = CreateSlab(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.Velocity = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+    Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     Surfaces.Pressure = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    Surfaces.Divergence = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+    general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    general_buffers.general_buffer_3 = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     InitSlabOps();
-    Surfaces.Obstacles = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
-    CreateObstacles(Surfaces.Obstacles);
-    ClearSurface(Slabs.Temperature.Ping, AmbientTemperature);
+    ClearSurface(Surfaces.temperature_, AmbientTemperature);
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -82,7 +81,7 @@ void PezRender()
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D, Slabs.Density.Ping.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, Surfaces.density_.ColorTexture);
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -130,20 +129,41 @@ void PezUpdate(unsigned int microseconds)
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
-        Advect(Slabs.Velocity.Ping, Slabs.Velocity.Ping, Surfaces.Obstacles, Slabs.Velocity.Pong, delta_time, VelocityDissipation);
-        SwapSurfaces(&Slabs.Velocity);
-        Advect(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Surfaces.Obstacles, Slabs.Temperature.Pong, delta_time, TemperatureDissipation);
-        SwapSurfaces(&Slabs.Temperature);
-        Advect(Slabs.Velocity.Ping, Slabs.Density.Ping, Surfaces.Obstacles, Slabs.Density.Pong, delta_time, DensityDissipation);
-        SwapSurfaces(&Slabs.Density);
-        ApplyBuoyancy(Slabs.Velocity.Ping, Slabs.Temperature.Ping, Slabs.Density.Ping, Slabs.Velocity.Pong, delta_time);
-        SwapSurfaces(&Slabs.Velocity);
-        ApplyImpulse(Slabs.Temperature.Ping, impulse_position, hotspot, ImpulseTemperature);
-        ApplyImpulse(Slabs.Density.Ping, impulse_position, hotspot, ImpulseDensity);
-        ComputeDivergence(Slabs.Velocity.Ping, Surfaces.Obstacles, Surfaces.Divergence);
-        SolvePressure(Surfaces.Pressure, Surfaces.Divergence, Surfaces.Obstacles);
-        SubtractGradient(Slabs.Velocity.Ping, Surfaces.Pressure, Surfaces.Obstacles, Slabs.Velocity.Pong);
-        SwapSurfaces(&Slabs.Velocity);
+
+        // Advect velocity
+        Advect(Surfaces.Velocity, Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
+
+        // Advect temperature
+        ClearSurface(general_buffers.general_buffer_1, 0);
+        Advect(Surfaces.Velocity, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
+        std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
+
+        // Advect density
+        ClearSurface(general_buffers.general_buffer_1, 0);
+        Advect(Surfaces.Velocity, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
+        std::swap(Surfaces.density_, general_buffers.general_buffer_1);
+
+        // Apply buoyancy and gravity
+        ApplyBuoyancy(Surfaces.Velocity, Surfaces.temperature_, Surfaces.density_, general_buffers.general_buffer_3, delta_time);
+        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
+
+        // Splat new smoke
+        ApplyImpulse(Surfaces.temperature_, impulse_position, hotspot, ImpulseTemperature);
+        ApplyImpulse(Surfaces.density_, impulse_position, hotspot, ImpulseDensity);
+
+        // Calculate divergence
+        ClearSurface(general_buffers.general_buffer_1, 0);
+
+        // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
+        ComputeDivergence(Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_1);
+
+        // Solve pressure-velocity Poisson equation
+        SolvePressure(Surfaces.Pressure, general_buffers.general_buffer_1, SurfacePod());
+
+        // Rectify velocity via the gradient of pressure
+        SubtractGradient(Surfaces.Velocity, Surfaces.Pressure, SurfacePod(), general_buffers.general_buffer_3);
+        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
     }
 }
 

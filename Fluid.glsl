@@ -150,13 +150,13 @@ void main()
     ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
 
     // Find neighboring pressure:
-    vec4 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0));
-    vec4 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0));
-    vec4 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0));
-    vec4 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0));
-    vec4 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1));
-    vec4 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1));
-    vec4 pC = texelFetch(Pressure, T, 0);
+    vec3 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0)).xyz;
+    vec3 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0)).xyz;
+    vec3 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0)).xyz;
+    vec3 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0)).xyz;
+    vec3 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1)).xyz;
+    vec3 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1)).xyz;
+    vec3 pC = texelFetch(Pressure, T, 0).xyz;
 
     // Handle boundary problem
     // Use center pressure for solid cells
@@ -179,9 +179,63 @@ void main()
     if (T.z <= 0)
         pD = pC;
 
-    vec4 bC = texelFetch(Divergence, T, 0);
-    FragColor = one_minus_omega * pC +
-        (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
+    vec3 bC = texelFetch(Divergence, T, 0).xyz;
+    FragColor =
+        vec4(
+            one_minus_omega * pC +
+                (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta,
+            1.0);
+}
+
+-- ComputeResidual
+
+out vec4 frag_color;
+
+uniform sampler3D residual;
+uniform sampler3D divergence;
+uniform sampler3D pressure;
+
+uniform float inverse_h_square;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
+
+    // Find neighboring pressure:
+    vec3 pN = texelFetchOffset(pressure, coord, 0, ivec3(0, 1, 0)).xyz;
+    vec3 pS = texelFetchOffset(pressure, coord, 0, ivec3(0, -1, 0)).xyz;
+    vec3 pE = texelFetchOffset(pressure, coord, 0, ivec3(1, 0, 0)).xyz;
+    vec3 pW = texelFetchOffset(pressure, coord, 0, ivec3(-1, 0, 0)).xyz;
+    vec3 pU = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, 1)).xyz;
+    vec3 pD = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, -1)).xyz;
+    vec3 pC = texelFetch(pressure, coord, 0).xyz;
+
+    // Handle boundary problem
+    // Use center pressure for solid cells
+    ivec3 tex_size = textureSize(pressure, 0);
+    if (coord.y >= tex_size.y - 1)
+        pN = pC;
+
+    if (coord.y <= 0)
+        pS = pC;
+
+    if (coord.x >= tex_size.x - 1)
+        pE = pC;
+
+    if (coord.x <= 0)
+        pW = pC;
+
+    if (coord.z >= tex_size.z - 1)
+        pU = pC;
+
+    if (coord.z <= 0)
+        pD = pC;
+
+    vec3 bC = texelFetch(divergence, coord, 0).xyz;
+    frag_color = vec4(
+        (pW + pE + pS + pN + pU + pD - 6.0 * pC) * inverse_h_square - bC, 1.0);
 }
 
 -- SubtractGradient
