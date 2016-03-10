@@ -21,6 +21,7 @@
     <ClInclude Include="fluid_shader.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="overlay_shader.h" />
+    <ClInclude Include="metrics.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -47,5 +48,6 @@
     <ClCompile Include="fluid_shader.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="overlay_shader.cpp" />
+    <ClCompile Include="metrics.cpp" />
   </ItemGroup>
 </Project>

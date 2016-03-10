@@ -153,7 +153,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             previousTime = currentTime;
 
             PezUpdate((unsigned int) deltaTime);
-            PezRender(0);
+            PezRender((float)((double)currentTime.QuadPart / freqTime.QuadPart));
             SwapBuffers(hDC);
             PezCheckCondition(glGetError() == GL_NO_ERROR, "OpenGL error.\n");
         }
@@ -170,32 +170,40 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     int y = HIWORD(lParam);
     switch (msg)
     {
-        case WM_LBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_LEFT, 0.0f); break;
+        case WM_LBUTTONDBLCLK:
+            PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_LEFT, 0);
+            break;
         
         case WM_LBUTTONUP:
             SetCursor(LoadCursor(0, IDC_ARROW));
-            PezHandleMouse(x, y, PEZ_UP | PEZ_LEFT, 0.0f);
+            PezHandleMouse(x, y, PEZ_UP | PEZ_LEFT, 0);
             break;
 
         case WM_LBUTTONDOWN:
             SetCursor(LoadCursor(0, IDC_HAND));
-            PezHandleMouse(x, y, PEZ_DOWN | PEZ_LEFT, 0.0f);
+            PezHandleMouse(x, y, PEZ_DOWN | PEZ_LEFT, 0);
             break;
 
-        case WM_RBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_RIGHT, 0.0f); break;
-        case WM_RBUTTONUP: PezHandleMouse(x, y, PEZ_UP | PEZ_RIGHT, 0.0f); break;
-        case WM_RBUTTONDOWN: PezHandleMouse(x, y, PEZ_DOWN | PEZ_RIGHT, 0.0f); break;
+        case WM_RBUTTONDBLCLK:
+            PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_RIGHT, 0);
+            break;
+        case WM_RBUTTONUP:
+            PezHandleMouse(x, y, PEZ_UP | PEZ_RIGHT, 0);
+            break;
+        case WM_RBUTTONDOWN:
+            PezHandleMouse(x, y, PEZ_DOWN | PEZ_RIGHT, 0);
+            break;
 
         case WM_MOUSEMOVE:
             if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
-                PezHandleMouse(x, y, PEZ_MOVE | PEZ_LEFT, 0.0f);
+                PezHandleMouse(x, y, PEZ_MOVE | PEZ_LEFT, 0);
                 SetCursor(LoadCursor(0, IDC_HAND));
             } else {
                 SetCursor(LoadCursor(0, IDC_ARROW));
             }
 
             if (GetAsyncKeyState(VK_RBUTTON) & 0x8000)
-                PezHandleMouse(x, y, PEZ_MOVE | PEZ_RIGHT, 0.0f);
+                PezHandleMouse(x, y, PEZ_MOVE | PEZ_RIGHT, 0);
             break;
 
         case WM_KEYDOWN:
@@ -316,41 +324,7 @@ void PezCheckCondition(int condition, ...)
 
 #endif
 
-const char* PezGetDesktopFolder()
-{
-    HKEY hKey;
-    static char lszValue[255];
-    DWORD dwType=REG_SZ;
-    DWORD dwSize=255;
-    RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders", 0L, KEY_READ , &hKey);
-    RegQueryValueEx(hKey, "Desktop", NULL, &dwType,(LPBYTE)&lszValue, &dwSize);
-    return lszValue;
-}
-
 const char* PezGetAssetsFolder()
 {
     return "../";
-}
-
-const char* PezOpenFileDialog()
-{
-    static TCHAR szFile[MAX_PATH] = TEXT("\0");
-    OPENFILENAME ofn;
-    HANDLE hFile = INVALID_HANDLE_VALUE;
-    DWORD dwFileSize = 0, bytesToRead = 0, bytesRead = 0;
-    memset( &(ofn), 0, sizeof(ofn));
-    ofn.lStructSize   = sizeof(ofn);
-    ofn.hwndOwner = 0;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = TEXT("XML (*.xml)\0 *.xml\0");  
-    ofn.lpstrTitle = TEXT("Open File");
-    ofn.Flags = OFN_EXPLORER;
-
-    if (GetOpenFileName(&ofn))
-    {
-        return ofn.lpstrFile;
-    }
-
-    return 0;
 }

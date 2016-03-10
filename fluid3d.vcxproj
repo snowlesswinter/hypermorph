@@ -83,6 +83,7 @@
     <ClInclude Include="glew.h" />
     <ClInclude Include="glew.win.h" />
     <ClInclude Include="glsw.h" />
+    <ClInclude Include="metrics.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="overlay_shader.h" />
     <ClInclude Include="pez.h" />
@@ -107,6 +108,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="metrics.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="overlay_shader.cpp" />
     <ClCompile Include="pez.win.c">

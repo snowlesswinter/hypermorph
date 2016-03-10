@@ -1,9 +1,11 @@
 #include "Utility.h"
 #include <cmath>
 #include <algorithm>
+#include <sstream>
 
 #include "raycast_shader.h"
 #include "overlay_content.h"
+#include "metrics.h"
 
 using namespace vmath;
 using std::string;
@@ -43,7 +45,8 @@ Point3 EyePosition;
 GLuint RaycastProgram;
 float FieldOfView = 0.7f;
 bool SimulateFluid = true;
-OverlayContent overlay;
+OverlayContent overlay_;
+Metrics metrics_;
 }
 
 PezConfig PezGetConfig()
@@ -81,7 +84,7 @@ void PezInitialize()
     glEnableVertexAttribArray(SlotPosition);
 }
 
-void PezRender()
+void PezRender(float current_time)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     PezConfig cfg = PezGetConfig();
@@ -105,7 +108,11 @@ void PezRender()
     SetUniform("WindowSize", float(cfg.Width), float(cfg.Height));
     glDrawArrays(GL_POINTS, 0, 1);
 
-    overlay.RenderText("text");
+    metrics_.OnFrameRendered(current_time);
+    std::stringstream text;
+    text.precision(2);
+    text << std::fixed << metrics_.GetFrameRate(current_time) << " f/s";
+    overlay_.RenderText(text.str());
 }
 
 void PezUpdate(unsigned int microseconds)

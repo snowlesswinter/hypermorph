@@ -16,7 +16,7 @@ extern "C" {
 // Implemented by the application code:
 PezConfig PezGetConfig();
 void PezInitialize();
-void PezRender();
+void PezRender(float current_time);
 void PezUpdate(unsigned int microseconds);
 void PezHandleMouse(int x, int y, int action, int delta);
 void PezHandleKey(char c);
@@ -29,7 +29,6 @@ void PezFatalError(const char* pStr, ...);
 void PezFatalErrorW(const wchar_t* pStr, ...);
 void PezCheckCondition(int condition, ...);
 void PezCheckConditionW(int condition, ...);
-const char* PezGetAssetsFolder();
 
 #ifdef __cplusplus
 }
