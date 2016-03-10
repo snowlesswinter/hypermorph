@@ -1,6 +1,9 @@
+#include "stdafx.h"
+#include "fluid_shader.h"
 
--- Vertex
-
+std::string FluidShader::GetVertexShaderCode()
+{
+    return R"(
 in vec4 Position;
 out int vInstance;
 
@@ -9,18 +12,12 @@ void main()
     gl_Position = Position;
     vInstance = gl_InstanceID;
 }
-
--- Fill
-
-out vec3 FragColor;
-
-void main()
-{
-    FragColor = vec3(1, 0, 0);
+)";
 }
 
--- PickLayer
-
+std::string FluidShader::GetPickLayerShaderCode()
+{
+    return R"(
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
  
@@ -41,9 +38,24 @@ void main()
     EmitVertex();
     EndPrimitive();
 }
+)";
+}
 
--- Advect
+std::string FluidShader::GetFillShaderCode()
+{
+    return R"(
+out vec3 FragColor;
 
+void main()
+{
+    FragColor = vec3(1, 0, 0);
+}
+)";
+}
+
+std::string FluidShader::GetAvectShaderCode()
+{
+    return R"(
 out vec4 FragColor;
 
 uniform sampler3D VelocityTexture;
@@ -79,9 +91,12 @@ void main()
         FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
     }
 }
+)";
+}
 
--- Jacobi
-
+std::string FluidShader::GetJacobiShaderCode()
+{
+    return R"(
 out vec4 FragColor;
 
 uniform sampler3D Pressure;
@@ -130,9 +145,12 @@ void main()
     vec4 bC = texelFetch(Divergence, T, 0);
     FragColor = (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
 }
+)";
+}
 
--- DampedJacobi
-
+std::string FluidShader::GetDampedJacobiShaderCode()
+{
+    return R"(
 out vec4 FragColor;
 
 uniform sampler3D Pressure;
@@ -186,9 +204,12 @@ void main()
                 (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta,
             1.0);
 }
+)";
+}
 
--- ComputeResidual
-
+std::string FluidShader::GetComputeResidualShaderCode()
+{
+    return R"(
 out vec4 frag_color;
 
 uniform sampler3D residual;
@@ -237,9 +258,65 @@ void main()
     frag_color = vec4(
         (pW + pE + pS + pN + pU + pD - 6.0 * pC) * inverse_h_square - bC, 1.0);
 }
+)";
+}
 
--- SubtractGradient
+std::string FluidShader::GetComputeDivergenceShaderCode()
+{
+    return R"(
+out float FragColor;
 
+uniform sampler3D Velocity;
+uniform sampler3D Obstacles;
+uniform float HalfInverseCellSize;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
+
+    // Find neighboring velocities:
+    vec3 vN = texelFetchOffset(Velocity, T, 0, ivec3(0, 1, 0)).xyz;
+    vec3 vS = texelFetchOffset(Velocity, T, 0, ivec3(0, -1, 0)).xyz;
+    vec3 vE = texelFetchOffset(Velocity, T, 0, ivec3(1, 0, 0)).xyz;
+    vec3 vW = texelFetchOffset(Velocity, T, 0, ivec3(-1, 0, 0)).xyz;
+    vec3 vU = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, 1)).xyz;
+    vec3 vD = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, -1)).xyz;
+    vec3 vC = texelFetch(Velocity, T, 0).xyz;
+
+    float diff_ew = vE.x - vW.x;
+    float diff_ns = vN.y - vS.y;
+    float diff_ud = vU.z - vD.z;
+
+    // Handle boundary problem
+    ivec3 tex_size = textureSize(Velocity, 0);
+    if (T.x >= tex_size.x - 1)
+        diff_ew = -vC.x - vW.x;
+
+    if (T.x <= 0)
+        diff_ew = vE.x + vC.x;
+
+    if (T.y >= tex_size.y - 1)
+        diff_ns = -vC.y - vS.y;
+
+    if (T.y <= 0)
+        diff_ns = vN.y + vC.y;
+
+    if (T.z >= tex_size.z - 1)
+        diff_ud = -vC.z - vD.z;
+
+    if (T.z <= 0)
+        diff_ud = vU.z + vC.z;
+
+    FragColor = HalfInverseCellSize * (diff_ew + diff_ns + diff_ud);
+}
+)";
+}
+
+std::string FluidShader::GetSubtractGradientShaderCode()
+{
+    return R"(
 out vec3 FragColor;
 
 uniform sampler3D Velocity;
@@ -303,59 +380,12 @@ void main()
     vec3 newV = oldV - grad;
     FragColor = vMask * newV;
 }
-
--- ComputeDivergence
-
-out float FragColor;
-
-uniform sampler3D Velocity;
-uniform sampler3D Obstacles;
-uniform float HalfInverseCellSize;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
-
-    // Find neighboring velocities:
-    vec3 vN = texelFetchOffset(Velocity, T, 0, ivec3(0, 1, 0)).xyz;
-    vec3 vS = texelFetchOffset(Velocity, T, 0, ivec3(0, -1, 0)).xyz;
-    vec3 vE = texelFetchOffset(Velocity, T, 0, ivec3(1, 0, 0)).xyz;
-    vec3 vW = texelFetchOffset(Velocity, T, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 vU = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, 1)).xyz;
-    vec3 vD = texelFetchOffset(Velocity, T, 0, ivec3(0, 0, -1)).xyz;
-    vec3 vC = texelFetch(Velocity, T, 0).xyz;
-
-    float diff_ew = vE.x - vW.x;
-    float diff_ns = vN.y - vS.y;
-    float diff_ud = vU.z - vD.z;
-
-    // Handle boundary problem
-    ivec3 tex_size = textureSize(Velocity, 0);
-    if (T.x >= tex_size.x - 1)
-        diff_ew = -vC.x - vW.x;
-
-    if (T.x <= 0)
-        diff_ew = vE.x + vC.x;
-
-    if (T.y >= tex_size.y - 1)
-        diff_ns = -vC.y - vS.y;
-
-    if (T.y <= 0)
-        diff_ns = vN.y + vC.y;
-
-    if (T.z >= tex_size.z - 1)
-        diff_ud = -vC.z - vD.z;
-
-    if (T.z <= 0)
-        diff_ud = vU.z + vC.z;
-
-    FragColor = HalfInverseCellSize * (diff_ew + diff_ns + diff_ud);
+)";
 }
 
--- Splat
-
+std::string FluidShader::GetSplatShaderCode()
+{
+    return R"(
 out vec4 FragColor;
 
 uniform vec3 center_point;
@@ -379,9 +409,12 @@ void main()
 
     FragColor = vec4(0);
 }
+)";
+}
 
--- Buoyancy
-
+std::string FluidShader::GetBuoyancyShaderCode()
+{
+    return R"(
 out vec3 FragColor;
 uniform sampler3D Velocity;
 uniform sampler3D Temperature;
@@ -405,4 +438,6 @@ void main()
         float D = texelFetch(Density, TC, 0).x;
         FragColor += TimeStep * ((T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, 1, 0);
     }
+}
+)";
 }

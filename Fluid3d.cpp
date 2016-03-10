@@ -1,6 +1,8 @@
 #include "Utility.h"
 #include <cmath>
 
+#include "raycast_shader.h"
+
 using namespace vmath;
 using std::string;
 
@@ -52,7 +54,7 @@ void PezInitialize()
     PezConfig cfg = PezGetConfig();
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
-    RaycastProgram = LoadProgram("Raycast.VS", "Raycast.GS", "Raycast.FS");
+    RaycastProgram = LoadProgram(RaycastShader::GetVertexShaderCode(), RaycastShader::GetGeometryShaderCode(), RaycastShader::GetFragmentShaderCode());
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
@@ -120,9 +122,9 @@ void PezUpdate(unsigned int microseconds)
 
     if (SimulateFluid) {
         double hotspot_x = cos(time_elapsed * Pi) * SplatRadius * 0.8 +
-            impulse_position.getX();
+            kImpulsePosition.getX();
         double hotspot_z = sin(time_elapsed * Pi) * SplatRadius * 0.8 +
-            impulse_position.getZ();
+            kImpulsePosition.getZ();
         Vector3 hotspot(static_cast<float>(hotspot_x), 0,
                         static_cast<float>(hotspot_z));
 
@@ -149,8 +151,8 @@ void PezUpdate(unsigned int microseconds)
         std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
 
         // Splat new smoke
-        ApplyImpulse(Surfaces.temperature_, impulse_position, hotspot, ImpulseTemperature);
-        ApplyImpulse(Surfaces.density_, impulse_position, hotspot, ImpulseDensity);
+        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
+        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity);
 
         // Calculate divergence
         ClearSurface(general_buffers.general_buffer_1, 0);

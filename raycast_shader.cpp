@@ -1,5 +1,9 @@
--- VS
+#include "stdafx.h"
+#include "raycast_shader.h"
 
+std::string RaycastShader::GetVertexShaderCode()
+{
+    return R"(
 in vec4 Position;
 out vec4 vPosition;
 uniform mat4 ModelviewProjection;
@@ -9,9 +13,12 @@ void main()
     gl_Position = ModelviewProjection * Position;
     vPosition = Position;
 }
+)";
+}
 
--- GS
-
+std::string RaycastShader::GetGeometryShaderCode()
+{
+    return R"(
 layout(points) in;
 layout(triangle_strip, max_vertices = 24) out;
 
@@ -63,9 +70,12 @@ void main()
     for (int face = 0; face < 6; face++)
         emit_face(face);
 }
+)";
+}
 
--- FS
-
+std::string RaycastShader::GetFragmentShaderCode()
+{
+    return R"(
 out vec4 FragColor;
 
 uniform sampler3D Density;
@@ -166,4 +176,6 @@ void main()
 
     FragColor.rgb = Lo;
     FragColor.a = 1-T;
+}
+)";
 }

@@ -43,7 +43,7 @@ enum PoissonSolver
 };
 
 ITrackball* CreateTrackball(float width, float height, float radius);
-GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
+GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source, const std::string& fs_source);
 void SetUniform(const char* name, int value);
 void SetUniform(const char* name, float value);
 void SetUniform(const char* name, float x, float y);
@@ -89,4 +89,4 @@ extern const float GradientScale;
 extern const float TemperatureDissipation;
 extern const float VelocityDissipation;
 extern const float DensityDissipation;
-extern const vmath::Vector3 impulse_position;
+extern const vmath::Vector3 kImpulsePosition;

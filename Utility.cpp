@@ -3,6 +3,8 @@
 #include <string.h>
 #include <math.h>
 
+#include "fluid_shader.h"
+
 using namespace vmath;
 
 static struct {
@@ -35,7 +37,7 @@ const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.999f;
 const float DensityDissipation = 0.999f;
 const PoissonSolver kSolverChoice = POISSON_SOLVER_DAMPED_JACOBI;
-const Vector3 impulse_position(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
+const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 
 void CreateObstacles(SurfacePod dest)
 {
@@ -47,7 +49,8 @@ void CreateObstacles(SurfacePod dest)
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    GLuint program = LoadProgram("Fluid.Vertex", 0, "Fluid.Fill");
+    GLuint program = LoadProgram(FluidShader::GetVertexShaderCode(), 0,
+                                 FluidShader::GetFillShaderCode());
     glUseProgram(program);
 
     GLuint lineVbo;
@@ -116,64 +119,56 @@ void CreateObstacles(SurfacePod dest)
     glDeleteBuffers(1, &circleVbo);
 }
 
-GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey)
+GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
+                   const std::string& fs_source)
 {
+    const char* version_directive = "#version 150\n";
+
     static int first = 1;
     if (first) {
         glswInit();
-        glswAddPath("../", ".glsl");
-        glswAddPath("./", ".glsl");
-
-        char qualifiedPath[128];
-        strcpy(qualifiedPath, PezResourcePath());
-        strcat(qualifiedPath, "/");
-        glswAddPath(qualifiedPath, ".glsl");
-
         glswAddDirective("*", "#version 150");
-
         first = 0;
     }
-    
-    const char* vsSource = glswGetShader(vsKey);
-    const char* gsSource = glswGetShader(gsKey);
-    const char* fsSource = glswGetShader(fsKey);
-
-    const char* msg = "Can't find %s shader: '%s'.\n";
-    PezCheckCondition(vsSource != 0, msg, "vertex", vsKey);
-    PezCheckCondition(gsKey == 0 || gsSource != 0, msg, "geometry", gsKey);
-    PezCheckCondition(fsKey == 0 || fsSource != 0, msg, "fragment", fsKey);
     
     GLint compileSuccess;
     GLchar compilerSpew[256];
     GLuint programHandle = glCreateProgram();
 
     GLuint vsHandle = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vsHandle, 1, &vsSource, 0);
+    std::string source = version_directive + vs_source;
+    const GLchar* s = source.c_str();
+    glShaderSource(vsHandle, 1, &s, 0);
     glCompileShader(vsHandle);
     glGetShaderiv(vsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(vsHandle, sizeof(compilerSpew), 0, compilerSpew);
-    PezCheckCondition(compileSuccess, "Can't compile %s:\n%s", vsKey, compilerSpew);
+    PezCheckCondition(compileSuccess, "Can't compile vs:\n%s", compilerSpew);
     glAttachShader(programHandle, vsHandle);
 
     GLuint gsHandle;
-    if (gsKey) {
+    if (!gs_source.empty())
+    {
         gsHandle = glCreateShader(GL_GEOMETRY_SHADER);
-        glShaderSource(gsHandle, 1, &gsSource, 0);
+        source = version_directive + gs_source;
+        const GLchar* s = source.c_str();
+        glShaderSource(gsHandle, 1, &s, 0);
         glCompileShader(gsHandle);
         glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(gsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        PezCheckCondition(compileSuccess, "Can't compile %s:\n%s", gsKey, compilerSpew);
+        PezCheckCondition(compileSuccess, "Can't compile gs:\n%s", compilerSpew);
         glAttachShader(programHandle, gsHandle);
     }
     
     GLuint fsHandle;
-    if (fsKey) {
+    if (!fs_source.empty()) {
         fsHandle = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fsHandle, 1, &fsSource, 0);
+        source = version_directive + fs_source;
+        const GLchar* s = source.c_str();
+        glShaderSource(fsHandle, 1, &s, 0);
         glCompileShader(fsHandle);
         glGetShaderiv(fsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(fsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        PezCheckCondition(compileSuccess, "Can't compile %s:\n%s", fsKey, compilerSpew);
+        PezCheckCondition(compileSuccess, "Can't compile fs:\n%s", compilerSpew);
         glAttachShader(programHandle, fsHandle);
     }
 
@@ -187,9 +182,6 @@ GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey)
 
     if (!linkSuccess) {
         PezDebugString("Link error.\n");
-        if (vsKey) PezDebugString("Vertex Shader: %s\n", vsKey);
-        if (gsKey) PezDebugString("Geometry Shader: %s\n", gsKey);
-        if (fsKey) PezDebugString("Fragment Shader: %s\n", fsKey);
         PezDebugString("%s\n", compilerSpew);
     }
     
@@ -306,14 +298,14 @@ static void ResetState()
 
 void InitSlabOps()
 {
-    Programs.Advect = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Advect");
-    Programs.Jacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Jacobi");
-    Programs.DampedJacobi = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.DampedJacobi");
-    Programs.compute_residual = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.ComputeResidual");
-    Programs.SubtractGradient = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.SubtractGradient");
-    Programs.ComputeDivergence = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.ComputeDivergence");
-    Programs.ApplyImpulse = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Splat");
-    Programs.ApplyBuoyancy = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Fluid.Buoyancy");
+    Programs.Advect = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAvectShaderCode());
+    Programs.Jacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetJacobiShaderCode());
+    Programs.DampedJacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetDampedJacobiShaderCode());
+    Programs.compute_residual = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetComputeResidualShaderCode());
+    Programs.SubtractGradient = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSubtractGradientShaderCode());
+    Programs.ComputeDivergence = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetComputeDivergenceShaderCode());
+    Programs.ApplyImpulse = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSplatShaderCode());
+    Programs.ApplyBuoyancy = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetBuoyancyShaderCode());
 }
 
 void ClearSurface(SurfacePod s, float v)
