@@ -13,6 +13,7 @@ struct ITrackball {
     virtual void MouseDown(int x, int y) = 0;
     virtual void MouseUp(int x, int y) = 0;
     virtual void MouseMove(int x, int y) = 0;
+    virtual void MouseWheel(int x, int y, float delta) = 0;
     virtual void ReturnHome() = 0;
     virtual vmath::Matrix3 GetRotation() const = 0;
     virtual float GetZoom() const = 0;

@@ -8,6 +8,7 @@ class Trackball : public ITrackball {
         void MouseDown(int x, int y);
         void MouseUp(int x, int y);
         void MouseMove(int x, int y);
+        void MouseWheel(int x, int y, float delta);
         void ReturnHome();
         vmath::Matrix3 GetRotation() const;
         void Update(unsigned int microseconds);
@@ -211,4 +212,9 @@ float Trackball::GetZoom() const
 ITrackball* CreateTrackball(float width, float height, float radius)
 {
     return new Trackball(width, height, radius);
+}
+
+void Trackball::MouseWheel(int x, int y, float delta)
+{
+    m_zoom += delta;
 }

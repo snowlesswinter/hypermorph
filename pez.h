@@ -18,7 +18,7 @@ PezConfig PezGetConfig();
 void PezInitialize();
 void PezRender();
 void PezUpdate(unsigned int microseconds);
-void PezHandleMouse(int x, int y, int action);
+void PezHandleMouse(int x, int y, int action, int delta);
 void PezHandleKey(char c);
 
 // Implemented by the platform layer:
@@ -46,4 +46,5 @@ enum MouseFlag {
     PEZ_LEFT  = 1 << 3,
     PEZ_RIGHT = 1 << 4,
     PEZ_DOUBLECLICK = 1 << 5,
+    PEZ_WHEEL = 1 << 6
 };

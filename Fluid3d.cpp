@@ -30,7 +30,7 @@ static struct {
     GLuint FullscreenQuad;
 } Vbos;
 
-static ITrackball* Trackball;
+static ITrackball* track_ball;
 static Point3 EyePosition;
 static GLuint RaycastProgram;
 static float FieldOfView = 0.7f;
@@ -51,7 +51,7 @@ void PezInitialize()
 {
     PezConfig cfg = PezGetConfig();
 
-    Trackball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
+    track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
     RaycastProgram = LoadProgram("Raycast.VS", "Raycast.GS", "Raycast.FS");
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
@@ -99,11 +99,11 @@ void PezRender()
 void PezUpdate(unsigned int microseconds)
 {
     float dt = microseconds * 0.000001f;
-    Trackball->Update(microseconds);
-    EyePosition = Point3(0, 0, 3.5f + Trackball->GetZoom());
+    track_ball->Update(microseconds);
+    EyePosition = Point3(0, 0, 3.5f + track_ball->GetZoom());
     Vector3 up(0, 1, 0); Point3 target(0);
     Matrices.View = Matrix4::lookAt(EyePosition, target, up);
-    Matrix4 modelMatrix(transpose(Trackball->GetRotation()), Vector3(0));
+    Matrix4 modelMatrix(transpose(track_ball->GetRotation()), Vector3(0));
     modelMatrix *= Matrix4::rotationY(0.5f);
     Matrices.Modelview = Matrices.View * modelMatrix;
     
@@ -167,12 +167,25 @@ void PezUpdate(unsigned int microseconds)
     }
 }
 
-void PezHandleMouse(int x, int y, int action)
+void PezHandleMouse(int x, int y, int action, int delta)
 {
-    if (action & PEZ_DOWN) Trackball->MouseDown(x, y);
-    else if (action & PEZ_UP) Trackball->MouseUp(x, y);
-    else if (action & PEZ_MOVE) Trackball->MouseMove(x, y);
-    else if (action & PEZ_DOUBLECLICK) Trackball->ReturnHome();
+    if (action & PEZ_DOWN) track_ball->MouseDown(x, y);
+    else if (action & PEZ_UP) track_ball->MouseUp(x, y);
+    else if (action & PEZ_MOVE) track_ball->MouseMove(x, y);
+    else if (action & PEZ_DOUBLECLICK) track_ball->ReturnHome();
+
+    if (action & PEZ_DOWN) {
+        track_ball->MouseDown(x, y);
+    } else if (action & PEZ_UP) {
+        track_ball->MouseUp(x, y);
+    } else if (action & PEZ_MOVE) {
+        track_ball->MouseMove(x, y);
+    } else if (action & PEZ_WHEEL) {
+        float d = abs(delta) < 200 ? (float)delta / 500 : (float)delta / 100;
+        track_ball->MouseWheel(x, y, -d);
+    } else if (action & PEZ_DOUBLECLICK) {
+        track_ball->ReturnHome();
+    }
 }
 
 void PezHandleKey(char c)

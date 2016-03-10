@@ -2,6 +2,7 @@
 
 #define _WIN32_WINNT 0x0500
 #define WINVER 0x0500
+
 #include <windows.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -169,32 +170,32 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     int y = HIWORD(lParam);
     switch (msg)
     {
-        case WM_LBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_LEFT); break;
+        case WM_LBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_LEFT, 0.0f); break;
         
         case WM_LBUTTONUP:
             SetCursor(LoadCursor(0, IDC_ARROW));
-            PezHandleMouse(x, y, PEZ_UP | PEZ_LEFT);
+            PezHandleMouse(x, y, PEZ_UP | PEZ_LEFT, 0.0f);
             break;
 
         case WM_LBUTTONDOWN:
             SetCursor(LoadCursor(0, IDC_HAND));
-            PezHandleMouse(x, y, PEZ_DOWN | PEZ_LEFT);
+            PezHandleMouse(x, y, PEZ_DOWN | PEZ_LEFT, 0.0f);
             break;
 
-        case WM_RBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_RIGHT); break;
-        case WM_RBUTTONUP: PezHandleMouse(x, y, PEZ_UP | PEZ_RIGHT); break;
-        case WM_RBUTTONDOWN: PezHandleMouse(x, y, PEZ_DOWN | PEZ_RIGHT); break;
+        case WM_RBUTTONDBLCLK: PezHandleMouse(x, y, PEZ_DOUBLECLICK | PEZ_RIGHT, 0.0f); break;
+        case WM_RBUTTONUP: PezHandleMouse(x, y, PEZ_UP | PEZ_RIGHT, 0.0f); break;
+        case WM_RBUTTONDOWN: PezHandleMouse(x, y, PEZ_DOWN | PEZ_RIGHT, 0.0f); break;
 
         case WM_MOUSEMOVE:
             if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
-                PezHandleMouse(x, y, PEZ_MOVE | PEZ_LEFT);
+                PezHandleMouse(x, y, PEZ_MOVE | PEZ_LEFT, 0.0f);
                 SetCursor(LoadCursor(0, IDC_HAND));
             } else {
                 SetCursor(LoadCursor(0, IDC_ARROW));
             }
 
             if (GetAsyncKeyState(VK_RBUTTON) & 0x8000)
-                PezHandleMouse(x, y, PEZ_MOVE | PEZ_RIGHT);
+                PezHandleMouse(x, y, PEZ_MOVE | PEZ_RIGHT, 0.0f);
             break;
 
         case WM_KEYDOWN:
@@ -208,6 +209,11 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 case VK_OEM_2: // Question Mark / Forward Slash for US Keyboards
                     break;
             }
+            break;
+        }
+        case WM_MOUSEWHEEL:
+        {
+            PezHandleMouse(x, y, PEZ_WHEEL, (short)HIWORD(wParam));
             break;
         }
     }
