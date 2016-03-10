@@ -135,7 +135,7 @@ void PezUpdate(unsigned int microseconds)
     Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
     static double time_elapsed = 0;
     time_elapsed += dt;
-    float delta_time = 0.33f;// dt * 10.0f;
+    float delta_time = kMaxTimeStep;
 
     if (SimulateFluid) {
         double hotspot_x = cos(time_elapsed * Pi) * SplatRadius * 0.8 +

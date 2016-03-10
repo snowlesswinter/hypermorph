@@ -29,7 +29,7 @@ const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 4.0f;
 const int NumJacobiIterations = 40;
-//const float TimeStep = 0.25f;
+const float kMaxTimeStep = 0.33f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
@@ -38,6 +38,7 @@ const float VelocityDissipation = 0.999f;
 const float DensityDissipation = 0.999f;
 const PoissonSolver kSolverChoice = POISSON_SOLVER_DAMPED_JACOBI;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
+const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 
 void CreateObstacles(SurfacePod dest)
 {
@@ -536,7 +537,7 @@ void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod densi
     SetUniform("Density", 2);
     SetUniform("AmbientTemperature", AmbientTemperature);
     SetUniform("TimeStep", delta_time);
-    SetUniform("Sigma", SmokeBuoyancy);
+    SetUniform("Sigma", kBuoyancyCoef);
     SetUniform("Kappa", SmokeWeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);

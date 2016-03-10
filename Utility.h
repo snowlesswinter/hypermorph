@@ -99,7 +99,7 @@ extern const float AmbientTemperature;
 extern const float ImpulseTemperature;
 extern const float ImpulseDensity;
 extern const int NumJacobiIterations;
-extern const float TimeStep;
+extern const float kMaxTimeStep;
 extern const float SmokeBuoyancy;
 extern const float SmokeWeight;
 extern const float GradientScale;
