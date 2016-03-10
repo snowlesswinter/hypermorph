@@ -38,7 +38,7 @@ void OverlayContent::RenderText(const std::string& text)
 
     BITMAPINFOHEADER bitmap_header = {};
     bitmap_header.biSize = sizeof(bitmap_header);
-    bitmap_header.biBitCount = 32;
+    bitmap_header.biBitCount = 16;
     bitmap_header.biCompression = BI_RGB;
     bitmap_header.biPlanes = 1;
     bitmap_header.biWidth = bounds.right - bounds.left;
@@ -62,10 +62,12 @@ void OverlayContent::RenderText(const std::string& text)
     DeleteDC(hdc);
 
     glBindTexture(GL_TEXTURE_2D, GetTexture());
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0, GL_RGBA,
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width_, height_, 0, GL_RG,
                  GL_UNSIGNED_BYTE, bits);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     DeleteObject(hbitmap);
 
