@@ -87,6 +87,7 @@ void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obsta
 void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);
 void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 hotspot, float value);
 void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time);
+double GetCurrentTimeInSeconds();
 
 extern const float CellSize;
 extern const int ViewportWidth;

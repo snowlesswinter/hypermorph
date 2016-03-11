@@ -1,7 +1,10 @@
 #include "Utility.h"
-#include <glsw.h>
+
 #include <string.h>
 #include <math.h>
+
+#include <windows.h>
+#include <glsw.h>
 
 #include "fluid_shader.h"
 
@@ -684,4 +687,15 @@ MeshPod CreateQuadMesh(float left, float top, float right, float bottom)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), p, GL_STATIC_DRAW);
 
     return pod;
+}
+
+double GetCurrentTimeInSeconds()
+{
+    static LARGE_INTEGER freqTime = {};
+    if (!freqTime.QuadPart)
+        QueryPerformanceFrequency(&freqTime);
+
+    LARGE_INTEGER currentTime;
+    QueryPerformanceCounter(&currentTime);
+    return static_cast<double>(currentTime.QuadPart) / freqTime.QuadPart;
 }
