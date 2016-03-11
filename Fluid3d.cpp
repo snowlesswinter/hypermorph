@@ -84,6 +84,30 @@ void PezInitialize()
     glEnableVertexAttribArray(SlotPosition);
 }
 
+void DisplayMetrics()
+{
+    std::stringstream text;
+    text.precision(2);
+    text << std::fixed << metrics_.GetFrameRate() << " f/s" << std::endl;
+    char* o[] = {
+        "AVECT VELOCITY",
+        "AVECT TEMPERATURE",
+        "AVECT DENSITY",
+        "APPLY BUOYANCY",
+        "APPLY IMPULSE",
+        "COMPUTE DIVERGENCE",
+        "SOLVE PRESSURE",
+        "RECTIFY VELOCITY",
+    };
+    for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
+        float cost = metrics_.GetOperationTimeCost(
+            static_cast<Metrics::Operations>(i));
+        text << o[i] << ": " << cost << std::endl;
+    }
+
+    overlay_.RenderText(text.str());
+}
+
 void PezRender(float current_time)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -109,10 +133,7 @@ void PezRender(float current_time)
     glDrawArrays(GL_POINTS, 0, 1);
 
     metrics_.OnFrameRendered(current_time);
-    std::stringstream text;
-    text.precision(2);
-    text << std::fixed << metrics_.GetFrameRate(current_time) << " f/s";
-    overlay_.RenderText(text.str());
+    DisplayMetrics();
 }
 
 void PezUpdate(unsigned int microseconds)

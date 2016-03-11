@@ -7,8 +7,8 @@
 OverlayContent::OverlayContent()
     : last_text_()
     , texture_(0)
-    , width_(100)
-    , height_(50)
+    , width_(250)
+    , height_(200)
     , program_(0)
     , quad_mesh_(nullptr)
 {

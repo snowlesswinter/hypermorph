@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "metrics.h"
 
+#include <numeric>
+
 namespace
 {
 const size_t kMaxNumOfTimeStamps = 500;
@@ -25,12 +27,12 @@ void Metrics::OnFrameRendered(float current_time)
         time_stamps_.pop_back();
 }
 
-float Metrics::GetFrameRate(float current_time) const
+float Metrics::GetFrameRate() const
 {
-    if (time_stamps_.empty())
+    if (time_stamps_.size() <= 1)
         return 0.0f;
 
-    return time_stamps_.size() / (current_time - time_stamps_.back());
+    return time_stamps_.size() / (time_stamps_.front() - time_stamps_.back());
 }
 
 void Metrics::OnFrameBegins(double current_time)
@@ -76,6 +78,16 @@ void Metrics::OnPressureSolved(double current_time)
 void Metrics::OnVelocityRectified(double current_time)
 {
     OnOperationProceeded(RECTIFY_VELOCITY, current_time);
+}
+
+float Metrics::GetOperationTimeCost(Operations o) const
+{
+    auto& samples = operation_time_costs_[o];
+    if (samples.empty())
+        return 0.0f;
+
+    double sum = std::accumulate(samples.begin(), samples.end(), 0.0);
+    return static_cast<float>(sum / samples.size());
 }
 
 void Metrics::OnOperationProceeded(Operations o, double current_time)
