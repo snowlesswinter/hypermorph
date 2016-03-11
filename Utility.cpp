@@ -528,13 +528,13 @@ void ApplyImpulse(SurfacePod dest, Vector3 position, Vector3 hotspot, float valu
     ResetState();
 }
 
-void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod density, SurfacePod dest, float delta_time)
+void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time)
 {
     GLuint p = Programs.ApplyBuoyancy;
     glUseProgram(p);
 
+    SetUniform("Velocity", 0);
     SetUniform("Temperature", 1);
-    SetUniform("Density", 2);
     SetUniform("AmbientTemperature", AmbientTemperature);
     SetUniform("TimeStep", delta_time);
     SetUniform("Sigma", kBuoyancyCoef);
@@ -545,8 +545,6 @@ void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod densi
     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, temperature.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, density.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
 }

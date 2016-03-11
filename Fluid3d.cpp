@@ -135,6 +135,13 @@ void PezUpdate(unsigned int microseconds)
     Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
     static double time_elapsed = 0;
     time_elapsed += dt;
+
+    // Use constant time step. The reason is explained in the fluid shader.
+    //
+    // Note: The behaviors of fluid are visually equivalent for 
+    //       constant/non-constant time steps(need to modify the coefficient
+    //       of buoyancy formula to keep a high acceleration to voxel).
+
     float delta_time = kMaxTimeStep;
 
     if (SimulateFluid) {
@@ -164,7 +171,7 @@ void PezUpdate(unsigned int microseconds)
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
 
         // Apply buoyancy and gravity
-        ApplyBuoyancy(Surfaces.Velocity, Surfaces.temperature_, Surfaces.density_, general_buffers.general_buffer_3, delta_time);
+        ApplyBuoyancy(Surfaces.Velocity, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
 
         // Splat new smoke

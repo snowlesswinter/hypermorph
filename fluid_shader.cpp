@@ -55,8 +55,20 @@ void main()
 
 std::string FluidShader::GetAvectShaderCode()
 {
+    // NOTE: Think of the real world, smoke and air molecules would hit each
+    //       other. The further the smoke traveled, the more hitting occurred.
+    //       So I think the real dissipation of velocity should be proportional
+    //       to the distance the voxel moved within the time slice(maybe
+    //       non-linear, I don't know). And that could be a key why the fluid's
+    //       behavior changed so much if we shorten the time step by a level.
+    //
+    //       Since the amount of calculation introduced by a more accurate
+    //       algorithm would be significantly larger(computing square root of 3
+    //       velocities in different direction, I decided to use a constant
+    //       dissipation for performance consideration.
+
     return R"(
-out vec4 FragColor;
+out vec3 FragColor;
 
 uniform sampler3D VelocityTexture;
 uniform sampler3D SourceTexture;
@@ -71,12 +83,11 @@ in float gLayer;
 void main()
 {
     vec3 fragCoord = vec3(gl_FragCoord.xy, gLayer);
-    vec4 o = texture(VelocityTexture, InverseSize * fragCoord);
-    vec3 u = o.xyz;
+    vec3 u = texture(VelocityTexture, InverseSize * fragCoord).xyz;
 
     vec3 coord = fragCoord - TimeStep * u;
 
-    FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
+    FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
     return;
 
     // Boundary check
@@ -86,9 +97,9 @@ void main()
             (icoord.x > tex_size.x - 1) || (icoord.x < 0) ||
             (icoord.z > tex_size.z - 1) || (icoord.z < 0)) {
         // Why not FragColor = vec4(0); ????
-        FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
+        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
     } else {
-        FragColor = vec4(Dissipation * texture(SourceTexture, InverseSize * coord).xyz, 1.0);
+        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
     }
 }
 )";
@@ -97,7 +108,7 @@ void main()
 std::string FluidShader::GetJacobiShaderCode()
 {
     return R"(
-out vec4 FragColor;
+out vec3 FragColor;
 
 uniform sampler3D Pressure;
 uniform sampler3D Divergence;
@@ -113,13 +124,13 @@ void main()
     ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
 
     // Find neighboring pressure:
-    vec4 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0));
-    vec4 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0));
-    vec4 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0));
-    vec4 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0));
-    vec4 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1));
-    vec4 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1));
-    vec4 pC = texelFetch(Pressure, T, 0);
+    vec3 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0)).xyz;
+    vec3 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0)).xyz;
+    vec3 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0)).xyz;
+    vec3 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0)).xyz;
+    vec3 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1)).xyz;
+    vec3 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1)).xyz;
+    vec3 pC = texelFetch(Pressure, T, 0).xyz;
 
     // Handle boundary problem
     // Use center pressure for solid cells
@@ -142,7 +153,7 @@ void main()
     if (T.z <= 0)
         pD = pC;
 
-    vec4 bC = texelFetch(Divergence, T, 0);
+    vec3 bC = texelFetch(Divergence, T, 0).xyz;
     FragColor = (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
 }
 )";
@@ -151,7 +162,7 @@ void main()
 std::string FluidShader::GetDampedJacobiShaderCode()
 {
     return R"(
-out vec4 FragColor;
+out vec3 FragColor;
 
 uniform sampler3D Pressure;
 uniform sampler3D Divergence;
@@ -198,11 +209,8 @@ void main()
         pD = pC;
 
     vec3 bC = texelFetch(Divergence, T, 0).xyz;
-    FragColor =
-        vec4(
-            one_minus_omega * pC +
-                (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta,
-            1.0);
+    FragColor = one_minus_omega * pC +
+        (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
 }
 )";
 }
@@ -414,11 +422,13 @@ void main()
 
 std::string FluidShader::GetBuoyancyShaderCode()
 {
+    // In the original implementation, density is also accounted for the
+    // acceleration. But I don't think that's reasonable, so I removed this
+    // factor for gravity calculation.
     return R"(
 out vec3 FragColor;
 uniform sampler3D Velocity;
 uniform sampler3D Temperature;
-uniform sampler3D Density;
 uniform float AmbientTemperature;
 uniform float TimeStep;
 uniform float Sigma;
@@ -429,14 +439,13 @@ in float gLayer;
 void main()
 {
     ivec3 TC = ivec3(gl_FragCoord.xy, gLayer);
-    float T = texelFetch(Temperature, TC, 0).r;
-    vec3 V = texelFetch(Velocity, TC, 0).xyz;
+    float t = texelFetch(Temperature, TC, 0).r;
+    vec3 v = texelFetch(Velocity, TC, 0).xyz;
 
-    FragColor = V;
+    FragColor = v;
 
-    if (T > AmbientTemperature) {
-        float D = texelFetch(Density, TC, 0).x;
-        FragColor += TimeStep * ((T - AmbientTemperature) * Sigma - D * Kappa ) * vec3(0, 1, 0);
+    if (t > AmbientTemperature) {
+        FragColor += TimeStep * ((t - AmbientTemperature) * Sigma - Kappa ) * vec3(0, 1, 0);
     }
 }
 )";
