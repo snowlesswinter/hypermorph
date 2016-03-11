@@ -17,6 +17,7 @@ public:
         COMPUTE_DIVERGENCE,
         SOLVE_PRESSURE,
         RECTIFY_VELOCITY,
+        PERFORM_RAYCAST,
 
         NUM_OF_OPERATIONS
     };
@@ -24,10 +25,11 @@ public:
     Metrics();
     ~Metrics();
 
-    void OnFrameRendered(float current_time);
+    void OnFrameRendered(double current_time);
     float GetFrameRate() const;
 
-    void OnFrameBegins(double current_time);
+    void OnFrameUpdateBegins(double current_time);
+    void OnFrameRenderingBegins(double current_time);
     void OnVelocityAvected(double current_time);
     void OnTemperatureAvected(double current_time);
     void OnDensityAvected(double current_time);
@@ -43,7 +45,7 @@ private:
 
     void OnOperationProceeded(Operations o, double current_time);
 
-    std::list<float> time_stamps_;
+    std::list<double> time_stamps_;
     double last_operation_time_;
     SampleArray operation_time_costs_;
 };

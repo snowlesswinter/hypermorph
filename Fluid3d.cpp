@@ -47,6 +47,7 @@ float FieldOfView = 0.7f;
 bool SimulateFluid = true;
 OverlayContent overlay_;
 Metrics metrics_;
+bool measure_performance_ = false;
 }
 
 PezConfig PezGetConfig()
@@ -90,14 +91,15 @@ void DisplayMetrics()
     text.precision(2);
     text << std::fixed << metrics_.GetFrameRate() << " f/s" << std::endl;
     char* o[] = {
-        "AVECT VELOCITY",
-        "AVECT TEMPERATURE",
-        "AVECT DENSITY",
-        "APPLY BUOYANCY",
-        "APPLY IMPULSE",
-        "COMPUTE DIVERGENCE",
-        "SOLVE PRESSURE",
-        "RECTIFY VELOCITY",
+        "Velocity",
+        "Temperature",
+        "Density",
+        "Buoyancy",
+        "Impulse",
+        "Divergence",
+        "Pressure",
+        "Gradient",
+        "Raycast",
     };
     for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
         float cost = metrics_.GetOperationTimeCost(
@@ -108,8 +110,13 @@ void DisplayMetrics()
     overlay_.RenderText(text.str());
 }
 
-void PezRender(float current_time)
+void PezRender()
 {
+    if (measure_performance_) {
+        glFinish();
+        metrics_.OnFrameRenderingBegins(GetCurrentTimeInSeconds());
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     PezConfig cfg = PezGetConfig();
     glViewport(0, 0, cfg.Width, cfg.Height);
@@ -132,7 +139,11 @@ void PezRender(float current_time)
     SetUniform("WindowSize", float(cfg.Width), float(cfg.Height));
     glDrawArrays(GL_POINTS, 0, 1);
 
-    metrics_.OnFrameRendered(current_time);
+    if (measure_performance_)
+        glFinish();
+
+    metrics_.OnFrameRendered(GetCurrentTimeInSeconds());
+
     DisplayMetrics();
 }
 
@@ -177,50 +188,77 @@ void PezUpdate(unsigned int microseconds)
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
 
-        metrics_.OnFrameBegins(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnFrameUpdateBegins(GetCurrentTimeInSeconds());
+        }
 
         // Advect velocity
         Advect(Surfaces.Velocity, Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
         std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
-        metrics_.OnVelocityAvected(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnVelocityAvected(GetCurrentTimeInSeconds());
+        }
 
         // Advect temperature
         ClearSurface(general_buffers.general_buffer_1, 0);
         Advect(Surfaces.Velocity, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
         std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
-        metrics_.OnTemperatureAvected(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnTemperatureAvected(GetCurrentTimeInSeconds());
+        }
 
         // Advect density
         ClearSurface(general_buffers.general_buffer_1, 0);
         Advect(Surfaces.Velocity, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
-        metrics_.OnDensityAvected(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnDensityAvected(GetCurrentTimeInSeconds());
+        }
 
         // Apply buoyancy and gravity
         ApplyBuoyancy(Surfaces.Velocity, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
-        metrics_.OnBuoyancyApplied(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnBuoyancyApplied(GetCurrentTimeInSeconds());
+        }
 
         // Splat new smoke
         ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
         ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity);
-        metrics_.OnImpulseApplied(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnImpulseApplied(GetCurrentTimeInSeconds());
+        }
 
         // Calculate divergence
         ClearSurface(general_buffers.general_buffer_1, 0);
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
         ComputeDivergence(Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_1);
-        metrics_.OnDivergenceComputed(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnDivergenceComputed(GetCurrentTimeInSeconds());
+        }
 
         // Solve pressure-velocity Poisson equation
         SolvePressure(Surfaces.Pressure, general_buffers.general_buffer_1, SurfacePod());
-        metrics_.OnPressureSolved(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnPressureSolved(GetCurrentTimeInSeconds());
+        }
 
         // Rectify velocity via the gradient of pressure
         SubtractGradient(Surfaces.Velocity, Surfaces.Pressure, SurfacePod(), general_buffers.general_buffer_3);
         std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
-        metrics_.OnVelocityRectified(GetCurrentTimeInSeconds());
+        if (measure_performance_) {
+            glFinish();
+            metrics_.OnVelocityRectified(GetCurrentTimeInSeconds());
+        }
     }
 }
 

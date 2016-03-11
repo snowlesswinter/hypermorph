@@ -20,11 +20,13 @@ Metrics::~Metrics()
 {
 }
 
-void Metrics::OnFrameRendered(float current_time)
+void Metrics::OnFrameRendered(double current_time)
 {
     time_stamps_.push_front(current_time);
     while (time_stamps_.size() > kMaxNumOfTimeStamps)
         time_stamps_.pop_back();
+
+    OnOperationProceeded(PERFORM_RAYCAST, current_time);
 }
 
 float Metrics::GetFrameRate() const
@@ -32,10 +34,16 @@ float Metrics::GetFrameRate() const
     if (time_stamps_.size() <= 1)
         return 0.0f;
 
-    return time_stamps_.size() / (time_stamps_.front() - time_stamps_.back());
+    return static_cast<float>(
+        time_stamps_.size() / (time_stamps_.front() - time_stamps_.back()));
 }
 
-void Metrics::OnFrameBegins(double current_time)
+void Metrics::OnFrameUpdateBegins(double current_time)
+{
+    last_operation_time_ = current_time;
+}
+
+void Metrics::OnFrameRenderingBegins(double current_time)
 {
     last_operation_time_ = current_time;
 }

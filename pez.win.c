@@ -153,7 +153,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             previousTime = currentTime;
 
             PezUpdate((unsigned int) deltaTime);
-            PezRender((float)((double)currentTime.QuadPart / freqTime.QuadPart));
+            PezRender();
             SwapBuffers(hDC);
             PezCheckCondition(glGetError() == GL_NO_ERROR, "OpenGL error.\n");
         }

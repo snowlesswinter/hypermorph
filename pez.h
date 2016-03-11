@@ -16,7 +16,7 @@ extern "C" {
 // Implemented by the application code:
 PezConfig PezGetConfig();
 void PezInitialize();
-void PezRender(float current_time);
+void PezRender();
 void PezUpdate(unsigned int microseconds);
 void PezHandleMouse(int x, int y, int action, int delta);
 void PezHandleKey(char c);
