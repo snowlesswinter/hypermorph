@@ -1,7 +1,10 @@
 #include "Utility.h"
+
 #include <cmath>
 #include <algorithm>
 #include <sstream>
+
+#include <windows.h>
 
 #include "raycast_shader.h"
 #include "overlay_content.h"
@@ -14,10 +17,10 @@ namespace
 {
 struct
 {
-    SurfacePod Velocity;
+    SurfacePod velocity_;
     SurfacePod density_;
     SurfacePod temperature_;
-    SurfacePod Pressure;
+    SurfacePod pressure_;
 } Surfaces;
 
 struct
@@ -70,10 +73,10 @@ void PezInitialize()
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
-    Surfaces.Velocity = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+    Surfaces.velocity_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    Surfaces.Pressure = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.pressure_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     general_buffers.general_buffer_3 = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     InitSlabOps();
@@ -104,7 +107,8 @@ void DisplayMetrics()
     for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
         float cost = metrics_.GetOperationTimeCost(
             static_cast<Metrics::Operations>(i));
-        text << o[i] << ": " << cost << std::endl;
+        if (cost > 0.01f)
+            text << o[i] << ": " << cost << std::endl;
     }
 
     overlay_.RenderText(text.str());
@@ -194,16 +198,16 @@ void PezUpdate(unsigned int microseconds)
         }
 
         // Advect velocity
-        Advect(Surfaces.Velocity, Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
-        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
+        Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         if (measure_performance_) {
             glFinish();
             metrics_.OnVelocityAvected(GetCurrentTimeInSeconds());
         }
 
         // Advect temperature
-        ClearSurface(general_buffers.general_buffer_1, 0);
-        Advect(Surfaces.Velocity, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
+        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
         std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
         if (measure_performance_) {
             glFinish();
@@ -211,8 +215,8 @@ void PezUpdate(unsigned int microseconds)
         }
 
         // Advect density
-        ClearSurface(general_buffers.general_buffer_1, 0);
-        Advect(Surfaces.Velocity, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
+        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
         if (measure_performance_) {
             glFinish();
@@ -220,8 +224,8 @@ void PezUpdate(unsigned int microseconds)
         }
 
         // Apply buoyancy and gravity
-        ApplyBuoyancy(Surfaces.Velocity, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
-        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
+        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         if (measure_performance_) {
             glFinish();
             metrics_.OnBuoyancyApplied(GetCurrentTimeInSeconds());
@@ -236,25 +240,25 @@ void PezUpdate(unsigned int microseconds)
         }
 
         // Calculate divergence
-        ClearSurface(general_buffers.general_buffer_1, 0);
+        ClearSurface(general_buffers.general_buffer_1, 0.0f);
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
-        ComputeDivergence(Surfaces.Velocity, SurfacePod(), general_buffers.general_buffer_1);
+        ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_1);
         if (measure_performance_) {
             glFinish();
             metrics_.OnDivergenceComputed(GetCurrentTimeInSeconds());
         }
 
         // Solve pressure-velocity Poisson equation
-        SolvePressure(Surfaces.Pressure, general_buffers.general_buffer_1, SurfacePod());
+        SolvePressure(Surfaces.pressure_, general_buffers.general_buffer_1, SurfacePod());
         if (measure_performance_) {
             glFinish();
             metrics_.OnPressureSolved(GetCurrentTimeInSeconds());
         }
 
         // Rectify velocity via the gradient of pressure
-        SubtractGradient(Surfaces.Velocity, Surfaces.Pressure, SurfacePod(), general_buffers.general_buffer_3);
-        std::swap(Surfaces.Velocity, general_buffers.general_buffer_3);
+        SubtractGradient(Surfaces.velocity_, Surfaces.pressure_, SurfacePod(), general_buffers.general_buffer_3);
+        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         if (measure_performance_) {
             glFinish();
             metrics_.OnVelocityRectified(GetCurrentTimeInSeconds());
@@ -283,7 +287,26 @@ void PezHandleMouse(int x, int y, int action, int delta)
     }
 }
 
+void Reset()
+{
+    ClearSurface(Surfaces.velocity_, 0.0f);
+    ClearSurface(Surfaces.density_, 0.0f);
+    ClearSurface(Surfaces.temperature_, 0.0f);
+    metrics_.Reset();
+}
+
 void PezHandleKey(char c)
 {
-    SimulateFluid = !SimulateFluid;
+    switch (c) {
+        case VK_SPACE:
+            SimulateFluid = !SimulateFluid;
+            break;
+        case 'D':
+            measure_performance_ = !measure_performance_;
+            break;
+        case 'R':
+            Reset();
+            break;
+    }
+    
 }

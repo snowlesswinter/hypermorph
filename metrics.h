@@ -40,6 +40,8 @@ public:
     void OnVelocityRectified(double current_time);
     float GetOperationTimeCost(Operations o) const;
 
+    void Reset();
+
 private:
     typedef std::array<std::list<double>, NUM_OF_OPERATIONS> SampleArray;
 

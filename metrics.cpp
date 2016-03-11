@@ -98,6 +98,14 @@ float Metrics::GetOperationTimeCost(Operations o) const
     return static_cast<float>(sum / samples.size());
 }
 
+void Metrics::Reset()
+{
+    time_stamps_.clear();
+    last_operation_time_ = 0.0;
+    for (auto& i : operation_time_costs_)
+        i.clear();
+}
+
 void Metrics::OnOperationProceeded(Operations o, double current_time)
 {
     auto& samples = operation_time_costs_[o];

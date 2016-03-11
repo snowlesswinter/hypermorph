@@ -448,7 +448,7 @@ void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence,
     for (int i = 0; i < level; i++)
     {
         MultiGridSurfaces::value_type surface = (*multi_grid_surfaces)[i];
-        ClearSurface(surface.first, 0);
+        ClearSurface(surface.first, 0.0f);
         DampedJacobi(surface.first, divergence, obstacles);
         DampedJacobi(surface.first, divergence, obstacles);
     }
@@ -462,13 +462,13 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL: // Bad in parallelism. Hard to be
                                           // implemented by shader.
-            ClearSurface(pressure, 0);
+            ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
                 Jacobi(pressure, divergence, obstacles);
             }
             break;
         case POISSON_SOLVER_DAMPED_JACOBI:
-            ClearSurface(pressure, 0);
+            ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
                 DampedJacobi(pressure, divergence, obstacles);
             }
