@@ -17,6 +17,8 @@ public:
     static std::string GetSubtractGradientShaderCode();
     static std::string GetSplatShaderCode();
     static std::string GetBuoyancyShaderCode();
+    static std::string GetRestrictShaderCode();
+    static std::string GetProlongateShaderCode();
 };
 
 #endif // _FLUID_SHADER_H_

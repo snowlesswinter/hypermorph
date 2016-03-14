@@ -7,6 +7,7 @@
 #include <glsw.h>
 
 #include "fluid_shader.h"
+#include "multi_grid_poisson_solver.h"
 
 using namespace vmath;
 
@@ -38,8 +39,8 @@ const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.999f;
-const float DensityDissipation = 0.999f;
-const PoissonSolver kSolverChoice = POISSON_SOLVER_DAMPED_JACOBI;
+const float DensityDissipation = 0.995f;
+const PoissonMethod kSolverChoice = POISSON_SOLVER_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 
@@ -291,12 +292,13 @@ SurfacePod CreateVolume(GLsizei width, GLsizei height, GLsizei depth, int numCom
     return surface;
 }
 
-static void ResetState()
+void ResetState()
 {
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_3D, 0);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_3D, 0);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_3D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glUseProgram(0);
     glDisable(GL_BLEND);
 }
 
@@ -398,86 +400,41 @@ void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
     ResetState();
 }
 
-void ComputeResidual(SurfacePod residual, SurfacePod divergence,
-                     SurfacePod pressure)
-{
-    GLuint p = Programs.compute_residual;
-    glUseProgram(p);
-
-    SetUniform("divergence", 1);
-    SetUniform("obstacles", 2);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, residual.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual.Depth);
-    ResetState();
-}
-
-void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence,
-                              SurfacePod obstacles)
-{
-    typedef std::vector<std::pair<SurfacePod, SurfacePod>> MultiGridSurfaces;
-    static MultiGridSurfaces* multi_grid_surfaces = nullptr;
-    static int level = 1;
-    if (!multi_grid_surfaces)
-    {
-        multi_grid_surfaces = new MultiGridSurfaces();
-        multi_grid_surfaces->push_back(std::make_pair(pressure, SurfacePod()));
-
-        int width = GridWidth >> 1;
-        while (width)
-        {
-            multi_grid_surfaces->push_back(
-                std::make_pair(
-                    CreateVolume(width, width, width, 1), SurfacePod()));
-            level++;
-            width >>= 1;
-        }
-
-        for (auto& i : *multi_grid_surfaces) {
-            i.second = CreateVolume(i.first.Width, i.first.Height,
-                                    i.first.Depth, 1);
-        }
-    }
-
-    for (int i = 0; i < level; i++)
-    {
-        MultiGridSurfaces::value_type surface = (*multi_grid_surfaces)[i];
-        ClearSurface(surface.first, 0.0f);
-        DampedJacobi(surface.first, divergence, obstacles);
-        DampedJacobi(surface.first, divergence, obstacles);
-    }
-}
-
 void SolvePressure(SurfacePod pressure, SurfacePod divergence,
                    SurfacePod obstacles)
 {
-    switch (kSolverChoice)
-    {
+    switch (kSolverChoice) {
         case POISSON_SOLVER_JACOBI:
-        case POISSON_SOLVER_GAUSS_SEIDEL: // Bad in parallelism. Hard to be
-                                          // implemented by shader.
+        case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
+                                            // implemented by shader.
             ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
                 Jacobi(pressure, divergence, obstacles);
             }
             break;
-        case POISSON_SOLVER_DAMPED_JACOBI:
+        }
+        case POISSON_SOLVER_DAMPED_JACOBI: {
+            // NOTE: If we don't clear the buffer, a lot more details are gonna
+            //       be rendered. Preconditioned?
             ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
                 DampedJacobi(pressure, divergence, obstacles);
             }
             break;
-        case POISSON_SOLVER_MULTI_GRID:
-            SolvePressureByMultiGrid(pressure, divergence, obstacles);
+        }
+        case POISSON_SOLVER_MULTI_GRID: {
+            static PoissonSolver* p_solver = nullptr;
+            if (!p_solver) {
+                p_solver = new MultiGridPoissonSolver();
+                p_solver->Initialize(GridWidth);
+            }
+
+            p_solver->Solve(pressure, divergence);
             break;
-        default:
+        }
+        default: {
             break;
+        }
     }
 }
 

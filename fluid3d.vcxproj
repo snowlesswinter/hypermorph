@@ -83,10 +83,13 @@
     <ClInclude Include="glew.h" />
     <ClInclude Include="glew.win.h" />
     <ClInclude Include="glsw.h" />
+    <ClInclude Include="gl_program.h" />
     <ClInclude Include="metrics.h" />
+    <ClInclude Include="multi_grid_poisson_solver.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="overlay_shader.h" />
     <ClInclude Include="pez.h" />
+    <ClInclude Include="poisson_solver.h" />
     <ClInclude Include="raycast_shader.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -108,13 +111,16 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="gl_program.cpp" />
     <ClCompile Include="metrics.cpp" />
+    <ClCompile Include="multi_grid_poisson_solver.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="overlay_shader.cpp" />
     <ClCompile Include="pez.win.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="poisson_solver.cpp" />
     <ClCompile Include="raycast_shader.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

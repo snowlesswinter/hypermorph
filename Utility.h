@@ -49,7 +49,7 @@ public:
     GLsizei vertex_count_;
 };
 
-enum PoissonSolver
+enum PoissonMethod
 {
     POISSON_SOLVER_JACOBI,
     POISSON_SOLVER_DAMPED_JACOBI,
@@ -80,14 +80,13 @@ void RenderMesh(const MeshPod& mesh);
 void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
-void ComputeResidual(SurfacePod residual, SurfacePod divergence, SurfacePod pressure);
-void SolvePressureByMultiGrid(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void SolvePressure(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest);
 void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);
 void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 hotspot, float value);
 void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time);
 double GetCurrentTimeInSeconds();
+void ResetState();
 
 extern const float CellSize;
 extern const int ViewportWidth;

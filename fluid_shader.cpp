@@ -179,13 +179,13 @@ void main()
     ivec3 T = ivec3(gl_FragCoord.xy, gLayer);
 
     // Find neighboring pressure:
-    vec3 pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0)).xyz;
-    vec3 pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0)).xyz;
-    vec3 pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0)).xyz;
-    vec3 pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1)).xyz;
-    vec3 pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1)).xyz;
-    vec3 pC = texelFetch(Pressure, T, 0).xyz;
+    float pN = texelFetchOffset(Pressure, T, 0, ivec3(0, 1, 0)).r;
+    float pS = texelFetchOffset(Pressure, T, 0, ivec3(0, -1, 0)).r;
+    float pE = texelFetchOffset(Pressure, T, 0, ivec3(1, 0, 0)).r;
+    float pW = texelFetchOffset(Pressure, T, 0, ivec3(-1, 0, 0)).r;
+    float pU = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, 1)).r;
+    float pD = texelFetchOffset(Pressure, T, 0, ivec3(0, 0, -1)).r;
+    float pC = texelFetch(Pressure, T, 0).r;
 
     // Handle boundary problem
     // Use center pressure for solid cells
@@ -208,9 +208,11 @@ void main()
     if (T.z <= 0)
         pD = pC;
 
-    vec3 bC = texelFetch(Divergence, T, 0).xyz;
-    FragColor = one_minus_omega * pC +
-        (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta;
+    float bC = texelFetch(Divergence, T, 0).r;
+    FragColor = vec3(
+        one_minus_omega * pC +
+            (pW + pE + pS + pN + pU + pD + Alpha * bC) * InverseBeta,
+        0.0f, 0.0f);
 }
 )";
 }
@@ -218,11 +220,11 @@ void main()
 std::string FluidShader::GetComputeResidualShaderCode()
 {
     return R"(
-out vec4 frag_color;
+out vec3 frag_color;
 
 uniform sampler3D residual;
-uniform sampler3D divergence;
 uniform sampler3D pressure;
+uniform sampler3D divergence;
 
 uniform float inverse_h_square;
 
@@ -233,13 +235,13 @@ void main()
     ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
 
     // Find neighboring pressure:
-    vec3 pN = texelFetchOffset(pressure, coord, 0, ivec3(0, 1, 0)).xyz;
-    vec3 pS = texelFetchOffset(pressure, coord, 0, ivec3(0, -1, 0)).xyz;
-    vec3 pE = texelFetchOffset(pressure, coord, 0, ivec3(1, 0, 0)).xyz;
-    vec3 pW = texelFetchOffset(pressure, coord, 0, ivec3(-1, 0, 0)).xyz;
-    vec3 pU = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, 1)).xyz;
-    vec3 pD = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, -1)).xyz;
-    vec3 pC = texelFetch(pressure, coord, 0).xyz;
+    float pN = texelFetchOffset(pressure, coord, 0, ivec3(0, 1, 0)).r;
+    float pS = texelFetchOffset(pressure, coord, 0, ivec3(0, -1, 0)).r;
+    float pE = texelFetchOffset(pressure, coord, 0, ivec3(1, 0, 0)).r;
+    float pW = texelFetchOffset(pressure, coord, 0, ivec3(-1, 0, 0)).r;
+    float pU = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, 1)).r;
+    float pD = texelFetchOffset(pressure, coord, 0, ivec3(0, 0, -1)).r;
+    float pC = texelFetch(pressure, coord, 0).r;
 
     // Handle boundary problem
     // Use center pressure for solid cells
@@ -262,9 +264,10 @@ void main()
     if (coord.z <= 0)
         pD = pC;
 
-    vec3 bC = texelFetch(divergence, coord, 0).xyz;
-    frag_color = vec4(
-        (pW + pE + pS + pN + pU + pD - 6.0 * pC) * inverse_h_square - bC, 1.0);
+    float bC = texelFetch(divergence, coord, 0).r;
+    frag_color = vec3(
+        bC - (pW + pE + pS + pN + pU + pD - 6.0 * pC) * inverse_h_square,
+        0.0f, 0.0f);
 }
 )";
 }
@@ -447,6 +450,190 @@ void main()
     if (t > AmbientTemperature) {
         FragColor += TimeStep * ((t - AmbientTemperature) * Sigma - Kappa ) * vec3(0, 1, 0);
     }
+}
+)";
+}
+
+std::string FluidShader::GetRestrictShaderCode()
+{
+    return R"(
+out vec3 frag_color;
+
+uniform sampler3D s;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 c = ivec3(gl_FragCoord.xy, gLayer) * 2;
+
+    float c1 = 0.015625f;
+    float c2 = 0.03125f;
+    float c4 = 0.0625f;
+    float c8 = 0.125f;
+
+    float ne_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(1, 1, -1)).r;
+    float n_z_minus_1  = c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, -1)).r;
+    float nw_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(-1, 1, -1)).r;
+    float e_z_minus_1 =  c2 * texelFetchOffset(s, c, 0, ivec3(1, 0, -1)).r;
+    float c_z_minus_1 =  c4 * texelFetchOffset(s, c, 0, ivec3(0, 0, -1)).r;
+    float w_z_minus_1 =  c2 * texelFetchOffset(s, c, 0, ivec3(-1, 0, -1)).r;
+    float se_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(1, -1, -1)).r;
+    float s_z_minus_1 =  c2 * texelFetchOffset(s, c, 0, ivec3(0, -1, -1)).r;
+    float sw_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(-1, -1, -1)).r;
+
+    float ne_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(1, 1, 0)).r;
+    float n_z_0  =       c4 * texelFetchOffset(s, c, 0, ivec3(0, 1, 0)).r;
+    float nw_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(-1, 1, 0)).r;
+    float e_z_0 =        c4 * texelFetchOffset(s, c, 0, ivec3(1, 0, 0)).r;
+    float c_z_0 =        c8 * texelFetch(s, c, 0).r;
+    float w_z_0 =        c4 * texelFetchOffset(s, c, 0, ivec3(-1, 0, 0)).r;
+    float se_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(1, -1, 0)).r;
+    float s_z_0 =        c4 * texelFetchOffset(s, c, 0, ivec3(0, -1, 0)).r;
+    float sw_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(-1, -1, 0)).r;
+
+    float ne_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(1, 1, 1)).r;
+    float n_z_plus_1  =  c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, 1)).r;
+    float nw_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(-1, 1, 1)).r;
+    float e_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(1, 0, 1)).r;
+    float c_z_plus_1 =   c4 * texelFetchOffset(s, c, 0, ivec3(0, 0, 1)).r;
+    float w_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(-1, 0, 1)).r;
+    float se_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(1, -1, 1)).r;
+    float s_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(0, -1, 1)).r;
+    float sw_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(-1, -1, 1)).r;
+
+//     ivec3 tex_size = textureSize(pressure, 0);
+//     if (c.y >= tex_size.y - 1)
+//         pN = pC;
+// 
+//     if (c.y <= 0)
+//         pS = pC;
+// 
+//     if (c.x >= tex_size.x - 1)
+//         pE = pC;
+// 
+//     if (c.x <= 0)
+//         pW = pC;
+// 
+//     if (c.z >= tex_size.z - 1)
+//         pU = pC;
+// 
+//     if (c.z <= 0)
+//         pD = pC;
+
+    float result =
+        ne_z_minus_1 +
+        n_z_minus_1 +
+        nw_z_minus_1 +
+        e_z_minus_1 +
+        c_z_minus_1 +
+        w_z_minus_1 +
+        se_z_minus_1 +
+        s_z_minus_1 +
+        sw_z_minus_1 +
+        
+        ne_z_0 +
+        n_z_0 +
+        nw_z_0 +
+        e_z_0 +
+        c_z_0 +
+        w_z_0 +
+        se_z_0 +
+        s_z_0 +
+        sw_z_0 +
+        
+        ne_z_plus_1 +
+        n_z_plus_1 +
+        nw_z_plus_1 +
+        e_z_plus_1 +
+        c_z_plus_1 +
+        w_z_plus_1 +
+        se_z_plus_1 +
+        s_z_plus_1 +
+        sw_z_plus_1;
+
+    frag_color = vec3(result, 0.0f, 0.0f);
+}
+)";
+}
+
+std::string FluidShader::GetProlongateShaderCode()
+{
+    return R"(
+out vec3 frag_color;
+
+uniform sampler3D fine;
+uniform sampler3D c;
+
+in float gLayer;
+
+void main()
+{
+    // Accurate coordinates for accessing finer buffer is crucial here, since
+    // we need exactly the original solution instead of an interpolated value.
+    ivec3 f_coord = ivec3(gl_FragCoord.xy, gLayer);
+    ivec3 c_coord = f_coord / 2;
+
+    float c1 = 0.125f;
+    float c2 = 0.25f;
+    float c4 = 0.5f;
+    float c8 = 1.0f;
+
+    float interpolated = 0.0f;
+    if (f_coord.x % 2 == 0) {
+        if (f_coord.y % 2 == 0) {
+            if (f_coord.z % 2 == 0) {
+                interpolated = texture(c, c_coord).r; // * c8
+            } else {
+                interpolated = c4 *
+                    (texelFetch(c, c_coord, 0).r +
+                        texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r);
+            }
+        } else {
+            if (f_coord.z % 2 == 0) {
+                interpolated = c4 *
+                    (texelFetch(c, c_coord, 0).r +
+                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r);
+            } else {
+                interpolated = c2 *
+                    (texelFetch(c, c_coord, 0).r +
+                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r +
+                        texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
+                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 1)).r);
+            }
+        }
+    } else if (f_coord.y % 2 == 0) {
+        if (f_coord.z % 2 == 0) {
+            interpolated = c4 *
+                (texelFetch(c, c_coord, 0).r +
+                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r);
+        } else {
+            interpolated = c2 *
+                (texelFetch(c, c_coord, 0).r +
+                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
+                    texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
+                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 1)).r);
+        }
+    } else if (f_coord.z % 2 == 0) {
+        interpolated = c2 *
+            (texelFetch(c, c_coord, 0).r +
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
+                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r + 
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 0)).r);
+    } else {
+        interpolated = c1 *
+            (texelFetch(c, c_coord, 0).r +
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
+                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r + 
+                texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 0)).r + 
+                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 1)).r +
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 1)).r + 
+                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 1)).r);
+    }
+
+    frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated, 0.0f,
+                      0.0f);
 }
 )";
 }
