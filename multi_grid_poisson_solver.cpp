@@ -33,7 +33,7 @@ void MultiGridPoissonSolver::Initialize(int grid_width)
         std::make_tuple(SurfacePod(), SurfacePod(), SurfacePod()));
 
     int width = grid_width >> 1;
-    while (width >= 8) {
+    while (width > 16) {
         multi_grid_surfaces_->push_back(
             std::make_tuple(
                 CreateVolume(width, width, width, 1),
@@ -50,7 +50,10 @@ void MultiGridPoissonSolver::Initialize(int grid_width)
 
     temp_surface_.reset(
         new SurfacePod(
-            CreateVolume(grid_width, grid_width, grid_width, 1)));
+        CreateVolume(grid_width, grid_width, grid_width, 1)));
+    diagnosis_.reset(
+        new SurfacePod(
+        CreateVolume(grid_width, grid_width, grid_width, 1)));
 
     residual_program_.reset(new GLProgram());
     residual_program_->Load(FluidShader::GetVertexShaderCode(),
@@ -67,7 +70,8 @@ void MultiGridPoissonSolver::Initialize(int grid_width)
 }
 
 void MultiGridPoissonSolver::Solve(const SurfacePod& pressure,
-                                   const SurfacePod& divergence)
+                                   const SurfacePod& divergence,
+                                   bool as_precondition)
 {
     assert(multi_grid_surfaces_);
     assert(multi_grid_surfaces_->size() > 1);
@@ -78,7 +82,7 @@ void MultiGridPoissonSolver::Solve(const SurfacePod& pressure,
     if (!multi_grid_surfaces_ || multi_grid_surfaces_->empty())
         return;
 
-    const int kRelaxIteration = 10;
+    int times_to_iterate = 2;
     (*multi_grid_surfaces_)[0] = std::make_tuple(pressure, divergence,
                                                  *temp_surface_);
 
@@ -88,31 +92,45 @@ void MultiGridPoissonSolver::Solve(const SurfacePod& pressure,
         Surface& fine_surf = (*multi_grid_surfaces_)[i];
         Surface& coarse_surf = (*multi_grid_surfaces_)[i + 1];
 
-        ClearSurface(std::get<0>(fine_surf), 0.0f);
-        Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), kRelaxIteration);
+        if (!as_precondition)
+            ClearSurface(std::get<0>(fine_surf), 0.0f);
 
+        Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize,
+              times_to_iterate);
         ComputeResidual(std::get<0>(fine_surf), std::get<1>(fine_surf),
-                        std::get<2>(fine_surf));
+                        std::get<2>(fine_surf), CellSize);
         Restrict(std::get<2>(fine_surf), std::get<1>(coarse_surf));
+
+        times_to_iterate += 2;
     }
 
     Surface coarsest = (*multi_grid_surfaces_)[num_of_levels - 1];
-    ClearSurface(std::get<0>(coarsest), 0.0f);
-    Relax(std::get<0>(coarsest), std::get<1>(coarsest), 30);
+    if (!as_precondition)
+        ClearSurface(std::get<0>(coarsest), 0.0f);
+
+    Relax(std::get<0>(coarsest), std::get<1>(coarsest), CellSize,
+          times_to_iterate);
+
+    times_to_iterate -= 2;
 
     for (int j = num_of_levels - 2; j >= 0; j--)
     {
         Surface& coarse_surf = (*multi_grid_surfaces_)[j + 1];
         Surface& fine_surf = (*multi_grid_surfaces_)[j];
-        
         Prolongate(std::get<0>(coarse_surf), std::get<0>(fine_surf));
-        Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), kRelaxIteration);
+        Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize, times_to_iterate);
+        times_to_iterate -= 2;
     }
+
+    // For diagnosis.
+    //ComputeResidual(pressure, divergence, *diagnosis_, CellSize);
+    
 }
 
 void MultiGridPoissonSolver::ComputeResidual(const SurfacePod& pressure,
                                              const SurfacePod& divergence,
-                                             const SurfacePod& residual)
+                                             const SurfacePod& residual,
+                                             float cell_size)
 {
     assert(residual_program_);
     if (!residual_program_)
@@ -123,7 +141,7 @@ void MultiGridPoissonSolver::ComputeResidual(const SurfacePod& pressure,
     SetUniform("residual", 0);
     SetUniform("pressure", 1);
     SetUniform("divergence", 2);
-    SetUniform("inverse_h_square", 1.0f / (CellSize * CellSize));
+    SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
     glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
     glActiveTexture(GL_TEXTURE0);
@@ -158,10 +176,10 @@ void MultiGridPoissonSolver::Prolongate(const SurfacePod& coarse_solution,
 }
 
 void MultiGridPoissonSolver::Relax(const SurfacePod& u, const SurfacePod& b,
-                                   int times)
+                                   float cell_size, int times)
 {
     for (int i = 0; i < times; i++)
-        DampedJacobi(u, b, SurfacePod());
+        DampedJacobi(u, b, SurfacePod(), cell_size);
 }
 
 void MultiGridPoissonSolver::Restrict(const SurfacePod& source,

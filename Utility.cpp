@@ -39,7 +39,7 @@ const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.999f;
-const float DensityDissipation = 0.995f;
+const float DensityDissipation = 0.998f;
 const PoissonMethod kSolverChoice = POISSON_SOLVER_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
@@ -380,14 +380,15 @@ void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)
 }
 
 void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
-                  SurfacePod obstacles)
+                  SurfacePod obstacles, float cell_size)
 {
     GLuint p = Programs.DampedJacobi;
     glUseProgram(p);
 
-    SetUniform("Alpha", -CellSize * CellSize);
+    SetUniform("Alpha", -(cell_size * cell_size));
     SetUniform("InverseBeta", 0.111111f);
     SetUniform("one_minus_omega", 0.333333f);
+    SetUniform("Pressure", 0);
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
@@ -418,7 +419,7 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             //       be rendered. Preconditioned?
             ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
-                DampedJacobi(pressure, divergence, obstacles);
+                DampedJacobi(pressure, divergence, obstacles, CellSize);
             }
             break;
         }
@@ -429,7 +430,12 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
                 p_solver->Initialize(GridWidth);
             }
 
-            p_solver->Solve(pressure, divergence);
+            // An iteration times lower than 4 will introduce significant
+            // unnatural visual effect caused by the half-convergent state of
+            // pressure. 
+            for (int i = 0; i < 4; i++)
+                p_solver->Solve(pressure, divergence, !!i);
+
             break;
         }
         default: {

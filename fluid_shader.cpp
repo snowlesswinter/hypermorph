@@ -632,8 +632,8 @@ void main()
                 texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 1)).r);
     }
 
-    frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated, 0.0f,
-                      0.0f);
+    frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated,
+                      0.0f, 0.0f);
 }
 )";
 }

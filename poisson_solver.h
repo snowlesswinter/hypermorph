@@ -11,7 +11,7 @@ public:
 
     virtual void Initialize(int grid_width) = 0;
     virtual void Solve(const SurfacePod& pressure,
-                       const SurfacePod& divergence) = 0;
+                       const SurfacePod& divergence, bool as_precondition) = 0;
 };
 
 #endif // _POISSON_SOLVER_H_
