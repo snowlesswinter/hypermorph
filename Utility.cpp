@@ -418,6 +418,10 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
         case POISSON_SOLVER_DAMPED_JACOBI: {
             // NOTE: If we don't clear the buffer, a lot more details are gonna
             //       be rendered. Preconditioned?
+            //
+            // Our experiments reveals that increasing the iteration times to
+            // 80 of Jacobi will NOT lead to higher accuracy.
+
             ClearSurface(pressure, 0.0f);
             for (int i = 0; i < NumJacobiIterations; ++i) {
                 DampedJacobi(pressure, divergence, obstacles, CellSize);

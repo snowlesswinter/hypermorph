@@ -32,7 +32,6 @@ private:
     void Restrict(const SurfacePod& source, const SurfacePod& dest);
 
     std::unique_ptr<MultiGridSurfaces> multi_grid_surfaces_;
-    std::unique_ptr<SurfacePod> restricted_residual_;
     std::unique_ptr<SurfacePod> temp_surface_; // TODO
     std::unique_ptr<GLProgram> residual_program_;
     std::unique_ptr<GLProgram> restrict_program_;

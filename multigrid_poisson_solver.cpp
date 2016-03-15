@@ -11,7 +11,6 @@
 
 MultigridPoissonSolver::MultigridPoissonSolver()
     : multi_grid_surfaces_()
-    , restricted_residual_()
     , temp_surface_()
     , residual_program_()
     , restrict_program_()
@@ -44,11 +43,6 @@ void MultigridPoissonSolver::Initialize(int grid_width)
         width >>= 1;
     }
 
-//     restricted_residual_.reset(
-//         new SurfacePod(
-//             CreateVolume(grid_width >> 1, grid_width >> 1, grid_width >> 1,
-//                          1)));
-
     temp_surface_.reset(
         new SurfacePod(
         CreateVolume(grid_width, grid_width, grid_width, 1)));
@@ -76,10 +70,6 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
 {
     assert(multi_grid_surfaces_);
     assert(multi_grid_surfaces_->size() > 1);
-//     assert(restricted_residual_);
-//     if (!multi_grid_surfaces_ || multi_grid_surfaces_->empty() ||
-//             !restricted_residual_)
-//         return;
     if (!multi_grid_surfaces_ || multi_grid_surfaces_->empty())
         return;
 
@@ -124,7 +114,7 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
     }
 
     // For diagnosis.
-    ComputeResidual(pressure, divergence, *diagnosis_, CellSize);
+    //ComputeResidual(pressure, divergence, *diagnosis_, CellSize);
     static int diagnosis = 0;
     if (diagnosis)
     {
