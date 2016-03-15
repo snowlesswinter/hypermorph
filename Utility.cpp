@@ -7,7 +7,8 @@
 #include <glsw.h>
 
 #include "fluid_shader.h"
-#include "multi_grid_poisson_solver.h"
+#include "multigrid_shader.h"
+#include "multigrid_poisson_solver.h"
 
 using namespace vmath;
 
@@ -307,7 +308,7 @@ void InitSlabOps()
     Programs.Advect = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAvectShaderCode());
     Programs.Jacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetJacobiShaderCode());
     Programs.DampedJacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetDampedJacobiShaderCode());
-    Programs.compute_residual = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetComputeResidualShaderCode());
+    Programs.compute_residual = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), MultigridShader::GetComputeResidualShaderCode());
     Programs.SubtractGradient = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSubtractGradientShaderCode());
     Programs.ComputeDivergence = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetComputeDivergenceShaderCode());
     Programs.ApplyImpulse = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSplatShaderCode());
@@ -426,14 +427,22 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
         case POISSON_SOLVER_MULTI_GRID: {
             static PoissonSolver* p_solver = nullptr;
             if (!p_solver) {
-                p_solver = new MultiGridPoissonSolver();
+                p_solver = new MultigridPoissonSolver();
                 p_solver->Initialize(GridWidth);
             }
 
             // An iteration times lower than 4 will introduce significant
             // unnatural visual effect caused by the half-convergent state of
             // pressure. 
-            for (int i = 0; i < 4; i++)
+            //
+            // If I change the value to 6, then the average |r| could be
+            // reduced to around 0.004.
+            //
+            // And please also note that the average |r| of Damped Jacobi
+            // (using a constant iteration time of 40) is stabilized at 0.025.
+            // That's a pretty good score!
+
+            for (int i = 0; i < 5; i++)
                 p_solver->Solve(pressure, divergence, !!i);
 
             break;

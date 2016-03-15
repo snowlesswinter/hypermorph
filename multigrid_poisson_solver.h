@@ -1,5 +1,5 @@
-#ifndef _MULTI_GRID_POISSON_SOLVER_H_
-#define _MULTI_GRID_POISSON_SOLVER_H_
+#ifndef _MULTIGRID_POISSON_SOLVER_H_
+#define _MULTIGRID_POISSON_SOLVER_H_
 
 #include <memory>
 #include <vector>
@@ -7,11 +7,11 @@
 #include "poisson_solver.h"
 
 class GLProgram;
-class MultiGridPoissonSolver : public PoissonSolver
+class MultigridPoissonSolver : public PoissonSolver
 {
 public:
-    MultiGridPoissonSolver();
-    virtual ~MultiGridPoissonSolver();
+    MultigridPoissonSolver();
+    virtual ~MultigridPoissonSolver();
 
     virtual void Initialize(int grid_width) override;
     virtual void Solve(const SurfacePod& pressure,
@@ -23,8 +23,7 @@ private:
         MultiGridSurfaces;
     typedef MultiGridSurfaces::value_type Surface;
 
-    void ComputeResidual(const SurfacePod& pressure,
-                         const SurfacePod& divergence,
+    void ComputeResidual(const SurfacePod& u, const SurfacePod& b,
                          const SurfacePod& residual, float cell_size);
     void Prolongate(const SurfacePod& coarse_solution,
                     const SurfacePod& fine_solution);
@@ -42,4 +41,4 @@ private:
     std::unique_ptr<SurfacePod> diagnosis_; // TODO
 };
 
-#endif // _MULTI_GRID_POISSON_SOLVER_H_
+#endif // _MULTIGRID_POISSON_SOLVER_H_

@@ -23,8 +23,9 @@
     <ClInclude Include="overlay_shader.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="poisson_solver.h" />
-    <ClInclude Include="multi_grid_poisson_solver.h" />
     <ClInclude Include="gl_program.h" />
+    <ClInclude Include="multigrid_shader.h" />
+    <ClInclude Include="multigrid_poisson_solver.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -53,7 +54,8 @@
     <ClCompile Include="overlay_shader.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="poisson_solver.cpp" />
-    <ClCompile Include="multi_grid_poisson_solver.cpp" />
     <ClCompile Include="gl_program.cpp" />
+    <ClCompile Include="multigrid_shader.cpp" />
+    <ClCompile Include="multigrid_poisson_solver.cpp" />
   </ItemGroup>
 </Project>

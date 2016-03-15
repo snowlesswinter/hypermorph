@@ -85,7 +85,8 @@
     <ClInclude Include="glsw.h" />
     <ClInclude Include="gl_program.h" />
     <ClInclude Include="metrics.h" />
-    <ClInclude Include="multi_grid_poisson_solver.h" />
+    <ClInclude Include="multigrid_shader.h" />
+    <ClInclude Include="multigrid_poisson_solver.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="overlay_shader.h" />
     <ClInclude Include="pez.h" />
@@ -113,7 +114,8 @@
     </ClCompile>
     <ClCompile Include="gl_program.cpp" />
     <ClCompile Include="metrics.cpp" />
-    <ClCompile Include="multi_grid_poisson_solver.cpp" />
+    <ClCompile Include="multigrid_shader.cpp" />
+    <ClCompile Include="multigrid_poisson_solver.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="overlay_shader.cpp" />
     <ClCompile Include="pez.win.c">

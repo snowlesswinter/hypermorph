@@ -12,13 +12,10 @@ public:
     static std::string GetAvectShaderCode();
     static std::string GetJacobiShaderCode();
     static std::string GetDampedJacobiShaderCode();
-    static std::string GetComputeResidualShaderCode();
     static std::string GetComputeDivergenceShaderCode();
     static std::string GetSubtractGradientShaderCode();
     static std::string GetSplatShaderCode();
     static std::string GetBuoyancyShaderCode();
-    static std::string GetRestrictShaderCode();
-    static std::string GetProlongateShaderCode();
 };
 
 #endif // _FLUID_SHADER_H_
