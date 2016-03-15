@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "overlay_content.h"
 
-#include "overlay_shader.h"
+#include "shader/overlay_shader.h"
 #include "Utility.h"
 
 OverlayContent::OverlayContent()

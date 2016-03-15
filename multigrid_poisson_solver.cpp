@@ -6,8 +6,8 @@
 
 #include "gl_program.h"
 #include "utility.h"
-#include "fluid_shader.h"
-#include "multigrid_shader.h"
+#include "shader/fluid_shader.h"
+#include "shader/multigrid_shader.h"
 
 MultigridPoissonSolver::MultigridPoissonSolver()
     : multi_grid_surfaces_()

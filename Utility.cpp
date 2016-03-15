@@ -6,8 +6,8 @@
 #include <windows.h>
 #include <glsw.h>
 
-#include "fluid_shader.h"
-#include "multigrid_shader.h"
+#include "shader/fluid_shader.h"
+#include "shader/multigrid_shader.h"
 #include "multigrid_poisson_solver.h"
 
 using namespace vmath;

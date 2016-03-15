@@ -6,7 +6,7 @@
 
 #include <windows.h>
 
-#include "raycast_shader.h"
+#include "shader/raycast_shader.h"
 #include "overlay_content.h"
 #include "metrics.h"
 
