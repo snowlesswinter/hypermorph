@@ -5,12 +5,24 @@
 
 namespace
 {
-const size_t kMaxNumOfTimeStamps = 500;
+const size_t kMaxNumOfTimeStamps = 100;
 const int kNumOfSamples = 20;
 }
 
+Metrics* Metrics::Instance()
+{
+    static Metrics* m = nullptr;
+    if (!m)
+        m = new Metrics();
+
+    return m;
+}
+
 Metrics::Metrics()
-    : time_stamps_()
+    : diagnosis_mode_(false)
+    , sync_operation_()
+    , get_time_()
+    , time_stamps_()
     , last_operation_time_(0.0)
     , operation_time_costs_()
 {
@@ -20,13 +32,31 @@ Metrics::~Metrics()
 {
 }
 
-void Metrics::OnFrameRendered(double current_time)
+void Metrics::set_diagnosis_mode(bool diagnosis)
 {
-    time_stamps_.push_front(current_time);
+    diagnosis_mode_ = diagnosis;
+}
+
+void Metrics::SetOperationSync(const std::function<void (void)>& operation_sync)
+{
+    sync_operation_ = operation_sync;
+}
+
+void Metrics::SetTimeSource(const std::function<double (void)>& time_source)
+{
+    get_time_ = time_source;
+}
+
+void Metrics::OnFrameRendered()
+{
+    if (!get_time_)
+        return;
+
+    time_stamps_.push_front(get_time_());
     while (time_stamps_.size() > kMaxNumOfTimeStamps)
         time_stamps_.pop_back();
 
-    OnOperationProceeded(PERFORM_RAYCAST, current_time);
+    OnOperationProceeded(PERFORM_RAYCAST);
 }
 
 float Metrics::GetFrameRate() const
@@ -38,54 +68,71 @@ float Metrics::GetFrameRate() const
         time_stamps_.size() / (time_stamps_.front() - time_stamps_.back()));
 }
 
-void Metrics::OnFrameUpdateBegins(double current_time)
+void Metrics::OnFrameUpdateBegins()
 {
-    last_operation_time_ = current_time;
+    if (!diagnosis_mode_ || !get_time_)
+        return;
+
+    if (sync_operation_)
+        sync_operation_();
+
+    last_operation_time_ = get_time_();
 }
 
-void Metrics::OnFrameRenderingBegins(double current_time)
+void Metrics::OnFrameRenderingBegins()
 {
-    last_operation_time_ = current_time;
+    if (!diagnosis_mode_ || !get_time_)
+        return;
+
+    if (sync_operation_)
+        sync_operation_();
+
+    last_operation_time_ = get_time_();
 }
 
-void Metrics::OnVelocityAvected(double current_time)
+void Metrics::OnVelocityAvected()
 {
-    OnOperationProceeded(AVECT_VELOCITY, current_time);
+    OnOperationProceeded(AVECT_VELOCITY);
 }
 
-void Metrics::OnTemperatureAvected(double current_time)
+void Metrics::OnTemperatureAvected()
 {
-    OnOperationProceeded(AVECT_TEMPERATURE, current_time);
+    OnOperationProceeded(AVECT_TEMPERATURE);
 }
 
-void Metrics::OnDensityAvected(double current_time)
+void Metrics::OnDensityAvected()
 {
-    OnOperationProceeded(AVECT_DENSITY, current_time);
+    OnOperationProceeded(AVECT_DENSITY);
 }
 
-void Metrics::OnBuoyancyApplied(double current_time)
+void Metrics::OnBuoyancyApplied()
 {
-    OnOperationProceeded(APPLY_BUOYANCY, current_time);
+    OnOperationProceeded(APPLY_BUOYANCY);
 }
 
-void Metrics::OnImpulseApplied(double current_time)
+void Metrics::OnImpulseApplied()
 {
-    OnOperationProceeded(APPLY_IMPULSE, current_time);
+    OnOperationProceeded(APPLY_IMPULSE);
 }
 
-void Metrics::OnDivergenceComputed(double current_time)
+void Metrics::OnDivergenceComputed()
 {
-    OnOperationProceeded(COMPUTE_DIVERGENCE, current_time);
+    OnOperationProceeded(COMPUTE_DIVERGENCE);
 }
 
-void Metrics::OnPressureSolved(double current_time)
+void Metrics::OnPressureSolved()
 {
-    OnOperationProceeded(SOLVE_PRESSURE, current_time);
+    OnOperationProceeded(SOLVE_PRESSURE);
 }
 
-void Metrics::OnVelocityRectified(double current_time)
+void Metrics::OnVelocityRectified()
 {
-    OnOperationProceeded(RECTIFY_VELOCITY, current_time);
+    OnOperationProceeded(RECTIFY_VELOCITY);
+}
+
+void Metrics::OnProlongated()
+{
+    OnOperationProceeded(POISSON_PROLONGATE);
 }
 
 float Metrics::GetOperationTimeCost(Operations o) const
@@ -106,9 +153,16 @@ void Metrics::Reset()
         i.clear();
 }
 
-void Metrics::OnOperationProceeded(Operations o, double current_time)
+void Metrics::OnOperationProceeded(Operations o)
 {
+    if (!diagnosis_mode_ || !get_time_)
+        return;
+
+    if (sync_operation_)
+        sync_operation_();
+
     auto& samples = operation_time_costs_[o];
+    double current_time = get_time_();
 
     // Store in microseconds.
     samples.push_front((current_time - last_operation_time_) * 1000000.0);

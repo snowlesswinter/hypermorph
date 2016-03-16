@@ -446,7 +446,7 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             // (using a constant iteration time of 40) is stabilized at 0.025.
             // That's a pretty good score!
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 6; i++)
                 p_solver->Solve(pressure, divergence, !i);
 
             break;

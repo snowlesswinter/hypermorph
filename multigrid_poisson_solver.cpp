@@ -6,6 +6,7 @@
 
 #include "gl_program.h"
 #include "utility.h"
+#include "metrics.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 

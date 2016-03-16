@@ -172,7 +172,7 @@ void main()
 {
     // Accurate coordinates for accessing finer buffer is crucial here, since
     // we need exactly the original solution instead of an interpolated value.
-    ivec3 f_coord = ivec3(gl_FragCoord.xy, gLayer);
+    ivec3 f_coord = ivec3(gl_FragCoord.xy, gLayer - 0.5f);
     ivec3 c_coord = f_coord / 2;
 
     float c1 = 0.125f;
@@ -180,58 +180,35 @@ void main()
     float c4 = 0.5f;
     float c8 = 1.0f;
 
-    float interpolated = 0.0f;
-    if (f_coord.x % 2 == 0) {
-        if (f_coord.y % 2 == 0) {
-            if (f_coord.z % 2 == 0) {
-                interpolated = texture(c, c_coord).r; // * c8
-            } else {
-                interpolated = c4 *
-                    (texelFetch(c, c_coord, 0).r +
-                        texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r);
-            }
-        } else {
-            if (f_coord.z % 2 == 0) {
-                interpolated = c4 *
-                    (texelFetch(c, c_coord, 0).r +
-                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r);
-            } else {
-                interpolated = c2 *
-                    (texelFetch(c, c_coord, 0).r +
-                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r +
-                        texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
-                        texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 1)).r);
-            }
-        }
-    } else if (f_coord.y % 2 == 0) {
-        if (f_coord.z % 2 == 0) {
-            interpolated = c4 *
-                (texelFetch(c, c_coord, 0).r +
-                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r);
-        } else {
-            interpolated = c2 *
-                (texelFetch(c, c_coord, 0).r +
-                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
-                    texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
-                    texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 1)).r);
-        }
-    } else if (f_coord.z % 2 == 0) {
-        interpolated = c2 *
-            (texelFetch(c, c_coord, 0).r +
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
-                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r + 
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 0)).r);
-    } else {
-        interpolated = c1 *
-            (texelFetch(c, c_coord, 0).r +
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r +
-                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r + 
-                texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r + 
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 0)).r + 
-                texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 1)).r +
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 1)).r + 
-                texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 1)).r);
-    }
+    float d[4];
+    d[0] = c8;
+    d[1] = c4;
+    d[2] = c2;
+    d[3] = c1;
+
+    int odd_x = f_coord.x - ((f_coord.x >> 1) << 1);
+    int odd_y = f_coord.y - ((f_coord.y >> 1) << 1);
+    int odd_z = f_coord.z - ((f_coord.z >> 1) << 1);
+
+    int a0 = odd_x;
+    int a1 = odd_y;
+    int a2 = odd_z;
+    int a3 = odd_x * odd_y;
+    int a4 = odd_y * odd_z;
+    int a5 = odd_x * odd_z;
+    int a6 = odd_x * odd_y * odd_z;
+
+    float u0 = a0 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 0)).r;
+    float u1 = a1 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 0)).r; 
+    float u2 = a2 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(0, 0, 1)).r; 
+    float u3 = a3 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 0)).r; 
+    float u4 = a4 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(0, 1, 1)).r;
+    float u5 = a5 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(1, 0, 1)).r; 
+    float u6 = a6 == 0 ? 0 : texelFetchOffset(c, c_coord, 0, ivec3(1, 1, 1)).r;
+
+    float interpolated = texelFetch(c, c_coord, 0).r +
+        u0 + u1 + u2 + u3 + u4 + u5 + u6;
+    interpolated *= d[odd_x + odd_y + odd_z];
 
     frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated,
                       0.0f, 0.0f);

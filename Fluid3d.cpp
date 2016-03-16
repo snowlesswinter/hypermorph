@@ -49,8 +49,6 @@ GLuint RaycastProgram;
 float FieldOfView = 0.7f;
 bool SimulateFluid = true;
 OverlayContent overlay_;
-Metrics metrics_;
-bool measure_performance_ = false;
 }
 
 PezConfig PezGetConfig()
@@ -86,13 +84,18 @@ void PezInitialize()
     glEnable(GL_CULL_FACE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnableVertexAttribArray(SlotPosition);
+
+    Metrics::Instance()->SetOperationSync([]() { glFinish(); });
+    Metrics::Instance()->SetTimeSource(
+        []() -> double { return GetCurrentTimeInSeconds(); });
 }
 
 void DisplayMetrics()
 {
     std::stringstream text;
     text.precision(2);
-    text << std::fixed << metrics_.GetFrameRate() << " f/s" << std::endl;
+    text << std::fixed << Metrics::Instance()->GetFrameRate() << " f/s" <<
+        std::endl;
     char* o[] = {
         "Velocity",
         "Temperature",
@@ -103,9 +106,10 @@ void DisplayMetrics()
         "Pressure",
         "Gradient",
         "Raycast",
+        "Prolongate",
     };
     for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
-        float cost = metrics_.GetOperationTimeCost(
+        float cost = Metrics::Instance()->GetOperationTimeCost(
             static_cast<Metrics::Operations>(i));
         if (cost > 0.01f)
             text << o[i] << ": " << cost << std::endl;
@@ -116,10 +120,7 @@ void DisplayMetrics()
 
 void PezRender()
 {
-    if (measure_performance_) {
-        glFinish();
-        metrics_.OnFrameRenderingBegins(GetCurrentTimeInSeconds());
-    }
+    Metrics::Instance()->OnFrameRenderingBegins();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     PezConfig cfg = PezGetConfig();
@@ -143,10 +144,7 @@ void PezRender()
     SetUniform("WindowSize", float(cfg.Width), float(cfg.Height));
     glDrawArrays(GL_POINTS, 0, 1);
 
-    if (measure_performance_)
-        glFinish();
-
-    metrics_.OnFrameRendered(GetCurrentTimeInSeconds());
+    Metrics::Instance()->OnFrameRendered();
 
     DisplayMetrics();
 }
@@ -192,77 +190,50 @@ void PezUpdate(unsigned int microseconds)
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
 
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnFrameUpdateBegins(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnFrameUpdateBegins();
 
         // Advect velocity
         Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnVelocityAvected(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnVelocityAvected();
 
         // Advect temperature
         ClearSurface(general_buffers.general_buffer_1, 0.0f);
         Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
         std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnTemperatureAvected(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnTemperatureAvected();
 
         // Advect density
         ClearSurface(general_buffers.general_buffer_1, 0.0f);
         Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnDensityAvected(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnDensityAvected();
 
         // Apply buoyancy and gravity
         ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnBuoyancyApplied(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
         ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
         ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnImpulseApplied(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnImpulseApplied();
 
         // Calculate divergence
         ClearSurface(general_buffers.general_buffer_1, 0.0f);
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
         ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_1);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnDivergenceComputed(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation
         SolvePressure(Surfaces.pressure_, general_buffers.general_buffer_1, SurfacePod());
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnPressureSolved(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnPressureSolved();
 
         // Rectify velocity via the gradient of pressure
         SubtractGradient(Surfaces.velocity_, Surfaces.pressure_, SurfacePod(), general_buffers.general_buffer_3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
-        if (measure_performance_) {
-            glFinish();
-            metrics_.OnVelocityRectified(GetCurrentTimeInSeconds());
-        }
+        Metrics::Instance()->OnVelocityRectified();
     }
 }
 
@@ -292,7 +263,7 @@ void Reset()
     ClearSurface(Surfaces.velocity_, 0.0f);
     ClearSurface(Surfaces.density_, 0.0f);
     ClearSurface(Surfaces.temperature_, 0.0f);
-    metrics_.Reset();
+    Metrics::Instance()->Reset();
 }
 
 void PezHandleKey(char c)
@@ -302,7 +273,8 @@ void PezHandleKey(char c)
             SimulateFluid = !SimulateFluid;
             break;
         case 'D':
-            measure_performance_ = !measure_performance_;
+            Metrics::Instance()->set_diagnosis_mode(
+                !Metrics::Instance()->diagnosis_mode());
             break;
         case 'R':
             Reset();
