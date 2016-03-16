@@ -24,7 +24,8 @@ private:
     typedef MultiGridSurfaces::value_type Surface;
 
     void ComputeResidual(const SurfacePod& u, const SurfacePod& b,
-                         const SurfacePod& residual, float cell_size);
+                         const SurfacePod& residual, float cell_size,
+                         bool diagnosis);
     void Prolongate(const SurfacePod& coarse_solution,
                     const SurfacePod& fine_solution);
     void Relax(const SurfacePod& u, const SurfacePod& b, float cell_size,
@@ -37,7 +38,8 @@ private:
     std::unique_ptr<GLProgram> restrict_program_;
     std::unique_ptr<GLProgram> prolongate_program_;
 
-    std::unique_ptr<SurfacePod> diagnosis_; // TODO
+    std::unique_ptr<GLProgram> absolute_program_; // For diagnosis.
+    std::unique_ptr<SurfacePod> diagnosis_; // For diagnosis.
 };
 
 #endif // _MULTIGRID_POISSON_SOLVER_H_

@@ -238,3 +238,20 @@ void main()
 }
 )";
 }
+
+std::string MultigridShader::GetAbsoluteShaderCode()
+{
+    return R"(
+out vec3 frag_color;
+
+uniform sampler3D t;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
+    frag_color = vec3(abs(texelFetch(t, coord, 0).r), 0.0f, 0.0f);
+}
+)";
+}

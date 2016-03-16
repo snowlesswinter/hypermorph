@@ -447,7 +447,7 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             // That's a pretty good score!
 
             for (int i = 0; i < 5; i++)
-                p_solver->Solve(pressure, divergence, !!i);
+                p_solver->Solve(pressure, divergence, !i);
 
             break;
         }
