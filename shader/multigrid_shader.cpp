@@ -74,7 +74,7 @@ void main()
     float c8 = 0.125f;
 
     float ne_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(1, 1, -1)).r;
-    float n_z_minus_1  = c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, -1)).r;
+    float n_z_minus_1 =  c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, -1)).r;
     float nw_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(-1, 1, -1)).r;
     float e_z_minus_1 =  c2 * texelFetchOffset(s, c, 0, ivec3(1, 0, -1)).r;
     float c_z_minus_1 =  c4 * texelFetchOffset(s, c, 0, ivec3(0, 0, -1)).r;
@@ -84,7 +84,7 @@ void main()
     float sw_z_minus_1 = c1 * texelFetchOffset(s, c, 0, ivec3(-1, -1, -1)).r;
 
     float ne_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(1, 1, 0)).r;
-    float n_z_0  =       c4 * texelFetchOffset(s, c, 0, ivec3(0, 1, 0)).r;
+    float n_z_0 =        c4 * texelFetchOffset(s, c, 0, ivec3(0, 1, 0)).r;
     float nw_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(-1, 1, 0)).r;
     float e_z_0 =        c4 * texelFetchOffset(s, c, 0, ivec3(1, 0, 0)).r;
     float c_z_0 =        c8 * texelFetch(s, c, 0).r;
@@ -94,7 +94,7 @@ void main()
     float sw_z_0 =       c2 * texelFetchOffset(s, c, 0, ivec3(-1, -1, 0)).r;
 
     float ne_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(1, 1, 1)).r;
-    float n_z_plus_1  =  c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, 1)).r;
+    float n_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(0, 1, 1)).r;
     float nw_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(-1, 1, 1)).r;
     float e_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(1, 0, 1)).r;
     float c_z_plus_1 =   c4 * texelFetchOffset(s, c, 0, ivec3(0, 0, 1)).r;
@@ -103,24 +103,89 @@ void main()
     float s_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(0, -1, 1)).r;
     float sw_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(-1, -1, 1)).r;
 
-//     ivec3 tex_size = textureSize(pressure, 0);
-//     if (c.y >= tex_size.y - 1)
-//         pN = pC;
-// 
-//     if (c.y <= 0)
-//         pS = pC;
-// 
-//     if (c.x >= tex_size.x - 1)
-//         pE = pC;
-// 
-//     if (c.x <= 0)
-//         pW = pC;
-// 
-//     if (c.z >= tex_size.z - 1)
-//         pU = pC;
-// 
-//     if (c.z <= 0)
-//         pD = pC;
+    // The following boundary handling code will give us a 69% improvement
+    // on quality (average |r| goes down to 0.0013 from 0.0022) with the cost
+    // of extra 0.5ms processing time every frame.
+    //
+    // Note that we simply substitute out-of-bound values with the boundary
+    // values, which is not an accurate solution, but is so far satisfactory.
+    // Also, our experiments reveal that without adjusting the coefficient of
+    // boundary values to half(as per the restriction stencil), the algorithm
+    // surprisingly gain a better result of average |r|. This could be, in my
+    // opinion, a compensation to the highly unbalancing in the edge.
+
+    ivec3 tex_size = textureSize(s, 0);
+    if (c.x == tex_size.x - 1) {
+        ne_z_minus_1 = n_z_minus_1;
+        e_z_minus_1 =  c_z_minus_1;
+        se_z_minus_1 = s_z_minus_1;
+        ne_z_0 =       n_z_0;
+        e_z_0 =        c_z_0;
+        se_z_0 =       s_z_0;
+        ne_z_plus_1 =  n_z_plus_1;
+        e_z_plus_1 =   c_z_plus_1;
+        se_z_plus_1 =  s_z_plus_1;
+    }
+
+    if (c.x <= 0) {
+        nw_z_minus_1 = n_z_minus_1;
+        w_z_minus_1 =  c_z_minus_1;
+        sw_z_minus_1 = s_z_minus_1;
+        nw_z_0 =       n_z_0;
+        w_z_0 =        c_z_0;
+        sw_z_0 =       s_z_0;
+        nw_z_plus_1 =  n_z_plus_1;
+        w_z_plus_1 =   c_z_plus_1;
+        sw_z_plus_1 =  s_z_plus_1;
+    }
+
+    if (c.z >= tex_size.z - 1) {
+        ne_z_plus_1 = ne_z_0;
+        n_z_plus_1 =  n_z_0;
+        nw_z_plus_1 = nw_z_0;
+        e_z_plus_1 =  e_z_0;
+        c_z_plus_1 =  c_z_0;
+        w_z_plus_1 =  w_z_0;
+        se_z_plus_1 = se_z_0;
+        s_z_plus_1 =  s_z_0;
+        sw_z_plus_1 = sw_z_0;
+    }
+
+    if (c.z <= 0) {
+        ne_z_minus_1 = ne_z_0;
+        n_z_minus_1 =  n_z_0;
+        nw_z_minus_1 = nw_z_0;
+        e_z_minus_1 =  e_z_0;
+        c_z_minus_1 =  c_z_0;
+        w_z_minus_1 =  w_z_0;
+        se_z_minus_1 = se_z_0;
+        s_z_minus_1 =  s_z_0;
+        sw_z_minus_1 = sw_z_0;
+    }
+
+    if (c.y == tex_size.y - 1) {
+        ne_z_minus_1 = e_z_minus_1;
+        n_z_minus_1 =  c_z_minus_1;
+        nw_z_minus_1 = w_z_minus_1;
+        ne_z_0 =       e_z_0;
+        n_z_0 =        c_z_0;
+        nw_z_0 =       w_z_0;
+        ne_z_plus_1 =  e_z_plus_1;
+        n_z_plus_1 =   c_z_plus_1;
+        nw_z_plus_1 =  w_z_plus_1;
+    }
+
+    if (c.y == 0) {
+        se_z_minus_1 = e_z_minus_1;
+        s_z_minus_1 =  c_z_minus_1;
+        sw_z_minus_1 = w_z_minus_1;
+        se_z_0 =       e_z_0;
+        s_z_0 =        c_z_0;
+        sw_z_0 =       w_z_0;
+        se_z_plus_1 =  e_z_plus_1;
+        s_z_plus_1 =   c_z_plus_1;
+        sw_z_plus_1 =  w_z_plus_1;
+    }
 
     float result =
         ne_z_minus_1 +

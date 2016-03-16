@@ -144,12 +144,19 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
             v = new char[w * h * d * 4];
 
         memset(v, 0, w * h * d * 4);
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, p->FboHandle);
-        glReadPixels(0, 0, w, h, GL_RED, GL_FLOAT, v);
+        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
+        glGetTexImage(GL_TEXTURE_3D, 0, GL_RED, GL_FLOAT, v);
         float* f = (float*)v;
         double sum = 0.0;
-        for (int i = 0; i < w * h * d; i++)
-            sum += abs(f[i]);
+        float q = 0.0f;
+        for (int i = 0; i < d; i++) {
+            for (int j = 0; j < h; j++) {
+                for (int k = 0; k < w; k++) {
+                    q = f[i * w * h + j * w + k];
+                    sum += q;
+                }
+            }
+        }
 
         double avg = sum / (w * h * d);
         PezDebugString("avg ||r||: %.8f\n", avg);
