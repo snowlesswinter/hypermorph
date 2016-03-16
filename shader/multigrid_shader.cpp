@@ -103,8 +103,8 @@ void main()
     float s_z_plus_1 =   c2 * texelFetchOffset(s, c, 0, ivec3(0, -1, 1)).r;
     float sw_z_plus_1 =  c1 * texelFetchOffset(s, c, 0, ivec3(-1, -1, 1)).r;
 
-    // The following boundary handling code will give us a 69% improvement
-    // on quality (average |r| goes down to 0.0013 from 0.0022) with the cost
+    // The following boundary handling code will slightly improvement the
+    // quality (average |r| goes down to 0.008 from 0.010) with the cost
     // of extra 0.5ms processing time every frame.
     //
     // Note that we simply substitute out-of-bound values with the boundary

@@ -10,6 +10,21 @@
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 
+// A summary for lately experiments:
+//
+// Conclusion:
+//
+// * The relaxation to the finest level domains the time cost and visual
+//   result of the algorithm, though the average |r| will eventually stabilize
+//   to around 0.09 in spite of the setting of parameters. I think this is
+//   bottleneck for the current algorithm.
+// * Increasing the iteration times of coarsen level will not affect the time
+//   cost much, neither the visual effect.
+// * As said that the first 2 times Jacobi are the most efficient, reducing
+//   this number will probably introduce significant artifact to the result.
+//   So this is also the number of iterations we choose for the finest level
+//   smoothing.
+
 MultigridPoissonSolver::MultigridPoissonSolver()
     : multi_grid_surfaces_()
     , temp_surface_()
@@ -108,19 +123,19 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
                         std::get<2>(fine_surf), CellSize, false);
         Restrict(std::get<2>(fine_surf), std::get<1>(coarse_surf));
 
-        times_to_iterate += 2;
+        times_to_iterate *= 2;
     }
 
     Surface coarsest = (*multi_grid_surfaces_)[num_of_levels - 1];
     RelaxWithZeroGuess(std::get<0>(coarsest), std::get<1>(coarsest), CellSize);
     Relax(std::get<0>(coarsest), std::get<1>(coarsest), CellSize,
-          times_to_iterate - 1);
+          times_to_iterate);
 
     for (int j = num_of_levels - 2; j >= 0; j--)
     {
         Surface& coarse_surf = (*multi_grid_surfaces_)[j + 1];
         Surface& fine_surf = (*multi_grid_surfaces_)[j];
-        times_to_iterate -= 2;
+        times_to_iterate /= 2;
 
         Prolongate(std::get<0>(coarse_surf), std::get<0>(fine_surf));
         Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize,
@@ -128,7 +143,7 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
     }
 
     // For diagnosis.
-    ComputeResidual(pressure, divergence, *diagnosis_, CellSize, true);
+    //ComputeResidual(pressure, divergence, *diagnosis_, CellSize, true);
     static int diagnosis = 0;
     if (diagnosis)
     {
