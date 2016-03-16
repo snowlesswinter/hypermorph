@@ -30,6 +30,8 @@ private:
                     const SurfacePod& fine_solution);
     void Relax(const SurfacePod& u, const SurfacePod& b, float cell_size,
                int times);
+    void RelaxWithZeroGuess(const SurfacePod& u, const SurfacePod& b,
+                            float cell_size);
     void Restrict(const SurfacePod& source, const SurfacePod& dest);
 
     std::unique_ptr<MultiGridSurfaces> multi_grid_surfaces_;
@@ -37,6 +39,7 @@ private:
     std::unique_ptr<GLProgram> residual_program_;
     std::unique_ptr<GLProgram> restrict_program_;
     std::unique_ptr<GLProgram> prolongate_program_;
+    std::unique_ptr<GLProgram> relax_opt_program_;
 
     std::unique_ptr<GLProgram> absolute_program_; // For diagnosis.
     std::unique_ptr<SurfacePod> diagnosis_; // For diagnosis.

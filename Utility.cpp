@@ -34,6 +34,7 @@ const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 4.0f;
 const int NumJacobiIterations = 40;
+const int kNumMultigridIterations = 6;
 const float kMaxTimeStep = 0.33f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
@@ -387,8 +388,8 @@ void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
     glUseProgram(p);
 
     SetUniform("Alpha", -(cell_size * cell_size));
-    SetUniform("InverseBeta", 0.111111f);
-    SetUniform("one_minus_omega", 0.333333f);
+    SetUniform("InverseBeta", 0.11111111f);
+    SetUniform("one_minus_omega", 0.33333333f);
     SetUniform("Pressure", 0);
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
@@ -446,7 +447,7 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             // (using a constant iteration time of 40) is stabilized at 0.025.
             // That's a pretty good score!
 
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < kNumMultigridIterations; i++)
                 p_solver->Solve(pressure, divergence, !i);
 
             break;

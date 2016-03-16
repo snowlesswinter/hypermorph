@@ -16,6 +16,7 @@ MultigridPoissonSolver::MultigridPoissonSolver()
     , residual_program_()
     , restrict_program_()
     , prolongate_program_()
+    , relax_opt_program_()
     , absolute_program_()
     , diagnosis_()
 {
@@ -65,6 +66,11 @@ void MultigridPoissonSolver::Initialize(int grid_width)
     prolongate_program_->Load(FluidShader::GetVertexShaderCode(),
                               FluidShader::GetPickLayerShaderCode(),
                               MultigridShader::GetProlongateShaderCode());
+    relax_opt_program_.reset(new GLProgram());
+    relax_opt_program_->Load(
+        FluidShader::GetVertexShaderCode(),
+        FluidShader::GetPickLayerShaderCode(),
+        MultigridShader::GetRelaxWithZeroGuessShaderCode());
     absolute_program_.reset(new GLProgram());
     absolute_program_->Load(FluidShader::GetVertexShaderCode(),
                              FluidShader::GetPickLayerShaderCode(),
@@ -80,9 +86,6 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
     if (!multi_grid_surfaces_ || multi_grid_surfaces_->empty())
         return;
 
-    if (as_precondition)
-        ClearSurface(pressure, 0.0f);
-
     int times_to_iterate = 2;
     (*multi_grid_surfaces_)[0] = std::make_tuple(pressure, divergence,
                                                  *temp_surface_);
@@ -93,19 +96,25 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
         Surface& fine_surf = (*multi_grid_surfaces_)[i];
         Surface& coarse_surf = (*multi_grid_surfaces_)[i + 1];
 
+        if (i || as_precondition)
+            RelaxWithZeroGuess(std::get<0>(fine_surf), std::get<1>(fine_surf),
+                               CellSize);
+        else
+            Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize, 1);
+
         Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize,
-              times_to_iterate);
+              times_to_iterate - 1);
         ComputeResidual(std::get<0>(fine_surf), std::get<1>(fine_surf),
                         std::get<2>(fine_surf), CellSize, false);
         Restrict(std::get<2>(fine_surf), std::get<1>(coarse_surf));
-        ClearSurface(std::get<0>(coarse_surf), 0.0f);
 
         times_to_iterate += 2;
     }
 
     Surface coarsest = (*multi_grid_surfaces_)[num_of_levels - 1];
+    RelaxWithZeroGuess(std::get<0>(coarsest), std::get<1>(coarsest), CellSize);
     Relax(std::get<0>(coarsest), std::get<1>(coarsest), CellSize,
-          times_to_iterate);
+          times_to_iterate - 1);
 
     for (int j = num_of_levels - 2; j >= 0; j--)
     {
@@ -143,7 +152,7 @@ void MultigridPoissonSolver::Solve(const SurfacePod& pressure,
             sum += abs(f[i]);
 
         double avg = sum / (w * h * d);
-        PezDebugString("avg ||r||: %.4f\n", (float)avg);
+        PezDebugString("avg ||r||: %.8f\n", avg);
     }
     
 }
@@ -215,6 +224,26 @@ void MultigridPoissonSolver::Relax(const SurfacePod& u, const SurfacePod& b,
 {
     for (int i = 0; i < times; i++)
         DampedJacobi(u, b, SurfacePod(), cell_size);
+}
+
+void MultigridPoissonSolver::RelaxWithZeroGuess(const SurfacePod& u,
+                                                const SurfacePod& b,
+                                                float cell_size)
+{
+    assert(relax_opt_program_);
+    if (!relax_opt_program_)
+        return;
+
+    relax_opt_program_->Use();
+
+    SetUniform("b", 0);
+    SetUniform("alpha_omega_over_beta", -(cell_size * cell_size) * 0.11111111f);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, u.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, b.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, u.Depth);
+    ResetState();
 }
 
 void MultigridPoissonSolver::Restrict(const SurfacePod& source,

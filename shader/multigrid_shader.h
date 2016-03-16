@@ -9,6 +9,7 @@ public:
     static std::string GetComputeResidualShaderCode();
     static std::string GetRestrictShaderCode();
     static std::string GetProlongateShaderCode();
+    static std::string GetRelaxWithZeroGuessShaderCode();
     static std::string GetAbsoluteShaderCode(); // For diagnosis.
 };
 
