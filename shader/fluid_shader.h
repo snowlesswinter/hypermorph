@@ -9,13 +9,16 @@ public:
     static std::string GetVertexShaderCode();
     static std::string GetPickLayerShaderCode();
     static std::string GetFillShaderCode();
-    static std::string GetAvectShaderCode();
+    static std::string GetAdvectShaderCode();
     static std::string GetJacobiShaderCode();
     static std::string GetDampedJacobiShaderCode();
     static std::string GetComputeDivergenceShaderCode();
     static std::string GetSubtractGradientShaderCode();
     static std::string GetSplatShaderCode();
     static std::string GetBuoyancyShaderCode();
+
+    // Optimization.
+    static std::string GetAdvectPackedShaderCode();
 };
 
 #endif // _FLUID_SHADER_H_

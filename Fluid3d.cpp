@@ -1,4 +1,4 @@
-#include "Utility.h"
+#include "fluid3d.h"
 
 #include <cmath>
 #include <algorithm>
@@ -6,9 +6,12 @@
 
 #include <windows.h>
 
+#include "gl_program.h"
+#include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
 #include "overlay_content.h"
 #include "metrics.h"
+#include "utility.h"
 
 using namespace vmath;
 using std::string;
@@ -18,14 +21,11 @@ namespace
 struct
 {
     SurfacePod velocity_;
-    SurfacePod density_;
-    SurfacePod temperature_;
-    SurfacePod pressure_;
+    SurfacePod density_and_temperature_;
 } Surfaces;
 
 struct
 {
-    SurfacePod general_buffer_1;
     SurfacePod general_buffer_3;
 } general_buffers;
 
@@ -49,6 +49,7 @@ GLuint RaycastProgram;
 float FieldOfView = 0.7f;
 bool SimulateFluid = true;
 OverlayContent overlay_;
+GLProgram advect_packed_program_;
 }
 
 PezConfig PezGetConfig()
@@ -68,17 +69,14 @@ void PezInitialize()
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
     RaycastProgram = LoadProgram(RaycastShader::GetVertexShaderCode(), RaycastShader::GetGeometryShaderCode(), RaycastShader::GetFragmentShaderCode());
+    advect_packed_program_.Load(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAdvectPackedShaderCode());
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
     Surfaces.velocity_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
-    Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    Surfaces.pressure_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.density_and_temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     general_buffers.general_buffer_3 = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     InitSlabOps();
-    ClearSurface(Surfaces.temperature_, AmbientTemperature);
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -130,7 +128,7 @@ void PezRender()
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D, Surfaces.density_.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, Surfaces.density_and_temperature_.ColorTexture);
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -197,42 +195,34 @@ void PezUpdate(unsigned int microseconds)
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnVelocityAvected();
 
-        // Advect temperature
-        ClearSurface(general_buffers.general_buffer_1, 0.0f);
-        Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
-        std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
-        Metrics::Instance()->OnTemperatureAvected();
-
-        // Advect density
-        ClearSurface(general_buffers.general_buffer_1, 0.0f);
-        Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
-        std::swap(Surfaces.density_, general_buffers.general_buffer_1);
+        // Advect density and temperature
+        AdvectPacked(Surfaces.velocity_, Surfaces.density_and_temperature_,
+                     general_buffers.general_buffer_3, delta_time,
+                     DensityDissipation, TemperatureDissipation);
+        std::swap(Surfaces.density_and_temperature_, general_buffers.general_buffer_3);
+        //Metrics::Instance()->OnTemperatureAvected();
         Metrics::Instance()->OnDensityAvected();
 
         // Apply buoyancy and gravity
-        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        ApplyBuoyancy(Surfaces.velocity_, Surfaces.density_and_temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
-        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
-        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity);
+        ApplyImpulse(Surfaces.density_and_temperature_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseTemperature);
         Metrics::Instance()->OnImpulseApplied();
 
-        // Calculate divergence
-        ClearSurface(general_buffers.general_buffer_1, 0.0f);
-
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
-        ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_1);
+        ComputeDivergence(Surfaces.velocity_, SurfacePod(),
+                          general_buffers.general_buffer_3);
         Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation
-        SolvePressure(Surfaces.pressure_, general_buffers.general_buffer_1, SurfacePod());
+        SolvePressure(general_buffers.general_buffer_3);
         Metrics::Instance()->OnPressureSolved();
 
         // Rectify velocity via the gradient of pressure
-        SubtractGradient(Surfaces.velocity_, Surfaces.pressure_, SurfacePod(), general_buffers.general_buffer_3);
-        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
+        SubtractGradient(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnVelocityRectified();
     }
 }
@@ -261,8 +251,7 @@ void PezHandleMouse(int x, int y, int action, int delta)
 void Reset()
 {
     ClearSurface(Surfaces.velocity_, 0.0f);
-    ClearSurface(Surfaces.density_, 0.0f);
-    ClearSurface(Surfaces.temperature_, 0.0f);
+    ClearSurface(Surfaces.density_and_temperature_, 0.0f);
     Metrics::Instance()->Reset();
 }
 
@@ -281,4 +270,25 @@ void PezHandleKey(char c)
             break;
     }
     
+}
+
+void AdvectPacked(SurfacePod velocity, SurfacePod source, SurfacePod dest,
+                  float delta_time, float dissipation_r, float dissipation_g)
+{
+    advect_packed_program_.Use();
+
+    SetUniform("velocity", 0);
+    SetUniform("source", 1);
+    SetUniform("inverse_size", recipPerElem(Vector3(float(GridWidth), float(GridHeight), float(GridDepth))));
+    SetUniform("time_step", delta_time);
+    SetUniform("dissipation_r", dissipation_r);
+    SetUniform("dissipation_g", dissipation_g);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+    ResetState();
 }

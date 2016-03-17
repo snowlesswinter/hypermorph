@@ -306,7 +306,7 @@ void ResetState()
 
 void InitSlabOps()
 {
-    Programs.Advect = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAvectShaderCode());
+    Programs.Advect = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAdvectShaderCode());
     Programs.Jacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetJacobiShaderCode());
     Programs.DampedJacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetDampedJacobiShaderCode());
     Programs.compute_residual = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), MultigridShader::GetComputeResidualShaderCode());
@@ -403,17 +403,16 @@ void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
     ResetState();
 }
 
-void SolvePressure(SurfacePod pressure, SurfacePod divergence,
-                   SurfacePod obstacles)
+void SolvePressure(SurfacePod packed)
 {
     switch (kSolverChoice) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
                                             // implemented by shader.
-            ClearSurface(pressure, 0.0f);
-            for (int i = 0; i < NumJacobiIterations; ++i) {
-                Jacobi(pressure, divergence, obstacles);
-            }
+//             ClearSurface(pressure, 0.0f);
+//             for (int i = 0; i < NumJacobiIterations; ++i) {
+//                 Jacobi(pressure, divergence, obstacles);
+//             }
             break;
         }
         case POISSON_SOLVER_DAMPED_JACOBI: {
@@ -423,10 +422,10 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             // Our experiments reveals that increasing the iteration times to
             // 80 of Jacobi will NOT lead to higher accuracy.
 
-            ClearSurface(pressure, 0.0f);
-            for (int i = 0; i < NumJacobiIterations; ++i) {
-                DampedJacobi(pressure, divergence, obstacles, CellSize);
-            }
+//             ClearSurface(pressure, 0.0f);
+//             for (int i = 0; i < NumJacobiIterations; ++i) {
+//                 DampedJacobi(pressure, divergence, obstacles, CellSize);
+//             }
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
@@ -448,7 +447,7 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
             // That's a pretty good score!
 
             for (int i = 0; i < kNumMultigridIterations; i++)
-                p_solver->Solve(pressure, divergence, !i);
+                p_solver->Solve(packed, !i);
 
             break;
         }
@@ -458,22 +457,22 @@ void SolvePressure(SurfacePod pressure, SurfacePod divergence,
     }
 }
 
-void SubtractGradient(SurfacePod velocity, SurfacePod pressure, SurfacePod obstacles, SurfacePod dest)
+void SubtractGradient(SurfacePod velocity, SurfacePod packed)
 {
     GLuint p = Programs.SubtractGradient;
     glUseProgram(p);
 
     SetUniform("GradientScale", GradientScale);
     SetUniform("HalfInverseCellSize", 0.5f / CellSize);
-    SetUniform("Pressure", 1);
-    SetUniform("Obstacles", 2);
+    SetUniform("velocity", 0);
+    SetUniform("packed_tex", 1);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, velocity.FboHandle);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+    glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, velocity.Depth);
     ResetState();
 }
 
@@ -484,6 +483,7 @@ void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod des
 
     SetUniform("HalfInverseCellSize", 0.5f / CellSize);
     SetUniform("Obstacles", 1);
+    SetUniform("velocity", 0);
 
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
     glActiveTexture(GL_TEXTURE0);
@@ -492,15 +492,16 @@ void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod des
     ResetState();
 }
 
-void ApplyImpulse(SurfacePod dest, Vector3 position, Vector3 hotspot, float value)
+void ApplyImpulse(SurfacePod dest, Vector3 position, Vector3 hotspot, float value_r, float value_g)
 {
     GLuint p = Programs.ApplyImpulse;
     glUseProgram(p);
 
     SetUniform("center_point", position);
     SetUniform("hotspot", hotspot);
-    SetUniform("Radius", SplatRadius);
-    SetUniform("FillColor", Vector3(value, value, value));
+    SetUniform("radius", SplatRadius);
+    SetUniform("fill_color_r", value_r);
+    SetUniform("fill_color_g", value_g);
 
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
     glEnable(GL_BLEND);
