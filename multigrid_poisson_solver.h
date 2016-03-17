@@ -47,6 +47,11 @@ private:
     void RestrictPacked(const SurfacePod& fine, const SurfacePod& coarse);
     void SolveOpt(const SurfacePod& u_and_b, bool as_precondition);
 
+    // For diagnosis.
+    void ComputeResidualPackedDiagnosis(const SurfacePod& packed,
+                                        const SurfacePod& diagnosis,
+                                        float cell_size);
+
     std::unique_ptr<MultiGridSurfaces> multi_grid_surfaces_;
     std::vector<SurfacePod> packed_surfaces_;
     std::unique_ptr<SurfacePod> temp_surface_; // TODO
@@ -64,8 +69,10 @@ private:
     std::unique_ptr<GLProgram> residual_packed_program_;
     std::unique_ptr<GLProgram> restrict_packed_program_;
 
-    std::unique_ptr<GLProgram> absolute_program_; // For diagnosis.
-    std::unique_ptr<SurfacePod> diagnosis_volume_; // For diagnosis.
+    // For diagnosis.
+    std::unique_ptr<GLProgram> absolute_program_; 
+    std::unique_ptr<GLProgram> residual_diagnosis_program_;
+    std::unique_ptr<SurfacePod> diagnosis_volume_;
 };
 
 #endif // _MULTIGRID_POISSON_SOLVER_H_

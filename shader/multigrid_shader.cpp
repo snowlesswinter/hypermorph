@@ -199,153 +199,8 @@ const char* kProlongateCore = R"(
         u0 + u1 + u2 + u3 + u4 + u5 + u6;
     interpolated *= d[odd_x + odd_y + odd_z];
 )";
-}
 
-std::string MultigridShader::GetComputeResidualShaderCode()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D residual;
-uniform sampler3D u;
-uniform sampler3D b;
-
-uniform float inverse_h_square;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
-
-    // Find neighboring pressure:
-    float pN = texelFetchOffset(u, coord, 0, ivec3(0, 1, 0)).r;
-    float pS = texelFetchOffset(u, coord, 0, ivec3(0, -1, 0)).r;
-    float pE = texelFetchOffset(u, coord, 0, ivec3(1, 0, 0)).r;
-    float pW = texelFetchOffset(u, coord, 0, ivec3(-1, 0, 0)).r;
-    float pU = texelFetchOffset(u, coord, 0, ivec3(0, 0, 1)).r;
-    float pD = texelFetchOffset(u, coord, 0, ivec3(0, 0, -1)).r;
-    float pC = texelFetch(u, coord, 0).r;
-
-    // Handle boundary problem
-    ivec3 tex_size = textureSize(u, 0);
-    if (coord.y >= tex_size.y - 1)
-        pN = pC;
-
-    if (coord.y <= 0)
-        pS = pC;
-
-    if (coord.x >= tex_size.x - 1)
-        pE = pC;
-
-    if (coord.x <= 0)
-        pW = pC;
-
-    if (coord.z >= tex_size.z - 1)
-        pU = pC;
-
-    if (coord.z <= 0)
-        pD = pC;
-
-    float bC = texelFetch(b, coord, 0).r;
-    frag_color = vec3(
-        bC - (pW + pE + pS + pN + pU + pD - 6.0 * pC) * inverse_h_square,
-        0.0f, 0.0f);
-}
-)";
-}
-
-std::string MultigridShader::GetRestrictShaderCode()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D s;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 c = ivec3(gl_FragCoord.xy, gLayer) * 2;
-)";
-    std::string part2 = R"(
-    frag_color = vec3(result, 0.0f, 0.0f);
-}
-)";
-    return part1 + kRestrictCore + part2;
-}
-
-std::string MultigridShader::GetProlongateShaderCode()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D fine;
-uniform sampler3D c;
-
-in float gLayer;
-
-void main()
-{
-)";
-    std::string part2 = R"(
-    frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated,
-                      0.0f, 0.0f);
-}
-)";
-    return part1 + kProlongateCore + part2;
-}
-
-std::string MultigridShader::GetRelaxWithZeroGuessShaderCode()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D b;
-
-uniform float alpha_omega_over_beta;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
-    frag_color = vec3(alpha_omega_over_beta * texelFetch(b, coord, 0).r,
-                      0.0f, 0.0f);
-}
-)";
-}
-
-std::string MultigridShader::GetAbsoluteShaderCode()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D t;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
-    frag_color = vec3(abs(texelFetch(t, coord, 0).r), 0.0f, 0.0f);
-}
-)";
-}
-
-std::string MultigridShader::GetComputeResidualPackedShaderCode()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D packed_tex;
-
-uniform float inverse_h_square;
-
-in float gLayer;
-
-void main()
-{
+const char* kResidualCore = R"(
     ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
 
     float near =   texelFetchOffset(packed_tex, coord, 0, ivec3(0, 0, -1)).r;
@@ -375,16 +230,121 @@ void main()
 
     if (coord.z == 0)
         near = center.r;
+)";
+}
 
+std::string MultigridShader::ComputeResidual()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D packed_tex;
+uniform sampler3D b;
+
+uniform float inverse_h_square;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
+    b_center = texelFetch(b, coord, 0).r;
+    float v = b_center -
+        (north + south + east + west + far + near - 6.0 * center.r) *
+            inverse_h_square;
+    frag_color = vec3(v, 0.0f, 0.0f);
+}
+)";
+    return part1 + kResidualCore + part2;
+}
+
+std::string MultigridShader::RestrictShader()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D s;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 c = ivec3(gl_FragCoord.xy, gLayer) * 2;
+)";
+    std::string part2 = R"(
+    frag_color = vec3(result, 0.0f, 0.0f);
+}
+)";
+    return part1 + kRestrictCore + part2;
+}
+
+std::string MultigridShader::Prolongate()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D fine;
+uniform sampler3D c;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
+    frag_color = vec3(texelFetch(fine, f_coord, 0).r + interpolated,
+                      0.0f, 0.0f);
+}
+)";
+    return part1 + kProlongateCore + part2;
+}
+
+std::string MultigridShader::RelaxWithZeroGuess()
+{
+    return R"(
+out vec3 frag_color;
+
+uniform sampler3D b;
+
+uniform float alpha_omega_over_beta;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
+    frag_color = vec3(alpha_omega_over_beta * texelFetch(b, coord, 0).r,
+                      0.0f, 0.0f);
+}
+)";
+}
+
+std::string MultigridShader::ComputeResidualPacked()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D packed_tex;
+
+uniform float inverse_h_square;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
     float v = b_center -
         (north + south + east + west + far + near - 6.0 * center.r) *
             inverse_h_square;
     frag_color = vec3(center.r, b_center, v);
 }
 )";
+    return part1 + kResidualCore + part2;
 }
 
-std::string MultigridShader::GetProlongateAndRelaxShaderCode()
+std::string MultigridShader::ProlongateAndRelax()
 {
     return R"(
 out vec3 frag_color;
@@ -590,7 +550,7 @@ void main()
 )";
 }
 
-std::string MultigridShader::GetProlongatePackedShaderCode()
+std::string MultigridShader::ProlongatePacked()
 {
     std::string part1 = R"(
 out vec3 frag_color;
@@ -611,7 +571,7 @@ void main()
     return part1 + kProlongateCore + part2;
 }
 
-std::string MultigridShader::GetRelaxPackedShaderCode()
+std::string MultigridShader::RelaxPacked()
 {
     return R"(
 out vec3 frag_color;
@@ -665,7 +625,7 @@ void main()
 )";
 }
 
-std::string MultigridShader::GetRelaxWithZeroGuessPackedShaderCode()
+std::string MultigridShader::RelaxWithZeroGuessPacked()
 {
     return R"(
 out vec3 frag_color;
@@ -719,7 +679,7 @@ void main()
 )";
 }
 
-std::string MultigridShader::GetRestrictPackedShaderCode()
+std::string MultigridShader::RestrictPacked()
 {
     std::string part1 = R"(
 out vec3 frag_color;
@@ -741,4 +701,45 @@ void main()
     std::regex e("\\)\\)\\.r;");
     std::string core = std::regex_replace(restrict_core, e, ")).b;");
     return part1 + core + part2;
+}
+
+std::string MultigridShader::Absolute()
+{
+    return R"(
+out vec3 frag_color;
+
+uniform sampler3D t;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
+    frag_color = vec3(abs(texelFetch(t, coord, 0).r), 0.0f, 0.0f);
+}
+)";
+}
+
+std::string MultigridShader::ComputeResidualPackedDiagnosis()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D packed_tex;
+
+uniform float inverse_h_square;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
+    float v = b_center -
+        (north + south + east + west + far + near - 6.0 * center.r) *
+            inverse_h_square;
+    frag_color = vec3(v, 0.0f, 0.0f);
+}
+)";
+    return part1 + kResidualCore + part2;
 }

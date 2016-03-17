@@ -41,6 +41,7 @@ MultigridPoissonSolver::MultigridPoissonSolver()
     , residual_packed_program_()
     , restrict_packed_program_()
     , absolute_program_()
+    , residual_diagnosis_program_()
     , diagnosis_volume_()
 {
 }
@@ -84,62 +85,56 @@ void MultigridPoissonSolver::Initialize(int grid_width)
                 CreateVolume(grid_width, grid_width, grid_width, 1)));
 
         residual_program_.reset(new GLProgram());
-        residual_program_->Load(FluidShader::GetVertexShaderCode(),
-                                FluidShader::GetPickLayerShaderCode(),
-                                MultigridShader::GetComputeResidualShaderCode());
+        residual_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
+                                MultigridShader::ComputeResidual());
         restrict_program_.reset(new GLProgram());
-        restrict_program_->Load(FluidShader::GetVertexShaderCode(),
-                                FluidShader::GetPickLayerShaderCode(),
-                                MultigridShader::GetRestrictShaderCode());
+        restrict_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
+                                MultigridShader::RestrictShader());
         prolongate_program_.reset(new GLProgram());
-        prolongate_program_->Load(FluidShader::GetVertexShaderCode(),
-                                  FluidShader::GetPickLayerShaderCode(),
-                                  MultigridShader::GetProlongateShaderCode());
+        prolongate_program_->Load(FluidShader::Vertex(),
+                                  FluidShader::PickLayer(),
+                                  MultigridShader::Prolongate());
         relax_zero_guess_program_.reset(new GLProgram());
-        relax_zero_guess_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetRelaxWithZeroGuessShaderCode());
+        relax_zero_guess_program_->Load(FluidShader::Vertex(),
+                                        FluidShader::PickLayer(),
+                                        MultigridShader::RelaxWithZeroGuess());
         absolute_program_.reset(new GLProgram());
-        absolute_program_->Load(FluidShader::GetVertexShaderCode(),
-                                FluidShader::GetPickLayerShaderCode(),
-                                MultigridShader::GetAbsoluteShaderCode());
+        absolute_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
+                                MultigridShader::Absolute());
     } else {
         residual_packed_program_.reset(new GLProgram());
         residual_packed_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetComputeResidualPackedShaderCode());
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridShader::ComputeResidualPacked());
         restrict_packed_program_.reset(new GLProgram());
         restrict_packed_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetRestrictPackedShaderCode());
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridShader::RestrictPacked());
         prolongate_and_relax_program_.reset(new GLProgram());
         prolongate_and_relax_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetProlongateAndRelaxShaderCode());
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridShader::ProlongateAndRelax());
         prolongate_packed_program_.reset(new GLProgram());
-        prolongate_packed_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetProlongatePackedShaderCode());
+        prolongate_packed_program_->Load(FluidShader::Vertex(),
+                                         FluidShader::PickLayer(),
+                                         MultigridShader::ProlongatePacked());
         relax_packed_program_.reset(new GLProgram());
-        relax_packed_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetRelaxPackedShaderCode());
+        relax_packed_program_->Load(FluidShader::Vertex(),
+                                    FluidShader::PickLayer(),
+                                    MultigridShader::RelaxPacked());
         relax_zero_guess_packed_program_.reset(new GLProgram());
         relax_zero_guess_packed_program_->Load(
-            FluidShader::GetVertexShaderCode(),
-            FluidShader::GetPickLayerShaderCode(),
-            MultigridShader::GetRelaxWithZeroGuessPackedShaderCode());
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridShader::RelaxWithZeroGuessPacked());
         absolute_program_.reset(new GLProgram());
-        absolute_program_->Load(FluidShader::GetVertexShaderCode(),
-                                FluidShader::GetPickLayerShaderCode(),
-                                MultigridShader::GetAbsoluteShaderCode());
+        absolute_program_->Load(FluidShader::Vertex(),
+                                FluidShader::PickLayer(),
+                                MultigridShader::Absolute());
     }
+    residual_diagnosis_program_.reset(new GLProgram());
+    residual_diagnosis_program_->Load(
+        FluidShader::Vertex(), FluidShader::PickLayer(),
+        MultigridShader::ComputeResidualPackedDiagnosis());
 }
 
 void MultigridPoissonSolver::Solve(const SurfacePod& packed,
@@ -149,6 +144,51 @@ void MultigridPoissonSolver::Solve(const SurfacePod& packed,
         SolvePlain(packed, as_precondition);
     else
         SolveOpt(packed, as_precondition);
+
+    // For diagnosis.
+    ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
+    static int diagnosis = 0;
+    if (diagnosis)
+    {
+        glFinish();
+        const SurfacePod* p = diagnosis_volume_.get();
+
+        int w = p->Width;
+        int h = p->Height;
+        int d = p->Depth;
+        int n = 1;
+        int element_size = sizeof(float);
+        GLenum format = GL_RED;
+
+        static char* v = nullptr;
+        if (!v)
+            v = new char[w * h * d * element_size * n];
+
+        memset(v, 0, w * h * d * element_size * n);
+        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
+        glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
+        float* f = (float*)v;
+        double sum = 0.0;
+        float q = 0.0f;
+        for (int i = 0; i < d; i++)
+        {
+            for (int j = 0; j < h; j++)
+            {
+                for (int k = 0; k < w; k++)
+                {
+                    for (int l = 0; l < n; l++)
+                    {
+                        q = abs(f[i * w * h * n + j * w * n + k * n + l]);
+                        //if (l % n == 2)
+                            sum += q;
+                    }
+                }
+            }
+        }
+
+        double avg = sum / (w * h * d);
+        PezDebugString("avg ||r||: %.8f\n", avg);
+    }
 }
 
 void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
@@ -162,17 +202,14 @@ void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
 
     residual_program_->Use();
 
-    SetUniform("residual", 0);
-    SetUniform("u", 1);
-    SetUniform("b", 2);
+    SetUniform("packed_tex", 0);
+    SetUniform("b", 1);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
     glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, residual.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, u.ColorTexture);
-    glActiveTexture(GL_TEXTURE2);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, b.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual.Depth);
     ResetState();
@@ -304,49 +341,6 @@ void MultigridPoissonSolver::SolvePlain(const SurfacePod& packed,
         Prolongate(std::get<0>(coarse_surf), std::get<0>(fine_surf));
         Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize,
               times_to_iterate);
-    }
-
-    // For diagnosis.
-    //ComputeResidual(pressure, divergence, *diagnosis_, CellSize, true);
-    static int diagnosis = 0;
-    if (diagnosis) {
-        glFinish();
-        SurfacePod* p = diagnosis_volume_.get();
-
-        int w = p->Width;
-        int h = p->Height;
-        int d = p->Depth;
-        int n = 1;
-        int element_size = sizeof(float);
-        GLenum format = GL_RED;
-
-        static char* v = nullptr;
-        if (!v)
-            v = new char[w * h * d * element_size * n];
-
-        memset(v, 0, w * h * d * element_size * n);
-        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
-        glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
-        float* f = (float*)v;
-        double sum = 0.0;
-        float q = 0.0f;
-        for (int i = 0; i < d; i++)
-        {
-            for (int j = 0; j < h; j++)
-            {
-                for (int k = 0; k < w; k++)
-                {
-                    for (int l = 0; l < n; l++)
-                    {
-                        q = f[i * w * h * n + j * w * n + k * n + l];
-                        sum += q;
-                    }
-                }
-            }
-        }
-
-        double avg = sum / (w * h * d);
-        PezDebugString("avg ||r||: %.8f\n", avg);
     }
 }
 
@@ -523,4 +517,23 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
         ProlongatePacked(coarse_volume, fine_volume);
         RelaxPacked(fine_volume, CellSize, times_to_iterate/* - 1*/);
     }
+}
+
+void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
+    const SurfacePod& packed, const SurfacePod& diagnosis, float cell_size)
+{
+    assert(residual_diagnosis_program_);
+    if (!residual_diagnosis_program_)
+        return;
+
+    residual_diagnosis_program_->Use();
+
+    SetUniform("packed_tex", 0);
+    SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
+
+    glBindFramebuffer(GL_FRAMEBUFFER, diagnosis.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
+    ResetState();
 }

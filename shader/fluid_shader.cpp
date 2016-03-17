@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "fluid_shader.h"
 
-std::string FluidShader::GetVertexShaderCode()
+std::string FluidShader::Vertex()
 {
     return R"(
 in vec4 Position;
@@ -15,7 +15,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetPickLayerShaderCode()
+std::string FluidShader::PickLayer()
 {
     return R"(
 layout(triangles) in;
@@ -41,7 +41,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetFillShaderCode()
+std::string FluidShader::Fill()
 {
     return R"(
 out vec3 FragColor;
@@ -53,7 +53,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetAdvectShaderCode()
+std::string FluidShader::Advect()
 {
     // NOTE: Think of the real world, smoke and air molecules would hit each
     //       other. The further the smoke traveled, the more hitting occurred.
@@ -105,7 +105,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetJacobiShaderCode()
+std::string FluidShader::Jacobi()
 {
     return R"(
 out vec3 FragColor;
@@ -160,7 +160,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetDampedJacobiShaderCode()
+std::string FluidShader::DampedJacobi()
 {
     return R"(
 out vec3 FragColor;
@@ -218,7 +218,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetComputeDivergenceShaderCode()
+std::string FluidShader::ComputeDivergence()
 {
     return R"(
 out vec3 FragColor;
@@ -272,7 +272,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetSubtractGradientShaderCode()
+std::string FluidShader::SubtractGradient()
 {
     return R"(
 out vec3 FragColor;
@@ -340,7 +340,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetSplatShaderCode()
+std::string FluidShader::Splat()
 {
     return R"(
 out vec4 frag_color;
@@ -371,7 +371,7 @@ void main()
 )";
 }
 
-std::string FluidShader::GetBuoyancyShaderCode()
+std::string FluidShader::Buoyancy()
 {
     // In the original implementation, density is also accounted for the
     // acceleration. But I don't think that's reasonable, so I removed this

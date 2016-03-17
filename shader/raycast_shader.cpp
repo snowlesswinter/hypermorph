@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "raycast_shader.h"
 
-std::string RaycastShader::GetVertexShaderCode()
+std::string RaycastShader::Vertex()
 {
     return R"(
 in vec4 Position;
@@ -16,7 +16,7 @@ void main()
 )";
 }
 
-std::string RaycastShader::GetGeometryShaderCode()
+std::string RaycastShader::Geometry()
 {
     return R"(
 layout(points) in;
@@ -73,7 +73,7 @@ void main()
 )";
 }
 
-std::string RaycastShader::GetFragmentShaderCode()
+std::string RaycastShader::Fragment()
 {
     return R"(
 out vec4 FragColor;

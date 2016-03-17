@@ -97,8 +97,8 @@ GLuint OverlayContent::GetTexture()
 GLuint OverlayContent::GetProgram()
 {
     if (!program_) {
-        program_ = LoadProgram(OverlayShader::GetVertexShaderCode(), "",
-                               OverlayShader::GetFragmentShaderCode());
+        program_ = LoadProgram(OverlayShader::Vertex(), "",
+                               OverlayShader::Fragment());
     }
 
     return program_;

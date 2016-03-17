@@ -6,20 +6,23 @@
 class MultigridShader
 {
 public:
-    static std::string GetComputeResidualShaderCode();
-    static std::string GetRestrictShaderCode();
-    static std::string GetProlongateShaderCode();
-    static std::string GetRelaxWithZeroGuessShaderCode();
-    static std::string GetAbsoluteShaderCode(); // For diagnosis.
+    static std::string ComputeResidual();
+    static std::string RestrictShader();
+    static std::string Prolongate();
+    static std::string RelaxWithZeroGuess();
 
     // Optimization.
-    static std::string GetComputeResidualPackedShaderCode();
-    static std::string GetProlongateAndRelaxShaderCode();
-    static std::string GetProlongatePackedShaderCode();
-    static std::string GetRelaxAndComputeResidualShaderCode();
-    static std::string GetRelaxPackedShaderCode();
-    static std::string GetRelaxWithZeroGuessPackedShaderCode();
-    static std::string GetRestrictPackedShaderCode();
+    static std::string ComputeResidualPacked();
+    static std::string ProlongateAndRelax();
+    static std::string ProlongatePacked();
+    static std::string RelaxAndComputeResidual();
+    static std::string RelaxPacked();
+    static std::string RelaxWithZeroGuessPacked();
+    static std::string RestrictPacked();
+
+    // For diagnosis.
+    static std::string Absolute();
+    static std::string ComputeResidualPackedDiagnosis();
 };
 
 #endif // _MULTIGRID_SHADER_H_

@@ -68,8 +68,8 @@ void PezInitialize()
     PezConfig cfg = PezGetConfig();
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
-    RaycastProgram = LoadProgram(RaycastShader::GetVertexShaderCode(), RaycastShader::GetGeometryShaderCode(), RaycastShader::GetFragmentShaderCode());
-    advect_packed_program_.Load(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAdvectPackedShaderCode());
+    RaycastProgram = LoadProgram(RaycastShader::Vertex(), RaycastShader::Geometry(), RaycastShader::Fragment());
+    advect_packed_program_.Load(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::GetAdvectPackedShaderCode());
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 

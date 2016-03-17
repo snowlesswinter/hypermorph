@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "overlay_shader.h"
 
-std::string OverlayShader::GetVertexShaderCode()
+std::string OverlayShader::Vertex()
 {
     return R"(
 in vec4 position;
@@ -19,7 +19,7 @@ void main()
 )";
 }
 
-std::string OverlayShader::GetFragmentShaderCode()
+std::string OverlayShader::Fragment()
 {
     return R"(
 in vec2 v_coord;

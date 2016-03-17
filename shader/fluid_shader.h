@@ -6,16 +6,16 @@
 class FluidShader
 {
 public:
-    static std::string GetVertexShaderCode();
-    static std::string GetPickLayerShaderCode();
-    static std::string GetFillShaderCode();
-    static std::string GetAdvectShaderCode();
-    static std::string GetJacobiShaderCode();
-    static std::string GetDampedJacobiShaderCode();
-    static std::string GetComputeDivergenceShaderCode();
-    static std::string GetSubtractGradientShaderCode();
-    static std::string GetSplatShaderCode();
-    static std::string GetBuoyancyShaderCode();
+    static std::string Vertex();
+    static std::string PickLayer();
+    static std::string Fill();
+    static std::string Advect();
+    static std::string Jacobi();
+    static std::string DampedJacobi();
+    static std::string ComputeDivergence();
+    static std::string SubtractGradient();
+    static std::string Splat();
+    static std::string Buoyancy();
 
     // Optimization.
     static std::string GetAdvectPackedShaderCode();

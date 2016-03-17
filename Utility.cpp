@@ -56,8 +56,8 @@ void CreateObstacles(SurfacePod dest)
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    GLuint program = LoadProgram(FluidShader::GetVertexShaderCode(), 0,
-                                 FluidShader::GetFillShaderCode());
+    GLuint program = LoadProgram(FluidShader::Vertex(), 0,
+                                 FluidShader::Fill());
     glUseProgram(program);
 
     GLuint lineVbo;
@@ -306,14 +306,14 @@ void ResetState()
 
 void InitSlabOps()
 {
-    Programs.Advect = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetAdvectShaderCode());
-    Programs.Jacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetJacobiShaderCode());
-    Programs.DampedJacobi = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetDampedJacobiShaderCode());
-    Programs.compute_residual = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), MultigridShader::GetComputeResidualShaderCode());
-    Programs.SubtractGradient = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSubtractGradientShaderCode());
-    Programs.ComputeDivergence = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetComputeDivergenceShaderCode());
-    Programs.ApplyImpulse = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetSplatShaderCode());
-    Programs.ApplyBuoyancy = LoadProgram(FluidShader::GetVertexShaderCode(), FluidShader::GetPickLayerShaderCode(), FluidShader::GetBuoyancyShaderCode());
+    Programs.Advect = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Advect());
+    Programs.Jacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Jacobi());
+    Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::DampedJacobi());
+    Programs.compute_residual = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), MultigridShader::ComputeResidual());
+    Programs.SubtractGradient = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::SubtractGradient());
+    Programs.ComputeDivergence = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::ComputeDivergence());
+    Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Splat());
+    Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Buoyancy());
 }
 
 void ClearSurface(SurfacePod s, float v)

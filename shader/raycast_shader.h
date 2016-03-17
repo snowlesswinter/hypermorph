@@ -6,9 +6,9 @@
 class RaycastShader
 {
 public:
-    static std::string GetVertexShaderCode();
-    static std::string GetGeometryShaderCode();
-    static std::string GetFragmentShaderCode();
+    static std::string Vertex();
+    static std::string Geometry();
+    static std::string Fragment();
 };
 
 #endif // _RAYCAST_SHADER_H_

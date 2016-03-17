@@ -6,8 +6,8 @@
 class OverlayShader
 {
 public:
-    static std::string GetVertexShaderCode();
-    static std::string GetFragmentShaderCode();
+    static std::string Vertex();
+    static std::string Fragment();
 };
 
 #endif // _OVERLAY_SHADER_H_
