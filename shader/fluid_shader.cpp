@@ -390,7 +390,7 @@ in float gLayer;
 void main()
 {
     ivec3 TC = ivec3(gl_FragCoord.xy, gLayer);
-    float t = texelFetch(Temperature, TC, 0).g;
+    float t = texelFetch(Temperature, TC, 0).r;
     vec3 v = texelFetch(Velocity, TC, 0).xyz;
 
     FragColor = v;

@@ -146,7 +146,7 @@ void MultigridPoissonSolver::Solve(const SurfacePod& packed,
         SolveOpt(packed, as_precondition);
 
     // For diagnosis.
-    ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
+    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
     static int diagnosis = 0;
     if (diagnosis)
     {

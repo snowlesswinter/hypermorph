@@ -21,11 +21,13 @@ namespace
 struct
 {
     SurfacePod velocity_;
-    SurfacePod density_and_temperature_;
+    SurfacePod density_;
+    SurfacePod temperature_;
 } Surfaces;
 
 struct
 {
+    SurfacePod general_buffer_1;
     SurfacePod general_buffer_3;
 } general_buffers;
 
@@ -74,7 +76,25 @@ void PezInitialize()
     Vbos.FullscreenQuad = CreateQuadVbo();
 
     Surfaces.velocity_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
-    Surfaces.density_and_temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+
+    // A hard lesson had told us: locality is a vital factor of the performance
+    // of raycast. Even a trivial-like adjustment that packing the temperature
+    // with the density field would surprisingly bring a 17% decline to the
+    // performance. 
+    //
+    // Here is the analysis:
+    // 
+    // In the original design, density buffer is 128 ^ 3 * 2 byte = 4 MB,
+    // where as the buffer had been increased to 128 ^ 3 * 6 byte = 12 MB in
+    // our experiment(it is 6 bytes wide instead of 4 because we need to
+    // swap it with the 3-byte-width buffer that shared with velocity buffer).
+    // That expanded buffer size would greatly increase the possibility of
+    // cache miss in GPU during raycast. So, it's a problem all about the cache
+    // shortage in graphic cards.
+
+    Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     general_buffers.general_buffer_3 = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
     InitSlabOps();
 
@@ -128,7 +148,7 @@ void PezRender()
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D, Surfaces.density_and_temperature_.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, Surfaces.density_.ColorTexture);
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -196,20 +216,24 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnVelocityAvected();
 
         // Advect density and temperature
-        AdvectPacked(Surfaces.velocity_, Surfaces.density_and_temperature_,
-                     general_buffers.general_buffer_3, delta_time,
-                     DensityDissipation, TemperatureDissipation);
-        std::swap(Surfaces.density_and_temperature_, general_buffers.general_buffer_3);
-        //Metrics::Instance()->OnTemperatureAvected();
+        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
+        std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
+        Metrics::Instance()->OnTemperatureAvected();
+
+        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
+        std::swap(Surfaces.density_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnDensityAvected();
 
         // Apply buoyancy and gravity
-        ApplyBuoyancy(Surfaces.velocity_, Surfaces.density_and_temperature_, general_buffers.general_buffer_3, delta_time);
+        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
-        ApplyImpulse(Surfaces.density_and_temperature_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseTemperature);
+        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
+        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
         Metrics::Instance()->OnImpulseApplied();
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
@@ -251,7 +275,7 @@ void PezHandleMouse(int x, int y, int action, int delta)
 void Reset()
 {
     ClearSurface(Surfaces.velocity_, 0.0f);
-    ClearSurface(Surfaces.density_and_temperature_, 0.0f);
+    ClearSurface(Surfaces.density_, 0.0f);
     Metrics::Instance()->Reset();
 }
 
