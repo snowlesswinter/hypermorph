@@ -8,6 +8,7 @@
 
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "full_multigrid_poisson_solver.h"
 #include "multigrid_poisson_solver.h"
 
 using namespace vmath;
@@ -42,7 +43,7 @@ const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.999f;
 const float DensityDissipation = 0.998f;
-const PoissonMethod kSolverChoice = POISSON_SOLVER_MULTI_GRID;
+const PoissonMethod kSolverChoice = POISSON_SOLVER_FULL_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 
@@ -432,7 +433,7 @@ void SolvePressure(SurfacePod packed)
             static PoissonSolver* p_solver = nullptr;
             if (!p_solver) {
                 p_solver = new MultigridPoissonSolver();
-                p_solver->Initialize(GridWidth);
+                p_solver->Initialize(GridWidth, GridWidth, GridWidth);
             }
 
             // An iteration times lower than 4 will introduce significant
@@ -447,6 +448,19 @@ void SolvePressure(SurfacePod packed)
             // That's a pretty good score!
 
             for (int i = 0; i < kNumMultigridIterations; i++)
+                p_solver->Solve(packed, !i);
+
+            break;
+        }
+        case POISSON_SOLVER_FULL_MULTI_GRID: {
+            static PoissonSolver* p_solver = nullptr;
+            if (!p_solver) {
+                p_solver = new FullMultigridPoissonSolver();
+                p_solver->Initialize(GridWidth, GridWidth, GridWidth);
+            }
+
+            // Chaos occurs if the iteration times is set to a value above 2.
+            for (int i = 0; i < 2; i++)
                 p_solver->Solve(packed, !i);
 
             break;

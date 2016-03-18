@@ -37,6 +37,7 @@
     <ClInclude Include="shader\multigrid_shader.h">
       <Filter>shader</Filter>
     </ClInclude>
+    <ClInclude Include="full_multigrid_poisson_solver.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -76,5 +77,6 @@
     <ClCompile Include="shader\multigrid_shader.cpp">
       <Filter>shader</Filter>
     </ClCompile>
+    <ClCompile Include="full_multigrid_poisson_solver.cpp" />
   </ItemGroup>
 </Project>

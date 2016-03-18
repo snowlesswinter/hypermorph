@@ -10,6 +10,7 @@
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 
+
 // A summary for lately experiments:
 //
 // Conclusion:
@@ -27,7 +28,7 @@
 
 MultigridPoissonSolver::MultigridPoissonSolver()
     : multi_grid_surfaces_()
-    , packed_surfaces_()
+    , surf_resource()
     , temp_surface_()
     , residual_program_()
     , restrict_program_()
@@ -51,7 +52,7 @@ MultigridPoissonSolver::~MultigridPoissonSolver()
 
 }
 
-void MultigridPoissonSolver::Initialize(int grid_width)
+void MultigridPoissonSolver::Initialize(int width, int height, int depth)
 {
     assert(!multi_grid_surfaces_);
     multi_grid_surfaces_.reset(new MultiGridSurfaces());
@@ -59,37 +60,36 @@ void MultigridPoissonSolver::Initialize(int grid_width)
     // Placeholder for the solution buffer.
     multi_grid_surfaces_->push_back(
         std::make_tuple(SurfacePod(), SurfacePod(), SurfacePod()));
-    packed_surfaces_.push_back(SurfacePod());
 
-    int width = grid_width >> 1;
-    while (width > 16) {
+    int min_width = std::min(std::min(width, height), depth);
+
+    int scale = 2;
+    while (min_width / scale > 16) {
+        int w = width / scale;
+        int h = height / scale;
+        int d = depth / scale;
+
         if (diagnosis_)
             multi_grid_surfaces_->push_back(
-            std::make_tuple(
-            CreateVolume(width, width, width, 1),
-            CreateVolume(width, width, width, 1),
-            CreateVolume(width, width, width, 1)));
+                std::make_tuple(
+                    CreateVolume(w, h, d, 1), CreateVolume(w, h, d, 1),
+                    CreateVolume(w, h, d, 1)));
         else
-            packed_surfaces_.push_back(CreateVolume(width, width, width, 3));
+            surf_resource.push_back(CreateVolume(w, h, d, 3));
 
-        width >>= 1;
+        scale <<= 1;
     }
-
-    diagnosis_volume_.reset(
-        new SurfacePod(
-        CreateVolume(grid_width, grid_width, grid_width, 1)));
 
     if (diagnosis_) {
         temp_surface_.reset(
-            new SurfacePod(
-                CreateVolume(grid_width, grid_width, grid_width, 1)));
+            new SurfacePod(CreateVolume(width, height, depth, 1)));
 
         residual_program_.reset(new GLProgram());
         residual_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
                                 MultigridShader::ComputeResidual());
         restrict_program_.reset(new GLProgram());
         restrict_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
-                                MultigridShader::RestrictShader());
+                                MultigridShader::Restrict());
         prolongate_program_.reset(new GLProgram());
         prolongate_program_->Load(FluidShader::Vertex(),
                                   FluidShader::PickLayer(),
@@ -137,58 +137,18 @@ void MultigridPoissonSolver::Initialize(int grid_width)
         MultigridShader::ComputeResidualPackedDiagnosis());
 }
 
-void MultigridPoissonSolver::Solve(const SurfacePod& packed,
+void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
                                    bool as_precondition)
 {
+    if (!ValidateVolume(u_and_b))
+        return;
+
     if (diagnosis_)
-        SolvePlain(packed, as_precondition);
+        SolvePlain(u_and_b, as_precondition);
     else
-        SolveOpt(packed, as_precondition);
+        SolveOpt(u_and_b, as_precondition);
 
-    // For diagnosis.
-    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
-    static int diagnosis = 0;
-    if (diagnosis)
-    {
-        glFinish();
-        const SurfacePod* p = diagnosis_volume_.get();
-
-        int w = p->Width;
-        int h = p->Height;
-        int d = p->Depth;
-        int n = 1;
-        int element_size = sizeof(float);
-        GLenum format = GL_RED;
-
-        static char* v = nullptr;
-        if (!v)
-            v = new char[w * h * d * element_size * n];
-
-        memset(v, 0, w * h * d * element_size * n);
-        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
-        glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
-        float* f = (float*)v;
-        double sum = 0.0;
-        float q = 0.0f;
-        for (int i = 0; i < d; i++)
-        {
-            for (int j = 0; j < h; j++)
-            {
-                for (int k = 0; k < w; k++)
-                {
-                    for (int l = 0; l < n; l++)
-                    {
-                        q = abs(f[i * w * h * n + j * w * n + k * n + l]);
-                        //if (l % n == 2)
-                            sum += q;
-                    }
-                }
-            }
-        }
-
-        double avg = sum / (w * h * d);
-        PezDebugString("avg ||r||: %.8f\n", avg);
-    }
+    //Diagnose(u_and_b);
 }
 
 void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
@@ -296,7 +256,7 @@ void MultigridPoissonSolver::Restrict(const SurfacePod& fine,
     ResetState();
 }
 
-void MultigridPoissonSolver::SolvePlain(const SurfacePod& packed,
+void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
                                         bool as_precondition)
 {
     assert(multi_grid_surfaces_);
@@ -305,7 +265,7 @@ void MultigridPoissonSolver::SolvePlain(const SurfacePod& packed,
         return;
 
     int times_to_iterate = 2;
-    (*multi_grid_surfaces_)[0] = std::make_tuple(packed, packed,
+    (*multi_grid_surfaces_)[0] = std::make_tuple(u_and_b, u_and_b,
                                                  *temp_surface_);
 
     const int num_of_levels = static_cast<int>(multi_grid_surfaces_->size());
@@ -342,6 +302,19 @@ void MultigridPoissonSolver::SolvePlain(const SurfacePod& packed,
         Relax(std::get<0>(fine_surf), std::get<1>(fine_surf), CellSize,
               times_to_iterate);
     }
+}
+
+bool MultigridPoissonSolver::ValidateVolume(const SurfacePod& u_and_b)
+{
+    if (surf_resource.empty())
+        return false;
+
+    if (u_and_b.Width > surf_resource[0].Width * 2 ||
+            u_and_b.Height > surf_resource[0].Height * 2 ||
+            u_and_b.Depth > surf_resource[0].Depth * 2)
+        return false;
+
+    return true;
 }
 
 void MultigridPoissonSolver::ComputeResidualPacked(const SurfacePod& packed,
@@ -481,41 +454,54 @@ void MultigridPoissonSolver::RestrictPacked(const SurfacePod& fine,
 void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
                                       bool as_precondition)
 {
-    assert(packed_surfaces_.size() > 1);
-    if (packed_surfaces_.size() <= 1)
+    std::vector<SurfacePod> surfs(1, u_and_b);
+    auto i = surf_resource.begin();
+    for (; i != surf_resource.end(); ++i) {
+        if (i->Width * 2 == u_and_b.Width)
+            break;
+    }
+
+    assert(i != surf_resource.end());
+    if (i == surf_resource.end())
         return;
 
-    int times_to_iterate = 2;
-    packed_surfaces_[0] = u_and_b;
+    surfs.insert(surfs.end(), i, surf_resource.end());
 
-    const int num_of_levels = static_cast<int>(packed_surfaces_.size());
+    int times_to_iterate = 2;
+
+    const int num_of_levels = static_cast<int>(surfs.size());
+    float cell_size = CellSize;
     for (int i = 0; i < num_of_levels - 1; i++) {
-        SurfacePod fine_volume = packed_surfaces_[i];
-        SurfacePod coarse_volume = packed_surfaces_[i + 1];
+        SurfacePod fine_volume = surfs[i];
+        SurfacePod coarse_volume = surfs[i + 1];
 
         if (i || as_precondition)
-            RelaxWithZeroGuessPacked(fine_volume, CellSize);
+            RelaxWithZeroGuessPacked(fine_volume, cell_size);
         else
-            RelaxPacked(fine_volume, CellSize, 2);
+            RelaxPacked(fine_volume, cell_size, 2);
 
-        RelaxPacked(fine_volume, CellSize, times_to_iterate - 2);
-        ComputeResidualPacked(fine_volume, CellSize);
+        RelaxPacked(fine_volume, cell_size, times_to_iterate - 2);
+        ComputeResidualPacked(fine_volume, cell_size);
         RestrictPacked(fine_volume, coarse_volume);
 
         times_to_iterate *= 2;
+        cell_size /= 1.0f; // Reducing the h every level will give us worse
+                           // result of |r|. Need digging.
     }
 
-    SurfacePod coarsest = packed_surfaces_[num_of_levels - 1];
-    RelaxWithZeroGuessPacked(coarsest, CellSize);
-    RelaxPacked(coarsest, CellSize, times_to_iterate - 2);
+    SurfacePod coarsest = surfs[num_of_levels - 1];
+    RelaxWithZeroGuessPacked(coarsest, cell_size);
+    RelaxPacked(coarsest, cell_size, times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
-        SurfacePod coarse_volume = packed_surfaces_[j + 1];
-        SurfacePod fine_volume = packed_surfaces_[j];
+        SurfacePod coarse_volume = surfs[j + 1];
+        SurfacePod fine_volume = surfs[j];
+
         times_to_iterate /= 2;
+        cell_size *= 1.0f;
 
         ProlongatePacked(coarse_volume, fine_volume);
-        RelaxPacked(fine_volume, CellSize, times_to_iterate/* - 1*/);
+        RelaxPacked(fine_volume, cell_size, times_to_iterate/* - 1*/);
     }
 }
 
@@ -536,4 +522,53 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
     glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
     ResetState();
+}
+
+void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
+{
+    if (!diagnosis_volume_ || diagnosis_volume_->Width != packed.Width ||
+            diagnosis_volume_->Height != packed.Height ||
+            diagnosis_volume_->Depth != packed.Depth) {
+        diagnosis_volume_.reset(new SurfacePod(
+            CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
+    }
+
+    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
+    static int diagnosis = 0;
+    if (diagnosis) {
+        glFinish();
+        const SurfacePod* p = diagnosis_volume_.get();
+
+        int w = p->Width;
+        int h = p->Height;
+        int d = p->Depth;
+        int n = 1;
+        int element_size = sizeof(float);
+        GLenum format = GL_RED;
+
+        static char* v = nullptr;
+        if (!v)
+            v = new char[w * h * d * element_size * n];
+
+        memset(v, 0, w * h * d * element_size * n);
+        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
+        glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
+        float* f = (float*)v;
+        double sum = 0.0;
+        float q = 0.0f;
+        for (int i = 0; i < d; i++) {
+            for (int j = 0; j < h; j++) {
+                for (int k = 0; k < w; k++) {
+                    for (int l = 0; l < n; l++) {
+                        q = abs(f[i * w * h * n + j * w * n + k * n + l]);
+                        //if (l % n == 2)
+                        sum += q;
+                    }
+                }
+            }
+        }
+
+        double avg = sum / (w * h * d);
+        PezDebugString("avg ||r||: %.8f\n", avg);
+    }
 }

@@ -9,8 +9,8 @@ public:
     PoissonSolver();
     virtual ~PoissonSolver();
 
-    virtual void Initialize(int grid_width) = 0;
-    virtual void Solve(const SurfacePod& packed, bool as_precondition) = 0;
+    virtual void Initialize(int width, int height, int depth) = 0;
+    virtual void Solve(const SurfacePod& u_and_b, bool as_precondition) = 0;
 };
 
 #endif // _POISSON_SOLVER_H_

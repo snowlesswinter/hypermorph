@@ -195,6 +195,11 @@ void PezUpdate(unsigned int microseconds)
     //       of buoyancy formula to keep a high acceleration to voxel).
 
     float delta_time = kMaxTimeStep;
+    static int frame_count = 0;
+    frame_count++;
+
+    static double first_time = GetCurrentTimeInSeconds();
+    bool render_velocity = GetCurrentTimeInSeconds() - first_time < 10.0;
 
     if (SimulateFluid) {
         double hotspot_x = cos(time_elapsed * Pi) * SplatRadius * 0.8 +
@@ -253,11 +258,6 @@ void PezUpdate(unsigned int microseconds)
 
 void PezHandleMouse(int x, int y, int action, int delta)
 {
-    if (action & PEZ_DOWN) track_ball->MouseDown(x, y);
-    else if (action & PEZ_UP) track_ball->MouseUp(x, y);
-    else if (action & PEZ_MOVE) track_ball->MouseMove(x, y);
-    else if (action & PEZ_DOUBLECLICK) track_ball->ReturnHome();
-
     if (action & PEZ_DOWN) {
         track_ball->MouseDown(x, y);
     } else if (action & PEZ_UP) {
@@ -276,6 +276,7 @@ void Reset()
 {
     ClearSurface(Surfaces.velocity_, 0.0f);
     ClearSurface(Surfaces.density_, 0.0f);
+    ClearSurface(Surfaces.temperature_, 0.0f);
     Metrics::Instance()->Reset();
 }
 

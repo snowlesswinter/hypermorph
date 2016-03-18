@@ -54,7 +54,8 @@ enum PoissonMethod
     POISSON_SOLVER_JACOBI,
     POISSON_SOLVER_DAMPED_JACOBI,
     POISSON_SOLVER_GAUSS_SEIDEL,
-    POISSON_SOLVER_MULTI_GRID
+    POISSON_SOLVER_MULTI_GRID,
+    POISSON_SOLVER_FULL_MULTI_GRID
 };
 
 ITrackball* CreateTrackball(float width, float height, float radius);

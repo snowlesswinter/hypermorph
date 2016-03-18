@@ -6,6 +6,7 @@
 
 #include "poisson_solver.h"
 
+class FullMultigridPoissonSolver;
 class GLProgram;
 class MultigridPoissonSolver : public PoissonSolver
 {
@@ -13,11 +14,13 @@ public:
     MultigridPoissonSolver();
     virtual ~MultigridPoissonSolver();
 
-    virtual void Initialize(int grid_width) override;
-    virtual void Solve(const SurfacePod& packed,
+    virtual void Initialize(int width, int height, int depth) override;
+    virtual void Solve(const SurfacePod& u_and_b,
                        bool as_precondition) override;
 
 private:
+    friend class FullMultigridPoissonSolver;
+
     typedef std::vector<std::tuple<SurfacePod, SurfacePod, SurfacePod>>
         MultiGridSurfaces;
     typedef MultiGridSurfaces::value_type Surface;
@@ -32,7 +35,8 @@ private:
     void RelaxWithZeroGuess(const SurfacePod& u, const SurfacePod& b,
                             float cell_size);
     void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
-    void SolvePlain(const SurfacePod& packed, bool as_precondition);
+    void SolvePlain(const SurfacePod& u_and_b, bool as_precondition);
+    bool ValidateVolume(const SurfacePod& u_and_b);
 
     // Optimization.
     void ComputeResidualPacked(const SurfacePod& packed, float cell_size);
@@ -51,9 +55,10 @@ private:
     void ComputeResidualPackedDiagnosis(const SurfacePod& packed,
                                         const SurfacePod& diagnosis,
                                         float cell_size);
+    void Diagnose(const SurfacePod& packed);
 
     std::unique_ptr<MultiGridSurfaces> multi_grid_surfaces_;
-    std::vector<SurfacePod> packed_surfaces_;
+    std::vector<SurfacePod> surf_resource;
     std::unique_ptr<SurfacePod> temp_surface_; // TODO
     std::unique_ptr<GLProgram> residual_program_;
     std::unique_ptr<GLProgram> restrict_program_;

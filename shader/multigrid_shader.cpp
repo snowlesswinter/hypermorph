@@ -259,7 +259,7 @@ void main()
     return part1 + kResidualCore + part2;
 }
 
-std::string MultigridShader::RestrictShader()
+std::string MultigridShader::Restrict()
 {
     std::string part1 = R"(
 out vec3 frag_color;
@@ -670,7 +670,7 @@ void main()
     if (coord.z == 0)
         near = b_center;
 
-    float v = one_minus_omega * alpha_omega_over_beta * b_center + 
+    float v = one_minus_omega * (alpha_omega_over_beta * b_center) + 
         (alpha_omega_over_beta * (north + south + east + west + far + near) +
             minus_h_square * b_center) * omega_times_inverse_beta;
 
@@ -700,6 +700,34 @@ void main()
     std::string restrict_core = kRestrictCore;
     std::regex e("\\)\\)\\.r;");
     std::string core = std::regex_replace(restrict_core, e, ")).b;");
+    return part1 + core + part2;
+}
+
+std::string MultigridShader::RestrictUBPacked()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D s;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 c = ivec3(gl_FragCoord.xy, gLayer) * 2;
+)";
+    std::string part2 = R"(
+
+    frag_color = vec3(result.r, result.g, 0.0f);
+}
+)";
+    std::string restrict_core = kRestrictCore;
+    std::regex e1("\\)\\.r;");
+    std::string core = std::regex_replace(restrict_core, e1, ").rgb;");
+    std::regex e2("float\\s([newsc]{1,2}_z)");
+    restrict_core = std::regex_replace(core, e2, "vec3 $1");
+    std::regex e3("float result");
+    core = std::regex_replace(restrict_core, e3, "vec3 result");
     return part1 + core + part2;
 }
 
