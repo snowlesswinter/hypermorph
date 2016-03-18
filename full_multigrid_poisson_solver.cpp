@@ -103,6 +103,12 @@ void FullMultigridPoissonSolver::Restrict(const SurfacePod& fine,
     restrict_packed_program_->Use();
 
     SetUniform("s", 0);
+    SetUniform(
+        "inverse_size",
+        recipPerElem(
+            vmath::Vector3(static_cast<float>(fine.Width),
+                           static_cast<float>(fine.Height),
+                           static_cast<float>(fine.Depth))));
 
     glBindFramebuffer(GL_FRAMEBUFFER, coarse.FboHandle);
     glActiveTexture(GL_TEXTURE0);

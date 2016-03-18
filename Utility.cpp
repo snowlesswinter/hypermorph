@@ -36,6 +36,7 @@ const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 4.0f;
 const int NumJacobiIterations = 40;
 const int kNumMultigridIterations = 5;
+const int kNumFullMultigridIterations = 2;
 const float kMaxTimeStep = 0.33f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
@@ -460,7 +461,7 @@ void SolvePressure(SurfacePod packed)
             }
 
             // Chaos occurs if the iteration times is set to a value above 2.
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < kNumFullMultigridIterations; i++)
                 p_solver->Solve(packed, !i);
 
             break;
