@@ -552,7 +552,7 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
             CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
     }
 
-    ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
+    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
     extern int g_diagnosis;
     if (g_diagnosis) {
         glFinish();

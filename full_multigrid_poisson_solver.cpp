@@ -84,10 +84,8 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         solver_->ProlongatePacked(coarse_volume, fine_volume);
 //         solver_->Solve(fine_volume, as_precondition);
 //         solver_->Solve(fine_volume, false);
-        solver_->RelaxPacked(fine_volume, CellSize, 10);
 //         solver_->Solve(fine_volume, false);
-//         solver_->Solve(fine_volume, false);
-//         solver_->Solve(fine_volume, false);
+        solver_->RelaxPacked(fine_volume, CellSize, 15);
     }
 
     //solver_->RelaxPacked(u_and_b, CellSize, 40);

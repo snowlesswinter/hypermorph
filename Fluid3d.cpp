@@ -204,12 +204,13 @@ void PezUpdate(unsigned int microseconds)
     bool render_velocity = GetCurrentTimeInSeconds() - first_time < 10.0;
 
     if (SimulateFluid) {
-        double hotspot_x = //cos(time_elapsed * Pi) * SplatRadius * 0.8 +
-            kImpulsePosition.getX();
-        double hotspot_z = //sin(time_elapsed * Pi) * SplatRadius * 0.8 +
-            kImpulsePosition.getZ();
-        Vector3 hotspot(static_cast<float>(hotspot_x), 0,
-                        static_cast<float>(hotspot_z));
+        float sin_factor = static_cast<float>(sin(time_elapsed / 4 * Pi));
+        float cos_factor = static_cast<float>(cos(time_elapsed / 4 * Pi));
+        float hotspot_x =
+            cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
+        float hotspot_z =
+            sin_factor * SplatRadius * 0.8f + kImpulsePosition.getZ();
+        Vector3 hotspot(hotspot_x, 0, hotspot_z);
 
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
