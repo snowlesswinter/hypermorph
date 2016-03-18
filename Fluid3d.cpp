@@ -16,6 +16,8 @@
 using namespace vmath;
 using std::string;
 
+int g_diagnosis = 0;
+
 namespace
 {
 struct
@@ -202,9 +204,9 @@ void PezUpdate(unsigned int microseconds)
     bool render_velocity = GetCurrentTimeInSeconds() - first_time < 10.0;
 
     if (SimulateFluid) {
-        double hotspot_x = cos(time_elapsed * Pi) * SplatRadius * 0.8 +
+        double hotspot_x = //cos(time_elapsed * Pi) * SplatRadius * 0.8 +
             kImpulsePosition.getX();
-        double hotspot_z = sin(time_elapsed * Pi) * SplatRadius * 0.8 +
+        double hotspot_z = //sin(time_elapsed * Pi) * SplatRadius * 0.8 +
             kImpulsePosition.getZ();
         Vector3 hotspot(static_cast<float>(hotspot_x), 0,
                         static_cast<float>(hotspot_z));
@@ -289,6 +291,9 @@ void PezHandleKey(char c)
         case 'D':
             Metrics::Instance()->set_diagnosis_mode(
                 !Metrics::Instance()->diagnosis_mode());
+            break;
+        case 'G':
+            g_diagnosis = 1 - g_diagnosis;
             break;
         case 'R':
             Reset();

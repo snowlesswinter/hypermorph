@@ -692,3 +692,11 @@ double GetCurrentTimeInSeconds()
     QueryPerformanceCounter(&currentTime);
     return static_cast<double>(currentTime.QuadPart) / freqTime.QuadPart;
 }
+
+vmath::Vector3 CalculateInverseSize(const SurfacePod& volume)
+{
+    return recipPerElem(
+        vmath::Vector3(static_cast<float>(volume.Width),
+                       static_cast<float>(volume.Height),
+                       static_cast<float>(volume.Depth)));
+}

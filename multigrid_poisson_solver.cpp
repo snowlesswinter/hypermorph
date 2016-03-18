@@ -248,12 +248,7 @@ void MultigridPoissonSolver::Restrict(const SurfacePod& fine,
     restrict_program_->Use();
 
     SetUniform("s", 0);
-    SetUniform(
-        "uniform vec3 inverse_size;",
-        recipPerElem(
-            vmath::Vector3(static_cast<float>(fine.Width),
-                           static_cast<float>(fine.Height),
-                           static_cast<float>(fine.Depth))));
+    SetUniform("inverse_size", CalculateInverseSize(fine));
 
     glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
     glActiveTexture(GL_TEXTURE0);
@@ -374,6 +369,8 @@ void MultigridPoissonSolver::ProlongatePacked(const SurfacePod& coarse,
 
     SetUniform("fine", 0);
     SetUniform("c", 1);
+    SetUniform("inverse_size_f", CalculateInverseSize(fine));
+    SetUniform("inverse_size", CalculateInverseSize(coarse));
 
     glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
     glActiveTexture(GL_TEXTURE0);
@@ -449,12 +446,7 @@ void MultigridPoissonSolver::RestrictPacked(const SurfacePod& fine,
     restrict_packed_program_->Use();
 
     SetUniform("s", 0);
-    SetUniform(
-        "uniform vec3 inverse_size;",
-        recipPerElem(
-            vmath::Vector3(static_cast<float>(fine.Width),
-                           static_cast<float>(fine.Height),
-                           static_cast<float>(fine.Depth))));
+    SetUniform("inverse_size", CalculateInverseSize(fine));
 
     glBindFramebuffer(GL_FRAMEBUFFER, coarse.FboHandle);
     glActiveTexture(GL_TEXTURE0);
@@ -534,6 +526,21 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
     glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
     ResetState();
+
+    // =========================================================================
+    assert(absolute_program_);
+    if (!absolute_program_)
+        return;
+
+    absolute_program_->Use();
+
+    SetUniform("t", 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, diagnosis.FboHandle);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, diagnosis.ColorTexture);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
+    ResetState();
 }
 
 void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
@@ -545,9 +552,9 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
             CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
     }
 
-    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
-    static int diagnosis = 0;
-    if (diagnosis) {
+    ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
+    extern int g_diagnosis;
+    if (g_diagnosis) {
         glFinish();
         const SurfacePod* p = diagnosis_volume_.get();
 
@@ -567,7 +574,8 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
         glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
         float* f = (float*)v;
         double sum = 0.0;
-        float q = 0.0f;
+        double q = 0.0f;
+        double m = 0.0f;
         for (int i = 0; i < d; i++) {
             for (int j = 0; j < h; j++) {
                 for (int k = 0; k < w; k++) {
@@ -575,12 +583,13 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
                         q = abs(f[i * w * h * n + j * w * n + k * n + l]);
                         //if (l % n == 2)
                         sum += q;
+                        m = std::max(q, m);
                     }
                 }
             }
         }
 
         double avg = sum / (w * h * d);
-        PezDebugString("avg ||r||: %.8f\n", avg);
+        PezDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
     }
 }

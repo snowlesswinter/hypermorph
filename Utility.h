@@ -88,6 +88,7 @@ void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 hotsp
 void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time);
 double GetCurrentTimeInSeconds();
 void ResetState();
+vmath::Vector3 CalculateInverseSize(const SurfacePod& volume);
 
 extern const float CellSize;
 extern const int ViewportWidth;

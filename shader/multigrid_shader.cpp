@@ -186,7 +186,6 @@ const char* kRestrictCore = R"(
         se_z_plus_1 +
         s_z_plus_1 +
         sw_z_plus_1;
-
 )";
 
 
@@ -583,6 +582,29 @@ void main()
 }
 
 std::string MultigridShader::ProlongatePacked()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D fine;
+uniform sampler3D c;
+uniform vec3 inverse_size_f;
+uniform vec3 inverse_size;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
+    vec3 f = texelFetch(fine, f_coord, 0).rgb;
+    frag_color = vec3(f.r + interpolated, f.g, 0.0f);
+}
+)";
+    return part1 + kProlongateCore + part2;
+}
+
+std::string MultigridShader::ProlongatePacked2()
 {
     std::string part1 = R"(
 out vec3 frag_color;

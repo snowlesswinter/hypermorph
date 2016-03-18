@@ -355,7 +355,7 @@ in float gLayer;
 
 void main()
 {
-    if (gl_FragCoord.y > 1 && gl_FragCoord.y < 3) {
+    if (gl_FragCoord.y > 1.0f && gl_FragCoord.y < 3.0f) {
         float d = distance(center_point.xz, vec2(gl_FragCoord.x, gLayer));
         if (d < radius) {
             float scale = (radius - distance(hotspot.xz, vec2(gl_FragCoord.x, gLayer))) / radius;

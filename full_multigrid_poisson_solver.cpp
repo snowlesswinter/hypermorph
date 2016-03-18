@@ -75,7 +75,7 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
 
     SurfacePod coarsest = packed_surfaces_[num_of_levels - 1];
     solver_->RelaxWithZeroGuessPacked(coarsest, CellSize);
-    solver_->RelaxPacked(coarsest, CellSize, 16);
+    solver_->RelaxPacked(coarsest, CellSize, 15);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
         SurfacePod coarse_volume = packed_surfaces_[j + 1];
@@ -90,6 +90,7 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
 //         solver_->Solve(fine_volume, false);
     }
 
+    //solver_->RelaxPacked(u_and_b, CellSize, 40);
     solver_->Diagnose(u_and_b);
 }
 
@@ -103,12 +104,7 @@ void FullMultigridPoissonSolver::Restrict(const SurfacePod& fine,
     restrict_packed_program_->Use();
 
     SetUniform("s", 0);
-    SetUniform(
-        "inverse_size",
-        recipPerElem(
-            vmath::Vector3(static_cast<float>(fine.Width),
-                           static_cast<float>(fine.Height),
-                           static_cast<float>(fine.Depth))));
+    SetUniform("inverse_size",  CalculateInverseSize(fine));
 
     glBindFramebuffer(GL_FRAMEBUFFER, coarse.FboHandle);
     glActiveTexture(GL_TEXTURE0);
