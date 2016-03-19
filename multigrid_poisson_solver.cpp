@@ -34,6 +34,7 @@ MultigridPoissonSolver::MultigridPoissonSolver()
     , restrict_program_()
     , prolongate_program_()
     , relax_zero_guess_program_()
+    , times_to_iterate_(2)
     , diagnosis_(false)
     , prolongate_and_relax_program_()
     , prolongate_packed_program_()
@@ -257,6 +258,11 @@ void MultigridPoissonSolver::Restrict(const SurfacePod& fine,
     ResetState();
 }
 
+void MultigridPoissonSolver::SetBaseRelaxationTimes(int base_times)
+{
+    times_to_iterate_ = base_times;
+}
+
 void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
                                         bool as_precondition)
 {
@@ -265,7 +271,7 @@ void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
     if (!multi_grid_surfaces_ || multi_grid_surfaces_->size() <= 1)
         return;
 
-    int times_to_iterate = 2;
+    int times_to_iterate = times_to_iterate_;
     (*multi_grid_surfaces_)[0] = std::make_tuple(u_and_b, u_and_b,
                                                  *temp_surface_);
 
@@ -471,7 +477,7 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
 
     surfs.insert(surfs.end(), i, surf_resource.end());
 
-    int times_to_iterate = 2;
+    int times_to_iterate = times_to_iterate_;
 
     const int num_of_levels = static_cast<int>(surfs.size());
     float cell_size = CellSize;
@@ -545,16 +551,16 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
 
 void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
 {
-    if (!diagnosis_volume_ || diagnosis_volume_->Width != packed.Width ||
-            diagnosis_volume_->Height != packed.Height ||
-            diagnosis_volume_->Depth != packed.Depth) {
-        diagnosis_volume_.reset(new SurfacePod(
-            CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
-    }
-
-    //ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
     extern int g_diagnosis;
     if (g_diagnosis) {
+        if (!diagnosis_volume_ || diagnosis_volume_->Width != packed.Width ||
+                diagnosis_volume_->Height != packed.Height ||
+                diagnosis_volume_->Depth != packed.Depth) {
+            diagnosis_volume_.reset(new SurfacePod(
+                CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
+        }
+
+        ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
         glFinish();
         const SurfacePod* p = diagnosis_volume_.get();
 

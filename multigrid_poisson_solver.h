@@ -35,6 +35,7 @@ private:
     void RelaxWithZeroGuess(const SurfacePod& u, const SurfacePod& b,
                             float cell_size);
     void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
+    void SetBaseRelaxationTimes(int base_times);
     void SolvePlain(const SurfacePod& u_and_b, bool as_precondition);
     bool ValidateVolume(const SurfacePod& u_and_b);
 
@@ -64,6 +65,7 @@ private:
     std::unique_ptr<GLProgram> restrict_program_;
     std::unique_ptr<GLProgram> prolongate_program_;
     std::unique_ptr<GLProgram> relax_zero_guess_program_;
+    int times_to_iterate_;
     bool diagnosis_;
 
     // Optimization.

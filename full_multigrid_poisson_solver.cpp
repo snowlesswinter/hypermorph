@@ -63,6 +63,10 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
     if (packed_surfaces_.size() <= 1)
         return;
 
+    // With less iterations in each level but more iterating in every V-Cycle
+    // will out perform the case visa versa(less time cost, lower avg/max |r|),
+    // especially in high divergence cases.
+    solver_->SetBaseRelaxationTimes(5);
     packed_surfaces_[0] = u_and_b;
 
     const int num_of_levels = static_cast<int>(packed_surfaces_.size());
@@ -74,22 +78,36 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
     }
 
     SurfacePod coarsest = packed_surfaces_[num_of_levels - 1];
-    solver_->RelaxWithZeroGuessPacked(coarsest, CellSize);
+    if (as_precondition)
+        solver_->RelaxWithZeroGuessPacked(coarsest, CellSize);
+
     solver_->RelaxPacked(coarsest, CellSize, 15);
 
+    int times_to_iterate = 1;
     for (int j = num_of_levels - 2; j >= 0; j--) {
         SurfacePod coarse_volume = packed_surfaces_[j + 1];
         SurfacePod fine_volume = packed_surfaces_[j];
 
         solver_->ProlongatePacked(coarse_volume, fine_volume);
-//         solver_->Solve(fine_volume, as_precondition);
-//         solver_->Solve(fine_volume, false);
-//         solver_->Solve(fine_volume, false);
-        solver_->RelaxPacked(fine_volume, CellSize, 15);
+        for (int k = 0; k < times_to_iterate; k++)
+            solver_->Solve(fine_volume, false);
+
+        // For comparison.
+        // 
+        // Damped Jacobi is still faster than Multigrid, no much though. With
+        // a base relaxation times 5, Multigrid had achieved a notable
+        // lower avg/max |r| compared to Jacobi in our experiments.
+
+        //solver_->RelaxPacked(fine_volume, CellSize, 15);
+
+        // Experiments revealed that iterations in different levels almost
+        // equally contribute to the final result, thus we are not going to
+        // reduce the iteration times in coarsen level.
+        times_to_iterate += 0;
     }
 
-    //solver_->RelaxPacked(u_and_b, CellSize, 40);
-    solver_->Diagnose(u_and_b);
+    if (!as_precondition)
+        solver_->Diagnose(u_and_b);
 }
 
 void FullMultigridPoissonSolver::Restrict(const SurfacePod& fine,
