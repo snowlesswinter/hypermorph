@@ -188,7 +188,6 @@ const char* kRestrictCore = R"(
         sw_z_plus_1;
 )";
 
-
 const char* kProlongateCore = R"(
     // Accurate coordinates for accessing finer buffer is crucial here, since
     // we need exactly the original solution instead of an interpolated value.
@@ -579,29 +578,6 @@ void main()
     frag_color = vec3(v, center.g, 0.0f);
 }
 )";
-}
-
-std::string MultigridShader::ProlongatePacked()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D fine;
-uniform sampler3D c;
-uniform vec3 inverse_size_f;
-uniform vec3 inverse_size;
-
-in float gLayer;
-
-void main()
-{
-)";
-    std::string part2 = R"(
-    vec3 f = texelFetch(fine, f_coord, 0).rgb;
-    frag_color = vec3(f.r + interpolated, f.g, 0.0f);
-}
-)";
-    return part1 + kProlongateCore + part2;
 }
 
 std::string MultigridShader::RelaxPacked()

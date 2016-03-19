@@ -6,6 +6,7 @@
 class MultigridStaggeredShader
 {
 public:
+    static std::string ProlongatePacked();
     static std::string RestrictResidualPacked();
     static std::string RestrictPacked();
 };

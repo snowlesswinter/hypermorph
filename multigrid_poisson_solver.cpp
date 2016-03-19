@@ -117,9 +117,9 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
             FluidShader::Vertex(), FluidShader::PickLayer(),
             MultigridShader::ProlongateAndRelax());
         prolongate_packed_program_.reset(new GLProgram());
-        prolongate_packed_program_->Load(FluidShader::Vertex(),
-                                         FluidShader::PickLayer(),
-                                         MultigridShader::ProlongatePacked());
+        prolongate_packed_program_->Load(
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridStaggeredShader::ProlongatePacked());
         relax_packed_program_.reset(new GLProgram());
         relax_packed_program_->Load(FluidShader::Vertex(),
                                     FluidShader::PickLayer(),
@@ -375,9 +375,9 @@ void MultigridPoissonSolver::ProlongatePacked(const SurfacePod& coarse,
     prolongate_packed_program_->Use();
 
     SetUniform("fine", 0);
-    SetUniform("c", 1);
+    SetUniform("s", 1);
     SetUniform("inverse_size_f", CalculateInverseSize(fine));
-    SetUniform("inverse_size", CalculateInverseSize(coarse));
+    SetUniform("inverse_size_c", CalculateInverseSize(coarse));
 
     glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
     glActiveTexture(GL_TEXTURE0);

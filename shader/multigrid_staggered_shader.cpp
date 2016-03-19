@@ -95,6 +95,14 @@ namespace
     // multiplied 0.5), the algorithm surprisingly had gained a better result
     // of avg/max |r|. This could be, in my guess, a compensation to the
     // highly unbalancing near the boundary.
+    //
+    // Update: After rewriting the prolongation algorithm, I found some jitter
+    //         near the corner, immediately I recalled this factor, so I
+    //         changed it back to 0.5f as expected in the first place, and the
+    //         jitter disappeared as I wished! The code finally makes sense
+    //         again. But the bad news is, the avg/max |r| had slightly arisen.
+
+    float scale = 0.5f;
 
     // Pass 1: 2-center cells.
     if (f_coord.x > tex_size.x) {
@@ -104,109 +112,109 @@ namespace
     if (f_coord.x < 1.01f) { // Please note that it is 1.0. We are in
                              // staggered grid, and be careful about the
                              // shader coordinates.
-        center_west_center = center_center_center;
+        center_west_center = scale * center_center_center;
     }
 
     if (f_coord.z > tex_size.z) {
-        center_center_far = center_center_center;
+        center_center_far = scale * center_center_center;
     }
 
     if (f_coord.z < 1.01f) {
-        center_center_near = center_center_center;
+        center_center_near = scale * center_center_center;
     }
 
     if (f_coord.y > tex_size.y) {
-        north_center_center = center_center_center;
+        north_center_center = scale * center_center_center;
     }
 
     if (f_coord.y < 1.01f) {
-        south_center_center = center_center_center;
+        south_center_center = scale * center_center_center;
     }
 
     // Pass 2: 1-center cells.
     if (f_coord.x > tex_size.x) {
-        center_east_near =  center_center_near;
-        north_east_center = north_center_center;
-        south_east_center = south_center_center;
-        center_east_far =   center_center_far;
+        center_east_near =  scale * center_center_near;
+        north_east_center = scale * north_center_center;
+        south_east_center = scale * south_center_center;
+        center_east_far =   scale * center_center_far;
     }
 
     if (f_coord.x < 1.01f) {
-        center_west_near =  center_center_near;
-        north_west_center = north_center_center;
-        south_west_center = south_center_center;
-        center_west_far =   center_center_far;
+        center_west_near =  scale * center_center_near;
+        north_west_center = scale * north_center_center;
+        south_west_center = scale * south_center_center;
+        center_west_far =   scale * center_center_far;
     }
 
     if (f_coord.z > tex_size.z) {
-        north_center_far = north_center_center;
-        center_east_far =  center_east_center;
-        center_west_far =  center_west_center;
-        south_center_far = south_center_center;
+        north_center_far = scale * north_center_center;
+        center_east_far =  scale * center_east_center;
+        center_west_far =  scale * center_west_center;
+        south_center_far = scale * south_center_center;
     }
 
     if (f_coord.z < 1.01f) {
-        north_center_near = north_center_center;
-        center_east_near =  center_east_center;
-        center_west_near =  center_west_center;
-        south_center_near = south_center_center;
+        north_center_near = scale * north_center_center;
+        center_east_near =  scale * center_east_center;
+        center_west_near =  scale * center_west_center;
+        south_center_near = scale * south_center_center;
     }
 
     if (f_coord.y > tex_size.y) {
-        north_center_near = center_center_near;
-        north_east_center = center_east_center;
-        north_west_center = center_west_center;
-        north_center_far =  center_center_far;
+        north_center_near = scale * center_center_near;
+        north_east_center = scale * center_east_center;
+        north_west_center = scale * center_west_center;
+        north_center_far =  scale * center_center_far;
     }
 
     if (f_coord.y < 1.01f) {
-        south_center_near = center_center_near;
-        south_east_center = center_east_center;
-        south_west_center = center_west_center;
-        south_center_far =  center_center_far;
+        south_center_near = scale * center_center_near;
+        south_east_center = scale * center_east_center;
+        south_west_center = scale * center_west_center;
+        south_center_far =  scale * center_center_far;
     }
 
     // Pass 3: corner cells.
     if (f_coord.x > tex_size.x) {
-        north_east_near = north_center_near;
-        south_east_near = south_center_near;
-        north_east_far =  north_center_far;
-        south_east_far =  south_center_far;
+        north_east_near = scale * north_center_near;
+        south_east_near = scale * south_center_near;
+        north_east_far =  scale * north_center_far;
+        south_east_far =  scale * south_center_far;
     }
 
     if (f_coord.x < 1.01f) {
-        north_west_near = north_center_near;
-        south_west_near = south_center_near;
-        north_west_far =  north_center_far;
-        south_west_far =  south_center_far;
+        north_west_near = scale * north_center_near;
+        south_west_near = scale * south_center_near;
+        north_west_far =  scale * north_center_far;
+        south_west_far =  scale * south_center_far;
     }
 
     if (f_coord.z > tex_size.z) {
-        north_east_far = north_east_center;
-        north_west_far = north_west_center;
-        south_east_far = south_east_center;
-        south_west_far = south_west_center;
+        north_east_far = scale * north_east_center;
+        north_west_far = scale * north_west_center;
+        south_east_far = scale * south_east_center;
+        south_west_far = scale * south_west_center;
     }
 
     if (f_coord.z < 1.01f) {
-        north_east_near = north_east_center;
-        north_west_near = north_west_center;
-        south_east_near = south_east_center;
-        south_west_near = south_west_center;
+        north_east_near = scale * north_east_center;
+        north_west_near = scale * north_west_center;
+        south_east_near = scale * south_east_center;
+        south_west_near = scale * south_west_center;
     }
 
     if (f_coord.y > tex_size.y) {
-        north_east_near = center_east_near;
-        north_west_near = center_west_near;
-        north_east_far =  center_east_far;
-        north_west_far =  center_west_far;
+        north_east_near = scale * center_east_near;
+        north_west_near = scale * center_west_near;
+        north_east_far =  scale * center_east_far;
+        north_west_far =  scale * center_west_far;
     }
 
     if (f_coord.y < 1.01f) {
-        south_east_near = center_east_near;
-        south_west_near = center_west_near;
-        south_east_far =  center_east_far;
-        south_west_far =  center_west_far;
+        south_east_near = scale * center_east_near;
+        south_west_near = scale * center_west_near;
+        south_east_far =  scale * center_east_far;
+        south_west_far =  scale * center_west_far;
     }
 
     float result =
@@ -240,7 +248,89 @@ namespace
         south_center_far +
         south_west_far;
 )";
+
+const char* kProlongateCoreBackup = R"(
+    vec3 f_coord =      vec3(gl_FragCoord.xy, gLayer);
+    ivec3 f_coord_int = ivec3(f_coord);
+    vec3 c_coord =      inverse_size * (vec3(f_coord_int) * 0.5f);
+
+    float c1 = 0.125f;
+    float c2 = 0.25f;
+    float c4 = 0.5f;
+    float c8 = 1.0f;
+
+    float d[4];
+    d[0] = c8;
+    d[1] = c4;
+    d[2] = c2;
+    d[3] = c1;
+
+    int odd_x = f_coord_int.x - ((f_coord_int.x >> 1) << 1);
+    int odd_y = f_coord_int.y - ((f_coord_int.y >> 1) << 1);
+    int odd_z = f_coord_int.z - ((f_coord_int.z >> 1) << 1);
+
+    int a0 = odd_x;
+    int a1 = odd_y;
+    int a2 = odd_z;
+    int a3 = odd_x * odd_y;
+    int a4 = odd_y * odd_z;
+    int a5 = odd_x * odd_z;
+    int a6 = odd_x * odd_y * odd_z;
+
+    float u0 = a0 == 0 ? 0 : textureOffset(s, c_coord, ivec3(1, 0, 0), 0).r;
+    float u1 = a1 == 0 ? 0 : textureOffset(s, c_coord, ivec3(0, 1, 0), 0).r;
+    float u3 = a3 == 0 ? 0 : textureOffset(s, c_coord, ivec3(1, 1, 0), 0).r;
+    float u2 = a2 == 0 ? 0 : textureOffset(s, c_coord, ivec3(0, 0, 1), 0).r;
+    float u5 = a5 == 0 ? 0 : textureOffset(s, c_coord, ivec3(1, 0, 1), 0).r;
+    float u4 = a4 == 0 ? 0 : textureOffset(s, c_coord, ivec3(0, 1, 1), 0).r;
+    float u6 = a6 == 0 ? 0 : textureOffset(s, c_coord, ivec3(1, 1, 1), 0).r;
+
+    float interpolated = texture(s, c_coord, 0).r +
+        u0 + u1 + u2 + u3 + u4 + u5 + u6;
+    interpolated *= d[odd_x + odd_y + odd_z];
+)";
+
+const char* kProlongateCore = R"(
+    vec3 f_coord =      vec3(gl_FragCoord.xy, gLayer);
+    ivec3 f_coord_int = ivec3(f_coord);
+    vec3 c =      vec3(f_coord_int) * 0.5f;
+
+    int odd_x = f_coord_int.x - ((f_coord_int.x >> 1) << 1);
+    int odd_y = f_coord_int.y - ((f_coord_int.y >> 1) << 1);
+    int odd_z = f_coord_int.z - ((f_coord_int.z >> 1) << 1);
+
+    float t_x = -1.0f * (1 - odd_x) * 0.08333333f;
+    float t_y = -1.0f * (1 - odd_y) * 0.08333333f;
+    float t_z = -1.0f * (1 - odd_z) * 0.08333333f;
+
+    vec3 t_c = c + vec3(t_x, t_y, t_z);
+    float result = texture(s, inverse_size_c * t_c, 0).r;
+)";
+
 } // Anonymous namespace
+
+std::string MultigridStaggeredShader::ProlongatePacked()
+{
+    std::string part1 = R"(
+out vec3 frag_color;
+
+uniform sampler3D fine;
+uniform sampler3D s;
+uniform vec3 inverse_size_f;
+uniform vec3 inverse_size_c;
+
+in float gLayer;
+
+void main()
+{
+)";
+    std::string part2 = R"(
+    vec3 f = texture(fine, inverse_size_f * f_coord, 0).rgb;
+    frag_color = vec3(f.r + result, f.g, 0.0f);
+}
+)";
+    return part1 + kProlongateCore + part2;
+}
 
 std::string MultigridStaggeredShader::RestrictResidualPacked()
 {
