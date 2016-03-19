@@ -38,6 +38,9 @@
       <Filter>shader</Filter>
     </ClInclude>
     <ClInclude Include="full_multigrid_poisson_solver.h" />
+    <ClInclude Include="shader\multigrid_staggered_shader.h">
+      <Filter>shader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -78,5 +81,8 @@
       <Filter>shader</Filter>
     </ClCompile>
     <ClCompile Include="full_multigrid_poisson_solver.cpp" />
+    <ClCompile Include="shader\multigrid_staggered_shader.cpp">
+      <Filter>shader</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

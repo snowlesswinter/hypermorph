@@ -9,6 +9,7 @@
 #include "metrics.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "shader/multigrid_staggered_shader.h"
 
 
 // A summary for lately experiments:
@@ -110,7 +111,7 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
         restrict_packed_program_.reset(new GLProgram());
         restrict_packed_program_->Load(
             FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridShader::RestrictPacked());
+            MultigridStaggeredShader::RestrictResidualPacked());
         prolongate_and_relax_program_.reset(new GLProgram());
         prolongate_and_relax_program_->Load(
             FluidShader::Vertex(), FluidShader::PickLayer(),

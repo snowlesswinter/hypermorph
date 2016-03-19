@@ -8,6 +8,7 @@
 #include "multigrid_poisson_solver.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "shader/multigrid_staggered_shader.h"
 #include "utility.h"
 
 const int kWidthOfCoarsestLevel = 32;
@@ -48,7 +49,7 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
     restrict_packed_program_.reset(new GLProgram());
     restrict_packed_program_->Load(
         FluidShader::Vertex(), FluidShader::PickLayer(),
-        MultigridShader::RestrictUBPacked());
+        MultigridStaggeredShader::RestrictPacked());
 }
 
 void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,

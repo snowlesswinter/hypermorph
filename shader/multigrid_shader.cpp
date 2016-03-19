@@ -604,27 +604,6 @@ void main()
     return part1 + kProlongateCore + part2;
 }
 
-std::string MultigridShader::ProlongatePacked2()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D fine;
-uniform sampler3D c;
-
-in float gLayer;
-
-void main()
-{
-)";
-    std::string part2 = R"(
-    vec3 f = texelFetch(fine, f_coord, 0).rgb;
-    frag_color = vec3(f.r + interpolated, f.g, 0.0f);
-}
-)";
-    return part1 + kProlongateCore + part2;
-}
-
 std::string MultigridShader::RelaxPacked()
 {
     return R"(
@@ -731,58 +710,6 @@ void main()
     frag_color = vec3(v, b_center, 0.0f);
 }
 )";
-}
-
-std::string MultigridShader::RestrictPacked()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D s;
-uniform vec3 inverse_size;
-
-in float gLayer;
-
-void main()
-{
-)";
-    std::string part2 = R"(
-
-    frag_color = vec3(0.0f, result, 0.0f);
-}
-)";
-    std::string restrict_core = kRestrictCore;
-    std::regex e("\\)\\.r;");
-    std::string core = std::regex_replace(restrict_core, e, ").b;");
-    return part1 + core + part2;
-}
-
-std::string MultigridShader::RestrictUBPacked()
-{
-    std::string part1 = R"(
-out vec3 frag_color;
-
-uniform sampler3D s;
-uniform vec3 inverse_size;
-
-in float gLayer;
-
-void main()
-{
-)";
-    std::string part2 = R"(
-
-    frag_color = vec3(result.r, result.g, 0.0f);
-}
-)";
-    std::string restrict_core = kRestrictCore;
-    std::regex e1("\\)\\.r;");
-    std::string core = std::regex_replace(restrict_core, e1, ").rgb;");
-    std::regex e2("float\\s([newsc]{1,2}_z)");
-    restrict_core = std::regex_replace(core, e2, "vec3 $1");
-    std::regex e3("float result");
-    core = std::regex_replace(restrict_core, e3, "vec3 result");
-    return part1 + core + part2;
 }
 
 std::string MultigridShader::Absolute()

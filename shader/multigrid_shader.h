@@ -15,14 +15,9 @@ public:
     static std::string ComputeResidualPacked();
     static std::string ProlongateAndRelax();
     static std::string ProlongatePacked();
-    static std::string ProlongatePacked2();
     static std::string RelaxAndComputeResidual();
     static std::string RelaxPacked();
     static std::string RelaxWithZeroGuessPacked();
-    static std::string RestrictPacked();
-
-    // Full mutligrid.
-    static std::string RestrictUBPacked();
 
     // For diagnosis.
     static std::string Absolute();
