@@ -8,6 +8,9 @@
     <Filter Include="shader">
       <UniqueIdentifier>{9a0d8298-86f6-4b87-9249-860168e7a43d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="cuda">
+      <UniqueIdentifier>{353a3ea1-4a41-4c81-8d88-249679979acd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h" />

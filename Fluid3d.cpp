@@ -67,8 +67,12 @@ PezConfig PezGetConfig()
     return config;
 }
 
+extern int main11(int* c);
 void PezInitialize()
 {
+    int c[5] = {0};
+    main11(c);
+
     PezConfig cfg = PezGetConfig();
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
