@@ -6,11 +6,11 @@
 
 #include <windows.h>
 
-#include "gl_program.h"
+#include "metrics.h"
+#include "opengl/gl_program.h"
+#include "overlay_content.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
-#include "overlay_content.h"
-#include "metrics.h"
 #include "utility.h"
 
 using namespace vmath;
@@ -67,12 +67,9 @@ PezConfig PezGetConfig()
     return config;
 }
 
-extern int main11(int* c);
 void PezInitialize()
 {
     int c[5] = {0};
-    main11(c);
-
     PezConfig cfg = PezGetConfig();
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);

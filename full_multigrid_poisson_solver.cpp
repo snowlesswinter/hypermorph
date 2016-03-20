@@ -4,8 +4,8 @@
 #include <cassert>
 #include <algorithm>
 
-#include "gl_program.h"
 #include "multigrid_poisson_solver.h"
+#include "opengl/gl_program.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "shader/multigrid_staggered_shader.h"

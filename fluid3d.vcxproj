@@ -86,9 +86,10 @@
   <ItemGroup>
     <ClInclude Include="fluid3d.h" />
     <ClInclude Include="full_multigrid_poisson_solver.h" />
-    <ClInclude Include="gl_program.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="multigrid_poisson_solver.h" />
+    <ClInclude Include="opengl\gl_program.h" />
+    <ClInclude Include="opengl\gl_texture.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="pez.h" />
     <ClInclude Include="poisson_solver.h" />
@@ -109,9 +110,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="full_multigrid_poisson_solver.cpp" />
-    <ClCompile Include="gl_program.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="multigrid_poisson_solver.cpp" />
+    <ClCompile Include="opengl\gl_program.cpp" />
+    <ClCompile Include="opengl\gl_texture.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="pez.win.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>

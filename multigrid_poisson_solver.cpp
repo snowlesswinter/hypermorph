@@ -4,12 +4,14 @@
 #include <cassert>
 #include <tuple>
 
-#include "gl_program.h"
-#include "utility.h"
+#include "cuda/cuda_main.h"
 #include "metrics.h"
+#include "opengl/gl_program.h"
+#include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "shader/multigrid_staggered_shader.h"
+#include "utility.h"
 
 
 // A summary for lately experiments:
@@ -557,8 +559,11 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
         if (!diagnosis_volume_ || diagnosis_volume_->Width != packed.Width ||
                 diagnosis_volume_->Height != packed.Height ||
                 diagnosis_volume_->Depth != packed.Depth) {
-            diagnosis_volume_.reset(new SurfacePod(
-                CreateVolume(packed.Width, packed.Height, packed.Depth, 1)));
+            diagnosis_volume_.reset(
+                new SurfacePod(
+                    CreateVolume(packed.Width, packed.Height, packed.Depth,
+                                 1)));
+            CudaMain::Instance()->RegisterGLImage(GLTexture());
         }
 
         ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
