@@ -15,7 +15,7 @@ public:
     virtual ~MultigridPoissonSolver();
 
     virtual void Initialize(int width, int height, int depth) override;
-    virtual void Solve(const SurfacePod& u_and_b,
+    virtual void Solve(const SurfacePod& u_and_b, float cell_size,
                        bool as_precondition) override;
 
 private:
@@ -36,7 +36,8 @@ private:
                             float cell_size);
     void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
     void SetBaseRelaxationTimes(int base_times);
-    void SolvePlain(const SurfacePod& u_and_b, bool as_precondition);
+    void SolvePlain(const SurfacePod& u_and_b, float cell_size,
+                    bool as_precondition);
     bool ValidateVolume(const SurfacePod& u_and_b);
 
     // Optimization.
@@ -50,7 +51,8 @@ private:
     void RelaxWithZeroGuessPacked(const SurfacePod& packed_volumes,
                                   float cell_size);
     void RestrictPacked(const SurfacePod& fine, const SurfacePod& coarse);
-    void SolveOpt(const SurfacePod& u_and_b, bool as_precondition);
+    void SolveOpt(const SurfacePod& u_and_b, float cell_size,
+                  bool as_precondition);
 
     // For diagnosis.
     void ComputeResidualPackedDiagnosis(const SurfacePod& packed,

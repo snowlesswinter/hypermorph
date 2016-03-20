@@ -15,7 +15,7 @@ public:
     virtual ~FullMultigridPoissonSolver();
 
     virtual void Initialize(int width, int height, int depth) override;
-    virtual void Solve(const SurfacePod& u_and_b,
+    virtual void Solve(const SurfacePod& u_and_b, float cell_size,
                        bool as_precondition) override;
 
 private:

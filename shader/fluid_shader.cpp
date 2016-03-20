@@ -302,32 +302,26 @@ void main()
 
     ivec3 tex_size = textureSize(packed_tex, 0);
     if (T.y >= tex_size.y - 1) {
-        pN = pC;
         vMask.y = 0;
     }
 
     if (T.y <= 0) {
-        pS = pC;
         vMask.y = 0;
     }
 
     if (T.x >= tex_size.x - 1) {
-        pE = pC;
         vMask.x = 0;
     }
 
     if (T.x <= 0) {
-        pW = pC;
         vMask.x = 0;
     }
 
     if (T.z >= tex_size.z - 1) {
-        pU = pC;
         vMask.z = 0;
     }
 
     if (T.z <= 0) {
-        pD = pC;
         vMask.z = 0;
     }
 
@@ -335,7 +329,7 @@ void main()
     vec3 oldV = texelFetch(velocity, T, 0).xyz;
     vec3 grad = vec3(pE - pW, pN - pS, pU - pD) * GradientScale;
     vec3 newV = oldV - grad;
-    FragColor = vMask * newV;
+    FragColor = vMask * newV; // Velocity goes to 0 when hit ???
 }
 )";
 }

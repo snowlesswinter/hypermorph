@@ -53,10 +53,11 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
 }
 
 void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
+                                       float cell_size,
                                        bool as_precondition)
 {
     if (u_and_b.Width < 32) {
-        solver_->Solve(u_and_b, true);
+        solver_->Solve(u_and_b, cell_size, true);
         return;
     }
 
@@ -71,21 +72,21 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
     packed_surfaces_[0] = u_and_b;
 
     const int num_of_levels = static_cast<int>(packed_surfaces_.size());
-    float cell_size = CellSize;
+    float level_cell_size = cell_size;
     for (int i = 0; i < num_of_levels - 1; i++) {
         SurfacePod fine_volume = packed_surfaces_[i];
         SurfacePod coarse_volume = packed_surfaces_[i + 1];
 
         Restrict(fine_volume, coarse_volume);
 
-        cell_size /= 1.0f;
+        level_cell_size *= 1.0f;
     }
 
     SurfacePod coarsest = packed_surfaces_[num_of_levels - 1];
     if (as_precondition)
-        solver_->RelaxWithZeroGuessPacked(coarsest, CellSize);
+        solver_->RelaxWithZeroGuessPacked(coarsest, level_cell_size);
 
-    solver_->RelaxPacked(coarsest, cell_size, 15);
+    solver_->RelaxPacked(coarsest, level_cell_size, 15);
 
     int times_to_iterate = 1;
     for (int j = num_of_levels - 2; j >= 0; j--) {
@@ -94,7 +95,7 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
 
         solver_->ProlongatePacked(coarse_volume, fine_volume);
         for (int k = 0; k < times_to_iterate; k++)
-            solver_->Solve(fine_volume, false);
+            solver_->Solve(fine_volume, level_cell_size, false);
 
         // For comparison.
         // 
@@ -102,13 +103,13 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         // a base relaxation times 5, Multigrid had achieved a notable
         // lower avg/max |r| compared to Jacobi in our experiments.
 
-        //solver_->RelaxPacked(fine_volume, CellSize, 15);
+        //solver_->RelaxPacked(fine_volume, level_cell_size, 15);
 
         // Experiments revealed that iterations in different levels almost
         // equally contribute to the final result, thus we are not going to
         // reduce the iteration times in coarsen level.
         times_to_iterate += 0;
-        cell_size *= 1.0f;
+        level_cell_size *= 1.0f;
     }
 
     if (!as_precondition)

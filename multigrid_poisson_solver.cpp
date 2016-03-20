@@ -139,16 +139,16 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
         MultigridShader::ComputeResidualPackedDiagnosis());
 }
 
-void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
+void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b, float cell_size,
                                    bool as_precondition)
 {
     if (!ValidateVolume(u_and_b))
         return;
 
     if (diagnosis_)
-        SolvePlain(u_and_b, as_precondition);
+        SolvePlain(u_and_b, cell_size, as_precondition);
     else
-        SolveOpt(u_and_b, as_precondition);
+        SolveOpt(u_and_b, cell_size, as_precondition);
 
     //Diagnose(u_and_b);
 }
@@ -265,7 +265,7 @@ void MultigridPoissonSolver::SetBaseRelaxationTimes(int base_times)
 }
 
 void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
-                                        bool as_precondition)
+                                        float cell_size, bool as_precondition)
 {
     assert(multi_grid_surfaces_);
     assert(multi_grid_surfaces_->size() > 1);
@@ -463,7 +463,7 @@ void MultigridPoissonSolver::RestrictPacked(const SurfacePod& fine,
 }
 
 void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
-                                      bool as_precondition)
+                                      float cell_size, bool as_precondition)
 {
     std::vector<SurfacePod> surfs(1, u_and_b);
     auto i = surf_resource.begin();
@@ -481,38 +481,38 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
     int times_to_iterate = times_to_iterate_;
 
     const int num_of_levels = static_cast<int>(surfs.size());
-    float cell_size = CellSize;
+    float level_cell_size = cell_size;
     for (int i = 0; i < num_of_levels - 1; i++) {
         SurfacePod fine_volume = surfs[i];
         SurfacePod coarse_volume = surfs[i + 1];
 
         if (i || as_precondition)
-            RelaxWithZeroGuessPacked(fine_volume, cell_size);
+            RelaxWithZeroGuessPacked(fine_volume, level_cell_size);
         else
-            RelaxPacked(fine_volume, cell_size, 2);
+            RelaxPacked(fine_volume, level_cell_size, 2);
 
-        RelaxPacked(fine_volume, cell_size, times_to_iterate - 2);
-        ComputeResidualPacked(fine_volume, cell_size);
+        RelaxPacked(fine_volume, level_cell_size, times_to_iterate - 2);
+        ComputeResidualPacked(fine_volume, level_cell_size);
         RestrictPacked(fine_volume, coarse_volume);
 
         times_to_iterate *= 2;
-        cell_size /= 1.0f; // Reducing the h every level will give us worse
-                           // result of |r|. Need digging.
+        level_cell_size /= 1.0f; // Reducing the h every level will give us
+                                 // worse result of |r|. Need digging.
     }
 
     SurfacePod coarsest = surfs[num_of_levels - 1];
-    RelaxWithZeroGuessPacked(coarsest, cell_size);
-    RelaxPacked(coarsest, cell_size, times_to_iterate - 2);
+    RelaxWithZeroGuessPacked(coarsest, level_cell_size);
+    RelaxPacked(coarsest, level_cell_size, times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
         SurfacePod coarse_volume = surfs[j + 1];
         SurfacePod fine_volume = surfs[j];
 
         times_to_iterate /= 2;
-        cell_size *= 1.0f;
+        level_cell_size *= 1.0f;
 
         ProlongatePacked(coarse_volume, fine_volume);
-        RelaxPacked(fine_volume, cell_size, times_to_iterate/* - 1*/);
+        RelaxPacked(fine_volume, level_cell_size, times_to_iterate/* - 1*/);
     }
 }
 

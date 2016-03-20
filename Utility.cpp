@@ -449,7 +449,7 @@ void SolvePressure(SurfacePod packed)
             // That's a pretty good score!
 
             for (int i = 0; i < kNumMultigridIterations; i++)
-                p_solver->Solve(packed, !i);
+                p_solver->Solve(packed, CellSize, !i);
 
             break;
         }
@@ -462,7 +462,7 @@ void SolvePressure(SurfacePod packed)
 
             // Chaos occurs if the iteration times is set to a value above 2.
             for (int i = 0; i < kNumFullMultigridIterations; i++)
-                p_solver->Solve(packed, !i);
+                p_solver->Solve(packed, CellSize, !i);
 
             break;
         }
