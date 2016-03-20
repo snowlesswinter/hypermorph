@@ -24,7 +24,13 @@ static struct {
     GLuint ApplyBuoyancy;
 } Programs;
 
-const float CellSize = 0.15f;
+const float CellSize = 1.0f; // By far I hadn't figured out how the cell size
+                             // should be transformed between levels in
+                             // Multigrid V-Cycle. So I just temporarily
+                             // discard the original value 0.15f, and simply
+                             // set it to 1.0f. It seems that a huge
+                             // improvement in quality, but actually it's just
+                             // a change on |r|'s scale.
 const int ViewportWidth = 512;
 const int GridWidth = 128;
 const int ViewportHeight = ViewportWidth;
@@ -33,7 +39,7 @@ const int GridDepth = GridWidth;
 const float SplatRadius = GridWidth / 4.0f;
 const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 40.0f;
-const float ImpulseDensity = 2.0f;
+const float ImpulseDensity = 3.0f;
 const int NumJacobiIterations = 40;
 const int kNumMultigridIterations = 5;
 const int kNumFullMultigridIterations = 2;
@@ -43,7 +49,7 @@ const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 0.999f;
-const float DensityDissipation = 0.985f;
+const float DensityDissipation = 0.988f;
 const PoissonMethod kSolverChoice = POISSON_SOLVER_FULL_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
