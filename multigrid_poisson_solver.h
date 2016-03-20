@@ -8,6 +8,7 @@
 
 class FullMultigridPoissonSolver;
 class GLProgram;
+class GLTexture;
 class MultigridPoissonSolver : public PoissonSolver
 {
 public:
@@ -56,7 +57,7 @@ private:
 
     // For diagnosis.
     void ComputeResidualPackedDiagnosis(const SurfacePod& packed,
-                                        const SurfacePod& diagnosis,
+                                        const GLTexture& diagnosis,
                                         float cell_size);
     void Diagnose(const SurfacePod& packed);
 
@@ -81,7 +82,7 @@ private:
     // For diagnosis.
     std::unique_ptr<GLProgram> absolute_program_; 
     std::unique_ptr<GLProgram> residual_diagnosis_program_;
-    std::unique_ptr<SurfacePod> diagnosis_volume_;
+    std::shared_ptr<GLTexture> diagnosis_volume_;
 };
 
 #endif // _MULTIGRID_POISSON_SOLVER_H_

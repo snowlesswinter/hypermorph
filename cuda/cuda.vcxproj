@@ -94,7 +94,7 @@
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
     <CudaCompile>
-      <Include>$(ProjectDir)\..;%(Include)</Include>
+      <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -160,11 +160,15 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="cuda_main.cu" />
+    <CudaCompile Include="cuda_core.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cuda_main.h" />
+    <ClInclude Include="cuda_core.h" />
+    <ClInclude Include="graphics_resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="graphics_resource.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

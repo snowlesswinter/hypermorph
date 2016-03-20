@@ -1,8 +1,12 @@
 #ifndef _CUDA_MAIN_H_
 #define _CUDA_MAIN_H_
 
-struct cudaGraphicsResource;
+#include <map>
+#include <memory>
+
+class CudaCore;
 class GLTexture;
+class GraphicsResource;
 class CudaMain
 {
 public:
@@ -11,10 +15,14 @@ public:
     CudaMain();
     ~CudaMain();
 
-    int RegisterGLImage(const GLTexture& texture);
+    bool Init();
+    int RegisterGLImage(const std::shared_ptr<GLTexture>& texture);
+    void Absolute();
 
 private:
-    cudaGraphicsResource* graphics_res_;
+    std::unique_ptr<CudaCore> core_;
+    std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
+        registerd_textures_;
 };
 
 #endif // _CUDA_MAIN_H_

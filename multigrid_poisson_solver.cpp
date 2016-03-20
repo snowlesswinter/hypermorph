@@ -519,7 +519,7 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
 }
 
 void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
-    const SurfacePod& packed, const SurfacePod& diagnosis, float cell_size)
+    const SurfacePod& packed, const GLTexture& diagnosis, float cell_size)
 {
     assert(residual_diagnosis_program_);
     if (!residual_diagnosis_program_)
@@ -530,11 +530,14 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
     SetUniform("packed_tex", 0);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, diagnosis.FboHandle);
+    diagnosis.BindFrameBuffer();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.depth());
     ResetState();
+
+    // =========================================================================
+    //CudaMain::Instance()->RegisterGLImage()
 
     // =========================================================================
     assert(absolute_program_);
@@ -545,10 +548,10 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
 
     SetUniform("t", 0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, diagnosis.FboHandle);
+    diagnosis.BindFrameBuffer();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, diagnosis.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.Depth);
+    diagnosis.Bind();
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.depth());
     ResetState();
 }
 
@@ -556,23 +559,23 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
 {
     extern int g_diagnosis;
     if (g_diagnosis) {
-        if (!diagnosis_volume_ || diagnosis_volume_->Width != packed.Width ||
-                diagnosis_volume_->Height != packed.Height ||
-                diagnosis_volume_->Depth != packed.Depth) {
-            diagnosis_volume_.reset(
-                new SurfacePod(
-                    CreateVolume(packed.Width, packed.Height, packed.Depth,
-                                 1)));
-            CudaMain::Instance()->RegisterGLImage(GLTexture());
+        if (!diagnosis_volume_ || diagnosis_volume_->width() != packed.Width ||
+                diagnosis_volume_->height() != packed.Height ||
+                diagnosis_volume_->depth() != packed.Depth) {
+            diagnosis_volume_.reset(new GLTexture());
+            bool r = diagnosis_volume_->Create(packed.Width, packed.Height,
+                                               packed.Depth, GL_R16F, GL_RED);
+            if (r)
+                CudaMain::Instance()->RegisterGLImage(diagnosis_volume_);
         }
 
         ComputeResidualPackedDiagnosis(packed, *diagnosis_volume_, CellSize);
         glFinish();
-        const SurfacePod* p = diagnosis_volume_.get();
+        GLTexture* p = diagnosis_volume_.get();
 
-        int w = p->Width;
-        int h = p->Height;
-        int d = p->Depth;
+        int w = p->width();
+        int h = p->height();
+        int d = p->depth();
         int n = 1;
         int element_size = sizeof(float);
         GLenum format = GL_RED;
@@ -582,8 +585,8 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
             v = new char[w * h * d * element_size * n];
 
         memset(v, 0, w * h * d * element_size * n);
-        glBindTexture(GL_TEXTURE_3D, p->ColorTexture);
-        glGetTexImage(GL_TEXTURE_3D, 0, format, GL_FLOAT, v);
+        p->GetTexImage(format, GL_FLOAT, v);
+        
         float* f = (float*)v;
         double sum = 0.0;
         double q = 0.0f;

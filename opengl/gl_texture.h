@@ -11,16 +11,25 @@ public:
     GLTexture();
     ~GLTexture();
 
-    bool Load(const std::string& vs_source, const std::string& gs_source,
-              const std::string& fs_source);
-    void Use();
+    void Bind() const;
+    void BindFrameBuffer() const;
+    bool Create(int width, int height, int depth, GLint internal_format,
+                GLenum format);
+    void GetTexImage(GLenum format, GLenum type, void* buffer);
 
     GLuint handle() const { return handle_; }
     GLenum target() const { return target_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+    int depth() const { return depth_; }
 
 private:
+    GLuint frame_buffer_;
     GLuint handle_;
     GLenum target_;
+    int width_;
+    int height_;
+    int depth_;
 };
 
 #endif // _GL_PROGRAM_H_

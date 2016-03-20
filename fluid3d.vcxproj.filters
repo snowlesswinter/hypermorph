@@ -49,6 +49,10 @@
     <ClInclude Include="opengl\gl_program.h">
       <Filter>opengl</Filter>
     </ClInclude>
+    <ClInclude Include="multigrid_core.h" />
+    <ClInclude Include="cuda\cuda_main.h">
+      <Filter>cuda</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -94,6 +98,10 @@
     </ClCompile>
     <ClCompile Include="opengl\gl_program.cpp">
       <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="multigrid_core.cpp" />
+    <ClCompile Include="cuda\cuda_main.cpp">
+      <Filter>cuda</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
