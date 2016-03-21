@@ -3,11 +3,15 @@
 
 #include <string>
 
-#include <glew.h>
+#include "opengl/glew.h"
 
+struct SurfacePod;
 class GLTexture
 {
 public:
+    // Temporary
+    static GLTexture FromSurfacePod(const SurfacePod* sp);
+
     GLTexture();
     ~GLTexture();
 
@@ -16,9 +20,11 @@ public:
     bool Create(int width, int height, int depth, GLint internal_format,
                 GLenum format);
     void GetTexImage(GLenum format, GLenum type, void* buffer);
+    void Unbind() const;
 
-    GLuint handle() const { return handle_; }
+    GLuint frame_buffer() const { return frame_buffer_; }
     GLuint buffer() const { return buffer_; }
+    GLuint handle() const { return handle_; }
     GLenum target() const { return target_; }
     int width() const { return width_; }
     int height() const { return height_; }

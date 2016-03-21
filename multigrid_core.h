@@ -1,6 +1,10 @@
 #ifndef _MULTIGRID_CORE_H_
 #define _MULTIGRID_CORE_H_
 
+#include <memory>
+
+#include "opengl/glew.h"
+
 class GLTexture;
 class MultigridCore
 {
@@ -8,7 +12,11 @@ public:
     MultigridCore();
     ~MultigridCore();
 
-    void Absolute(const GLTexture& texture);
+    std::shared_ptr<GLTexture> CreateTexture(int width, int height, int depth,
+                                             GLuint internal_format,
+                                             GLenum format);
+    void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
+                          std::shared_ptr<GLTexture> fine);
 
 private:
 };

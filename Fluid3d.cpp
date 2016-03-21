@@ -13,6 +13,10 @@
 #include "shader/raycast_shader.h"
 #include "utility.h"
 
+// TODO
+#include "multigrid_core.h"
+#include "opengl/gl_texture.h"
+
 using namespace vmath;
 using std::string;
 
@@ -32,6 +36,8 @@ struct
     SurfacePod general_buffer_1;
     SurfacePod general_buffer_3;
 } general_buffers;
+
+std::shared_ptr<GLTexture>* gb3;
 
 struct
 {
@@ -98,7 +104,20 @@ void PezInitialize()
     Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    general_buffers.general_buffer_3 = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+
+    MultigridCore core;
+    gb3 = new std::shared_ptr <GLTexture>();
+    *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA16F, GL_RGBA);
+
+
+    SurfacePod kk;
+    kk.FboHandle = (*gb3)->frame_buffer();
+    kk.ColorTexture = (*gb3)->handle();
+    kk.Width = (*gb3)->width();
+    kk.Height = (*gb3)->height();
+    kk.Depth = (*gb3)->depth();
+
+    general_buffers.general_buffer_3 = kk;
     InitSlabOps();
 
     glDisable(GL_DEPTH_TEST);
@@ -252,7 +271,7 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation
-        SolvePressure(general_buffers.general_buffer_3);
+        SolvePressure(general_buffers.general_buffer_3, *gb3);
         Metrics::Instance()->OnPressureSolved();
 
         // Rectify velocity via the gradient of pressure

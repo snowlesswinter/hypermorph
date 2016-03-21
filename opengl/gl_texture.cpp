@@ -3,6 +3,19 @@
 
 #include "utility.h"
 
+GLTexture GLTexture::FromSurfacePod(const SurfacePod* sp)
+{
+    GLTexture r;
+    r.frame_buffer_ = sp->FboHandle;
+    r.handle_ = sp->ColorTexture;
+    r.target_ = GL_TEXTURE_3D;
+    r.width_ = sp->Width;
+    r.height_ = sp->Height;
+    r.depth_ = sp->Depth;
+
+    return r;
+}
+
 GLTexture::GLTexture()
     : frame_buffer_(0)
     , buffer_(0)
@@ -30,6 +43,8 @@ GLTexture::~GLTexture()
 
 void GLTexture::Bind() const
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
+    glBindRenderbuffer(GL_RENDERBUFFER, buffer_);
     glBindTexture(GL_TEXTURE_3D, handle_);
 }
 
@@ -74,6 +89,9 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
 
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+        glBindTexture(GL_TEXTURE_3D, 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         frame_buffer_ = frame_buffer;
@@ -102,4 +120,12 @@ void GLTexture::GetTexImage(GLenum format, GLenum type, void* buffer)
 {
     Bind();
     glGetTexImage(GL_TEXTURE_3D, 0, format, type, buffer);
+}
+
+void GLTexture::Unbind() const
+{
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

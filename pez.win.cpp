@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <pez.h>
 
+#include "cuda/cuda_main.h"
 #include "opengl/glew.h"
 #include "opengl/freeglut.h"
 
@@ -28,6 +29,9 @@ bool InitGL(int* argc, char** argv)
     glutInit(argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowSize(PezGetConfig().Width, PezGetConfig().Height);
+    glutInitWindowPosition(
+        (glutGet(GLUT_SCREEN_WIDTH) - PezGetConfig().Width) / 2,
+        (glutGet(GLUT_SCREEN_HEIGHT) - PezGetConfig().Height) / 2);
     main_frame_handle = glutCreateWindow("Fluid Simulation");
 
     // initialize necessary OpenGL extensions
@@ -127,6 +131,8 @@ int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT
     int agrc = 1;
     if (!InitGL(&agrc, &command_line))
         return -1;
+
+    CudaMain::Instance();
 
     // register callbacks
     glutDisplayFunc(Display);

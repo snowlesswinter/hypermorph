@@ -6,13 +6,13 @@
 
 #include "cuda/cuda_main.h"
 #include "metrics.h"
+#include "multigrid_core.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "shader/multigrid_staggered_shader.h"
 #include "utility.h"
-
 
 // A summary for lately experiments:
 //
@@ -30,7 +30,8 @@
 //   smoothing.
 
 MultigridPoissonSolver::MultigridPoissonSolver()
-    : multi_grid_surfaces_()
+    : core_(new MultigridCore())
+    , multi_grid_surfaces_()
     , surf_resource()
     , temp_surface_()
     , residual_program_()
@@ -59,7 +60,7 @@ MultigridPoissonSolver::~MultigridPoissonSolver()
 void MultigridPoissonSolver::Initialize(int width, int height, int depth)
 {
     assert(!multi_grid_surfaces_);
-    multi_grid_surfaces_.reset(new MultiGridSurfaces());
+    multi_grid_surfaces_.reset(new MultigridSurfaces());
 
     // Placeholder for the solution buffer.
     multi_grid_surfaces_->push_back(
@@ -142,7 +143,8 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
 }
 
 void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b, float cell_size,
-                                   bool as_precondition)
+                                   bool as_precondition,
+                                   std::shared_ptr<GLTexture> t)
 {
     if (!ValidateVolume(u_and_b))
         return;
@@ -325,6 +327,11 @@ bool MultigridPoissonSolver::ValidateVolume(const SurfacePod& u_and_b)
         return false;
 
     return true;
+}
+
+MultigridCore* MultigridPoissonSolver::core() const
+{
+    return core_.get();
 }
 
 void MultigridPoissonSolver::ComputeResidualPacked(const SurfacePod& packed,
@@ -516,6 +523,12 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
         ProlongatePacked(coarse_volume, fine_volume);
         RelaxPacked(fine_volume, level_cell_size, times_to_iterate/* - 1*/);
     }
+}
+
+void MultigridPoissonSolver::ProlongatePacked2(
+    std::shared_ptr<GLTexture> coarse, std::shared_ptr<GLTexture> fine)
+{
+    core_->ProlongatePacked(coarse, fine);
 }
 
 void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(

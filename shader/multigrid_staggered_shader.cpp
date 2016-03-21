@@ -293,7 +293,7 @@ const char* kProlongateCoreBackup = R"(
 const char* kProlongateCore = R"(
     vec3 f_coord =      vec3(gl_FragCoord.xy, gLayer);
     ivec3 f_coord_int = ivec3(f_coord);
-    vec3 c =      vec3(f_coord_int) * 0.5f;
+    vec3 c =            vec3(f_coord_int) * 0.5f;
 
     int odd_x = f_coord_int.x - ((f_coord_int.x >> 1) << 1);
     int odd_y = f_coord_int.y - ((f_coord_int.y >> 1) << 1);

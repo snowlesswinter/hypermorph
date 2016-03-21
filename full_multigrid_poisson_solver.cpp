@@ -4,8 +4,10 @@
 #include <cassert>
 #include <algorithm>
 
+#include "multigrid_core.h"
 #include "multigrid_poisson_solver.h"
 #include "opengl/gl_program.h"
+#include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "shader/multigrid_staggered_shader.h"
@@ -16,6 +18,7 @@ const int kWidthOfCoarsestLevel = 32;
 FullMultigridPoissonSolver::FullMultigridPoissonSolver()
     : solver_(new MultigridPoissonSolver())
     , packed_surfaces_()
+    , packed_textures_()
     , restrict_packed_program_()
 {
 
@@ -32,16 +35,27 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
 
     // Placeholder for the solution buffer.
     packed_surfaces_.push_back(SurfacePod());
+    packed_textures_.push_back(std::shared_ptr<GLTexture>());
 
     int min_width = std::min(std::min(width, height), depth);
 
     int scale = 2;
-    while (min_width / scale > 16) {
+    while (min_width / scale > 32) {
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;
 
-        packed_surfaces_.push_back(CreateVolume(w, h, d, 3));
+        std::shared_ptr<GLTexture> t = 
+            solver_->core()->CreateTexture(w, h, d, GL_RGBA16F, GL_RGBA);
+        packed_textures_.push_back(t);
+
+        SurfacePod kk;
+        kk.FboHandle = t->frame_buffer();
+        kk.ColorTexture = t->handle();
+        kk.Width = t->width();
+        kk.Height = t->height();
+        kk.Depth = t->depth();
+        packed_surfaces_.push_back(kk);
 
         scale <<= 1;
     }
@@ -54,10 +68,11 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
 
 void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
                                        float cell_size,
-                                       bool as_precondition)
+                                       bool as_precondition,
+                                       std::shared_ptr<GLTexture> t)
 {
     if (u_and_b.Width < 32) {
-        solver_->Solve(u_and_b, cell_size, true);
+        solver_->Solve(u_and_b, cell_size, true, t);
         return;
     }
 
@@ -70,6 +85,7 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
     // especially in high divergence cases.
     solver_->SetBaseRelaxationTimes(5);
     packed_surfaces_[0] = u_and_b;
+    packed_textures_[0] = t;
 
     const int num_of_levels = static_cast<int>(packed_surfaces_.size());
     float level_cell_size = cell_size;
@@ -93,9 +109,13 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         SurfacePod coarse_volume = packed_surfaces_[j + 1];
         SurfacePod fine_volume = packed_surfaces_[j];
 
-        solver_->ProlongatePacked(coarse_volume, fine_volume);
+        solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
+
+
+        //solver_->ProlongatePacked(coarse_volume, fine_volume);
+
         for (int k = 0; k < times_to_iterate; k++)
-            solver_->Solve(fine_volume, level_cell_size, false);
+            solver_->Solve(fine_volume, level_cell_size, false, t);
 
         // For comparison.
         // 

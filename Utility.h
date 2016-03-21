@@ -1,8 +1,12 @@
 #pragma once
+
+#include <memory>
 #include <vector>
 #include <vmath.hpp>
 #include <pez.h>
 #include "opengl/glew.h"
+
+class GLTexture;
 
 enum AttributeSlot
 {
@@ -81,7 +85,7 @@ void RenderMesh(const MeshPod& mesh);
 void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, float cell_size);
-void SolvePressure(SurfacePod packed);
+void SolvePressure(SurfacePod packed, std::shared_ptr<GLTexture> t);
 void SubtractGradient(SurfacePod velocity, SurfacePod packed);
 void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);
 void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 hotspot, float value_r, float value_g);

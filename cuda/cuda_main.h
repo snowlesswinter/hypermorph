@@ -16,8 +16,10 @@ public:
     ~CudaMain();
 
     bool Init();
-    int RegisterGLImage(const std::shared_ptr<GLTexture>& texture);
-    void Absolute(const std::shared_ptr<GLTexture>& texture);
+    int RegisterGLImage(std::shared_ptr<GLTexture> texture);
+    void Absolute(std::shared_ptr<GLTexture> texture);
+    void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
+                          std::shared_ptr<GLTexture> fine);
 
 private:
     std::unique_ptr<CudaCore> core_;

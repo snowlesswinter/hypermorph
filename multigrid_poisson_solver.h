@@ -9,6 +9,7 @@
 class FullMultigridPoissonSolver;
 class GLProgram;
 class GLTexture;
+class MultigridCore;
 class MultigridPoissonSolver : public PoissonSolver
 {
 public:
@@ -17,14 +18,15 @@ public:
 
     virtual void Initialize(int width, int height, int depth) override;
     virtual void Solve(const SurfacePod& u_and_b, float cell_size,
-                       bool as_precondition) override;
+                       bool as_precondition,
+                       std::shared_ptr<GLTexture> t) override;
 
 private:
     friend class FullMultigridPoissonSolver;
 
     typedef std::vector<std::tuple<SurfacePod, SurfacePod, SurfacePod>>
-        MultiGridSurfaces;
-    typedef MultiGridSurfaces::value_type Surface;
+        MultigridSurfaces;
+    typedef MultigridSurfaces::value_type Surface;
 
     void ComputeResidual(const SurfacePod& u, const SurfacePod& b,
                          const SurfacePod& residual, float cell_size,
@@ -41,6 +43,8 @@ private:
                     bool as_precondition);
     bool ValidateVolume(const SurfacePod& u_and_b);
 
+    MultigridCore* core() const;
+
     // Optimization.
     void ComputeResidualPacked(const SurfacePod& packed, float cell_size);
     void ProlongateAndRelax(const SurfacePod& coarse, const SurfacePod& fine);
@@ -56,12 +60,15 @@ private:
                   bool as_precondition);
 
     // For diagnosis.
+    void ProlongatePacked2(std::shared_ptr<GLTexture> coarse,
+                           std::shared_ptr<GLTexture> fine);
     void ComputeResidualPackedDiagnosis(const SurfacePod& packed,
                                         const GLTexture& diagnosis,
                                         float cell_size);
     void Diagnose(const SurfacePod& packed);
 
-    std::unique_ptr<MultiGridSurfaces> multi_grid_surfaces_;
+    std::unique_ptr<MultigridCore> core_;
+    std::unique_ptr<MultigridSurfaces> multi_grid_surfaces_;
     std::vector<SurfacePod> surf_resource;
     std::unique_ptr<SurfacePod> temp_surface_; // TODO
     std::unique_ptr<GLProgram> residual_program_;

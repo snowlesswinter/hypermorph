@@ -7,6 +7,7 @@
 #include "poisson_solver.h"
 
 class GLProgram;
+class GLTexture;
 class MultigridPoissonSolver;
 class FullMultigridPoissonSolver : public PoissonSolver
 {
@@ -16,13 +17,15 @@ public:
 
     virtual void Initialize(int width, int height, int depth) override;
     virtual void Solve(const SurfacePod& u_and_b, float cell_size,
-                       bool as_precondition) override;
+                       bool as_precondition,
+                       std::shared_ptr<GLTexture> t) override;
 
 private:
     void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
 
     std::unique_ptr<MultigridPoissonSolver> solver_;
     std::vector<SurfacePod> packed_surfaces_;
+    std::vector<std::shared_ptr<GLTexture>> packed_textures_;
     std::unique_ptr<GLProgram> restrict_packed_program_;
 };
 
