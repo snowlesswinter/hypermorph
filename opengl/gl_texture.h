@@ -18,6 +18,7 @@ public:
     void GetTexImage(GLenum format, GLenum type, void* buffer);
 
     GLuint handle() const { return handle_; }
+    GLuint buffer() const { return buffer_; }
     GLenum target() const { return target_; }
     int width() const { return width_; }
     int height() const { return height_; }
@@ -25,6 +26,7 @@ public:
 
 private:
     GLuint frame_buffer_;
+    GLuint buffer_;
     GLuint handle_;
     GLenum target_;
     int width_;

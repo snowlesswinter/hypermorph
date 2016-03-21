@@ -536,23 +536,19 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.depth());
     ResetState();
 
-    // =========================================================================
-    //CudaMain::Instance()->RegisterGLImage()
-
-    // =========================================================================
-    assert(absolute_program_);
-    if (!absolute_program_)
-        return;
-
-    absolute_program_->Use();
-
-    SetUniform("t", 0);
-
-    diagnosis.BindFrameBuffer();
-    glActiveTexture(GL_TEXTURE0);
-    diagnosis.Bind();
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.depth());
-    ResetState();
+//     assert(absolute_program_);
+//     if (!absolute_program_)
+//         return;
+// 
+//     absolute_program_->Use();
+// 
+//     SetUniform("t", 0);
+// 
+//     diagnosis.BindFrameBuffer();
+//     glActiveTexture(GL_TEXTURE0);
+//     diagnosis.Bind();
+//     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, diagnosis.depth());
+//     ResetState();
 }
 
 void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
@@ -595,7 +591,7 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
             for (int j = 0; j < h; j++) {
                 for (int k = 0; k < w; k++) {
                     for (int l = 0; l < n; l++) {
-                        q = abs(f[i * w * h * n + j * w * n + k * n + l]);
+                        q = f[i * w * h * n + j * w * n + k * n + l];
                         //if (l % n == 2)
                         sum += q;
                         m = std::max(q, m);
@@ -603,6 +599,10 @@ void MultigridPoissonSolver::Diagnose(const SurfacePod& packed)
                 }
             }
         }
+
+        // =========================================================================
+        CudaMain::Instance()->Absolute(diagnosis_volume_);
+        // =========================================================================
 
         double avg = sum / (w * h * d);
         PezDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);

@@ -17,7 +17,7 @@ public:
 
     bool Init();
     int RegisterGLImage(const std::shared_ptr<GLTexture>& texture);
-    void Absolute();
+    void Absolute(const std::shared_ptr<GLTexture>& texture);
 
 private:
     std::unique_ptr<CudaCore> core_;

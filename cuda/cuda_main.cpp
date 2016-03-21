@@ -46,7 +46,11 @@ int CudaMain::RegisterGLImage(const std::shared_ptr<GLTexture>& texture)
     return 0;
 }
 
-void CudaMain::Absolute()
+void CudaMain::Absolute(const std::shared_ptr<GLTexture>& texture)
 {
+    auto i = registerd_textures_.find(texture);
+    if (i == registerd_textures_.end())
+        return;
 
+    core_->Absolute(i->second.get(),i->first->buffer());
 }

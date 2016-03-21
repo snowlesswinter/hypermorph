@@ -4,8 +4,13 @@
 #include "utility.h"
 
 GLTexture::GLTexture()
-    : handle_(0)
+    : frame_buffer_(0)
+    , buffer_(0)
+    , handle_(0)
     , target_(0)
+    , width_(0)
+    , height_(0)
+    , depth_(0)
 {
 
 }
@@ -37,6 +42,7 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
                        GLenum format)
 {
     GLuint frame_buffer = 0;
+    GLuint color_buffer = 0;
     GLuint texture_handle = 0;
     do {
         glGenFramebuffers(1, &frame_buffer);
@@ -71,7 +77,9 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         frame_buffer_ = frame_buffer;
+        buffer_ = color_buffer;
         handle_ = texture_handle;
+        target_ = GL_TEXTURE_3D;
         width_ = width;
         height_ = height;
         depth_ = depth;
@@ -80,6 +88,9 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
 
     if (texture_handle)
         glDeleteTextures(1, &texture_handle);
+
+    if (color_buffer)
+        glDeleteBuffers(1, &color_buffer);
 
     if (frame_buffer)
         glDeleteFramebuffers(1, &frame_buffer);
