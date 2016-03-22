@@ -14,9 +14,6 @@
     <ClInclude Include="fluid3d.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="glew.h" />
-    <ClInclude Include="glew.win.h" />
-    <ClInclude Include="glsw.h" />
     <ClInclude Include="pez.h" />
     <ClInclude Include="Utility.h" />
     <ClInclude Include="vmath.hpp" />
@@ -60,9 +57,6 @@
     <ClCompile Include="Fluid3d.cpp" />
     <ClCompile Include="Trackball.cpp" />
     <ClCompile Include="Utility.cpp" />
-    <ClCompile Include="glew.c" />
-    <ClCompile Include="glsw.c" />
-    <ClCompile Include="pez.win.c" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="poisson_solver.cpp" />
@@ -84,5 +78,6 @@
     <ClCompile Include="shader\multigrid_staggered_shader.cpp">
       <Filter>shader</Filter>
     </ClCompile>
+    <ClCompile Include="pez.win.cpp" />
   </ItemGroup>
 </Project>

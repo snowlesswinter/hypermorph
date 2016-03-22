@@ -10,3 +10,4 @@
 /Debug
 /Release
 /*.user
+/cuda/*.user

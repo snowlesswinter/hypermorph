@@ -290,15 +290,18 @@ void PezHandleKey(char c)
         case VK_SPACE:
             SimulateFluid = !SimulateFluid;
             break;
-        case 'D':
+        case 'd':
             Metrics::Instance()->set_diagnosis_mode(
                 !Metrics::Instance()->diagnosis_mode());
             break;
-        case 'G':
+        case 'g':
             g_diagnosis = 1 - g_diagnosis;
             break;
-        case 'R':
+        case 'r':
             Reset();
+            break;
+        case '`':
+            track_ball->ReturnHome();
             break;
     }
     

@@ -4,7 +4,6 @@
 #include <math.h>
 
 #include <windows.h>
-#include <glsw.h>
 
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
@@ -138,13 +137,6 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)
 {
     const char* version_directive = "#version 150\n";
-
-    static int first = 1;
-    if (first) {
-        glswInit();
-        glswAddDirective("*", "#version 150");
-        first = 0;
-    }
     
     GLint compileSuccess;
     GLchar compilerSpew[256];

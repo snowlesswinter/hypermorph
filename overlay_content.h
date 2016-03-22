@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include <glew.h>
+#include "opengl/glew.h"
 
 struct MeshPod;
 class OverlayContent

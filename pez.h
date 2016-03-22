@@ -22,14 +22,8 @@ void PezHandleMouse(int x, int y, int action, int delta);
 void PezHandleKey(char c);
 
 // Implemented by the platform layer:
-const char* PezResourcePath();
 void PezDebugString(const char* pStr, ...);
-void PezDebugStringW(const wchar_t* pStr, ...);
-void PezFatalError(const char* pStr, ...);
-void PezFatalErrorW(const wchar_t* pStr, ...);
-void PezCheckCondition(int condition, ...);
-void PezCheckConditionW(int condition, ...);
-
+void PezFatalError(const char* pStr, ...);void PezCheckCondition(int condition, ...);
 #ifdef __cplusplus
 }
 #endif

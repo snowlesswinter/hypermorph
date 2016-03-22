@@ -2,7 +2,7 @@
 #include <vector>
 #include <vmath.hpp>
 #include <pez.h>
-#include <glew.h>
+#include "opengl/glew.h"
 
 enum AttributeSlot
 {
