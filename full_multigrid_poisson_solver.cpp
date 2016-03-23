@@ -46,7 +46,7 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
         int d = depth / scale;
 
         std::shared_ptr<GLTexture> t = 
-            solver_->core()->CreateTexture(w, h, d, GL_RGBA16F, GL_RGBA);
+            solver_->core()->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA);
         packed_textures_.push_back(t);
 
         SurfacePod kk;
@@ -109,13 +109,19 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         SurfacePod coarse_volume = packed_surfaces_[j + 1];
         SurfacePod fine_volume = packed_surfaces_[j];
 
-        solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
+        static int cont = 1;
+//         if (cont < 10)
+//             solver_->ProlongatePacked(coarse_volume, fine_volume);
+//         else
+            solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
+
+        cont++;
+
+        solver_->Diagnose(packed_textures_[j].get());
 
 
-        //solver_->ProlongatePacked(coarse_volume, fine_volume);
-
-        for (int k = 0; k < times_to_iterate; k++)
-            solver_->Solve(fine_volume, level_cell_size, false, t);
+//         for (int k = 0; k < times_to_iterate; k++)
+//             solver_->Solve(fine_volume, level_cell_size, false, t);
 
         // For comparison.
         // 
@@ -123,7 +129,7 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         // a base relaxation times 5, Multigrid had achieved a notable
         // lower avg/max |r| compared to Jacobi in our experiments.
 
-        //solver_->RelaxPacked(fine_volume, level_cell_size, 15);
+        solver_->RelaxPacked(fine_volume, level_cell_size, 15);
 
         // Experiments revealed that iterations in different levels almost
         // equally contribute to the final result, thus we are not going to
@@ -132,8 +138,8 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         level_cell_size *= 1.0f;
     }
 
-    if (!as_precondition)
-        solver_->Diagnose(u_and_b);
+//     if (!as_precondition)
+//         solver_->Diagnose(u_and_b);
 }
 
 void FullMultigridPoissonSolver::Restrict(const SurfacePod& fine,

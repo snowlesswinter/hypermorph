@@ -23,7 +23,7 @@ static struct {
     GLuint ApplyBuoyancy;
 } Programs;
 
-const float CellSize = 1.0f; // By far I hadn't figured out how the cell size
+const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
                              // should be transformed between levels in
                              // Multigrid V-Cycle. So I just temporarily
                              // discard the original value 0.15f, and simply
@@ -41,7 +41,7 @@ const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 3.0f;
 const int NumJacobiIterations = 40;
 const int kNumMultigridIterations = 5;
-const int kNumFullMultigridIterations = 2;
+const int kNumFullMultigridIterations = 1;
 const float kMaxTimeStep = 0.33f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
@@ -211,16 +211,16 @@ SurfacePod CreateSurface(GLsizei width, GLsizei height, int numComponents)
 
     switch (numComponents) {
         case 1:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_HALF_FLOAT, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, 0);
             break;
         case 2:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_HALF_FLOAT, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, 0);
             break;
         case 3:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_HALF_FLOAT, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
             break;
         case 4:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
             break;
     }
 
@@ -261,16 +261,16 @@ SurfacePod CreateVolume(GLsizei width, GLsizei height, GLsizei depth, int numCom
 
     switch (numComponents) {
         case 1:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_R16F, width, height, depth, 0, GL_RED, GL_HALF_FLOAT, 0);
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, width, height, depth, 0, GL_RED, GL_FLOAT, 0);
             break;
         case 2:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RG16F, width, height, depth, 0, GL_RG, GL_HALF_FLOAT, 0);
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RG32F, width, height, depth, 0, GL_RG, GL_FLOAT, 0);
             break;
         case 3:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB16F, width, height, depth, 0, GL_RGB, GL_HALF_FLOAT, 0);
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, width, height, depth, 0, GL_RGB, GL_FLOAT, 0);
             break;
         case 4:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA16F, width, height, depth, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, width, height, depth, 0, GL_RGBA, GL_FLOAT, 0);
             break;
     }
 

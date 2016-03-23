@@ -16,7 +16,7 @@ public:
     void UnregisterGLImage(GraphicsResource* graphics_res);
     void Absolute(GraphicsResource* graphics_res, unsigned int aa);
     void ProlongatePacked(GraphicsResource* coarse, GraphicsResource* fine,
-                          int width);
+                          GraphicsResource* out_pbo, int width);
 
 private:
 };

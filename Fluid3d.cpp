@@ -107,7 +107,7 @@ void PezInitialize()
 
     MultigridCore core;
     gb3 = new std::shared_ptr <GLTexture>();
-    *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA16F, GL_RGBA);
+    *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
 
 
     SurfacePod kk;

@@ -62,10 +62,10 @@ private:
     // For diagnosis.
     void ProlongatePacked2(std::shared_ptr<GLTexture> coarse,
                            std::shared_ptr<GLTexture> fine);
-    void ComputeResidualPackedDiagnosis(const SurfacePod& packed,
+    void ComputeResidualPackedDiagnosis(const GLTexture& packed,
                                         const GLTexture& diagnosis,
                                         float cell_size);
-    void Diagnose(const SurfacePod& packed);
+    void Diagnose(GLTexture* packed);
 
     std::unique_ptr<MultigridCore> core_;
     std::unique_ptr<MultigridSurfaces> multi_grid_surfaces_;

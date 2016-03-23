@@ -11,26 +11,31 @@
 std::pair<GLuint, GraphicsResource*> GetProlongPBO(CudaCore* core, int n)
 {
     static std::pair<GLuint, GraphicsResource*> pixel_buffer[10] = {};
+//     if (pixel_buffer[n].first) {
+//         delete pixel_buffer[n].second;
+//         glDeleteBuffers(1, &pixel_buffer[n].first);
+//     }
+
     if (!pixel_buffer[n].first)
     {
         int width = 128 / n;
-        size_t size = width * width * width * 2 * 4;
+        size_t size = width * width * width * 4 * 4;
         //void* data = malloc(size);
 
         // create buffer object
         glGenBuffers(1, &(pixel_buffer[n].first));
-        glBindBuffer(GL_ARRAY_BUFFER, pixel_buffer[n].first);
-        glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buffer[n].first);
+        glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_DYNAMIC_DRAW);
         //free(data);
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
         // Believe or not: using another CudaCore instance would cause
         //                 cudaGraphicsMapResources() crash or returning
         //                 unknown error!
-        //                 This shit just tortured me a whole day.
+        //                 This shit just tortured me for a whole day.
         //
-        // So, don't treat .cu file as normal cpp files, cuda must has done
+        // So, don't treat .cu file as normal cpp files, CUDA must has done
         // something dirty with it. Just put as less as cpp code inside it
         // as possible.
 
@@ -104,13 +109,16 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
 
     int n = 128 / fine->width();
     auto pbo = GetProlongPBO(core_.get(), n);
-    core_->ProlongatePacked(i->second.get(), pbo.second, coarse->width());
+    core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second,
+                            coarse->width());
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo.first);
 
     glBindTexture(GL_TEXTURE_3D, fine->handle());
     glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
-                    coarse->width(), coarse->height(), coarse->depth(),
-                    GL_RGBA16F, GL_HALF_FLOAT, nullptr);
+                    fine->width(), fine->height(), fine->depth(),
+                    GL_RGBA, GL_FLOAT, nullptr);
+    assert(glGetError() == 0);
+    glBindTexture(GL_TEXTURE_3D, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
