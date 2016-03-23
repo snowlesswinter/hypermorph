@@ -268,9 +268,6 @@ void main()
 
     FragColor = vec3(
         0.0f, HalfInverseCellSize * (diff_ew + diff_ns + diff_ud), 0.0f);
-//FragColor = vec3(-0.005, -0.010, -0.0004);
-FragColor = vec3(
-        0.0f, HalfInverseCellSize * (diff_ew + diff_ns + diff_ud) * 1000, 0.0f);
 }
 )";
 }

@@ -184,27 +184,32 @@ void CudaCore::ProlongatePacked(GraphicsResource* coarse,
 
     LaunchProlongatePacked(dest_array, coarse_array, fine_array, width);
 
-    float* a = new float[128 * 128 * 128 * 4];
-    result = cudaMemcpy(a, dest_array, 128 * 128 * 128 * 4 * 4,
-                        cudaMemcpyDeviceToHost);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    double p = 0;
-    double sum = 0;
-    for (int i = 0; i < 128; i++) {
-        for (int j = 0; j < 128; j++) {
-            for (int k = 0; k < 128; k++) {
-                for (int n = 0; n < 4; n++) {
-                    p = a[i * 128 * 128 * 4 + j * 128 * 4 + k * 4 + n];
-                    sum += p;
-                }
-            }
-        }
-    }
-
-    delete[] a;
+//     float* a = new float[128 * 128 * 128 * 4];
+//     result = cudaMemcpy(a, dest_array, 128 * 128 * 128 * 4 * 4,
+//                         cudaMemcpyDeviceToHost);
+//     assert(result == cudaSuccess);
+//     if (result != cudaSuccess)
+//         return;
+//
+//     double p = 0;
+//     double sum = 0;
+//     for (int i = 0; i < 128; i++) {
+//         for (int j = 0; j < 128; j++) {
+//             for (int k = 0; k < 128; k++) {
+//                 for (int n = 0; n < 4; n += 4) {
+//                     float* z = &a[i * 128 * 128 * 4 + j * 128 * 4 + k * 4 + n];
+//                     p = *z;
+//                     float z0 = *z;
+//                     float z1 = *(z + 1);
+//                     float z2 = *(z + 2);
+//                     if (z0 != k || z1 != j || z2 != i)
+//                         sum += p;
+//                 }
+//             }
+//         }
+//     }
+// 
+//     delete[] a;
 
     cudaGraphicsUnmapResources(3, res);
 }

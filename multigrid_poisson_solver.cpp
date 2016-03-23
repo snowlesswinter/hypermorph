@@ -567,7 +567,7 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
 void MultigridPoissonSolver::Diagnose(GLTexture* packed)
 {
     extern int g_diagnosis;
-    if (1) {
+    if (g_diagnosis) {
         if (!diagnosis_volume_ ||
                 diagnosis_volume_->width() != packed->width() ||
                 diagnosis_volume_->height() != packed->height() ||
@@ -577,13 +577,13 @@ void MultigridPoissonSolver::Diagnose(GLTexture* packed)
                                                packed->height(),
                                                packed->depth(), GL_RGBA32F,
                                                GL_RGBA);
-//             if (r)
-//                 CudaMain::Instance()->RegisterGLImage(diagnosis_volume_);
+            if (r)
+                CudaMain::Instance()->RegisterGLImage(diagnosis_volume_);
         }
 
         ComputeResidualPackedDiagnosis(*packed, *diagnosis_volume_, CellSize);
         glFinish();
-        GLTexture* p = packed;
+        GLTexture* p = diagnosis_volume_.get();
 
         int w = p->width();
         int h = p->height();

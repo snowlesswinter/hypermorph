@@ -20,13 +20,11 @@ std::pair<GLuint, GraphicsResource*> GetProlongPBO(CudaCore* core, int n)
     {
         int width = 128 / n;
         size_t size = width * width * width * 4 * 4;
-        //void* data = malloc(size);
 
         // create buffer object
         glGenBuffers(1, &(pixel_buffer[n].first));
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buffer[n].first);
         glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_DYNAMIC_DRAW);
-        //free(data);
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
