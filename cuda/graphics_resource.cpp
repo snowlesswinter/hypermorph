@@ -12,7 +12,7 @@ GraphicsResource::GraphicsResource(CudaCore* core)
 GraphicsResource::~GraphicsResource()
 {
     if (resource_) {
-        core_->UnregisterGLImage(this);
+        core_->UnregisterGLResource(this);
         resource_ = 0;
     }
 }

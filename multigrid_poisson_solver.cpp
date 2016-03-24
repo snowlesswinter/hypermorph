@@ -64,7 +64,9 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
 
     // Placeholder for the solution buffer.
     multi_grid_surfaces_->push_back(
-        std::make_tuple(SurfacePod(), SurfacePod(), SurfacePod()));
+        std::make_tuple(std::shared_ptr<GLTexture>(),
+                        std::shared_ptr<GLTexture>(),
+                        std::shared_ptr<GLTexture>()));
 
     int min_width = std::min(std::min(width, height), depth);
 
@@ -73,21 +75,24 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;
-
+    
         if (diagnosis_)
             multi_grid_surfaces_->push_back(
                 std::make_tuple(
-                    CreateVolume(w, h, d, 1), CreateVolume(w, h, d, 1),
-                    CreateVolume(w, h, d, 1)));
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED),
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED),
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED)));
         else
-            surf_resource.push_back(CreateVolume(w, h, d, 3));
+            surf_resource.push_back(
+                core_->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA));
 
         scale <<= 1;
     }
 
     if (diagnosis_) {
         temp_surface_.reset(
-            new SurfacePod(CreateVolume(width, height, depth, 1)));
+            new std::shared_ptr<GLTexture>(
+                core_->CreateTexture(width, height, depth, GL_R16F, GL_RED)));
 
         residual_program_.reset(new GLProgram());
         residual_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
@@ -142,9 +147,9 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
         MultigridShader::ComputeResidualPackedDiagnosis());
 }
 
-void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b, float cell_size,
-                                   bool as_precondition,
-                                   std::shared_ptr<GLTexture> t)
+void MultigridPoissonSolver::Solve(std::shared_ptr<GLTexture> u_and_b,
+                                   float cell_size,
+                                   bool as_precondition)
 {
     if (!ValidateVolume(u_and_b))
         return;
@@ -157,10 +162,9 @@ void MultigridPoissonSolver::Solve(const SurfacePod& u_and_b, float cell_size,
     //Diagnose(u_and_b);
 }
 
-void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
-                                             const SurfacePod& b,
-                                             const SurfacePod& residual,
-                                             float cell_size, bool diagnosis)
+void MultigridPoissonSolver::ComputeResidual(
+    std::shared_ptr<GLTexture> u, std::shared_ptr<GLTexture> b,
+    std::shared_ptr<GLTexture> residual, float cell_size, bool diagnosis)
 {
     assert(residual_program_);
     if (!residual_program_)
@@ -172,12 +176,12 @@ void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
     SetUniform("b", 1);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, residual->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, u.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, u->handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, b.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual.Depth);
+    glBindTexture(GL_TEXTURE_3D, b->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual->depth());
     ResetState();
 
     // For diagnosis
@@ -188,15 +192,16 @@ void MultigridPoissonSolver::ComputeResidual(const SurfacePod& u,
 
     SetUniform("t", 0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, residual.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, residual->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, residual.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual.Depth);
+    glBindTexture(GL_TEXTURE_3D, residual->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, residual->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::Prolongate(const SurfacePod& coarse_solution,
-                                        const SurfacePod& fine_solution)
+void MultigridPoissonSolver::Prolongate(
+    std::shared_ptr<GLTexture> coarse_solution,
+    std::shared_ptr<GLTexture> fine_solution)
 {
     assert(prolongate_program_);
     if (!prolongate_program_)
@@ -207,24 +212,26 @@ void MultigridPoissonSolver::Prolongate(const SurfacePod& coarse_solution,
     SetUniform("fine", 0);
     SetUniform("c", 1);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine_solution.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fine_solution->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine_solution.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, fine_solution->handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, coarse_solution.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine_solution.Depth);
+    glBindTexture(GL_TEXTURE_3D, coarse_solution->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine_solution->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::Relax(const SurfacePod& u, const SurfacePod& b,
+void MultigridPoissonSolver::Relax(std::shared_ptr<GLTexture> u,
+                                   std::shared_ptr<GLTexture> b,
                                    float cell_size, int times)
 {
-    for (int i = 0; i < times; i++)
-        DampedJacobi(u, b, SurfacePod(), cell_size);
+    assert(false);
+//     for (int i = 0; i < times; i++)
+//         DampedJacobi(u, b, cell_size);
 }
 
-void MultigridPoissonSolver::RelaxWithZeroGuess(const SurfacePod& u,
-                                                const SurfacePod& b,
+void MultigridPoissonSolver::RelaxWithZeroGuess(std::shared_ptr<GLTexture> u,
+                                                std::shared_ptr<GLTexture> b,
                                                 float cell_size)
 {
     assert(relax_zero_guess_program_);
@@ -237,15 +244,15 @@ void MultigridPoissonSolver::RelaxWithZeroGuess(const SurfacePod& u,
     SetUniform("alpha_omega_over_beta",
                -(cell_size * cell_size) * 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, u.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, u->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, b.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, u.Depth);
+    glBindTexture(GL_TEXTURE_3D, b->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, u->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::Restrict(const SurfacePod& fine,
-                                      const SurfacePod& coarse)
+void MultigridPoissonSolver::Restrict(std::shared_ptr<GLTexture> fine,
+                                      std::shared_ptr<GLTexture> coarse)
 {
     assert(restrict_program_);
     if (!restrict_program_)
@@ -254,12 +261,12 @@ void MultigridPoissonSolver::Restrict(const SurfacePod& fine,
     restrict_program_->Use();
 
     SetUniform("s", 0);
-    SetUniform("inverse_size", CalculateInverseSize(fine));
+    SetUniform("inverse_size", CalculateInverseSize(*fine));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fine->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, coarse.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine.Depth);
+    glBindTexture(GL_TEXTURE_3D, coarse->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine->depth());
     ResetState();
 }
 
@@ -268,7 +275,7 @@ void MultigridPoissonSolver::SetBaseRelaxationTimes(int base_times)
     times_to_iterate_ = base_times;
 }
 
-void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
+void MultigridPoissonSolver::SolvePlain(std::shared_ptr<GLTexture> u_and_b,
                                         float cell_size, bool as_precondition)
 {
     assert(multi_grid_surfaces_);
@@ -316,14 +323,14 @@ void MultigridPoissonSolver::SolvePlain(const SurfacePod& u_and_b,
     }
 }
 
-bool MultigridPoissonSolver::ValidateVolume(const SurfacePod& u_and_b)
+bool MultigridPoissonSolver::ValidateVolume(std::shared_ptr<GLTexture> u_and_b)
 {
     if (surf_resource.empty())
         return false;
 
-    if (u_and_b.Width > surf_resource[0].Width * 2 ||
-            u_and_b.Height > surf_resource[0].Height * 2 ||
-            u_and_b.Depth > surf_resource[0].Depth * 2)
+    if (u_and_b->width() > surf_resource[0]->width() * 2 ||
+            u_and_b->height() > surf_resource[0]->height() * 2 ||
+            u_and_b->depth() > surf_resource[0]->depth() * 2)
         return false;
 
     return true;
@@ -334,8 +341,8 @@ MultigridCore* MultigridPoissonSolver::core() const
     return core_.get();
 }
 
-void MultigridPoissonSolver::ComputeResidualPacked(const SurfacePod& packed,
-                                                   float cell_size)
+void MultigridPoissonSolver::ComputeResidualPacked(
+    std::shared_ptr<GLTexture> packed, float cell_size)
 {
     assert(residual_packed_program_);
     if (!residual_packed_program_)
@@ -346,15 +353,15 @@ void MultigridPoissonSolver::ComputeResidualPacked(const SurfacePod& packed,
     SetUniform("packed_tex", 0);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, packed->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, packed.Depth);
+    glBindTexture(GL_TEXTURE_3D, packed->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, packed->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::ProlongateAndRelax(const SurfacePod& coarse,
-                                                const SurfacePod& fine)
+void MultigridPoissonSolver::ProlongateAndRelax(
+    std::shared_ptr<GLTexture> coarse, std::shared_ptr<GLTexture> fine)
 {
     assert(prolongate_and_relax_program_);
     if (!prolongate_and_relax_program_)
@@ -365,17 +372,17 @@ void MultigridPoissonSolver::ProlongateAndRelax(const SurfacePod& coarse,
     SetUniform("fine", 0);
     SetUniform("c", 1);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fine->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, fine->handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, coarse.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine.Depth);
+    glBindTexture(GL_TEXTURE_3D, coarse->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::ProlongatePacked(const SurfacePod& coarse,
-                                              const SurfacePod& fine)
+void MultigridPoissonSolver::ProlongatePacked(
+    std::shared_ptr<GLTexture> coarse, std::shared_ptr<GLTexture> fine)
 {
     assert(prolongate_packed_program_);
     if (!prolongate_packed_program_)
@@ -385,26 +392,27 @@ void MultigridPoissonSolver::ProlongatePacked(const SurfacePod& coarse,
 
     SetUniform("fine", 0);
     SetUniform("s", 1);
-    SetUniform("inverse_size_f", CalculateInverseSize(fine));
-    SetUniform("inverse_size_c", CalculateInverseSize(coarse));
+    SetUniform("inverse_size_f", CalculateInverseSize(*fine));
+    SetUniform("inverse_size_c", CalculateInverseSize(*coarse));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fine->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, fine->handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, coarse.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine.Depth);
+    glBindTexture(GL_TEXTURE_3D, coarse->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, fine->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::RelaxPacked(const SurfacePod& u_and_b,
+void MultigridPoissonSolver::RelaxPacked(std::shared_ptr<GLTexture> u_and_b,
                                          float cell_size, int times)
 {
     for (int i = 0; i < times; i++)
         RelaxPackedImpl(u_and_b, cell_size);
 }
 
-void MultigridPoissonSolver::RelaxPackedImpl(const SurfacePod& u_and_b, float cell_size)
+void MultigridPoissonSolver::RelaxPackedImpl(std::shared_ptr<GLTexture> u_and_b,
+                                             float cell_size)
 {
     assert(relax_packed_program_);
     if (!relax_packed_program_)
@@ -417,20 +425,20 @@ void MultigridPoissonSolver::RelaxPackedImpl(const SurfacePod& u_and_b, float ce
     SetUniform("minus_h_square", -(cell_size * cell_size));
     SetUniform("omega_over_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, u_and_b->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, u_and_b.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, u_and_b.Depth);
+    glBindTexture(GL_TEXTURE_3D, u_and_b->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, u_and_b->depth());
     ResetState();
 }
 
 void MultigridPoissonSolver::RelaxWithZeroGuessAndComputeResidual(
-    const SurfacePod& packed_volumes, float cell_size, int times)
+    std::shared_ptr<GLTexture> packed_volumes, float cell_size, int times)
 {
 }
 
 void MultigridPoissonSolver::RelaxWithZeroGuessPacked(
-    const SurfacePod& packed_volumes, float cell_size)
+    std::shared_ptr<GLTexture> packed_volumes, float cell_size)
 {
     assert(relax_zero_guess_packed_program_);
     if (!relax_zero_guess_packed_program_)
@@ -445,15 +453,15 @@ void MultigridPoissonSolver::RelaxWithZeroGuessPacked(
     SetUniform("minus_h_square", -(cell_size * cell_size));
     SetUniform("omega_times_inverse_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed_volumes.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, packed_volumes->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed_volumes.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, packed_volumes.Depth);
+    glBindTexture(GL_TEXTURE_3D, packed_volumes->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, packed_volumes->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::RestrictPacked(const SurfacePod& fine,
-                                            const SurfacePod& coarse)
+void MultigridPoissonSolver::RestrictPacked(std::shared_ptr<GLTexture> fine,
+                                            std::shared_ptr<GLTexture> coarse)
 {
     assert(restrict_packed_program_);
     if (!restrict_packed_program_)
@@ -462,22 +470,22 @@ void MultigridPoissonSolver::RestrictPacked(const SurfacePod& fine,
     restrict_packed_program_->Use();
 
     SetUniform("s", 0);
-    SetUniform("inverse_size", CalculateInverseSize(fine));
+    SetUniform("inverse_size", CalculateInverseSize(*fine));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, coarse.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, coarse->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, coarse.Depth);
+    glBindTexture(GL_TEXTURE_3D, fine->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, coarse->depth());
     ResetState();
 }
 
-void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
+void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GLTexture> u_and_b,
                                       float cell_size, bool as_precondition)
 {
-    std::vector<SurfacePod> surfs(1, u_and_b);
+    std::vector<std::shared_ptr<GLTexture>> surfs(1, u_and_b);
     auto i = surf_resource.begin();
     for (; i != surf_resource.end(); ++i) {
-        if (i->Width * 2 == u_and_b.Width)
+        if ((*i)->width() * 2 == u_and_b->width())
             break;
     }
 
@@ -492,8 +500,8 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
     const int num_of_levels = static_cast<int>(surfs.size());
     float level_cell_size = cell_size;
     for (int i = 0; i < num_of_levels - 1; i++) {
-        SurfacePod fine_volume = surfs[i];
-        SurfacePod coarse_volume = surfs[i + 1];
+        std::shared_ptr<GLTexture> fine_volume = surfs[i];
+        std::shared_ptr<GLTexture> coarse_volume = surfs[i + 1];
 
         if (i || as_precondition)
             RelaxWithZeroGuessPacked(fine_volume, level_cell_size);
@@ -509,13 +517,13 @@ void MultigridPoissonSolver::SolveOpt(const SurfacePod& u_and_b,
                                  // worse result of |r|. Need digging.
     }
 
-    SurfacePod coarsest = surfs[num_of_levels - 1];
+    std::shared_ptr<GLTexture> coarsest = surfs[num_of_levels - 1];
     RelaxWithZeroGuessPacked(coarsest, level_cell_size);
     RelaxPacked(coarsest, level_cell_size, times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
-        SurfacePod coarse_volume = surfs[j + 1];
-        SurfacePod fine_volume = surfs[j];
+        std::shared_ptr<GLTexture> coarse_volume = surfs[j + 1];
+        std::shared_ptr<GLTexture> fine_volume = surfs[j];
 
         times_to_iterate /= 2;
         level_cell_size *= 1.0f;

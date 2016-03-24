@@ -34,15 +34,6 @@ struct TexturePod
     GLsizei Height;
 };
 
-struct SurfacePod
-{
-    GLuint FboHandle;
-    GLuint ColorTexture;
-    GLsizei Width;
-    GLsizei Height;
-    GLsizei Depth;
-};
-
 struct MeshPod
 {
 public:
@@ -51,15 +42,6 @@ public:
     GLuint coords_buffer_;
     GLsizei index_count_;
     GLsizei vertex_count_;
-};
-
-enum PoissonMethod
-{
-    POISSON_SOLVER_JACOBI,
-    POISSON_SOLVER_DAMPED_JACOBI,
-    POISSON_SOLVER_GAUSS_SEIDEL,
-    POISSON_SOLVER_MULTI_GRID,
-    POISSON_SOLVER_FULL_MULTI_GRID
 };
 
 ITrackball* CreateTrackball(float width, float height, float radius);
@@ -73,26 +55,16 @@ void SetUniform(const char* name, vmath::Vector3 value);
 void SetUniform(const char* name, vmath::Point3 value);
 void SetUniform(const char* name, vmath::Vector4 value);
 TexturePod LoadTexture(const char* path);
-SurfacePod CreateSurface(int width, int height, int numComponents = 4);
-SurfacePod CreateVolume(int width, int height, int depth, int numComponents);
+// SurfacePod CreateSurface(int width, int height, int numComponents = 4);
+// SurfacePod CreateVolume(int width, int height, int depth, int numComponents);
 GLuint CreatePointVbo(float x, float y, float z);
 GLuint CreateQuadVbo();
 MeshPod CreateQuadMesh(float left, float top, float right, float bottom);
-void CreateObstacles(SurfacePod dest);
-void InitSlabOps();
 void ClearSurface(GLTexture* s, float v);
 void RenderMesh(const MeshPod& mesh);
-void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
-void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
-void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, float cell_size);
-void SolvePressure(SurfacePod packed, std::shared_ptr<GLTexture> t);
-void SubtractGradient(SurfacePod velocity, SurfacePod packed);
-void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest);
-void ApplyImpulse(SurfacePod dest, vmath::Vector3 position, vmath::Vector3 hotspot, float value_r, float value_g);
-void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time);
 double GetCurrentTimeInSeconds();
 void ResetState();
-vmath::Vector3 CalculateInverseSize(const SurfacePod& volume);
+vmath::Vector3 CalculateInverseSize(const GLTexture& volume);
 
 extern const float CellSize;
 extern const int ViewportWidth;

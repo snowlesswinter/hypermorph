@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+#include "fluid_simulator.h"
 #include "metrics.h"
 #include "opengl/gl_program.h"
 #include "overlay_content.h"
@@ -28,19 +29,10 @@ namespace
 {
 struct
 {
-    SurfacePod velocity_;
-    SurfacePod density_;
-    SurfacePod temperature_;
     std::shared_ptr<GLTexture>* tex_velocity;
     std::shared_ptr<GLTexture>* tex_density;
     std::shared_ptr<GLTexture>* tex_temperature;
 } Surfaces;
-
-struct
-{
-    SurfacePod general_buffer_1;
-    SurfacePod general_buffer_3;
-} general_buffers;
 
 std::shared_ptr<GLTexture>* gb1;
 std::shared_ptr<GLTexture>* gb3;
@@ -79,10 +71,14 @@ PezConfig PezGetConfig()
     return config;
 }
 
+FluidSimulator* sim_ = nullptr;
+
 void PezInitialize()
 {
     int c[5] = {0};
     PezConfig cfg = PezGetConfig();
+
+    sim_ = new FluidSimulator();
 
     track_ball = CreateTrackball(cfg.Width * 1.0f, cfg.Height * 1.0f, cfg.Width * 0.5f);
     RaycastProgram = LoadProgram(RaycastShader::Vertex(), RaycastShader::Geometry(), RaycastShader::Fragment());
@@ -93,16 +89,6 @@ void PezInitialize()
     MultigridCore core;
     Surfaces.tex_velocity = new std::shared_ptr <GLTexture>();
     *Surfaces.tex_velocity = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
-
-
-    SurfacePod kk;
-    kk.FboHandle = (*Surfaces.tex_velocity)->frame_buffer();
-    kk.ColorTexture = (*Surfaces.tex_velocity)->handle();
-    kk.Width = (*Surfaces.tex_velocity)->width();
-    kk.Height = (*Surfaces.tex_velocity)->height();
-    kk.Depth = (*Surfaces.tex_velocity)->depth();
-
-    Surfaces.velocity_ = kk;
 
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
@@ -122,47 +108,16 @@ void PezInitialize()
     Surfaces.tex_density = new std::shared_ptr <GLTexture>();
     *Surfaces.tex_density = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
 
-    kk.FboHandle = (*Surfaces.tex_density)->frame_buffer();
-    kk.ColorTexture = (*Surfaces.tex_density)->handle();
-    kk.Width = (*Surfaces.tex_density)->width();
-    kk.Height = (*Surfaces.tex_density)->height();
-    kk.Depth = (*Surfaces.tex_density)->depth();
-
-    Surfaces.density_ = kk;
-
     Surfaces.tex_temperature = new std::shared_ptr <GLTexture>();
     *Surfaces.tex_temperature = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
-
-    kk.FboHandle = (*Surfaces.tex_temperature)->frame_buffer();
-    kk.ColorTexture = (*Surfaces.tex_temperature)->handle();
-    kk.Width = (*Surfaces.tex_temperature)->width();
-    kk.Height = (*Surfaces.tex_temperature)->height();
-    kk.Depth = (*Surfaces.tex_temperature)->depth();
-
-    Surfaces.temperature_ = kk;
 
     gb1 = new std::shared_ptr <GLTexture>();
     *gb1 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
 
-    kk.FboHandle = (*gb1)->frame_buffer();
-    kk.ColorTexture = (*gb1)->handle();
-    kk.Width = (*gb1)->width();
-    kk.Height = (*gb1)->height();
-    kk.Depth = (*gb1)->depth();
-
-    general_buffers.general_buffer_1 = kk;
-
     gb3 = new std::shared_ptr <GLTexture>();
     *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
 
-    kk.FboHandle = (*gb3)->frame_buffer();
-    kk.ColorTexture = (*gb3)->handle();
-    kk.Width = (*gb3)->width();
-    kk.Height = (*gb3)->height();
-    kk.Depth = (*gb3)->depth();
-
-    general_buffers.general_buffer_3 = kk;
-    InitSlabOps();
+    sim_->Init();
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -215,7 +170,7 @@ void PezRender()
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D, Surfaces.density_.ColorTexture);
+    glBindTexture(GL_TEXTURE_3D, (*Surfaces.tex_density)->handle());
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -289,9 +244,8 @@ void PezUpdate(unsigned int microseconds)
         
         // Advect velocity
         //CudaMain::Instance()->AdvectVelocity(*Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
-        Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        sim_->AdvectVelocity(*Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
         std::swap(*Surfaces.tex_velocity, *gb3);
-        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
 
         //sss.Diagnose(Surfaces.tex_velocity->get());
 
@@ -300,46 +254,43 @@ void PezUpdate(unsigned int microseconds)
         // Advect density and temperature
         ClearSurface(gb1->get(), 0.0f);
         //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
-        Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
+        sim_->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
         std::swap(*Surfaces.tex_temperature, *gb1);
-        std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnTemperatureAvected();
 
         ClearSurface(gb1->get(), 0.0f);
         //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
-        Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
+        sim_->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
         std::swap(*Surfaces.tex_density, *gb1);
-        std::swap(Surfaces.density_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnDensityAvected();
         
         // Apply buoyancy and gravity
         //CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
-        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        sim_->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time);
         std::swap(*Surfaces.tex_velocity, *gb3);
-        std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
         //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
-        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
+        sim_->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, ImpulseDensity);
 
         // Something wrong with the temperature impulsing.
         //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
-        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
+        sim_->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, ImpulseTemperature);
         Metrics::Instance()->OnImpulseApplied();
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
         //CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
-        ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3);
+        sim_->ComputeDivergence(*Surfaces.tex_velocity, *gb3);
         Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation
-        SolvePressure(general_buffers.general_buffer_3, *gb3);
+        sim_->SolvePressure(*gb3);
         Metrics::Instance()->OnPressureSolved();
 
         // Rectify velocity via the gradient of pressure
-        CudaMain::Instance()->SubstractGradient(*Surfaces.tex_velocity, *gb3, *Surfaces.tex_velocity, GradientScale);
-        //SubtractGradient(Surfaces.velocity_, general_buffers.general_buffer_3);
+        //CudaMain::Instance()->SubstractGradient(*Surfaces.tex_velocity, *gb3, *Surfaces.tex_velocity, GradientScale);
+        sim_->SubtractGradient(*Surfaces.tex_velocity, *gb3);
         Metrics::Instance()->OnVelocityRectified();
 
         CudaMain::Instance()->RoundPassed(frame_count);
@@ -393,23 +344,23 @@ void PezHandleKey(char c)
     
 }
 
-void AdvectPacked(SurfacePod velocity, SurfacePod source, SurfacePod dest,
-                  float delta_time, float dissipation_r, float dissipation_g)
-{
-    advect_packed_program_.Use();
-
-    SetUniform("velocity", 0);
-    SetUniform("source", 1);
-    SetUniform("inverse_size", recipPerElem(Vector3(float(GridWidth), float(GridHeight), float(GridDepth))));
-    SetUniform("time_step", delta_time);
-    SetUniform("dissipation_r", dissipation_r);
-    SetUniform("dissipation_g", dissipation_g);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
-    ResetState();
-}
+// void AdvectPacked(SurfacePod velocity, SurfacePod source, SurfacePod dest,
+//                   float delta_time, float dissipation_r, float dissipation_g)
+// {
+//     advect_packed_program_.Use();
+// 
+//     SetUniform("velocity", 0);
+//     SetUniform("source", 1);
+//     SetUniform("inverse_size", recipPerElem(Vector3(float(GridWidth), float(GridHeight), float(GridDepth))));
+//     SetUniform("time_step", delta_time);
+//     SetUniform("dissipation_r", dissipation_r);
+//     SetUniform("dissipation_g", dissipation_g);
+// 
+//     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+//     glActiveTexture(GL_TEXTURE0);
+//     glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
+//     glActiveTexture(GL_TEXTURE1);
+//     glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
+//     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
+//     ResetState();
+// }

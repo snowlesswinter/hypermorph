@@ -5,13 +5,9 @@
 
 #include "opengl/glew.h"
 
-struct SurfacePod;
 class GLTexture
 {
 public:
-    // Temporary
-    static GLTexture FromSurfacePod(const SurfacePod* sp);
-
     GLTexture();
     ~GLTexture();
 

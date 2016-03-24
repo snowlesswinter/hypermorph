@@ -5,24 +5,11 @@
 
 #include <windows.h>
 
-#include "full_multigrid_poisson_solver.h"
-#include "multigrid_poisson_solver.h"
 #include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 
 using namespace vmath;
-
-static struct {
-    GLuint Advect;
-    GLuint Jacobi;
-    GLuint DampedJacobi;
-    GLuint compute_residual;
-    GLuint SubtractGradient;
-    GLuint ComputeDivergence;
-    GLuint ApplyImpulse;
-    GLuint ApplyBuoyancy;
-} Programs;
 
 const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
                              // should be transformed between levels in
@@ -41,8 +28,6 @@ const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 3.0f;
 const int NumJacobiIterations = 40;
-const int kNumMultigridIterations = 5;
-const int kNumFullMultigridIterations = 2;
 const float kMaxTimeStep = 0.33f;
 const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
@@ -50,89 +35,88 @@ const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 1.0f;//0.999f;
 const float DensityDissipation = 0.988f;
-const PoissonMethod kSolverChoice = POISSON_SOLVER_FULL_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 
-void CreateObstacles(SurfacePod dest)
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glViewport(0, 0, dest.Width, dest.Height);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    GLuint program = LoadProgram(FluidShader::Vertex(), 0,
-                                 FluidShader::Fill());
-    glUseProgram(program);
-
-    GLuint lineVbo;
-    glGenBuffers(1, &lineVbo);
-    GLuint circleVbo;
-    glGenBuffers(1, &circleVbo);
-    glEnableVertexAttribArray(SlotPosition);
-
-    for (int slice = 0; slice < dest.Depth; ++slice) {
-
-        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dest.ColorTexture, 0, dest.Depth - 1 - slice);
-        float z = dest.Depth / 2.0f;
-        z = abs(slice - z) / z;
-        float fraction = 1 - sqrt(z);
-        float radius = 0.5f * fraction;
-
-        if (slice == 0 || slice == dest.Depth - 1) {
-            radius *= 100;
-        }
-
-        const bool DrawBorder = true;
-        if (DrawBorder && slice != 0 && slice != dest.Depth - 1) {
-            #define T 0.9999f
-            float positions[] = { -T, -T, T, -T, T,  T, -T,  T, -T, -T };
-            #undef T
-            GLsizeiptr size = sizeof(positions);
-            glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
-            glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
-            GLsizeiptr stride = 2 * sizeof(positions[0]);
-            glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
-            glDrawArrays(GL_LINE_STRIP, 0, 5);
-        }
-
-        const bool DrawSphere = false;
-        if (DrawSphere || slice == 0 || slice == dest.Depth - 1) {
-            const int slices = 64;
-            float positions[slices*2*3];
-            float twopi = 8*atan(1.0f);
-            float theta = 0;
-            float dtheta = twopi / (float) (slices - 1);
-            float* pPositions = &positions[0];
-            for (int i = 0; i < slices; i++) {
-                *pPositions++ = 0;
-                *pPositions++ = 0;
-
-                *pPositions++ = radius * cos(theta);
-                *pPositions++ = radius * sin(theta);
-                theta += dtheta;
-
-                *pPositions++ = radius * cos(theta);
-                *pPositions++ = radius * sin(theta);
-            }
-            GLsizeiptr size = sizeof(positions);
-            glBindBuffer(GL_ARRAY_BUFFER, circleVbo);
-            glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
-            GLsizeiptr stride = 2 * sizeof(positions[0]);
-            glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
-            glDrawArrays(GL_TRIANGLES, 0, slices * 3);
-        }
-    }
-
-    // Cleanup
-    glDeleteProgram(program);
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &lineVbo);
-    glDeleteBuffers(1, &circleVbo);
-}
+// void CreateObstacles(SurfacePod dest)
+// {
+//     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
+//     glViewport(0, 0, dest.Width, dest.Height);
+//     glClearColor(0, 0, 0, 0);
+//     glClear(GL_COLOR_BUFFER_BIT);
+// 
+//     GLuint vao;
+//     glGenVertexArrays(1, &vao);
+//     glBindVertexArray(vao);
+//     GLuint program = LoadProgram(FluidShader::Vertex(), 0,
+//                                  FluidShader::Fill());
+//     glUseProgram(program);
+// 
+//     GLuint lineVbo;
+//     glGenBuffers(1, &lineVbo);
+//     GLuint circleVbo;
+//     glGenBuffers(1, &circleVbo);
+//     glEnableVertexAttribArray(SlotPosition);
+// 
+//     for (int slice = 0; slice < dest.Depth; ++slice) {
+// 
+//         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dest.ColorTexture, 0, dest.Depth - 1 - slice);
+//         float z = dest.Depth / 2.0f;
+//         z = abs(slice - z) / z;
+//         float fraction = 1 - sqrt(z);
+//         float radius = 0.5f * fraction;
+// 
+//         if (slice == 0 || slice == dest.Depth - 1) {
+//             radius *= 100;
+//         }
+// 
+//         const bool DrawBorder = true;
+//         if (DrawBorder && slice != 0 && slice != dest.Depth - 1) {
+//             #define T 0.9999f
+//             float positions[] = { -T, -T, T, -T, T,  T, -T,  T, -T, -T };
+//             #undef T
+//             GLsizeiptr size = sizeof(positions);
+//             glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
+//             glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
+//             GLsizeiptr stride = 2 * sizeof(positions[0]);
+//             glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
+//             glDrawArrays(GL_LINE_STRIP, 0, 5);
+//         }
+// 
+//         const bool DrawSphere = false;
+//         if (DrawSphere || slice == 0 || slice == dest.Depth - 1) {
+//             const int slices = 64;
+//             float positions[slices*2*3];
+//             float twopi = 8*atan(1.0f);
+//             float theta = 0;
+//             float dtheta = twopi / (float) (slices - 1);
+//             float* pPositions = &positions[0];
+//             for (int i = 0; i < slices; i++) {
+//                 *pPositions++ = 0;
+//                 *pPositions++ = 0;
+// 
+//                 *pPositions++ = radius * cos(theta);
+//                 *pPositions++ = radius * sin(theta);
+//                 theta += dtheta;
+// 
+//                 *pPositions++ = radius * cos(theta);
+//                 *pPositions++ = radius * sin(theta);
+//             }
+//             GLsizeiptr size = sizeof(positions);
+//             glBindBuffer(GL_ARRAY_BUFFER, circleVbo);
+//             glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
+//             GLsizeiptr stride = 2 * sizeof(positions[0]);
+//             glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
+//             glDrawArrays(GL_TRIANGLES, 0, slices * 3);
+//         }
+//     }
+// 
+//     // Cleanup
+//     glDeleteProgram(program);
+//     glDeleteVertexArrays(1, &vao);
+//     glDeleteBuffers(1, &lineVbo);
+//     glDeleteBuffers(1, &circleVbo);
+// }
 
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)
@@ -196,104 +180,104 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
     return programHandle;
 }
 
-SurfacePod CreateSurface(GLsizei width, GLsizei height, int numComponents)
-{
-    GLuint fboHandle;
-    glGenFramebuffers(1, &fboHandle);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
+// SurfacePod CreateSurface(GLsizei width, GLsizei height, int numComponents)
+// {
+//     GLuint fboHandle;
+//     glGenFramebuffers(1, &fboHandle);
+//     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
+// 
+//     GLuint textureHandle;
+//     glGenTextures(1, &textureHandle);
+//     glBindTexture(GL_TEXTURE_2D, textureHandle);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+// 
+//     switch (numComponents) {
+//         case 1:
+//             glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, 0);
+//             break;
+//         case 2:
+//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, 0);
+//             break;
+//         case 3:
+//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
+//             break;
+//         case 4:
+//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
+//             break;
+//     }
+// 
+//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create normals texture");
+// 
+//     GLuint colorbuffer;
+//     glGenRenderbuffers(1, &colorbuffer);
+//     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
+//     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureHandle, 0);
+//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
+//     
+//     PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
+//     SurfacePod surface = { fboHandle, textureHandle };
+// 
+//     glClearColor(0, 0, 0, 0);
+//     glClear(GL_COLOR_BUFFER_BIT);
+//     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//     surface.Width = width;
+//     surface.Height = height;
+//     surface.Depth = 1;
+//     return surface;
+// }
 
-    GLuint textureHandle;
-    glGenTextures(1, &textureHandle);
-    glBindTexture(GL_TEXTURE_2D, textureHandle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    switch (numComponents) {
-        case 1:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, 0);
-            break;
-        case 2:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, 0);
-            break;
-        case 3:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
-            break;
-        case 4:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
-            break;
-    }
-
-    PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create normals texture");
-
-    GLuint colorbuffer;
-    glGenRenderbuffers(1, &colorbuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureHandle, 0);
-    PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
-    
-    PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
-    SurfacePod surface = { fboHandle, textureHandle };
-
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    surface.Width = width;
-    surface.Height = height;
-    surface.Depth = 1;
-    return surface;
-}
-
-SurfacePod CreateVolume(GLsizei width, GLsizei height, GLsizei depth, int numComponents)
-{
-    GLuint fboHandle;
-    glGenFramebuffers(1, &fboHandle);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-
-    GLuint textureHandle;
-    glGenTextures(1, &textureHandle);
-    glBindTexture(GL_TEXTURE_3D, textureHandle);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    switch (numComponents) {
-        case 1:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, width, height, depth, 0, GL_RED, GL_FLOAT, 0);
-            break;
-        case 2:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RG32F, width, height, depth, 0, GL_RG, GL_FLOAT, 0);
-            break;
-        case 3:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, width, height, depth, 0, GL_RGB, GL_FLOAT, 0);
-            break;
-        case 4:
-            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, width, height, depth, 0, GL_RGBA, GL_FLOAT, 0);
-            break;
-    }
-
-    PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create volume texture");
-
-    GLuint colorbuffer;
-    glGenRenderbuffers(1, &colorbuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureHandle, 0);
-    PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
-
-    PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
-    SurfacePod surface = { fboHandle, textureHandle };
-
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    surface.Width = width;
-    surface.Height = height;
-    surface.Depth = depth;
-    return surface;
-}
+// SurfacePod CreateVolume(GLsizei width, GLsizei height, GLsizei depth, int numComponents)
+// {
+//     GLuint fboHandle;
+//     glGenFramebuffers(1, &fboHandle);
+//     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
+// 
+//     GLuint textureHandle;
+//     glGenTextures(1, &textureHandle);
+//     glBindTexture(GL_TEXTURE_3D, textureHandle);
+//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+// 
+//     switch (numComponents) {
+//         case 1:
+//             glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, width, height, depth, 0, GL_RED, GL_FLOAT, 0);
+//             break;
+//         case 2:
+//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RG32F, width, height, depth, 0, GL_RG, GL_FLOAT, 0);
+//             break;
+//         case 3:
+//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, width, height, depth, 0, GL_RGB, GL_FLOAT, 0);
+//             break;
+//         case 4:
+//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, width, height, depth, 0, GL_RGBA, GL_FLOAT, 0);
+//             break;
+//     }
+// 
+//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create volume texture");
+// 
+//     GLuint colorbuffer;
+//     glGenRenderbuffers(1, &colorbuffer);
+//     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
+//     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureHandle, 0);
+//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
+// 
+//     PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
+//     SurfacePod surface = { fboHandle, textureHandle };
+// 
+//     glClearColor(0, 0, 0, 0);
+//     glClear(GL_COLOR_BUFFER_BIT);
+//     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//     surface.Width = width;
+//     surface.Height = height;
+//     surface.Depth = depth;
+//     return surface;
+// }
 
 void ResetState()
 {
@@ -303,18 +287,6 @@ void ResetState()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
     glDisable(GL_BLEND);
-}
-
-void InitSlabOps()
-{
-    Programs.Advect = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Advect());
-    Programs.Jacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Jacobi());
-    Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::DampedJacobi());
-    Programs.compute_residual = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), MultigridShader::ComputeResidual());
-    Programs.SubtractGradient = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::SubtractGradient());
-    Programs.ComputeDivergence = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::ComputeDivergence());
-    Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Splat());
-    Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Buoyancy());
 }
 
 void ClearSurface(GLTexture* s, float v)
@@ -341,208 +313,6 @@ void RenderMesh(const MeshPod& mesh)
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.index_buffer_);
     glDrawElements(GL_TRIANGLES, mesh.index_count_, GL_UNSIGNED_INT, nullptr);
-}
-
-void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation)
-{
-    GLuint p = Programs.Advect;
-    glUseProgram(p);
-
-    SetUniform("InverseSize", recipPerElem(Vector3(float(GridWidth), float(GridHeight), float(GridDepth))));
-    SetUniform("TimeStep", delta_time);
-    SetUniform("Dissipation", dissipation);
-    SetUniform("SourceTexture", 1);
-    SetUniform("Obstacles", 2);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
-    ResetState();
-}
-
-void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)
-{
-    GLuint p = Programs.Jacobi;
-    glUseProgram(p);
-
-    SetUniform("Alpha", -CellSize * CellSize);
-    SetUniform("InverseBeta", 0.1666f);
-    SetUniform("Divergence", 1);
-    SetUniform("Obstacles", 2);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, pressure.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
-    ResetState();
-}
-
-void DampedJacobi(SurfacePod pressure, SurfacePod divergence,
-                  SurfacePod obstacles, float cell_size)
-{
-    GLuint p = Programs.DampedJacobi;
-    glUseProgram(p);
-
-    SetUniform("Alpha", -(cell_size * cell_size));
-    SetUniform("InverseBeta", 0.11111111f);
-    SetUniform("one_minus_omega", 0.33333333f);
-    SetUniform("Pressure", 0);
-    SetUniform("Divergence", 1);
-    SetUniform("Obstacles", 2);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, pressure.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, pressure.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, divergence.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure.Depth);
-    ResetState();
-}
-
-void SolvePressure(SurfacePod packed, std::shared_ptr<GLTexture> t)
-{
-    switch (kSolverChoice) {
-        case POISSON_SOLVER_JACOBI:
-        case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
-                                            // implemented by shader.
-//             ClearSurface(pressure, 0.0f);
-//             for (int i = 0; i < NumJacobiIterations; ++i) {
-//                 Jacobi(pressure, divergence, obstacles);
-//             }
-            break;
-        }
-        case POISSON_SOLVER_DAMPED_JACOBI: {
-            // NOTE: If we don't clear the buffer, a lot more details are gonna
-            //       be rendered. Preconditioned?
-            //
-            // Our experiments reveals that increasing the iteration times to
-            // 80 of Jacobi will NOT lead to higher accuracy.
-
-//             ClearSurface(pressure, 0.0f);
-//             for (int i = 0; i < NumJacobiIterations; ++i) {
-//                 DampedJacobi(pressure, divergence, obstacles, CellSize);
-//             }
-            break;
-        }
-        case POISSON_SOLVER_MULTI_GRID: {
-            static PoissonSolver* p_solver = nullptr;
-            if (!p_solver) {
-                p_solver = new MultigridPoissonSolver();
-                p_solver->Initialize(GridWidth, GridWidth, GridWidth);
-            }
-
-            // An iteration times lower than 4 will introduce significant
-            // unnatural visual effect caused by the half-convergent state of
-            // pressure. 
-            //
-            // If I change the value to 6, then the average |r| could be
-            // reduced to around 0.004.
-            //
-            // And please also note that the average |r| of Damped Jacobi
-            // (using a constant iteration time of 40) is stabilized at 0.025.
-            // That's a pretty good score!
-
-            for (int i = 0; i < kNumMultigridIterations; i++)
-                p_solver->Solve(packed, CellSize, !i,
-                                std::shared_ptr<GLTexture>());
-
-            break;
-        }
-        case POISSON_SOLVER_FULL_MULTI_GRID: {
-            static PoissonSolver* p_solver = nullptr;
-            if (!p_solver) {
-                p_solver = new FullMultigridPoissonSolver();
-                p_solver->Initialize(GridWidth, GridWidth, GridWidth);
-            }
-
-            // Chaos occurs if the iteration times is set to a value above 2.
-            for (int i = 0; i < kNumFullMultigridIterations; i++)
-                p_solver->Solve(packed, CellSize, !i, t);
-
-            break;
-        }
-        default: {
-            break;
-        }
-    }
-}
-
-void SubtractGradient(SurfacePod velocity, SurfacePod packed)
-{
-    GLuint p = Programs.SubtractGradient;
-    glUseProgram(p);
-
-    SetUniform("GradientScale", GradientScale);
-    SetUniform("HalfInverseCellSize", 0.5f / CellSize);
-    SetUniform("velocity", 0);
-    SetUniform("packed_tex", 1);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, velocity.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, packed.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, velocity.Depth);
-    ResetState();
-}
-
-void ComputeDivergence(SurfacePod velocity, SurfacePod obstacles, SurfacePod dest)
-{
-    GLuint p = Programs.ComputeDivergence;
-    glUseProgram(p);
-
-    SetUniform("HalfInverseCellSize", 0.5f / CellSize);
-    SetUniform("Obstacles", 1);
-    SetUniform("velocity", 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
-    ResetState();
-}
-
-void ApplyImpulse(SurfacePod dest, Vector3 position, Vector3 hotspot, float value_r, float value_g)
-{
-    GLuint p = Programs.ApplyImpulse;
-    glUseProgram(p);
-
-    SetUniform("center_point", position);
-    SetUniform("hotspot", hotspot);
-    SetUniform("radius", SplatRadius);
-    SetUniform("fill_color_r", value_r);
-    SetUniform("fill_color_g", value_g);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glEnable(GL_BLEND);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
-    ResetState();
-}
-
-void ApplyBuoyancy(SurfacePod velocity, SurfacePod temperature, SurfacePod dest, float delta_time)
-{
-    GLuint p = Programs.ApplyBuoyancy;
-    glUseProgram(p);
-
-    SetUniform("Velocity", 0);
-    SetUniform("Temperature", 1);
-    SetUniform("AmbientTemperature", AmbientTemperature);
-    SetUniform("TimeStep", delta_time);
-    SetUniform("Sigma", kBuoyancyCoef);
-    SetUniform("Kappa", SmokeWeight);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity.ColorTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, temperature.ColorTexture);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
-    ResetState();
 }
 
 GLuint CreatePointVbo(float x, float y, float z)
@@ -693,10 +463,10 @@ double GetCurrentTimeInSeconds()
     return static_cast<double>(currentTime.QuadPart) / freqTime.QuadPart;
 }
 
-vmath::Vector3 CalculateInverseSize(const SurfacePod& volume)
+vmath::Vector3 CalculateInverseSize(const GLTexture& volume)
 {
     return recipPerElem(
-        vmath::Vector3(static_cast<float>(volume.Width),
-                       static_cast<float>(volume.Height),
-                       static_cast<float>(volume.Depth)));
+        vmath::Vector3(static_cast<float>(volume.width()),
+                       static_cast<float>(volume.height()),
+                       static_cast<float>(volume.depth())));
 }

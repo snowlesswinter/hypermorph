@@ -53,6 +53,7 @@
     <ClInclude Include="cuda\cuda_main.h">
       <Filter>cuda</Filter>
     </ClInclude>
+    <ClInclude Include="fluid_simulator.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -103,5 +104,6 @@
     <ClCompile Include="cuda\cuda_main.cpp">
       <Filter>cuda</Filter>
     </ClCompile>
+    <ClCompile Include="fluid_simulator.cpp" />
   </ItemGroup>
 </Project>

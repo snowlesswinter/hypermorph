@@ -3,19 +3,6 @@
 
 #include "utility.h"
 
-GLTexture GLTexture::FromSurfacePod(const SurfacePod* sp)
-{
-    GLTexture r;
-    r.frame_buffer_ = sp->FboHandle;
-    r.handle_ = sp->ColorTexture;
-    r.target_ = GL_TEXTURE_3D;
-    r.width_ = sp->Width;
-    r.height_ = sp->Height;
-    r.depth_ = sp->Depth;
-
-    return r;
-}
-
 GLTexture::GLTexture()
     : frame_buffer_(0)
     , buffer_(0)

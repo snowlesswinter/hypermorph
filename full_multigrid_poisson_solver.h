@@ -16,15 +16,14 @@ public:
     virtual ~FullMultigridPoissonSolver();
 
     virtual void Initialize(int width, int height, int depth) override;
-    virtual void Solve(const SurfacePod& u_and_b, float cell_size,
-                       bool as_precondition,
-                       std::shared_ptr<GLTexture> t) override;
+    virtual void Solve(std::shared_ptr<GLTexture> u_and_b, float cell_size,
+                       bool as_precondition) override;
 
 private:
-    void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
+    void Restrict(std::shared_ptr<GLTexture> fine,
+                  std::shared_ptr<GLTexture> coarse);
 
     std::unique_ptr<MultigridPoissonSolver> solver_;
-    std::vector<SurfacePod> packed_surfaces_;
     std::vector<std::shared_ptr<GLTexture>> packed_textures_;
     std::unique_ptr<GLProgram> restrict_packed_program_;
 };

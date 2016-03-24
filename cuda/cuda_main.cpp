@@ -5,6 +5,7 @@
 
 #include "opengl/gl_texture.h"
 #include "cuda_core.h"
+#include "fluid_impl_cuda.h"
 #include "graphics_resource.h"
 #include "vmath.hpp"
 
@@ -77,6 +78,7 @@ CudaMain* CudaMain::Instance()
 
 CudaMain::CudaMain()
     : core_(new CudaCore())
+    , fluid_impl_(new FluidImplCuda())
     , registerd_textures_()
 {
 
@@ -145,8 +147,8 @@ void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
     auto pbo = GetPBO(core_.get(), n, 4);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
-    core_->AdvectVelocity(i->second.get(), pbo.second, time_step, dissipation,
-                          v);
+    fluid_impl_->AdvectVelocity(i->second.get(), pbo.second, time_step,
+                                dissipation, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
@@ -166,15 +168,15 @@ void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
     auto pbo = GetPBO(core_.get(), n, 1);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
-    core_->Advect(i->second.get(), j->second.get(), pbo.second, time_step,
-                  dissipation, v);
+    fluid_impl_->Advect(i->second.get(), j->second.get(), pbo.second, time_step,
+                        dissipation, v);
 
     FlushPBO(pbo.first, GL_RED, dest.get());
 }
 
 void CudaMain::RoundPassed(int round)
 {
-    core_->RoundPassed(round);
+    fluid_impl_->RoundPassed(round);
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
@@ -193,9 +195,9 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
     auto pbo = GetPBO(core_.get(), n, 4);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
-    core_->ApplyBuoyancy(i->second.get(), j->second.get(), pbo.second,
-                         time_step, ambient_temperature, accel_factor, gravity,
-                         v);
+    fluid_impl_->ApplyBuoyancy(i->second.get(), j->second.get(), pbo.second,
+                               time_step, ambient_temperature, accel_factor,
+                               gravity, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
@@ -213,8 +215,8 @@ void CudaMain::ApplyImpulse(std::shared_ptr<GLTexture> dest,
     auto pbo = GetPBO(core_.get(), n, 1);
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    core_->ApplyImpulse(i->second.get(), pbo.second, center_point, hotspot,
-                        radius, value, v);
+    fluid_impl_->ApplyImpulse(i->second.get(), pbo.second, center_point,
+                              hotspot, radius, value, v);
 
     FlushPBO(pbo.first, GL_RED, dest.get());
 }
@@ -231,8 +233,8 @@ void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
     auto pbo = GetPBO(core_.get(), n, 4);
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    core_->ComputeDivergence(i->second.get(), pbo.second,
-                             half_inverse_cell_size, v);
+    fluid_impl_->ComputeDivergence(i->second.get(), pbo.second,
+                                   half_inverse_cell_size, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
@@ -252,8 +254,8 @@ void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
     auto pbo = GetPBO(core_.get(), n, 4);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
-    core_->SubstractGradient(i->second.get(), j->second.get(), pbo.second,
-                             gradient_scale, v);
+    fluid_impl_->SubstractGradient(i->second.get(), j->second.get(), pbo.second,
+                                   gradient_scale, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }

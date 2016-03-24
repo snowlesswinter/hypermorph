@@ -17,9 +17,8 @@ public:
     virtual ~MultigridPoissonSolver();
 
     virtual void Initialize(int width, int height, int depth) override;
-    virtual void Solve(const SurfacePod& u_and_b, float cell_size,
-                       bool as_precondition,
-                       std::shared_ptr<GLTexture> t) override;
+    virtual void Solve(std::shared_ptr<GLTexture> u_and_b, float cell_size,
+                       bool as_precondition) override;
 
     // TODO
     void Diagnose(GLTexture* packed);
@@ -27,39 +26,41 @@ public:
 private:
     friend class FullMultigridPoissonSolver;
 
-    typedef std::vector<std::tuple<SurfacePod, SurfacePod, SurfacePod>>
+    typedef std::vector<std::tuple<std::shared_ptr<GLTexture>, std::shared_ptr<GLTexture>, std::shared_ptr<GLTexture>>>
         MultigridSurfaces;
     typedef MultigridSurfaces::value_type Surface;
 
-    void ComputeResidual(const SurfacePod& u, const SurfacePod& b,
-                         const SurfacePod& residual, float cell_size,
+    void ComputeResidual(std::shared_ptr<GLTexture> u,
+                         std::shared_ptr<GLTexture> b,
+                         std::shared_ptr<GLTexture> residual, float cell_size,
                          bool diagnosis);
-    void Prolongate(const SurfacePod& coarse_solution,
-                    const SurfacePod& fine_solution);
-    void Relax(const SurfacePod& u, const SurfacePod& b, float cell_size,
+    void Prolongate(std::shared_ptr<GLTexture> coarse_solution,
+                    std::shared_ptr<GLTexture> fine_solution);
+    void Relax(std::shared_ptr<GLTexture> u, const std::shared_ptr<GLTexture> b, float cell_size,
                int times);
-    void RelaxWithZeroGuess(const SurfacePod& u, const SurfacePod& b,
+    void RelaxWithZeroGuess(std::shared_ptr<GLTexture> u, std::shared_ptr<GLTexture> b,
                             float cell_size);
-    void Restrict(const SurfacePod& fine, const SurfacePod& coarse);
+    void Restrict(std::shared_ptr<GLTexture> fine, std::shared_ptr<GLTexture> coarse);
     void SetBaseRelaxationTimes(int base_times);
-    void SolvePlain(const SurfacePod& u_and_b, float cell_size,
+    void SolvePlain(std::shared_ptr<GLTexture> u_and_b, float cell_size,
                     bool as_precondition);
-    bool ValidateVolume(const SurfacePod& u_and_b);
+    bool ValidateVolume(std::shared_ptr<GLTexture> u_and_b);
 
     MultigridCore* core() const;
 
     // Optimization.
-    void ComputeResidualPacked(const SurfacePod& packed, float cell_size);
-    void ProlongateAndRelax(const SurfacePod& coarse, const SurfacePod& fine);
-    void ProlongatePacked(const SurfacePod& coarse, const SurfacePod& fine);
-    void RelaxPacked(const SurfacePod& u_and_b, float cell_size, int times);
-    void RelaxPackedImpl(const SurfacePod& u_and_b, float cell_size);
-    void RelaxWithZeroGuessAndComputeResidual(const SurfacePod& packed_volumes,
+    void ComputeResidualPacked(std::shared_ptr<GLTexture> packed, float cell_size);
+    void ProlongateAndRelax(std::shared_ptr<GLTexture> coarse, std::shared_ptr<GLTexture> fine);
+    void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
+                          std::shared_ptr<GLTexture> fine);
+    void RelaxPacked(std::shared_ptr<GLTexture> u_and_b, float cell_size, int times);
+    void RelaxPackedImpl(std::shared_ptr<GLTexture> u_and_b, float cell_size);
+    void RelaxWithZeroGuessAndComputeResidual(std::shared_ptr<GLTexture> packed_volumes,
                                               float cell_size, int times);
-    void RelaxWithZeroGuessPacked(const SurfacePod& packed_volumes,
+    void RelaxWithZeroGuessPacked(std::shared_ptr<GLTexture> packed_volumes,
                                   float cell_size);
-    void RestrictPacked(const SurfacePod& fine, const SurfacePod& coarse);
-    void SolveOpt(const SurfacePod& u_and_b, float cell_size,
+    void RestrictPacked(std::shared_ptr<GLTexture> fine, std::shared_ptr<GLTexture> coarse);
+    void SolveOpt(std::shared_ptr<GLTexture> u_and_b, float cell_size,
                   bool as_precondition);
 
     // For diagnosis.
@@ -71,8 +72,8 @@ private:
 
     std::unique_ptr<MultigridCore> core_;
     std::unique_ptr<MultigridSurfaces> multi_grid_surfaces_;
-    std::vector<SurfacePod> surf_resource;
-    std::unique_ptr<SurfacePod> temp_surface_; // TODO
+    std::vector<std::shared_ptr<GLTexture>> surf_resource;
+    std::unique_ptr<std::shared_ptr<GLTexture>> temp_surface_; // TODO
     std::unique_ptr<GLProgram> residual_program_;
     std::unique_ptr<GLProgram> restrict_program_;
     std::unique_ptr<GLProgram> prolongate_program_;

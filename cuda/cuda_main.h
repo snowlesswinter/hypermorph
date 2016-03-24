@@ -12,6 +12,7 @@ class Vector3;
 }
 }
 class CudaCore;
+class FluidImplCuda;
 class GLTexture;
 class GraphicsResource;
 class CudaMain
@@ -59,6 +60,7 @@ public:
 
 private:
     std::unique_ptr<CudaCore> core_;
+    std::unique_ptr<FluidImplCuda> fluid_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
 };
