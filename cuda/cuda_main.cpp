@@ -236,3 +236,24 @@ void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
+
+void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
+                                 std::shared_ptr<GLTexture> packed,
+                                 std::shared_ptr<GLTexture> dest,
+                                 float gradient_scale)
+{
+    auto i = registerd_textures_.find(velocity);
+    auto j = registerd_textures_.find(packed);
+    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
+    if (i == registerd_textures_.end() || j == registerd_textures_.end())
+        return;
+
+    int n = 128 / dest->width();
+    auto pbo = GetPBO(core_.get(), n, 4);
+    vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
+                                     velocity->depth());
+    core_->SubstractGradient(i->second.get(), j->second.get(), pbo.second,
+                             gradient_scale, v);
+
+    FlushPBO(pbo.first, GL_RGBA, dest.get());
+}

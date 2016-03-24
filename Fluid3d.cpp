@@ -329,8 +329,8 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnImpulseApplied();
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
-        CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
-        //ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3);
+        //CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
+        ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3);
         Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation
@@ -338,7 +338,8 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnPressureSolved();
 
         // Rectify velocity via the gradient of pressure
-        SubtractGradient(Surfaces.velocity_, general_buffers.general_buffer_3);
+        CudaMain::Instance()->SubstractGradient(*Surfaces.tex_velocity, *gb3, *Surfaces.tex_velocity, GradientScale);
+        //SubtractGradient(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnVelocityRectified();
 
         CudaMain::Instance()->RoundPassed(frame_count);

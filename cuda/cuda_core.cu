@@ -17,6 +17,8 @@ texture<float4, cudaTextureType3D, cudaReadModeElementType> buoyancy_velocity;
 texture<float, cudaTextureType3D, cudaReadModeElementType> buoyancy_temperature;
 texture<float, cudaTextureType3D, cudaReadModeElementType> impulse_original;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> divergence_velocity;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_packed;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_velocity;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
@@ -238,13 +240,65 @@ __global__ void ComputeDivergenceKernel(float4* out_data,
     if (z <= 0)
         diff_fn = near.z + center.z;
 
-    float alpha = 0;
-    if (diff_ew != 0 || diff_ns != 0 || diff_fn != 0)
-        alpha = 1;
-
     out_data[index] = make_float4(
         0.0f, half_inverse_cell_size * (diff_ew + diff_ns + diff_fn), 0.0f,
-        alpha);// 0.0f);
+        0.0f);
+}
+
+__global__ void SubstractGradientKernel(float4* out_data,
+                                        float gradient_scale,
+                                        int num_of_blocks_per_slice,
+                                        int slice_stride, int3 volume_size)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + volume_size.x * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float4 near = tex3D(gradient_packed, coord.x, coord.y, coord.z - 1.0f);
+    float4 south = tex3D(gradient_packed, coord.x, coord.y - 1.0f, coord.z);
+    float4 west = tex3D(gradient_packed, coord.x - 1.0f, coord.y, coord.z);
+    float4 center = tex3D(gradient_packed, coord.x, coord.y, coord.z);
+    float4 east = tex3D(gradient_packed, coord.x + 1.0f, coord.y, coord.z);
+    float4 north = tex3D(gradient_packed, coord.x, coord.y + 1.0f, coord.z);
+    float4 far = tex3D(gradient_packed, coord.x, coord.y, coord.z + 1.0f);
+
+    float diff_ew = east.x - west.x;
+    float diff_ns = north.x - south.x;
+    float diff_fn = far.x - near.x;
+
+    // Handle boundary problem
+    float4 mask = make_float4(1.0f, 1.0f, 1.0f, 0.0f);
+    if (x >= volume_size.x - 1)
+        mask.x = 0;
+
+    if (x <= 0)
+        mask.x = 0;
+
+    if (y >= volume_size.y - 1)
+        mask.y = 0;
+
+    if (y <= 0)
+        mask.y = 0;
+
+    if (z >= volume_size.z - 1)
+        mask.z = 0;
+
+    if (z <= 0)
+        mask.z = 0;
+
+    float4 old_v = tex3D(gradient_velocity, coord.x, coord.y, coord.z);
+    float4 grad = make_float4(diff_ew, diff_ns, diff_fn, 0.0f) * gradient_scale;
+    float4 new_v = old_v - grad;
+    out_data[index] = mask * new_v; // Velocity goes to 0 when hit ???
 }
 
 // =============================================================================
@@ -481,4 +535,49 @@ void LaunchComputeDivergence(float4* dest_array, cudaArray* velocity_array,
                                              slice_stride, volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
+}
+
+void LaunchSubstractGradient(float4* dest_array, cudaArray* velocity_array,
+                             cudaArray* packed_array, float gradient_scale,
+                             int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    gradient_velocity.normalized = false;
+    gradient_velocity.filterMode = cudaFilterModeLinear;
+    gradient_velocity.addressMode[0] = cudaAddressModeClamp;
+    gradient_velocity.addressMode[1] = cudaAddressModeClamp;
+    gradient_velocity.addressMode[2] = cudaAddressModeClamp;
+    gradient_velocity.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&gradient_velocity,
+                                                velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDesc<float4>();
+    gradient_packed.normalized = false;
+    gradient_packed.filterMode = cudaFilterModeLinear;
+    gradient_packed.addressMode[0] = cudaAddressModeClamp;
+    gradient_packed.addressMode[1] = cudaAddressModeClamp;
+    gradient_packed.addressMode[2] = cudaAddressModeClamp;
+    gradient_packed.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&gradient_packed, packed_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
+
+    SubstractGradientKernel<<<grid, block>>>(dest_array, gradient_scale,
+                                             num_of_blocks_per_slice,
+                                             slice_stride, volume_size);
+
+    cudaUnbindTexture(&gradient_packed);
+    cudaUnbindTexture(&gradient_velocity);
 }

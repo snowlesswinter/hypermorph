@@ -32,6 +32,10 @@ extern void LaunchComputeDivergence(float4* dest_array,
                                     cudaArray* velocity_array,
                                     float half_inverse_cell_size,
                                     int3 volume_size);
+extern void LaunchSubstractGradient(float4* dest_array,
+                                    cudaArray* velocity_array,
+                                    cudaArray* packed_array,
+                                    float gradient_scale, int3 volume_size);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 
 namespace
@@ -449,6 +453,53 @@ void CudaCore::ComputeDivergence(GraphicsResource* velocity,
 
     LaunchComputeDivergence(
         dest_array, velocity_array, half_inverse_cell_size,
+        FromVmathVector(volume_size));
+
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
+}
+
+void CudaCore::SubstractGradient(GraphicsResource* velocity,
+                                 GraphicsResource* packed,
+                                 GraphicsResource* out_pbo,
+                                 float gradient_scale,
+                                 const vmath::Vector3& volume_size)
+{
+    cudaGraphicsResource_t res[] = {
+        velocity->resource(), packed->resource(), out_pbo->resource()
+    };
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Output to pbo.
+    float4* dest_array = nullptr;
+    size_t size = 0;
+    result = cudaGraphicsResourceGetMappedPointer(
+        reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Velocity texture.
+    cudaArray* velocity_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&velocity_array,
+                                                   velocity->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Packed texture.
+    cudaArray* packed_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&packed_array,
+                                                   packed->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchSubstractGradient(
+        dest_array, velocity_array, packed_array, gradient_scale,
         FromVmathVector(volume_size));
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);

@@ -46,6 +46,10 @@ public:
     void ComputeDivergence(std::shared_ptr<GLTexture> velocity,
                            std::shared_ptr<GLTexture> dest,
                            float half_inverse_cell_size);
+    void SubstractGradient(std::shared_ptr<GLTexture> velocity,
+                           std::shared_ptr<GLTexture> packed,
+                           std::shared_ptr<GLTexture> dest,
+                           float gradient_scale);
 
     // For diagnosis
     void RoundPassed(int round);

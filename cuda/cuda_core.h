@@ -45,6 +45,9 @@ public:
                            GraphicsResource* out_pbo,
                            float half_inverse_cell_size,
                            const Vectormath::Aos::Vector3& volume_size);
+    void SubstractGradient(GraphicsResource* velocity, GraphicsResource* packed,
+                           GraphicsResource* out_pbo, float gradient_scale,
+                           const Vectormath::Aos::Vector3& volume_size);
 
     // For diagnosis.
     void RoundPassed(int round);
