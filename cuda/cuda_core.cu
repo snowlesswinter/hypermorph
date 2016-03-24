@@ -15,6 +15,7 @@ texture<float4, cudaTextureType3D, cudaReadModeElementType> advect_velocity;
 texture<float, cudaTextureType3D, cudaReadModeElementType> advect_source;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> buoyancy_velocity;
 texture<float, cudaTextureType3D, cudaReadModeElementType> buoyancy_temperature;
+texture<float, cudaTextureType3D, cudaReadModeElementType> impulse_original;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
@@ -147,6 +148,42 @@ __global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
     if (t > ambient_temperature)
         out_data[index] += time_step * ((t - ambient_temperature) *
             accel_factor - gravity) * make_float4(0.0f, 1.0f, 0.0f, 0.0f);
+}
+
+__global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
+                                   float3 hotspot, float radius, float value,
+                                   int num_of_blocks_per_slice,
+                                   int slice_stride, int width)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + width * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+    float original = tex3D(impulse_original, coord.x, coord.y, coord.z);
+
+    if (coord.x > 1.0f && coord.y < 3.0f)
+    {
+        float3 diff = coord - center_point;
+        float d = norm3df(diff.x, diff.y, diff.z);
+        if (d < radius)
+        {
+            diff = coord - hotspot;
+            float scale = (radius - norm3df(diff.x, diff.y, diff.z)) / radius;
+            scale = max(scale, 0.5f);
+            out_data[index] = scale * value;
+            return;
+        }
+    }
+
+    out_data[index] = original;
 }
 
 // =============================================================================
@@ -317,4 +354,34 @@ void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
 
     cudaUnbindTexture(&buoyancy_temperature);
     cudaUnbindTexture(&buoyancy_velocity);
+}
+
+void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
+                        float3 center_point, float3 hotspot, float radius,
+                        float value, int width)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
+    impulse_original.normalized = false;
+    impulse_original.filterMode = cudaFilterModeLinear;
+    impulse_original.addressMode[0] = cudaAddressModeClamp;
+    impulse_original.addressMode[1] = cudaAddressModeClamp;
+    impulse_original.addressMode[2] = cudaAddressModeClamp;
+    impulse_original.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&impulse_original,
+                                                original_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 16);
+    dim3 grid(width / block.x, width / block.y, width / block.z);
+    int num_of_blocks_per_slice = width / 8;
+    int slice_stride = width * width;
+
+    ApplyImpulseKernel<<<grid, block>>>(dest_array, center_point, hotspot,
+                                        radius, value, num_of_blocks_per_slice,
+                                        slice_stride, width);
+
+    cudaUnbindTexture(&impulse_original);
 }

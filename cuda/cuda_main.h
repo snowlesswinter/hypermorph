@@ -4,6 +4,13 @@
 #include <map>
 #include <memory>
 
+namespace Vectormath
+{
+namespace Aos
+{
+class Vector3;
+}
+}
 class CudaCore;
 class GLTexture;
 class GraphicsResource;
@@ -32,6 +39,10 @@ public:
                        std::shared_ptr<GLTexture> dest, float time_step,
                        float ambient_temperature, float accel_factor,
                        float gravity);
+    void ApplyImpulse(std::shared_ptr<GLTexture> dest,
+                      const Vectormath::Aos::Vector3& center_point,
+                      const Vectormath::Aos::Vector3& hotspot, float radius,
+                      float value);
 
     // For diagnosis
     void RoundPassed(int round);

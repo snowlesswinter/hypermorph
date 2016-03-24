@@ -10,6 +10,7 @@
 #include <helper_cuda_gl.h>
 
 #include "graphics_resource.h"
+#include "../vmath.hpp"
 
 extern void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                                    cudaArray* fine_array, int coarse_width);
@@ -22,6 +23,9 @@ extern void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
                                 cudaArray* temperature_array, float time_step,
                                 float ambient_temperature, float accel_factor,
                                 float gravity, int width);
+extern void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
+                               float3 center_point, float3 hotspot,
+                               float radius, float value, int width);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 
 CudaCore::CudaCore()
@@ -160,10 +164,11 @@ void CudaCore::ProlongatePacked(GraphicsResource* coarse,
                                 GraphicsResource* fine,
                                 GraphicsResource* out_pbo, int width)
 {
-    cudaGraphicsResource_t res[3] = {
+    cudaGraphicsResource_t res[] = {
         coarse->resource(), fine->resource(), out_pbo->resource()
     };
-    cudaError_t result = cudaGraphicsMapResources(3, res);
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -222,17 +227,18 @@ void CudaCore::ProlongatePacked(GraphicsResource* coarse,
 // 
 //     delete[] a;
 
-    cudaGraphicsUnmapResources(3, res);
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void CudaCore::AdvectVelocity(GraphicsResource* velocity,
                               GraphicsResource* out_pbo, float time_step,
                               float dissipation, int width)
 {
-    cudaGraphicsResource_t res[2] = {
+    cudaGraphicsResource_t res[] = {
         velocity->resource(), out_pbo->resource()
     };
-    cudaError_t result = cudaGraphicsMapResources(2, res);
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -257,7 +263,7 @@ void CudaCore::AdvectVelocity(GraphicsResource* velocity,
     LaunchAdvectVelocity(dest_array, velocity_array, time_step, dissipation,
                          width);
 
-    cudaGraphicsUnmapResources(2, res);
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void CudaCore::Advect(GraphicsResource* velocity, GraphicsResource* source,
@@ -267,7 +273,8 @@ void CudaCore::Advect(GraphicsResource* velocity, GraphicsResource* source,
     cudaGraphicsResource_t res[] = {
         velocity->resource(), source->resource(), out_pbo->resource()
     };
-    cudaError_t result = cudaGraphicsMapResources(3, res);
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -300,7 +307,7 @@ void CudaCore::Advect(GraphicsResource* velocity, GraphicsResource* source,
     LaunchAdvect(dest_array, velocity_array, source_array, time_step,
                  dissipation, width);
 
-    cudaGraphicsUnmapResources(3, res);
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void CudaCore::ApplyBuoyancy(GraphicsResource* velocity,
@@ -312,7 +319,8 @@ void CudaCore::ApplyBuoyancy(GraphicsResource* velocity,
     cudaGraphicsResource_t res[] = {
         velocity->resource(), temperature->resource(), out_pbo->resource()
     };
-    cudaError_t result = cudaGraphicsMapResources(3, res);
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -347,7 +355,48 @@ void CudaCore::ApplyBuoyancy(GraphicsResource* velocity,
                         time_step, ambient_temperature, accel_factor, gravity,
                         width);
 
-    cudaGraphicsUnmapResources(3, res);
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
+}
+
+void CudaCore::ApplyImpulse(GraphicsResource* source, GraphicsResource* out_pbo,
+                            const vmath::Vector3& center_point,
+                            const vmath::Vector3& hotspot, float radius,
+                            float value, int width)
+{
+    cudaGraphicsResource_t res[] = {
+        source->resource(), out_pbo->resource()
+    };
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Output to pbo.
+    float* dest_array = nullptr;                         
+    size_t size = 0;
+    result = cudaGraphicsResourceGetMappedPointer(
+        reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Source texture.
+    cudaArray* original_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&original_array,
+                                                   source->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchApplyImpulse(
+        dest_array, original_array,
+        make_float3(center_point.getX(), center_point.getY(),
+                    center_point.getZ()),
+        make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()), radius,
+        value, width);
+
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void CudaCore::RoundPassed(int round)

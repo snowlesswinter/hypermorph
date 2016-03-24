@@ -1,6 +1,14 @@
 #ifndef _CUDA_CORE_H_
 #define _CUDA_CORE_H_
 
+namespace Vectormath
+{
+namespace Aos
+{
+class Vector3;
+}
+}
+
 struct cudaGraphicsResource;
 class GraphicsResource;
 class CudaCore
@@ -26,6 +34,10 @@ public:
                        GraphicsResource* temperature, GraphicsResource* out_pbo,
                        float time_step, float ambient_temperature,
                        float accel_factor, float gravity, int width);
+    void ApplyImpulse(GraphicsResource* source, GraphicsResource* out_pbo,
+                      const Vectormath::Aos::Vector3& center_point,
+                      const Vectormath::Aos::Vector3& hotspot, float radius,
+                      float value, int width);
 
     // For diagnosis.
     void RoundPassed(int round);

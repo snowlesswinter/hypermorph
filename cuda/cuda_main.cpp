@@ -6,6 +6,7 @@
 #include "opengl/gl_texture.h"
 #include "cuda_core.h"
 #include "graphics_resource.h"
+#include "vmath.hpp"
 
 // =============================================================================
 std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n, int c)
@@ -184,4 +185,21 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
                          velocity->width());
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
+}
+
+void CudaMain::ApplyImpulse(std::shared_ptr<GLTexture> dest,
+                            const vmath::Vector3& center_point,
+                            const vmath::Vector3& hotspot, float radius,
+                            float value)
+{
+    auto i = registerd_textures_.find(dest);
+    if (i == registerd_textures_.end())
+        return;
+
+    int n = 128 / dest->width();
+    auto pbo = GetPBO(core_.get(), n, 1);
+    core_->ApplyImpulse(i->second.get(), pbo.second, center_point, hotspot,
+                        radius, value, dest->width());
+
+    FlushPBO(pbo.first, GL_RED, dest.get());
 }

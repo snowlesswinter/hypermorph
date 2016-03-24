@@ -313,15 +313,17 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnDensityAvected();
         
         // Apply buoyancy and gravity
-        CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
-        //ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        //CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
+        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(*Surfaces.tex_velocity, *gb3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
-        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
-        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
+        CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
+        CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
+        //ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
+        //ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
         Metrics::Instance()->OnImpulseApplied();
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
