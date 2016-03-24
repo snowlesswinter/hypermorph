@@ -8,18 +8,18 @@
 #include "graphics_resource.h"
 
 // =============================================================================
-std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n)
+std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n, int c)
 {
-    static std::pair<GLuint, GraphicsResource*> pixel_buffer[10] = {};
-
-    if (!pixel_buffer[n].first)
+    static std::pair<GLuint, GraphicsResource*> pixel_buffer[10][4] = {};
+    std::pair<GLuint, GraphicsResource*>& ref = pixel_buffer[n][c];
+    if (!ref.first)
     {
         int width = 128 / n;
-        size_t size = width * width * width * 4 * 4;
+        size_t size = width * width * width * c * 4;
 
         // create buffer object
-        glGenBuffers(1, &(pixel_buffer[n].first));
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buffer[n].first);
+        glGenBuffers(1, &(ref.first));
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, ref.first);
         glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_DYNAMIC_DRAW);
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -33,13 +33,29 @@ std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n)
         // something dirty with it. Just put as less as cpp code inside it
         // as possible.
 
-        pixel_buffer[n].second = new GraphicsResource(core);
-        core->RegisterGLBuffer(pixel_buffer[n].first, pixel_buffer[n].second);
+        ref.second = new GraphicsResource(core);
+        core->RegisterGLBuffer(ref.first, ref.second);
     }
 
-    return pixel_buffer[n];
+    return ref;
 }
 // =============================================================================
+
+namespace
+{
+void FlushPBO(GLuint pbo, GLuint format, GLTexture* dest)
+{
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+
+    glBindTexture(GL_TEXTURE_3D, dest->handle());
+    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
+                    dest->width(), dest->height(), dest->depth(), format,
+                    GL_FLOAT, nullptr);
+    assert(glGetError() == 0);
+    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+}
+} // Anonymous namespace
 
 CudaMain* CudaMain::Instance()
 {
@@ -102,19 +118,11 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
         return;
 
     int n = 128 / fine->width();
-    auto pbo = GetPBO(core_.get(), n);
+    auto pbo = GetPBO(core_.get(), n, 4);
     core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second,
                             coarse->width());
 
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo.first);
-
-    glBindTexture(GL_TEXTURE_3D, fine->handle());
-    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
-                    fine->width(), fine->height(), fine->depth(),
-                    GL_RGBA, GL_FLOAT, nullptr);
-    assert(glGetError() == 0);
-    glBindTexture(GL_TEXTURE_3D, 0);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    FlushPBO(pbo.first, GL_RGBA, fine.get());
 }
 
 void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
@@ -126,19 +134,30 @@ void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / velocity->width();
-    auto pbo = GetPBO(core_.get(), n);
+    auto pbo = GetPBO(core_.get(), n, 4);
     core_->AdvectVelocity(i->second.get(), pbo.second, time_step, dissipation,
                           velocity->width());
 
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo.first);
+    FlushPBO(pbo.first, GL_RGBA, dest.get());
+}
 
-    glBindTexture(GL_TEXTURE_3D, dest->handle());
-    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
-                    dest->width(), dest->height(), dest->depth(),
-                    GL_RGBA, GL_FLOAT, nullptr);
-    assert(glGetError() == 0);
-    glBindTexture(GL_TEXTURE_3D, 0);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
+                      std::shared_ptr<GLTexture> source,
+                      std::shared_ptr<GLTexture> dest, float time_step,
+                      float dissipation)
+{
+    auto i = registerd_textures_.find(velocity);
+    auto j = registerd_textures_.find(source);
+    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
+    if (i == registerd_textures_.end() || j == registerd_textures_.end())
+        return;
+
+    int n = 128 / velocity->width();
+    auto pbo = GetPBO(core_.get(), n, 1);
+    core_->Advect(i->second.get(), j->second.get(), pbo.second, time_step,
+                  dissipation, velocity->width());
+
+    FlushPBO(pbo.first, GL_RED, dest.get());
 }
 
 void CudaMain::RoundPassed(int round)

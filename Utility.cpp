@@ -10,9 +10,6 @@
 #include "full_multigrid_poisson_solver.h"
 #include "multigrid_poisson_solver.h"
 
-// TODO
-#include "cuda/cuda_main.h"
-
 using namespace vmath;
 
 static struct {
@@ -363,13 +360,6 @@ void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, Surfac
     glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
-}
-
-void Advect2(std::shared_ptr<GLTexture> velocity,
-             std::shared_ptr<GLTexture> source, std::shared_ptr<GLTexture> dest,
-             float delta_time, float dissipation)
-{
-    CudaMain::Instance()->AdvectVelocity(velocity, dest, delta_time, dissipation);
 }
 
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)

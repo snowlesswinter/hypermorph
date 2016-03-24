@@ -32,6 +32,8 @@ struct
     SurfacePod density_;
     SurfacePod temperature_;
     std::shared_ptr<GLTexture>* tex_velocity;
+    std::shared_ptr<GLTexture>* tex_density;
+    std::shared_ptr<GLTexture>* tex_temperature;
 } Surfaces;
 
 struct
@@ -40,6 +42,7 @@ struct
     SurfacePod general_buffer_3;
 } general_buffers;
 
+std::shared_ptr<GLTexture>* gb1;
 std::shared_ptr<GLTexture>* gb3;
 
 struct
@@ -116,9 +119,38 @@ void PezInitialize()
     // cache miss in GPU during raycast. So, it's a problem all about the cache
     // shortage in graphic cards.
 
-    Surfaces.density_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
-    general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
+    Surfaces.tex_density = new std::shared_ptr <GLTexture>();
+    *Surfaces.tex_density = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
+
+    kk.FboHandle = (*Surfaces.tex_density)->frame_buffer();
+    kk.ColorTexture = (*Surfaces.tex_density)->handle();
+    kk.Width = (*Surfaces.tex_density)->width();
+    kk.Height = (*Surfaces.tex_density)->height();
+    kk.Depth = (*Surfaces.tex_density)->depth();
+
+    Surfaces.density_ = kk;
+
+    Surfaces.tex_temperature = new std::shared_ptr <GLTexture>();
+    *Surfaces.tex_temperature = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
+
+    kk.FboHandle = (*Surfaces.tex_temperature)->frame_buffer();
+    kk.ColorTexture = (*Surfaces.tex_temperature)->handle();
+    kk.Width = (*Surfaces.tex_temperature)->width();
+    kk.Height = (*Surfaces.tex_temperature)->height();
+    kk.Depth = (*Surfaces.tex_temperature)->depth();
+
+    Surfaces.temperature_ = kk;
+
+    gb1 = new std::shared_ptr <GLTexture>();
+    *gb1 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F, GL_RED);
+
+    kk.FboHandle = (*gb1)->frame_buffer();
+    kk.ColorTexture = (*gb1)->handle();
+    kk.Width = (*gb1)->width();
+    kk.Height = (*gb1)->height();
+    kk.Depth = (*gb1)->depth();
+
+    general_buffers.general_buffer_1 = kk;
 
     gb3 = new std::shared_ptr <GLTexture>();
     *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
@@ -256,8 +288,8 @@ void PezUpdate(unsigned int microseconds)
         //sss.Diagnose(Surfaces.tex_velocity->get());
         
         // Advect velocity
-        Advect2(*Surfaces.tex_velocity, *Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
-        //Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        //CudaMain::Instance()->AdvectVelocity(*Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
+        Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
         std::swap(*Surfaces.tex_velocity, *gb3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
 
@@ -267,12 +299,16 @@ void PezUpdate(unsigned int microseconds)
 
         // Advect density and temperature
         ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
         Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
+        std::swap(*Surfaces.tex_temperature, *gb1);
         std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnTemperatureAvected();
 
         ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
         Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
+        std::swap(*Surfaces.tex_density, *gb1);
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnDensityAvected();
 

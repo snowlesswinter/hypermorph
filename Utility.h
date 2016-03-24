@@ -83,7 +83,6 @@ void InitSlabOps();
 void ClearSurface(SurfacePod s, float v);
 void RenderMesh(const MeshPod& mesh);
 void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, SurfacePod dest, float delta_time, float dissipation);
-void Advect2(std::shared_ptr<GLTexture> velocity, std::shared_ptr<GLTexture> source, std::shared_ptr<GLTexture> dest, float delta_time, float dissipation);
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles);
 void DampedJacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles, float cell_size);
 void SolvePressure(SurfacePod packed, std::shared_ptr<GLTexture> t);

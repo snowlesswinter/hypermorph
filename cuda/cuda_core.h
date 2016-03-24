@@ -19,6 +19,9 @@ public:
                           GraphicsResource* out_pbo, int width);
     void AdvectVelocity(GraphicsResource* velocity, GraphicsResource* out_pbo,
                         float time_step, float dissipation, int width);
+    void Advect(GraphicsResource* velocity, GraphicsResource* source,
+                GraphicsResource* out_pbo, float time_step, float dissipation,
+                int width);
 
     // For diagnosis.
     void RoundPassed(int round);

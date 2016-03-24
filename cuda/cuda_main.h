@@ -23,6 +23,10 @@ public:
     void AdvectVelocity(std::shared_ptr<GLTexture> velocity,
                         std::shared_ptr<GLTexture> dest, float time_step,
                         float dissipation);
+    void Advect(std::shared_ptr<GLTexture> velocity,
+                std::shared_ptr<GLTexture> source,
+                std::shared_ptr<GLTexture> dest, float time_step,
+                float dissipation);
 
     // For diagnosis
     void RoundPassed(int round);
