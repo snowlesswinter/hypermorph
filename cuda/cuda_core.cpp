@@ -18,6 +18,10 @@ extern void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
 extern void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
                          cudaArray* source_array, float time_step,
                          float dissipation, int width);
+extern void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
+                                cudaArray* temperature_array, float time_step,
+                                float ambient_temperature, float accel_factor,
+                                float gravity, int width);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 
 CudaCore::CudaCore()
@@ -295,6 +299,53 @@ void CudaCore::Advect(GraphicsResource* velocity, GraphicsResource* source,
 
     LaunchAdvect(dest_array, velocity_array, source_array, time_step,
                  dissipation, width);
+
+    cudaGraphicsUnmapResources(3, res);
+}
+
+void CudaCore::ApplyBuoyancy(GraphicsResource* velocity,
+                             GraphicsResource* temperature,
+                             GraphicsResource* out_pbo, float time_step,
+                             float ambient_temperature, float accel_factor,
+                             float gravity, int width)
+{
+    cudaGraphicsResource_t res[] = {
+        velocity->resource(), temperature->resource(), out_pbo->resource()
+    };
+    cudaError_t result = cudaGraphicsMapResources(3, res);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Output to pbo.
+    float4* dest_array = nullptr;
+    size_t size = 0;
+    result = cudaGraphicsResourceGetMappedPointer(
+        reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Velocity texture.
+    cudaArray* velocity_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&velocity_array,
+                                                   velocity->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Source texture.
+    cudaArray* temperature_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&temperature_array,
+                                                   temperature->resource(), 0,
+                                                   0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchApplyBuoyancy(dest_array, velocity_array, temperature_array,
+                        time_step, ambient_temperature, accel_factor, gravity,
+                        width);
 
     cudaGraphicsUnmapResources(3, res);
 }

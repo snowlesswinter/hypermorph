@@ -27,6 +27,11 @@ public:
                 std::shared_ptr<GLTexture> source,
                 std::shared_ptr<GLTexture> dest, float time_step,
                 float dissipation);
+    void ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
+                       std::shared_ptr<GLTexture> temperature,
+                       std::shared_ptr<GLTexture> dest, float time_step,
+                       float ambient_temperature, float accel_factor,
+                       float gravity);
 
     // For diagnosis
     void RoundPassed(int round);

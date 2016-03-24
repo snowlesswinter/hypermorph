@@ -164,3 +164,24 @@ void CudaMain::RoundPassed(int round)
 {
     core_->RoundPassed(round);
 }
+
+void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
+                             std::shared_ptr<GLTexture> temperature,
+                             std::shared_ptr<GLTexture> dest, float time_step,
+                             float ambient_temperature, float accel_factor,
+                             float gravity)
+{
+    auto i = registerd_textures_.find(velocity);
+    auto j = registerd_textures_.find(temperature);
+    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
+    if (i == registerd_textures_.end() || j == registerd_textures_.end())
+        return;
+
+    int n = 128 / velocity->width();
+    auto pbo = GetPBO(core_.get(), n, 4);
+    core_->ApplyBuoyancy(i->second.get(), j->second.get(), pbo.second,
+                         time_step, ambient_temperature, accel_factor, gravity,
+                         velocity->width());
+
+    FlushPBO(pbo.first, GL_RGBA, dest.get());
+}

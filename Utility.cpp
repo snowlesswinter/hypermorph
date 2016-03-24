@@ -5,10 +5,11 @@
 
 #include <windows.h>
 
-#include "shader/fluid_shader.h"
-#include "shader/multigrid_shader.h"
 #include "full_multigrid_poisson_solver.h"
 #include "multigrid_poisson_solver.h"
+#include "opengl/gl_texture.h"
+#include "shader/fluid_shader.h"
+#include "shader/multigrid_shader.h"
 
 using namespace vmath;
 
@@ -316,9 +317,9 @@ void InitSlabOps()
     Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Buoyancy());
 }
 
-void ClearSurface(SurfacePod s, float v)
+void ClearSurface(GLTexture* s, float v)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, s.FboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, s->frame_buffer());
     glClearColor(v, v, v, v);
     glClear(GL_COLOR_BUFFER_BIT);
 }

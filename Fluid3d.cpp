@@ -298,22 +298,23 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnVelocityAvected();
 
         // Advect density and temperature
-        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        ClearSurface(gb1->get(), 0.0f);
         //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
         Advect(Surfaces.velocity_, Surfaces.temperature_, SurfacePod(), general_buffers.general_buffer_1, delta_time, TemperatureDissipation);
         std::swap(*Surfaces.tex_temperature, *gb1);
         std::swap(Surfaces.temperature_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnTemperatureAvected();
 
-        ClearSurface(general_buffers.general_buffer_1, 0.0f);
+        ClearSurface(gb1->get(), 0.0f);
         //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
         Advect(Surfaces.velocity_, Surfaces.density_, SurfacePod(), general_buffers.general_buffer_1, delta_time, DensityDissipation);
         std::swap(*Surfaces.tex_density, *gb1);
         std::swap(Surfaces.density_, general_buffers.general_buffer_1);
         Metrics::Instance()->OnDensityAvected();
-
+        
         // Apply buoyancy and gravity
-        ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
+        //ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
         std::swap(*Surfaces.tex_velocity, *gb3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
@@ -358,9 +359,9 @@ void PezHandleMouse(int x, int y, int action, int delta)
 
 void Reset()
 {
-    ClearSurface(Surfaces.velocity_, 0.0f);
-    ClearSurface(Surfaces.density_, 0.0f);
-    ClearSurface(Surfaces.temperature_, 0.0f);
+    ClearSurface(Surfaces.tex_velocity->get(), 0.0f);
+    ClearSurface(Surfaces.tex_density->get(), 0.0f);
+    ClearSurface(Surfaces.tex_temperature->get(), 0.0f);
     Metrics::Instance()->Reset();
 }
 

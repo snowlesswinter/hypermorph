@@ -22,6 +22,10 @@ public:
     void Advect(GraphicsResource* velocity, GraphicsResource* source,
                 GraphicsResource* out_pbo, float time_step, float dissipation,
                 int width);
+    void ApplyBuoyancy(GraphicsResource* velocity,
+                       GraphicsResource* temperature, GraphicsResource* out_pbo,
+                       float time_step, float ambient_temperature,
+                       float accel_factor, float gravity, int width);
 
     // For diagnosis.
     void RoundPassed(int round);

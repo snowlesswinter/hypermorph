@@ -13,6 +13,8 @@ texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_coarse;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_fine;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> advect_velocity;
 texture<float, cudaTextureType3D, cudaReadModeElementType> advect_source;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> buoyancy_velocity;
+texture<float, cudaTextureType3D, cudaReadModeElementType> buoyancy_temperature;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
@@ -118,6 +120,33 @@ __global__ void AdvectKernel(float* out_data, float time_step,
 
     out_data[index] = dissipation * tex3D(advect_source, back_traced.x,
                                           back_traced.y, back_traced.z);
+}
+
+__global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
+                                    float ambient_temperature,
+                                    float accel_factor, float gravity,
+                                    int num_of_blocks_per_slice,
+                                    int slice_stride, int width)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + width * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+    float4 velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
+    float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
+
+    out_data[index] = velocity;
+    if (t > ambient_temperature)
+        out_data[index] += time_step * ((t - ambient_temperature) *
+            accel_factor - gravity) * make_float4(0.0f, 1.0f, 0.0f, 0.0f);
 }
 
 // =============================================================================
@@ -241,4 +270,51 @@ void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
+}
+
+void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
+                         cudaArray* temperature_array, float time_step,
+                         float ambient_temperature, float accel_factor,
+                         float gravity, int width)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    buoyancy_velocity.normalized = false;
+    buoyancy_velocity.filterMode = cudaFilterModeLinear;
+    buoyancy_velocity.addressMode[0] = cudaAddressModeClamp;
+    buoyancy_velocity.addressMode[1] = cudaAddressModeClamp;
+    buoyancy_velocity.addressMode[2] = cudaAddressModeClamp;
+    buoyancy_velocity.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&buoyancy_velocity,
+                                                velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDesc<float>();
+    buoyancy_temperature.normalized = false;
+    buoyancy_temperature.filterMode = cudaFilterModeLinear;
+    buoyancy_temperature.addressMode[0] = cudaAddressModeClamp;
+    buoyancy_temperature.addressMode[1] = cudaAddressModeClamp;
+    buoyancy_temperature.addressMode[2] = cudaAddressModeClamp;
+    buoyancy_temperature.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&buoyancy_temperature,
+                                    temperature_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 16);
+    dim3 grid(width / block.x, width / block.y, width / block.z);
+    int num_of_blocks_per_slice = width / 8;
+    int slice_stride = width * width;
+
+    ApplyBuoyancyKernel<<<grid, block>>>(dest_array, time_step,
+                                         ambient_temperature, accel_factor,
+                                         gravity, num_of_blocks_per_slice,
+                                         slice_stride, width);
+
+    cudaUnbindTexture(&buoyancy_temperature);
+    cudaUnbindTexture(&buoyancy_velocity);
 }
