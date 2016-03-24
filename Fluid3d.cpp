@@ -275,7 +275,7 @@ void PezUpdate(unsigned int microseconds)
             cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
         float hotspot_z =
             sin_factor * SplatRadius * 0.8f + kImpulsePosition.getZ();
-        Vector3 hotspot(hotspot_x, 0, hotspot_z);
+        Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
@@ -320,15 +320,17 @@ void PezUpdate(unsigned int microseconds)
         Metrics::Instance()->OnBuoyancyApplied();
 
         // Splat new smoke
-        CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
-        CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
-        //ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
-        //ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
+        //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
+        ApplyImpulse(Surfaces.density_, kImpulsePosition, hotspot, ImpulseDensity, ImpulseDensity);
+
+        // Something wrong with the temperature impulsing.
+        //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
+        ApplyImpulse(Surfaces.temperature_, kImpulsePosition, hotspot, ImpulseTemperature, ImpulseTemperature);
         Metrics::Instance()->OnImpulseApplied();
 
         // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
-        ComputeDivergence(Surfaces.velocity_, SurfacePod(),
-                          general_buffers.general_buffer_3);
+        CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
+        //ComputeDivergence(Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3);
         Metrics::Instance()->OnDivergenceComputed();
 
         // Solve pressure-velocity Poisson equation

@@ -16,6 +16,7 @@ texture<float, cudaTextureType3D, cudaReadModeElementType> advect_source;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> buoyancy_velocity;
 texture<float, cudaTextureType3D, cudaReadModeElementType> buoyancy_temperature;
 texture<float, cudaTextureType3D, cudaReadModeElementType> impulse_original;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> divergence_velocity;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
@@ -39,7 +40,7 @@ __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
 
 __global__ void ProlongatePackedKernel(float4* out_data,
                                        int num_of_blocks_per_slice,
-                                       int slice_stride, int fine_width)
+                                       int slice_stride, int3 volume_size)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
@@ -49,7 +50,7 @@ __global__ void ProlongatePackedKernel(float4* out_data,
     int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
         threadIdx.y;
 
-    int index = slice_stride * z + fine_width * y + x;
+    int index = slice_stride * z + volume_size.x * y + x;
 
     float3 c = make_float3(x, y, z);
     c *= 0.5f;
@@ -77,7 +78,7 @@ __global__ void ProlongatePackedKernel(float4* out_data,
 __global__ void AdvectVelocityKernel(float4* out_data, float time_step,
                                      float dissipation,
                                      int num_of_blocks_per_slice,
-                                     int slice_stride, int width)
+                                     int slice_stride, int3 volume_size)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
@@ -87,7 +88,7 @@ __global__ void AdvectVelocityKernel(float4* out_data, float time_step,
     int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
         threadIdx.y;
 
-    int index = slice_stride * z + width * y + x;
+    int index = slice_stride * z + volume_size.x * y + x;
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
@@ -101,7 +102,7 @@ __global__ void AdvectVelocityKernel(float4* out_data, float time_step,
 
 __global__ void AdvectKernel(float* out_data, float time_step,
                              float dissipation, int num_of_blocks_per_slice,
-                             int slice_stride, int width)
+                             int slice_stride, int3 volume_size)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
@@ -111,7 +112,7 @@ __global__ void AdvectKernel(float* out_data, float time_step,
     int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
         threadIdx.y;
 
-    int index = slice_stride * z + width * y + x;
+    int index = slice_stride * z + volume_size.x * y + x;
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
@@ -127,7 +128,7 @@ __global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
                                     float ambient_temperature,
                                     float accel_factor, float gravity,
                                     int num_of_blocks_per_slice,
-                                    int slice_stride, int width)
+                                    int slice_stride, int3 volume_size)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
@@ -137,7 +138,7 @@ __global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
     int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
         threadIdx.y;
 
-    int index = slice_stride * z + width * y + x;
+    int index = slice_stride * z + volume_size.x * y + x;
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
@@ -153,7 +154,7 @@ __global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
 __global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
                                    float3 hotspot, float radius, float value,
                                    int num_of_blocks_per_slice,
-                                   int slice_stride, int width)
+                                   int slice_stride, int3 volume_size)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
@@ -163,7 +164,7 @@ __global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
     int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
         threadIdx.y;
 
-    int index = slice_stride * z + width * y + x;
+    int index = slice_stride * z + volume_size.x * y + x;
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
@@ -171,12 +172,14 @@ __global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
 
     if (coord.x > 1.0f && coord.y < 3.0f)
     {
-        float3 diff = coord - center_point;
-        float d = norm3df(diff.x, diff.y, diff.z);
+        float2 diff = make_float2(coord.x, coord.z) -
+            make_float2(center_point.x, center_point.z);
+        float d = hypotf(diff.x, diff.y);
         if (d < radius)
         {
-            diff = coord - hotspot;
-            float scale = (radius - norm3df(diff.x, diff.y, diff.z)) / radius;
+            diff = make_float2(coord.x, coord.z) -
+                make_float2(hotspot.x, hotspot.z);
+            float scale = (radius - hypotf(diff.x, diff.y)) / radius;
             scale = max(scale, 0.5f);
             out_data[index] = scale * value;
             return;
@@ -184,6 +187,64 @@ __global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
     }
 
     out_data[index] = original;
+}
+
+__global__ void ComputeDivergenceKernel(float4* out_data,
+                                        float half_inverse_cell_size,
+                                        int num_of_blocks_per_slice,
+                                        int slice_stride, int3 volume_size)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + volume_size.x * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float4 near = tex3D(divergence_velocity, coord.x, coord.y, coord.z - 1.0f);
+    float4 south = tex3D(divergence_velocity, coord.x, coord.y - 1.0f, coord.z);
+    float4 west = tex3D(divergence_velocity, coord.x - 1.0f, coord.y, coord.z);
+    float4 center = tex3D(divergence_velocity, coord.x, coord.y, coord.z);
+    float4 east = tex3D(divergence_velocity, coord.x + 1.0f, coord.y, coord.z);
+    float4 north = tex3D(divergence_velocity, coord.x, coord.y + 1.0f, coord.z);
+    float4 far = tex3D(divergence_velocity, coord.x, coord.y, coord.z + 1.0f);
+
+    float diff_ew = east.x - west.x;
+    float diff_ns = north.y - south.y;
+    float diff_fn = far.z - near.z;
+
+    // Handle boundary problem
+    if (x >= volume_size.x - 1)
+        diff_ew = -center.x - west.x;
+
+    if (x <= 0)
+        diff_ew = east.x + center.x;
+
+    if (y >= volume_size.y - 1)
+        diff_ns = -center.y - south.y;
+
+    if (y <= 0)
+        diff_ns = north.y + center.y;
+
+    if (z >= volume_size.z - 1)
+        diff_fn = -center.z - far.z;
+
+    if (z <= 0)
+        diff_fn = near.z + center.z;
+
+    float alpha = 0;
+    if (diff_ew != 0 || diff_ns != 0 || diff_fn != 0)
+        alpha = 1;
+
+    out_data[index] = make_float4(
+        0.0f, half_inverse_cell_size * (diff_ew + diff_ns + diff_fn), 0.0f,
+        alpha);// 0.0f);
 }
 
 // =============================================================================
@@ -194,7 +255,7 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
 }
 
 void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
-                            cudaArray* fine_array, int coarse_width)
+                            cudaArray* fine_array, int3 volume_size_fine)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
     prolongate_coarse.normalized = false;
@@ -224,20 +285,22 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
     if (result != cudaSuccess)
         return;
 
-    int fine_width = coarse_width * 2;
-    dim3 block(8, 8, 16);
-    dim3 grid(fine_width / block.x, fine_width / block.y, fine_width / block.z);
-    int num_of_blocks_per_slice = fine_width / 8;
-    int slice_stride = fine_width * fine_width;
+    int3 volume_size = volume_size_fine;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
+
     ProlongatePackedKernel<<<grid, block>>>(dest_array, num_of_blocks_per_slice,
-                                            slice_stride, fine_width);
+                                            slice_stride, volume_size);
 
     cudaUnbindTexture(&prolongate_fine);
     cudaUnbindTexture(&prolongate_coarse);
 }
 
 void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
-                          float time_step, float dissipation, int width)
+                          float time_step, float dissipation, int3 volume_size)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
     advect_velocity.normalized = false;
@@ -253,21 +316,22 @@ void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 16);
-    dim3 grid(width / block.x, width / block.y, width / block.z);
-    int num_of_blocks_per_slice = width / 8;
-    int slice_stride = width * width;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
 
     AdvectVelocityKernel<<<grid, block>>>(dest_array, time_step, dissipation,
                                           num_of_blocks_per_slice, slice_stride,
-                                          width);
+                                          volume_size);
 
     cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
                   cudaArray* source_array, float time_step,
-                  float dissipation, int width)
+                  float dissipation, int3 volume_size)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
     advect_velocity.normalized = false;
@@ -296,14 +360,15 @@ void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 16);
-    dim3 grid(width / block.x, width / block.y, width / block.z);
-    int num_of_blocks_per_slice = width / 8;
-    int slice_stride = width * width;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
 
     AdvectKernel<<<grid, block>>>(dest_array, time_step, dissipation,
                                   num_of_blocks_per_slice, slice_stride,
-                                  width);
+                                  volume_size);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
@@ -312,7 +377,7 @@ void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
 void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
                          cudaArray* temperature_array, float time_step,
                          float ambient_temperature, float accel_factor,
-                         float gravity, int width)
+                         float gravity, int3 volume_size)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
     buoyancy_velocity.normalized = false;
@@ -342,15 +407,16 @@ void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 16);
-    dim3 grid(width / block.x, width / block.y, width / block.z);
-    int num_of_blocks_per_slice = width / 8;
-    int slice_stride = width * width;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
 
     ApplyBuoyancyKernel<<<grid, block>>>(dest_array, time_step,
                                          ambient_temperature, accel_factor,
                                          gravity, num_of_blocks_per_slice,
-                                         slice_stride, width);
+                                         slice_stride, volume_size);
 
     cudaUnbindTexture(&buoyancy_temperature);
     cudaUnbindTexture(&buoyancy_velocity);
@@ -358,7 +424,7 @@ void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
 
 void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
                         float3 center_point, float3 hotspot, float radius,
-                        float value, int width)
+                        float value, int3 volume_size)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
     impulse_original.normalized = false;
@@ -374,14 +440,45 @@ void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 16);
-    dim3 grid(width / block.x, width / block.y, width / block.z);
-    int num_of_blocks_per_slice = width / 8;
-    int slice_stride = width * width;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
 
     ApplyImpulseKernel<<<grid, block>>>(dest_array, center_point, hotspot,
                                         radius, value, num_of_blocks_per_slice,
-                                        slice_stride, width);
+                                        slice_stride, volume_size);
 
     cudaUnbindTexture(&impulse_original);
+}
+
+void LaunchComputeDivergence(float4* dest_array, cudaArray* velocity_array,
+                             float half_inverse_cell_size, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    divergence_velocity.normalized = false;
+    divergence_velocity.filterMode = cudaFilterModeLinear;
+    divergence_velocity.addressMode[0] = cudaAddressModeClamp;
+    divergence_velocity.addressMode[1] = cudaAddressModeClamp;
+    divergence_velocity.addressMode[2] = cudaAddressModeClamp;
+    divergence_velocity.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&divergence_velocity,
+                                                velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
+
+    ComputeDivergenceKernel<<<grid, block>>>(dest_array, half_inverse_cell_size,
+                                             num_of_blocks_per_slice,
+                                             slice_stride, volume_size);
+
+    cudaUnbindTexture(&divergence_velocity);
 }

@@ -43,6 +43,9 @@ public:
                       const Vectormath::Aos::Vector3& center_point,
                       const Vectormath::Aos::Vector3& hotspot, float radius,
                       float value);
+    void ComputeDivergence(std::shared_ptr<GLTexture> velocity,
+                           std::shared_ptr<GLTexture> dest,
+                           float half_inverse_cell_size);
 
     // For diagnosis
     void RoundPassed(int round);

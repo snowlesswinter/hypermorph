@@ -56,6 +56,12 @@ void FlushPBO(GLuint pbo, GLuint format, GLTexture* dest)
     glBindTexture(GL_TEXTURE_3D, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
+
+vmath::Vector3 FromIntValues(int x, int y, int z)
+{
+    return vmath::Vector3(static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(z));
+}
 } // Anonymous namespace
 
 CudaMain* CudaMain::Instance()
@@ -120,8 +126,9 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
 
     int n = 128 / fine->width();
     auto pbo = GetPBO(core_.get(), n, 4);
-    core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second,
-                            coarse->width());
+    vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
+                                     fine->depth());
+    core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second, v);
 
     FlushPBO(pbo.first, GL_RGBA, fine.get());
 }
@@ -136,8 +143,10 @@ void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
 
     int n = 128 / velocity->width();
     auto pbo = GetPBO(core_.get(), n, 4);
+    vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
+                                     velocity->depth());
     core_->AdvectVelocity(i->second.get(), pbo.second, time_step, dissipation,
-                          velocity->width());
+                          v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
@@ -155,8 +164,10 @@ void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
 
     int n = 128 / velocity->width();
     auto pbo = GetPBO(core_.get(), n, 1);
+    vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
+                                     velocity->depth());
     core_->Advect(i->second.get(), j->second.get(), pbo.second, time_step,
-                  dissipation, velocity->width());
+                  dissipation, v);
 
     FlushPBO(pbo.first, GL_RED, dest.get());
 }
@@ -180,9 +191,11 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
 
     int n = 128 / velocity->width();
     auto pbo = GetPBO(core_.get(), n, 4);
+    vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
+                                     velocity->depth());
     core_->ApplyBuoyancy(i->second.get(), j->second.get(), pbo.second,
                          time_step, ambient_temperature, accel_factor, gravity,
-                         velocity->width());
+                         v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
@@ -198,8 +211,28 @@ void CudaMain::ApplyImpulse(std::shared_ptr<GLTexture> dest,
 
     int n = 128 / dest->width();
     auto pbo = GetPBO(core_.get(), n, 1);
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
     core_->ApplyImpulse(i->second.get(), pbo.second, center_point, hotspot,
-                        radius, value, dest->width());
+                        radius, value, v);
 
     FlushPBO(pbo.first, GL_RED, dest.get());
+}
+
+void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
+                                 std::shared_ptr<GLTexture> dest,
+                                 float half_inverse_cell_size)
+{
+    auto i = registerd_textures_.find(velocity);
+    if (i == registerd_textures_.end())
+        return;
+
+    int n = 128 / dest->width();
+    auto pbo = GetPBO(core_.get(), n, 4);
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    core_->ComputeDivergence(i->second.get(), pbo.second,
+                             half_inverse_cell_size, v);
+
+    FlushPBO(pbo.first, GL_RGBA, dest.get());
 }
