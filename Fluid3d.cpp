@@ -16,6 +16,8 @@
 // TODO
 #include "multigrid_core.h"
 #include "opengl/gl_texture.h"
+#include "multigrid_poisson_solver.h"
+#include "cuda/cuda_main.h"
 
 using namespace vmath;
 using std::string;
@@ -29,6 +31,7 @@ struct
     SurfacePod velocity_;
     SurfacePod density_;
     SurfacePod temperature_;
+    std::shared_ptr<GLTexture>* tex_velocity;
 } Surfaces;
 
 struct
@@ -84,7 +87,19 @@ void PezInitialize()
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
-    Surfaces.velocity_ = CreateVolume(GridWidth, GridHeight, GridDepth, 3);
+    MultigridCore core;
+    Surfaces.tex_velocity = new std::shared_ptr <GLTexture>();
+    *Surfaces.tex_velocity = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
+
+
+    SurfacePod kk;
+    kk.FboHandle = (*Surfaces.tex_velocity)->frame_buffer();
+    kk.ColorTexture = (*Surfaces.tex_velocity)->handle();
+    kk.Width = (*Surfaces.tex_velocity)->width();
+    kk.Height = (*Surfaces.tex_velocity)->height();
+    kk.Depth = (*Surfaces.tex_velocity)->depth();
+
+    Surfaces.velocity_ = kk;
 
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
@@ -105,12 +120,9 @@ void PezInitialize()
     Surfaces.temperature_ = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
     general_buffers.general_buffer_1 = CreateVolume(GridWidth, GridHeight, GridDepth, 1);
 
-    MultigridCore core;
     gb3 = new std::shared_ptr <GLTexture>();
     *gb3 = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
 
-
-    SurfacePod kk;
     kk.FboHandle = (*gb3)->frame_buffer();
     kk.ColorTexture = (*gb3)->handle();
     kk.Width = (*gb3)->width();
@@ -225,8 +237,8 @@ void PezUpdate(unsigned int microseconds)
     bool render_velocity = GetCurrentTimeInSeconds() - first_time < 10.0;
 
     if (SimulateFluid) {
-        float sin_factor = static_cast<float>(sin(time_elapsed / 4 * Pi));
-        float cos_factor = static_cast<float>(cos(time_elapsed / 4 * Pi));
+        float sin_factor = static_cast<float>(sin(0 / 4 * Pi));
+        float cos_factor = static_cast<float>(cos(0 / 4 * Pi));
         float hotspot_x =
             cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
         float hotspot_z =
@@ -239,9 +251,18 @@ void PezUpdate(unsigned int microseconds)
 
         Metrics::Instance()->OnFrameUpdateBegins();
 
+        // TODO
+        MultigridPoissonSolver sss;
+        //sss.Diagnose(Surfaces.tex_velocity->get());
+        
         // Advect velocity
-        Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        Advect2(*Surfaces.tex_velocity, *Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
+        //Advect(Surfaces.velocity_, Surfaces.velocity_, SurfacePod(), general_buffers.general_buffer_3, delta_time, VelocityDissipation);
+        std::swap(*Surfaces.tex_velocity, *gb3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
+
+        //sss.Diagnose(Surfaces.tex_velocity->get());
+
         Metrics::Instance()->OnVelocityAvected();
 
         // Advect density and temperature
@@ -257,6 +278,7 @@ void PezUpdate(unsigned int microseconds)
 
         // Apply buoyancy and gravity
         ApplyBuoyancy(Surfaces.velocity_, Surfaces.temperature_, general_buffers.general_buffer_3, delta_time);
+        std::swap(*Surfaces.tex_velocity, *gb3);
         std::swap(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnBuoyancyApplied();
 
@@ -277,6 +299,8 @@ void PezUpdate(unsigned int microseconds)
         // Rectify velocity via the gradient of pressure
         SubtractGradient(Surfaces.velocity_, general_buffers.general_buffer_3);
         Metrics::Instance()->OnVelocityRectified();
+
+        CudaMain::Instance()->RoundPassed(frame_count);
     }
 }
 

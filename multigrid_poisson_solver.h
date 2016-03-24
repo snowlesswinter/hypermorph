@@ -21,6 +21,9 @@ public:
                        bool as_precondition,
                        std::shared_ptr<GLTexture> t) override;
 
+    // TODO
+    void Diagnose(GLTexture* packed);
+
 private:
     friend class FullMultigridPoissonSolver;
 
@@ -65,7 +68,6 @@ private:
     void ComputeResidualPackedDiagnosis(const GLTexture& packed,
                                         const GLTexture& diagnosis,
                                         float cell_size);
-    void Diagnose(GLTexture* packed);
 
     std::unique_ptr<MultigridCore> core_;
     std::unique_ptr<MultigridSurfaces> multi_grid_surfaces_;

@@ -88,19 +88,6 @@ void main()
     vec3 coord = fragCoord - TimeStep * u;
 
     FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
-    return;
-
-    // Boundary check
-    ivec3 tex_size = textureSize(VelocityTexture, 0);
-    ivec3 icoord = ivec3(coord);
-    if ((icoord.y > tex_size.y - 1) || (icoord.y < 0) ||
-            (icoord.x > tex_size.x - 1) || (icoord.x < 0) ||
-            (icoord.z > tex_size.z - 1) || (icoord.z < 0)) {
-        // Why not FragColor = vec4(0); ????
-        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
-    } else {
-        FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
-    }
 }
 )";
 }

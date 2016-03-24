@@ -567,7 +567,8 @@ void MultigridPoissonSolver::ComputeResidualPackedDiagnosis(
 void MultigridPoissonSolver::Diagnose(GLTexture* packed)
 {
     extern int g_diagnosis;
-    if (g_diagnosis) {
+    if (g_diagnosis)
+    {
         if (!diagnosis_volume_ ||
                 diagnosis_volume_->width() != packed->width() ||
                 diagnosis_volume_->height() != packed->height() ||
@@ -577,13 +578,13 @@ void MultigridPoissonSolver::Diagnose(GLTexture* packed)
                                                packed->height(),
                                                packed->depth(), GL_RGBA32F,
                                                GL_RGBA);
-            if (r)
-                CudaMain::Instance()->RegisterGLImage(diagnosis_volume_);
+//             if (r)
+//                 CudaMain::Instance()->RegisterGLImage(diagnosis_volume_);
         }
 
-        ComputeResidualPackedDiagnosis(*packed, *diagnosis_volume_, CellSize);
+        //ComputeResidualPackedDiagnosis(*packed, *diagnosis_volume_, CellSize);
         glFinish();
-        GLTexture* p = diagnosis_volume_.get();
+        GLTexture* p = packed;// diagnosis_volume_.get();
 
         int w = p->width();
         int h = p->height();
@@ -608,7 +609,8 @@ void MultigridPoissonSolver::Diagnose(GLTexture* packed)
                 for (int k = 0; k < w; k++) {
                     for (int l = 0; l < n; l++) {
                         q = f[i * w * h * n + j * w * n + k * n + l];
-                        //if (l % n == 2)
+                        if (i == 30 && j == 0 && k == 56)
+                        //if (q > 1)
                         sum += q;
                         m = std::max(q, m);
                     }
@@ -621,6 +623,7 @@ void MultigridPoissonSolver::Diagnose(GLTexture* packed)
         // =========================================================================
 
         double avg = sum / (w * h * d);
-        PezDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
+        PezDebugString("sum: %.8f\n", sum);
+        //PezDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
     }
 }

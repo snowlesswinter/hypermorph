@@ -110,9 +110,10 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         SurfacePod coarse_volume = packed_surfaces_[j + 1];
         SurfacePod fine_volume = packed_surfaces_[j];
 
-        //solver_->ProlongatePacked(coarse_volume, fine_volume);
+        solver_->ProlongatePacked(coarse_volume, fine_volume);
 
-        solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
+        // Testing done.
+        //solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
 
         for (int k = 0; k < times_to_iterate; k++)
             solver_->Solve(fine_volume, level_cell_size, false, t);
@@ -132,8 +133,8 @@ void FullMultigridPoissonSolver::Solve(const SurfacePod& u_and_b,
         level_cell_size *= 1.0f;
     }
 
-    if (!as_precondition)
-        solver_->Diagnose(t.get());
+//     if (!as_precondition)
+//         solver_->Diagnose(t.get());
 }
 
 void FullMultigridPoissonSolver::Restrict(const SurfacePod& fine,

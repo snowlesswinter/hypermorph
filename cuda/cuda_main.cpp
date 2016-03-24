@@ -8,13 +8,9 @@
 #include "graphics_resource.h"
 
 // =============================================================================
-std::pair<GLuint, GraphicsResource*> GetProlongPBO(CudaCore* core, int n)
+std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n)
 {
     static std::pair<GLuint, GraphicsResource*> pixel_buffer[10] = {};
-//     if (pixel_buffer[n].first) {
-//         delete pixel_buffer[n].second;
-//         glDeleteBuffers(1, &pixel_buffer[n].first);
-//     }
 
     if (!pixel_buffer[n].first)
     {
@@ -106,7 +102,7 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
         return;
 
     int n = 128 / fine->width();
-    auto pbo = GetProlongPBO(core_.get(), n);
+    auto pbo = GetPBO(core_.get(), n);
     core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second,
                             coarse->width());
 
@@ -119,4 +115,33 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
     assert(glGetError() == 0);
     glBindTexture(GL_TEXTURE_3D, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+}
+
+void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
+                              std::shared_ptr<GLTexture> dest, float time_step,
+                              float dissipation)
+{
+    auto i = registerd_textures_.find(velocity);
+    if (i == registerd_textures_.end())
+        return;
+
+    int n = 128 / velocity->width();
+    auto pbo = GetPBO(core_.get(), n);
+    core_->AdvectVelocity(i->second.get(), pbo.second, time_step, dissipation,
+                          velocity->width());
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo.first);
+
+    glBindTexture(GL_TEXTURE_3D, dest->handle());
+    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
+                    dest->width(), dest->height(), dest->depth(),
+                    GL_RGBA, GL_FLOAT, nullptr);
+    assert(glGetError() == 0);
+    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+}
+
+void CudaMain::RoundPassed(int round)
+{
+    core_->RoundPassed(round);
 }

@@ -20,6 +20,15 @@ public:
     void Absolute(std::shared_ptr<GLTexture> texture);
     void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
                           std::shared_ptr<GLTexture> fine);
+    void AdvectVelocity(std::shared_ptr<GLTexture> velocity,
+                        std::shared_ptr<GLTexture> dest, float time_step,
+                        float dissipation);
+
+    // For diagnosis
+    void RoundPassed(int round);
+
+    // temporary ===============================================================
+    CudaCore* core() { return core_.get(); }
 
 private:
     std::unique_ptr<CudaCore> core_;

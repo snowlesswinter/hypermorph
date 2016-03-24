@@ -10,6 +10,9 @@
 #include "full_multigrid_poisson_solver.h"
 #include "multigrid_poisson_solver.h"
 
+// TODO
+#include "cuda/cuda_main.h"
+
 using namespace vmath;
 
 static struct {
@@ -47,7 +50,7 @@ const float SmokeBuoyancy = 1.0f;
 const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
-const float VelocityDissipation = 0.999f;
+const float VelocityDissipation = 1.0f;//0.999f;
 const float DensityDissipation = 0.988f;
 const PoissonMethod kSolverChoice = POISSON_SOLVER_FULL_MULTI_GRID;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
@@ -360,6 +363,13 @@ void Advect(SurfacePod velocity, SurfacePod source, SurfacePod obstacles, Surfac
     glBindTexture(GL_TEXTURE_3D, source.ColorTexture);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest.Depth);
     ResetState();
+}
+
+void Advect2(std::shared_ptr<GLTexture> velocity,
+             std::shared_ptr<GLTexture> source, std::shared_ptr<GLTexture> dest,
+             float delta_time, float dissipation)
+{
+    CudaMain::Instance()->AdvectVelocity(velocity, dest, delta_time, dissipation);
 }
 
 void Jacobi(SurfacePod pressure, SurfacePod divergence, SurfacePod obstacles)

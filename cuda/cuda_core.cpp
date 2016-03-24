@@ -13,6 +13,9 @@
 
 extern void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                                    cudaArray* fine_array, int coarse_width);
+extern void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
+                                 float time_step, float dissipation, int width);
+extern void LaunchRoundPassed(int* dest_array, int round, int x);
 
 CudaCore::CudaCore()
 {
@@ -59,6 +62,22 @@ void CudaCore::UnregisterGLImage(GraphicsResource* graphics_res)
 
 void CudaCore::Absolute(GraphicsResource* graphics_res, unsigned int aa)
 {
+}
+
+void CudaCore::RoundPassed(int round)
+{
+//     if (round != 10)
+//         return;
+
+    int* dest_array = nullptr;
+    cudaError_t result = cudaMalloc(&dest_array, 4);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchRoundPassed(dest_array, round, 3);
+
+    cudaFree(dest_array);
 }
 #if 0
 void CudaCore::Absolute(GraphicsResource* graphics_res, unsigned int aa)
@@ -212,4 +231,39 @@ void CudaCore::ProlongatePacked(GraphicsResource* coarse,
 //     delete[] a;
 
     cudaGraphicsUnmapResources(3, res);
+}
+
+void CudaCore::AdvectVelocity(GraphicsResource* velocity,
+                              GraphicsResource* out_pbo, float time_step,
+                              float dissipation, int width)
+{
+    cudaGraphicsResource_t res[2] = {
+        velocity->resource(), out_pbo->resource()
+    };
+    cudaError_t result = cudaGraphicsMapResources(2, res);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Output to pbo.
+    float4* dest_array = nullptr;
+    size_t size = 0;
+    result = cudaGraphicsResourceGetMappedPointer(
+        reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Velocity texture.
+    cudaArray* velocity_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&velocity_array,
+                                                   velocity->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchAdvectVelocity(dest_array, velocity_array, time_step, dissipation,
+                         width);
+
+    cudaGraphicsUnmapResources(2, res);
 }

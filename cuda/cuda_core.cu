@@ -11,6 +11,12 @@
 texture<float1, cudaTextureType3D, cudaReadModeElementType> in_tex;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_coarse;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_fine;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> advect_velocity;
+
+__global__ void RoundPassedKernel(int* dest_array, int round, int x)
+{
+    dest_array[0] = x * x - round * round;
+}
 
 __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
 {
@@ -28,17 +34,16 @@ __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
 }
 
 __global__ void ProlongatePackedKernel(float4* out_data,
-                                       int num_of_block_per_slice,
-                                       int tile_height, int tile_width,
-                                       int3 coarse_dim, float slice_stride,
-                                       int fine_width)
+                                       int num_of_blocks_per_slice,
+                                       int slice_stride, int fine_width)
 {
     int block_offset = gridDim.x * gridDim.y * blockIdx.z +
         gridDim.x * blockIdx.y + blockIdx.x;
 
-    int x = threadIdx.z * tile_width + threadIdx.x;
-    int z = block_offset / num_of_block_per_slice;
-    int y = (block_offset - z * num_of_block_per_slice) * tile_height + threadIdx.y;
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
 
     int index = slice_stride * z + fine_width * y + x;
 
@@ -65,6 +70,38 @@ __global__ void ProlongatePackedKernel(float4* out_data,
     out_data[index] = result;
 }
 
+__global__ void AdvectVelocityKernel(float4* out_data, float time_step,
+                                     float dissipation,
+                                     int num_of_blocks_per_slice,
+                                     int slice_stride, int width)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + width * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
+    float3 back_traced =
+        coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
+
+    out_data[index] = dissipation * tex3D(advect_velocity, back_traced.x,
+                                          back_traced.y, back_traced.z);
+}
+
+// =============================================================================
+
+void LaunchRoundPassed(int* dest_array, int round, int x)
+{
+    RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
+}
+
 void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                             cudaArray* fine_array, int coarse_width)
 {
@@ -83,6 +120,8 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
         return;
 
     prolongate_fine.normalized = false;
+
+    // TODO: Disabling the linear filter mode may slightly speed up the kernel.
     prolongate_fine.filterMode = cudaFilterModeLinear;
     prolongate_fine.addressMode[0] = cudaAddressModeClamp;
     prolongate_fine.addressMode[1] = cudaAddressModeClamp;
@@ -97,15 +136,40 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
     int fine_width = coarse_width * 2;
     dim3 block(8, 8, 16);
     dim3 grid(fine_width / block.x, fine_width / block.y, fine_width / block.z);
-    int3 coarse_dim = make_int3(coarse_width, coarse_width, coarse_width);
-    int num_of_block_per_slice = fine_width / 8;
-    int tile_height = 8;
-    int tile_width = 8;
+    int num_of_blocks_per_slice = fine_width / 8;
     int slice_stride = fine_width * fine_width;
-    ProlongatePackedKernel<<<grid, block>>>(dest_array, num_of_block_per_slice,
-                                            tile_height, tile_width, coarse_dim,
+    ProlongatePackedKernel<<<grid, block>>>(dest_array, num_of_blocks_per_slice,
                                             slice_stride, fine_width);
 
     cudaUnbindTexture(&prolongate_fine);
     cudaUnbindTexture(&prolongate_coarse);
+}
+
+void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
+                          float time_step, float dissipation, int width)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    advect_velocity.normalized = false;
+    advect_velocity.filterMode = cudaFilterModeLinear;
+    advect_velocity.addressMode[0] = cudaAddressModeClamp;
+    advect_velocity.addressMode[1] = cudaAddressModeClamp;
+    advect_velocity.addressMode[2] = cudaAddressModeClamp;
+    advect_velocity.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&advect_velocity,
+                                                velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 16);
+    dim3 grid(width / block.x, width / block.y, width / block.z);
+    int num_of_blocks_per_slice = width / 8;
+    int slice_stride = width * width;
+
+    AdvectVelocityKernel<<<grid, block>>>(dest_array, time_step, dissipation,
+                                          num_of_blocks_per_slice, slice_stride,
+                                          width);
+
+    cudaUnbindTexture(&advect_velocity);
 }
