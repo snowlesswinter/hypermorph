@@ -6,22 +6,22 @@
 
 #include <helper_math.h>
 
-texture<float4, cudaTextureType3D, cudaReadModeElementType> advect_velocity;
-texture<float, cudaTextureType3D, cudaReadModeElementType> advect_source;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> buoyancy_velocity;
-texture<float, cudaTextureType3D, cudaReadModeElementType> buoyancy_temperature;
-texture<float, cudaTextureType3D, cudaReadModeElementType> impulse_original;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> divergence_velocity;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_packed;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_velocity;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> jacobi;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> impulse_original;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_velocity;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
     dest_array[0] = x * x - round * round;
 }
 
-__global__ void AdvectVelocityKernel(float4* out_data, float time_step,
+__global__ void AdvectVelocityKernel(ushort4* out_data, float time_step,
                                      float dissipation,
                                      int num_of_blocks_per_slice,
                                      int slice_stride, int3 volume_size)
@@ -42,11 +42,15 @@ __global__ void AdvectVelocityKernel(float4* out_data, float time_step,
     float3 back_traced =
         coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
 
-    out_data[index] = dissipation * tex3D(advect_velocity, back_traced.x,
-                                          back_traced.y, back_traced.z);
+    float4 result = dissipation * tex3D(advect_velocity, back_traced.x,
+                                        back_traced.y, back_traced.z);
+    out_data[index] = make_ushort4(__float2half_rn(result.x),
+                                   __float2half_rn(result.y),
+                                   __float2half_rn(result.z),
+                                   0);
 }
 
-__global__ void AdvectKernel(float* out_data, float time_step,
+__global__ void AdvectKernel(ushort* out_data, float time_step,
                              float dissipation, int num_of_blocks_per_slice,
                              int slice_stride, int3 volume_size)
 {
@@ -66,11 +70,12 @@ __global__ void AdvectKernel(float* out_data, float time_step,
     float3 back_traced =
         coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
 
-    out_data[index] = dissipation * tex3D(advect_source, back_traced.x,
-                                          back_traced.y, back_traced.z);
+    float result = dissipation * tex3D(advect_source, back_traced.x,
+                                       back_traced.y, back_traced.z);
+    out_data[index] = __float2half_rn(result);
 }
 
-__global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
+__global__ void ApplyBuoyancyKernel(ushort4* out_data, float time_step,
                                     float ambient_temperature,
                                     float accel_factor, float gravity,
                                     int num_of_blocks_per_slice,
@@ -91,13 +96,18 @@ __global__ void ApplyBuoyancyKernel(float4* out_data, float time_step,
     float4 velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
     float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
 
-    out_data[index] = velocity;
-    if (t > ambient_temperature)
-        out_data[index] += time_step * ((t - ambient_temperature) *
-            accel_factor - gravity) * make_float4(0.0f, 1.0f, 0.0f, 0.0f);
+    out_data[index] = make_ushort4(__float2half_rn(velocity.x),
+                                   __float2half_rn(velocity.y),
+                                   __float2half_rn(velocity.z),
+                                   0);
+    if (t > ambient_temperature) {
+        float accel = time_step * ((t - ambient_temperature) * accel_factor -
+            gravity);
+        out_data[index].y = __float2half_rn(velocity.y + accel);
+    }
 }
 
-__global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
+__global__ void ApplyImpulseKernel(ushort* out_data, float3 center_point,
                                    float3 hotspot, float radius, float value,
                                    int num_of_blocks_per_slice,
                                    int slice_stride, int3 volume_size)
@@ -127,15 +137,15 @@ __global__ void ApplyImpulseKernel(float* out_data, float3 center_point,
                 make_float2(hotspot.x, hotspot.z);
             float scale = (radius - hypotf(diff.x, diff.y)) / radius;
             scale = max(scale, 0.5f);
-            out_data[index] = scale * value;
+            out_data[index] = __float2half_rn(scale * value);
             return;
         }
     }
 
-    out_data[index] = original;
+    out_data[index] = __float2half_rn(original);
 }
 
-__global__ void ComputeDivergenceKernel(float4* out_data,
+__global__ void ComputeDivergenceKernel(ushort4* out_data,
                                         float half_inverse_cell_size,
                                         int num_of_blocks_per_slice,
                                         int slice_stride, int3 volume_size)
@@ -184,12 +194,11 @@ __global__ void ComputeDivergenceKernel(float4* out_data,
     if (z <= 0)
         diff_fn = near.z + center.z;
 
-    out_data[index] = make_float4(
-        0.0f, half_inverse_cell_size * (diff_ew + diff_ns + diff_fn), 0.0f,
-        0.0f);
+    float result = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
+    out_data[index] = make_ushort4(0, __float2half_rn(result), 0, 0);
 }
 
-__global__ void SubstractGradientKernel(float4* out_data,
+__global__ void SubstractGradientKernel(ushort4* out_data,
                                         float gradient_scale,
                                         int num_of_blocks_per_slice,
                                         int slice_stride, int3 volume_size)
@@ -242,10 +251,14 @@ __global__ void SubstractGradientKernel(float4* out_data,
     float4 old_v = tex3D(gradient_velocity, coord.x, coord.y, coord.z);
     float4 grad = make_float4(diff_ew, diff_ns, diff_fn, 0.0f) * gradient_scale;
     float4 new_v = old_v - grad;
-    out_data[index] = mask * new_v; // Velocity goes to 0 when hit ???
+    float4 result = mask * new_v; // Velocity goes to 0 when hit ???
+    out_data[index] = make_ushort4(__float2half_rn(result.x),
+                                   __float2half_rn(result.y),
+                                   __float2half_rn(result.z),
+                                   0);
 }
 
-__global__ void DampedJacobiKernel(float4* out_data, float one_minus_omega,
+__global__ void DampedJacobiKernel(ushort4* out_data, float one_minus_omega,
                                    float minus_square_cell_size,
                                    float omega_over_beta,
                                    int num_of_blocks_per_slice,
@@ -297,7 +310,8 @@ __global__ void DampedJacobiKernel(float4* out_data, float one_minus_omega,
     float u = one_minus_omega * center +
         (west + east + south + north + far + near + minus_square_cell_size *
         b_center) * omega_over_beta;
-    out_data[index] = make_float4(u, b_center, 0.0f, 0.0f);
+    out_data[index] = make_ushort4(__float2half_rn(u),
+                                   __float2half_rn(b_center), 0, 0);
 }
 
 // =============================================================================
@@ -307,10 +321,10 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
-void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
+void LaunchAdvectVelocity(ushort4* dest_array, cudaArray* velocity_array,
                           float time_step, float dissipation, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     advect_velocity.normalized = false;
     advect_velocity.filterMode = cudaFilterModeLinear;
     advect_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -337,7 +351,7 @@ void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&advect_velocity);
 }
 
-void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
+void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
                   cudaArray* source_array, float time_step,
                   float dissipation, int3 volume_size)
 {
@@ -355,7 +369,7 @@ void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDesc<float>();
+    desc = cudaCreateChannelDescHalf();
     advect_source.normalized = false;
     advect_source.filterMode = cudaFilterModeLinear;
     advect_source.addressMode[0] = cudaAddressModeClamp;
@@ -382,12 +396,12 @@ void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&advect_velocity);
 }
 
-void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
+void LaunchApplyBuoyancy(ushort4* dest_array, cudaArray* velocity_array,
                          cudaArray* temperature_array, float time_step,
                          float ambient_temperature, float accel_factor,
                          float gravity, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     buoyancy_velocity.normalized = false;
     buoyancy_velocity.filterMode = cudaFilterModeLinear;
     buoyancy_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -401,7 +415,7 @@ void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDesc<float>();
+    desc = cudaCreateChannelDescHalf();
     buoyancy_temperature.normalized = false;
     buoyancy_temperature.filterMode = cudaFilterModeLinear;
     buoyancy_temperature.addressMode[0] = cudaAddressModeClamp;
@@ -430,11 +444,11 @@ void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&buoyancy_velocity);
 }
 
-void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
+void LaunchApplyImpulse(ushort* dest_array, cudaArray* original_array,
                         float3 center_point, float3 hotspot, float radius,
                         float value, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf();
     impulse_original.normalized = false;
     impulse_original.filterMode = cudaFilterModeLinear;
     impulse_original.addressMode[0] = cudaAddressModeClamp;
@@ -461,10 +475,10 @@ void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
     cudaUnbindTexture(&impulse_original);
 }
 
-void LaunchComputeDivergence(float4* dest_array, cudaArray* velocity_array,
+void LaunchComputeDivergence(ushort4* dest_array, cudaArray* velocity_array,
                              float half_inverse_cell_size, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     divergence_velocity.normalized = false;
     divergence_velocity.filterMode = cudaFilterModeLinear;
     divergence_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -491,11 +505,11 @@ void LaunchComputeDivergence(float4* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&divergence_velocity);
 }
 
-void LaunchSubstractGradient(float4* dest_array, cudaArray* velocity_array,
+void LaunchSubstractGradient(ushort4* dest_array, cudaArray* velocity_array,
                              cudaArray* packed_array, float gradient_scale,
                              int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     gradient_velocity.normalized = false;
     gradient_velocity.filterMode = cudaFilterModeLinear;
     gradient_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -509,7 +523,7 @@ void LaunchSubstractGradient(float4* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDesc<float4>();
+    desc = cudaCreateChannelDescHalf4();
     gradient_packed.normalized = false;
     gradient_packed.filterMode = cudaFilterModeLinear;
     gradient_packed.addressMode[0] = cudaAddressModeClamp;
@@ -536,11 +550,11 @@ void LaunchSubstractGradient(float4* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&gradient_velocity);
 }
 
-void LaunchDampedJacobi(float4* dest_array, cudaArray* packed_array,
+void LaunchDampedJacobi(ushort4* dest_array, cudaArray* packed_array,
                         float one_minus_omega, float minus_square_cell_size,
                         float omega_over_beta, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     jacobi.normalized = false;
     jacobi.filterMode = cudaFilterModeLinear;
     jacobi.addressMode[0] = cudaAddressModeClamp;

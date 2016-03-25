@@ -8,32 +8,33 @@
 #include <cuda_gl_interop.h>
 #include <helper_cuda.h>
 #include <helper_cuda_gl.h>
+#include <helper_math.h>
 
 #include "graphics_resource.h"
 #include "../vmath.hpp"
 
-extern void LaunchAdvectVelocity(float4* dest_array, cudaArray* velocity_array,
+extern void LaunchAdvectVelocity(ushort4* dest_array, cudaArray* velocity_array,
                                  float time_step, float dissipation,
                                  int3 volume_size);
-extern void LaunchAdvect(float* dest_array, cudaArray* velocity_array,
+extern void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
                          cudaArray* source_array, float time_step,
                          float dissipation, int3 volume_size);
-extern void LaunchApplyBuoyancy(float4* dest_array, cudaArray* velocity_array,
+extern void LaunchApplyBuoyancy(ushort4* dest_array, cudaArray* velocity_array,
                                 cudaArray* temperature_array, float time_step,
                                 float ambient_temperature, float accel_factor,
                                 float gravity, int3 volume_size);
-extern void LaunchApplyImpulse(float* dest_array, cudaArray* original_array,
+extern void LaunchApplyImpulse(ushort* dest_array, cudaArray* original_array,
                                float3 center_point, float3 hotspot,
                                float radius, float value, int3 volume_size);
-extern void LaunchComputeDivergence(float4* dest_array,
+extern void LaunchComputeDivergence(ushort4* dest_array,
                                     cudaArray* velocity_array,
                                     float half_inverse_cell_size,
                                     int3 volume_size);
-extern void LaunchSubstractGradient(float4* dest_array,
+extern void LaunchSubstractGradient(ushort4* dest_array,
                                     cudaArray* velocity_array,
                                     cudaArray* packed_array,
                                     float gradient_scale, int3 volume_size);
-extern void LaunchDampedJacobi(float4* dest_array, cudaArray* packed_array,
+extern void LaunchDampedJacobi(ushort4* dest_array, cudaArray* packed_array,
                                float one_minus_omega,
                                float minus_square_cell_size,
                                float omega_over_beta, int3 volume_size);
@@ -58,8 +59,9 @@ FluidImplCuda::~FluidImplCuda()
 }
 
 void FluidImplCuda::AdvectVelocity(GraphicsResource* velocity,
-                              GraphicsResource* out_pbo, float time_step,
-                              float dissipation, const vmath::Vector3& volume_size)
+                                   GraphicsResource* out_pbo, float time_step,
+                                   float dissipation,
+                                   const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         velocity->resource(), out_pbo->resource()
@@ -71,7 +73,7 @@ void FluidImplCuda::AdvectVelocity(GraphicsResource* velocity,
         return;
 
     // Output to pbo.
-    float4* dest_array = nullptr;
+    ushort4* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -94,8 +96,8 @@ void FluidImplCuda::AdvectVelocity(GraphicsResource* velocity,
 }
 
 void FluidImplCuda::Advect(GraphicsResource* velocity, GraphicsResource* source,
-                      GraphicsResource* out_pbo, float time_step,
-                      float dissipation, const vmath::Vector3& volume_size)
+                           GraphicsResource* out_pbo, float time_step,
+                           float dissipation, const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         velocity->resource(), source->resource(), out_pbo->resource()
@@ -107,7 +109,7 @@ void FluidImplCuda::Advect(GraphicsResource* velocity, GraphicsResource* source,
         return;
 
     // Output to pbo.
-    float* dest_array = nullptr;
+    ushort* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -138,10 +140,11 @@ void FluidImplCuda::Advect(GraphicsResource* velocity, GraphicsResource* source,
 }
 
 void FluidImplCuda::ApplyBuoyancy(GraphicsResource* velocity,
-                             GraphicsResource* temperature,
-                             GraphicsResource* out_pbo, float time_step,
-                             float ambient_temperature, float accel_factor,
-                             float gravity, const vmath::Vector3& volume_size)
+                                  GraphicsResource* temperature,
+                                  GraphicsResource* out_pbo, float time_step,
+                                  float ambient_temperature, float accel_factor,
+                                  float gravity,
+                                  const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         velocity->resource(), temperature->resource(), out_pbo->resource()
@@ -153,7 +156,7 @@ void FluidImplCuda::ApplyBuoyancy(GraphicsResource* velocity,
         return;
 
     // Output to pbo.
-    float4* dest_array = nullptr;
+    ushort4* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -185,10 +188,11 @@ void FluidImplCuda::ApplyBuoyancy(GraphicsResource* velocity,
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
-void FluidImplCuda::ApplyImpulse(GraphicsResource* source, GraphicsResource* out_pbo,
-                            const vmath::Vector3& center_point,
-                            const vmath::Vector3& hotspot, float radius,
-                            float value, const vmath::Vector3& volume_size)
+void FluidImplCuda::ApplyImpulse(GraphicsResource* source,
+                                 GraphicsResource* out_pbo,
+                                 const vmath::Vector3& center_point,
+                                 const vmath::Vector3& hotspot, float radius,
+                                 float value, const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         source->resource(), out_pbo->resource()
@@ -200,7 +204,7 @@ void FluidImplCuda::ApplyImpulse(GraphicsResource* source, GraphicsResource* out
         return;
 
     // Output to pbo.
-    float* dest_array = nullptr;                         
+    ushort* dest_array = nullptr;                         
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -227,9 +231,9 @@ void FluidImplCuda::ApplyImpulse(GraphicsResource* source, GraphicsResource* out
 }
 
 void FluidImplCuda::ComputeDivergence(GraphicsResource* velocity,
-                                 GraphicsResource* out_pbo,
-                                 float half_inverse_cell_size,
-                                 const vmath::Vector3& volume_size)
+                                      GraphicsResource* out_pbo,
+                                      float half_inverse_cell_size,
+                                      const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         velocity->resource(), out_pbo->resource()
@@ -241,7 +245,7 @@ void FluidImplCuda::ComputeDivergence(GraphicsResource* velocity,
         return;
 
     // Output to pbo.
-    float4* dest_array = nullptr;
+    ushort4* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -265,10 +269,10 @@ void FluidImplCuda::ComputeDivergence(GraphicsResource* velocity,
 }
 
 void FluidImplCuda::SubstractGradient(GraphicsResource* velocity,
-                                 GraphicsResource* packed,
-                                 GraphicsResource* out_pbo,
-                                 float gradient_scale,
-                                 const vmath::Vector3& volume_size)
+                                      GraphicsResource* packed,
+                                      GraphicsResource* out_pbo,
+                                      float gradient_scale,
+                                      const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         velocity->resource(), packed->resource(), out_pbo->resource()
@@ -280,7 +284,7 @@ void FluidImplCuda::SubstractGradient(GraphicsResource* velocity,
         return;
 
     // Output to pbo.
-    float4* dest_array = nullptr;
+    ushort4* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());
@@ -328,7 +332,7 @@ void FluidImplCuda::DampedJacobi(GraphicsResource* packed,
         return;
 
     // Output to pbo.
-    float4* dest_array = nullptr;
+    ushort4* dest_array = nullptr;
     size_t size = 0;
     result = cudaGraphicsResourceGetMappedPointer(
         reinterpret_cast<void**>(&dest_array), &size, out_pbo->resource());

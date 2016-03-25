@@ -46,15 +46,15 @@ private:
                     float dissipation);
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
-    void Jacobi(float cell_size);
-    void DampedJacobi(float cell_size);
-    void SolvePressure();
-    void SubtractGradient();
-    void ComputeDivergence();
+    void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(std::shared_ptr<GLTexture> dest,
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float value);
-    void ApplyBuoyancy(float delta_time);
+    void ComputeDivergence();
+    void DampedJacobi(float cell_size);
+    void Jacobi(float cell_size);
+    void SolvePressure();
+    void SubtractGradient();
 
     PoissonMethod solver_choice_;
     int num_multigrid_iterations_;
@@ -64,7 +64,7 @@ private:
     std::shared_ptr<GLTexture> density_;
     std::shared_ptr<GLTexture> temperature_;
     std::shared_ptr<GLTexture> general1_;
-    std::shared_ptr<GLTexture> general3_;
+    std::shared_ptr<GLTexture> general4_;
 
     // TODO
     bool use_cuda_;

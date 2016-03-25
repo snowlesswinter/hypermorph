@@ -10,14 +10,17 @@
 #include "vmath.hpp"
 
 // =============================================================================
-std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n, int c)
+std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n,
+                                            int num_component,
+                                            int width_in_bytes)
 {
-    static std::pair<GLuint, GraphicsResource*> pixel_buffer[10][4] = {};
-    std::pair<GLuint, GraphicsResource*>& ref = pixel_buffer[n][c];
+    static std::pair<GLuint, GraphicsResource*> pixel_buffer[10][5][5] = {};
+    std::pair<GLuint, GraphicsResource*>& ref =
+        pixel_buffer[n][num_component][width_in_bytes];
     if (!ref.first)
     {
         int width = 128 / n;
-        size_t size = width * width * width * c * 4;
+        size_t size = width * width * width * num_component * width_in_bytes;
 
         // create buffer object
         glGenBuffers(1, &(ref.first));
@@ -45,14 +48,14 @@ std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n, int c)
 
 namespace
 {
-void FlushPBO(GLuint pbo, GLuint format, GLTexture* dest)
+void FlushPBO(GLuint pbo, GLuint format, GLTexture* dest, bool half)
 {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
 
     glBindTexture(GL_TEXTURE_3D, dest->handle());
     glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
                     dest->width(), dest->height(), dest->depth(), format,
-                    GL_FLOAT, nullptr);
+                    half ? GL_HALF_FLOAT : GL_FLOAT, nullptr);
     assert(glGetError() == 0);
     glBindTexture(GL_TEXTURE_3D, 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -127,12 +130,12 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
         return;
 
     int n = 128 / fine->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 4);
     vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
                                      fine->depth());
     core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second, v);
 
-    FlushPBO(pbo.first, GL_RGBA, fine.get());
+    FlushPBO(pbo.first, GL_RGBA, fine.get(), false);
 }
 
 void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
@@ -144,13 +147,13 @@ void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / velocity->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
     fluid_impl_->AdvectVelocity(i->second.get(), pbo.second, time_step,
                                 dissipation, v);
 
-    FlushPBO(pbo.first, GL_RGBA, dest.get());
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
 void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
@@ -165,13 +168,13 @@ void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / velocity->width();
-    auto pbo = GetPBO(core_.get(), n, 1);
+    auto pbo = GetPBO(core_.get(), n, 1, 2);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
     fluid_impl_->Advect(i->second.get(), j->second.get(), pbo.second, time_step,
                         dissipation, v);
 
-    FlushPBO(pbo.first, GL_RED, dest.get());
+    FlushPBO(pbo.first, GL_RED, dest.get(), true);
 }
 
 void CudaMain::RoundPassed(int round)
@@ -192,14 +195,14 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / velocity->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
     fluid_impl_->ApplyBuoyancy(i->second.get(), j->second.get(), pbo.second,
                                time_step, ambient_temperature, accel_factor,
                                gravity, v);
 
-    FlushPBO(pbo.first, GL_RGBA, dest.get());
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
 void CudaMain::ApplyImpulse(std::shared_ptr<GLTexture> dest,
@@ -212,13 +215,13 @@ void CudaMain::ApplyImpulse(std::shared_ptr<GLTexture> dest,
         return;
 
     int n = 128 / dest->width();
-    auto pbo = GetPBO(core_.get(), n, 1);
+    auto pbo = GetPBO(core_.get(), n, 1, 2);
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
     fluid_impl_->ApplyImpulse(i->second.get(), pbo.second, center_point,
                               hotspot, radius, value, v);
 
-    FlushPBO(pbo.first, GL_RED, dest.get());
+    FlushPBO(pbo.first, GL_RED, dest.get(), true);
 }
 
 void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
@@ -230,13 +233,13 @@ void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / dest->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
     fluid_impl_->ComputeDivergence(i->second.get(), pbo.second,
                                    half_inverse_cell_size, v);
 
-    FlushPBO(pbo.first, GL_RGBA, dest.get());
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
 void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
@@ -251,13 +254,13 @@ void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
         return;
 
     int n = 128 / dest->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
     vmath::Vector3 v = FromIntValues(velocity->width(), velocity->height(),
                                      velocity->depth());
     fluid_impl_->SubstractGradient(i->second.get(), j->second.get(), pbo.second,
                                    gradient_scale, v);
 
-    FlushPBO(pbo.first, GL_RGBA, dest.get());
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
 void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
@@ -270,11 +273,11 @@ void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
         return;
 
     int n = 128 / dest->width();
-    auto pbo = GetPBO(core_.get(), n, 4);
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
     fluid_impl_->DampedJacobi(i->second.get(), pbo.second, one_minus_omega,
                               minus_square_cell_size, omega_over_beta, v);
 
-    FlushPBO(pbo.first, GL_RGBA, dest.get());
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
