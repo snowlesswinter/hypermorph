@@ -17,7 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="vmath.hpp" />
     <ClInclude Include="overlay_content.h" />

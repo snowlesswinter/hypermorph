@@ -96,7 +96,6 @@
     <ClInclude Include="opengl\gl_texture.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="poisson_solver.h" />
-    <ClInclude Include="Resource.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
     <ClInclude Include="shader\multigrid_staggered_shader.h" />

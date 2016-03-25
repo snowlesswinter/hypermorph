@@ -35,33 +35,28 @@ public:
     void set_num_full_multigrid_iterations(int n) {
         num_full_multigrid_iterations_ = n;
     }
+    void set_use_cuda(bool use_cuda) { use_cuda_ = use_cuda; }
 
     // TODO
     const GLTexture& GetDensityTexture() const;
 
 private:
-    void Advect(std::shared_ptr<GLTexture> velocity,
-                std::shared_ptr<GLTexture> source,
-                std::shared_ptr<GLTexture> dest, float delta_time,
-                float dissipation);
-    void AdvectVelocity(std::shared_ptr<GLTexture> velocity,
-                        std::shared_ptr<GLTexture> dest, float delta_time,
-                        float dissipation);
+    void AdvectDensity(float delta_time);
+    void AdvectImpl(std::shared_ptr<GLTexture> source, float delta_time,
+                    float dissipation);
+    void AdvectTemperature(float delta_time);
+    void AdvectVelocity(float delta_time);
     void Jacobi(std::shared_ptr<GLTexture> pressure,
                 std::shared_ptr<GLTexture> divergence);
     void DampedJacobi(std::shared_ptr<GLTexture> pressure,
                       std::shared_ptr<GLTexture> divergence, float cell_size);
-    void SolvePressure(std::shared_ptr<GLTexture> packed);
-    void SubtractGradient(std::shared_ptr<GLTexture> velocity,
-                          std::shared_ptr<GLTexture> packed);
-    void ComputeDivergence(std::shared_ptr<GLTexture> velocity,
-                           std::shared_ptr<GLTexture> dest);
+    void SolvePressure();
+    void SubtractGradient();
+    void ComputeDivergence();
     void ApplyImpulse(std::shared_ptr<GLTexture> dest,
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float value);
-    void ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
-                       std::shared_ptr<GLTexture> temperature,
-                       std::shared_ptr<GLTexture> dest, float delta_time);
+    void ApplyBuoyancy(float delta_time);
 
     PoissonMethod solver_choice_;
     int num_multigrid_iterations_;
@@ -72,6 +67,9 @@ private:
     std::shared_ptr<GLTexture> temperature_;
     std::shared_ptr<GLTexture> general1_;
     std::shared_ptr<GLTexture> general3_;
+
+    // TODO
+    bool use_cuda_;
 };
 
 #endif // _FLUID_SIMULATOR_H_

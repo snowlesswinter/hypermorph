@@ -302,6 +302,7 @@ int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT
     QueryPerformanceFrequency(&time_freq);
     QueryPerformanceCounter(&prev_time);
 
+    //sim_->set_use_cuda(true);
     glutMainLoop();
 
     Cleanup(EXIT_SUCCESS);

@@ -13,6 +13,7 @@
 
 //TODO
 #include "multigrid_core.h"
+#include "cuda/cuda_main.h"
 
 static struct
 {
@@ -35,6 +36,7 @@ FluidSimulator::FluidSimulator()
     , temperature_()
     , general1_()
     , general3_()
+    , use_cuda_(false)
 {
 
 }
@@ -112,7 +114,6 @@ void FluidSimulator::Reset()
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
-
     float sin_factor = static_cast<float>(sin(0 / 4 * 3.1415926f));
     float cos_factor = static_cast<float>(cos(0 / 4 * 3.1415926f));
     float hotspot_x =
@@ -124,108 +125,106 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnFrameUpdateBegins();
 
     // Advect velocity
-    //CudaMain::Instance()->AdvectVelocity(*Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
-    AdvectVelocity(velocity_, general3_, delta_time, VelocityDissipation);
-    std::swap(velocity_, general3_);
-
+    AdvectVelocity(delta_time);
     Metrics::Instance()->OnVelocityAvected();
 
     // Advect density and temperature
-    ClearSurface(general1_.get(), 0.0f);
-    //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
-    Advect(velocity_, temperature_, general1_, delta_time, TemperatureDissipation);
-    std::swap(temperature_, general1_);
+    AdvectTemperature(delta_time);
     Metrics::Instance()->OnTemperatureAvected();
 
-    ClearSurface(general1_.get(), 0.0f);
-    //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
-    Advect(velocity_, density_, general1_, delta_time, DensityDissipation);
-    std::swap(density_, general1_);
+    AdvectDensity(delta_time);
     Metrics::Instance()->OnDensityAvected();
 
     // Apply buoyancy and gravity
-    //CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
-    ApplyBuoyancy(velocity_, temperature_, general3_, delta_time);
-    std::swap(velocity_, general3_);
+    ApplyBuoyancy(delta_time);
     Metrics::Instance()->OnBuoyancyApplied();
 
     // Splat new smoke
-    //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
     ApplyImpulse(density_, kImpulsePosition, hotspot, ImpulseDensity);
 
     // Something wrong with the temperature impulsing.
-    //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
     ApplyImpulse(temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
     Metrics::Instance()->OnImpulseApplied();
 
     // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
-    //CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
-    ComputeDivergence(velocity_, general3_);
+    ComputeDivergence();
     Metrics::Instance()->OnDivergenceComputed();
 
     // Solve pressure-velocity Poisson equation
-    SolvePressure(general3_);
+    SolvePressure();
     Metrics::Instance()->OnPressureSolved();
 
     // Rectify velocity via the gradient of pressure
-    //CudaMain::Instance()->SubstractGradient(*Surfaces.tex_velocity, *gb3, *Surfaces.tex_velocity, GradientScale);
-    SubtractGradient(velocity_, general3_);
+    SubtractGradient();
     Metrics::Instance()->OnVelocityRectified();
 
-    //CudaMain::Instance()->RoundPassed(frame_count);
+    CudaMain::Instance()->RoundPassed(frame_count);
 }
 
-void FluidSimulator::Advect(std::shared_ptr<GLTexture> velocity,
-                            std::shared_ptr<GLTexture> source,
-                            std::shared_ptr<GLTexture> dest, float delta_time,
-                            float dissipation)
+void FluidSimulator::AdvectDensity(float delta_time)
 {
-    GLuint p = Programs.Advect;
-    glUseProgram(p);
-
-    SetUniform(
-        "InverseSize",
-        vmath::recipPerElem(
-            vmath::Vector3(float(GridWidth), float(GridHeight),
-                           float(GridDepth))));
-    SetUniform("TimeStep", delta_time);
-    SetUniform("Dissipation", dissipation);
-    SetUniform("SourceTexture", 1);
-    SetUniform("Obstacles", 2);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, source->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
-    ResetState();
+    AdvectImpl(density_, delta_time, DensityDissipation);
+    std::swap(density_, general1_);
 }
 
-void FluidSimulator::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
-                                    std::shared_ptr<GLTexture> dest,
-                                    float delta_time, float dissipation)
+void FluidSimulator::AdvectImpl(std::shared_ptr<GLTexture> source,
+                                float delta_time, float dissipation)
 {
-    GLuint p = Programs.Advect;
-    glUseProgram(p);
+    ClearSurface(general1_.get(), 0.0f);
+    if (use_cuda_) {
+        CudaMain::Instance()->Advect(velocity_, source, general1_, delta_time,
+                                     dissipation);
+    } else {
+        GLuint p = Programs.Advect;
+        glUseProgram(p);
 
-    SetUniform(
-        "InverseSize",
-        vmath::recipPerElem(
-        vmath::Vector3(float(GridWidth), float(GridHeight),
-        float(GridDepth))));
-    SetUniform("TimeStep", delta_time);
-    SetUniform("Dissipation", dissipation);
-    SetUniform("SourceTexture", 1);
-    SetUniform("Obstacles", 2);
+        SetUniform("InverseSize", CalculateInverseSize(*source));
+        SetUniform("TimeStep", delta_time);
+        SetUniform("Dissipation", dissipation);
+        SetUniform("SourceTexture", 1);
+        SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, general1_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_3D, source->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general1_->depth());
+        ResetState();
+    }
+}
+
+void FluidSimulator::AdvectTemperature(float delta_time)
+{
+    AdvectImpl(temperature_, delta_time, TemperatureDissipation);
+    std::swap(temperature_, general1_);
+}
+
+void FluidSimulator::AdvectVelocity(float delta_time)
+{
+    if (use_cuda_) {
+        CudaMain::Instance()->AdvectVelocity(velocity_, general3_, delta_time,
+                                             VelocityDissipation);
+    } else {
+        GLuint p = Programs.Advect;
+        glUseProgram(p);
+
+        SetUniform("InverseSize", CalculateInverseSize(*velocity_));
+        SetUniform("TimeStep", delta_time);
+        SetUniform("Dissipation", VelocityDissipation);
+        SetUniform("SourceTexture", 1);
+        SetUniform("Obstacles", 2);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, general3_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general3_->depth());
+        ResetState();
+    }
+
+    std::swap(velocity_, general3_);
 }
 
 void FluidSimulator::Jacobi(std::shared_ptr<GLTexture> pressure,
@@ -271,7 +270,7 @@ void FluidSimulator::DampedJacobi(std::shared_ptr<GLTexture> pressure,
     ResetState();
 }
 
-void FluidSimulator::SolvePressure(std::shared_ptr<GLTexture> packed)
+void FluidSimulator::SolvePressure()
 {
     switch (solver_choice_)
     {
@@ -317,7 +316,7 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GLTexture> packed)
             // That's a pretty good score!
 
             for (int i = 0; i < num_multigrid_iterations_; i++)
-                p_solver->Solve(packed, CellSize, !i);
+                p_solver->Solve(general3_, CellSize, !i);
 
             break;
         }
@@ -331,7 +330,7 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GLTexture> packed)
 
             // Chaos occurs if the iteration times is set to a value above 2.
             for (int i = 0; i < num_full_multigrid_iterations_; i++)
-                p_solver->Solve(packed, CellSize, !i);
+                p_solver->Solve(general3_, CellSize, !i);
 
             break;
         }
@@ -341,84 +340,101 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GLTexture> packed)
     }
 }
 
-void FluidSimulator::SubtractGradient(std::shared_ptr<GLTexture> velocity,
-                                      std::shared_ptr<GLTexture> packed)
+void FluidSimulator::SubtractGradient()
 {
-    GLuint p = Programs.SubtractGradient;
-    glUseProgram(p);
+    if (use_cuda_) {
+        CudaMain::Instance()->SubstractGradient(velocity_, general3_, velocity_, GradientScale);
+    } else {
+        GLuint p = Programs.SubtractGradient;
+        glUseProgram(p);
 
-    SetUniform("GradientScale", GradientScale);
-    SetUniform("HalfInverseCellSize", 0.5f / CellSize);
-    SetUniform("velocity", 0);
-    SetUniform("packed_tex", 1);
+        SetUniform("GradientScale", GradientScale);
+        SetUniform("HalfInverseCellSize", 0.5f / CellSize);
+        SetUniform("velocity", 0);
+        SetUniform("packed_tex", 1);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, velocity->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, packed->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, velocity->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, velocity_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_3D, general3_->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, velocity_->depth());
+        ResetState();
+    }
 }
 
-void FluidSimulator::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
-                                       std::shared_ptr<GLTexture> dest)
+void FluidSimulator::ComputeDivergence()
 {
-    GLuint p = Programs.ComputeDivergence;
-    glUseProgram(p);
+    if (use_cuda_) {
+        CudaMain::Instance()->ComputeDivergence(velocity_, general3_,
+                                                0.5f / CellSize);
+    } else {
+        GLuint p = Programs.ComputeDivergence;
+        glUseProgram(p);
 
-    SetUniform("HalfInverseCellSize", 0.5f / CellSize);
-    SetUniform("Obstacles", 1);
-    SetUniform("velocity", 0);
+        SetUniform("HalfInverseCellSize", 0.5f / CellSize);
+        SetUniform("Obstacles", 1);
+        SetUniform("velocity", 0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, general3_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general3_->depth());
+        ResetState();
+    }
 }
 
 void FluidSimulator::ApplyImpulse(std::shared_ptr<GLTexture> dest,
                                   Vectormath::Aos::Vector3 position,
                                   Vectormath::Aos::Vector3 hotspot, float value)
 {
-    GLuint p = Programs.ApplyImpulse;
-    glUseProgram(p);
+    if (use_cuda_) {
+        CudaMain::Instance()->ApplyImpulse(dest, kImpulsePosition, hotspot,
+                                           SplatRadius, ImpulseDensity);
+    } else {
+        GLuint p = Programs.ApplyImpulse;
+        glUseProgram(p);
 
-    SetUniform("center_point", position);
-    SetUniform("hotspot", hotspot);
-    SetUniform("radius", SplatRadius);
-    SetUniform("fill_color_r", value);
-    SetUniform("fill_color_g", value);
+        SetUniform("center_point", position);
+        SetUniform("hotspot", hotspot);
+        SetUniform("radius", SplatRadius);
+        SetUniform("fill_color_r", value);
+        SetUniform("fill_color_g", value);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
-    glEnable(GL_BLEND);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
+        glEnable(GL_BLEND);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
+        ResetState();
+    }
 }
 
-void FluidSimulator::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
-                                   std::shared_ptr<GLTexture> temperature,
-                                   std::shared_ptr<GLTexture> dest,
-                                   float delta_time)
+void FluidSimulator::ApplyBuoyancy(float delta_time)
 {
-    GLuint p = Programs.ApplyBuoyancy;
-    glUseProgram(p);
+    if (use_cuda_) {
+        CudaMain::Instance()->ApplyBuoyancy(velocity_, temperature_, general3_,
+                                            delta_time, AmbientTemperature,
+                                            kBuoyancyCoef, SmokeWeight);
+    } else {
+        GLuint p = Programs.ApplyBuoyancy;
+        glUseProgram(p);
 
-    SetUniform("Velocity", 0);
-    SetUniform("Temperature", 1);
-    SetUniform("AmbientTemperature", AmbientTemperature);
-    SetUniform("TimeStep", delta_time);
-    SetUniform("Sigma", kBuoyancyCoef);
-    SetUniform("Kappa", SmokeWeight);
+        SetUniform("Velocity", 0);
+        SetUniform("Temperature", 1);
+        SetUniform("AmbientTemperature", AmbientTemperature);
+        SetUniform("TimeStep", delta_time);
+        SetUniform("Sigma", kBuoyancyCoef);
+        SetUniform("Kappa", SmokeWeight);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, temperature->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, general3_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, velocity_->handle());
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_3D, temperature_->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general3_->depth());
+        ResetState();
+    }
+
+    std::swap(velocity_, general3_);
 }
 
 const GLTexture& FluidSimulator::GetDensityTexture() const
