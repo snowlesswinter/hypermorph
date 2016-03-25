@@ -12,6 +12,7 @@ public:
     static std::string Advect();
     static std::string Jacobi();
     static std::string DampedJacobi();
+    static std::string DampedJacobiPacked();
     static std::string ComputeDivergence();
     static std::string SubtractGradient();
     static std::string Splat();

@@ -205,6 +205,63 @@ void main()
 )";
 }
 
+std::string FluidShader::DampedJacobiPacked()
+{
+    return R"(
+out vec3 FragColor;
+
+uniform sampler3D packed_tex;
+
+uniform float one_minus_omega;
+uniform float Alpha;
+uniform float InverseBeta;
+
+in float gLayer;
+
+void main()
+{
+    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
+
+    // Find neighboring pressure:
+    float near =   texelFetchOffset(packed_tex, coord, 0, ivec3(0, 0, -1)).r;
+    float south =  texelFetchOffset(packed_tex, coord, 0, ivec3(0, -1, 0)).r;
+    float west =   texelFetchOffset(packed_tex, coord, 0, ivec3(-1, 0, 0)).r;
+    float center = texelFetch(packed_tex, coord, 0).r;
+    float east =   texelFetchOffset(packed_tex, coord, 0, ivec3(1, 0, 0)).r;
+    float north =  texelFetchOffset(packed_tex, coord, 0, ivec3(0, 1, 0)).r;
+    float far =    texelFetchOffset(packed_tex, coord, 0, ivec3(0, 0, 1)).r;
+
+    // Handle boundary problem
+    // Use center pressure for solid cells
+    ivec3 tex_size = textureSize(packed_tex, 0);
+    if (coord.y >= tex_size.y - 1)
+        north = center;
+
+    if (coord.y <= 0)
+        south = center;
+
+    if (coord.x >= tex_size.x - 1)
+        east = center;
+
+    if (coord.x <= 0)
+        west = center;
+
+    if (coord.z >= tex_size.z - 1)
+        far = center;
+
+    if (coord.z <= 0)
+        near = center;
+
+    float b_center = texelFetch(packed_tex, coord, 0).g;
+    FragColor = vec3(
+        one_minus_omega * center +
+            (west + east + south + north + far + near + Alpha * b_center) *
+            InverseBeta,
+        b_center, 0.0f);
+}
+)";
+}
+
 std::string FluidShader::ComputeDivergence()
 {
     return R"(

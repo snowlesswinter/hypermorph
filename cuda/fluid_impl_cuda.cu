@@ -14,6 +14,7 @@ texture<float, cudaTextureType3D, cudaReadModeElementType> impulse_original;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> divergence_velocity;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_packed;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> gradient_velocity;
+texture<float4, cudaTextureType3D, cudaReadModeElementType> jacobi;
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 {
@@ -242,6 +243,61 @@ __global__ void SubstractGradientKernel(float4* out_data,
     float4 grad = make_float4(diff_ew, diff_ns, diff_fn, 0.0f) * gradient_scale;
     float4 new_v = old_v - grad;
     out_data[index] = mask * new_v; // Velocity goes to 0 when hit ???
+}
+
+__global__ void DampedJacobiKernel(float4* out_data, float one_minus_omega,
+                                   float minus_square_cell_size,
+                                   float omega_over_beta,
+                                   int num_of_blocks_per_slice,
+                                   int slice_stride, int3 volume_size)
+{
+    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
+        gridDim.x * blockIdx.y + blockIdx.x;
+
+    int x = threadIdx.z * blockDim.x + threadIdx.x;
+    int z = block_offset / num_of_blocks_per_slice;
+    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
+        threadIdx.y;
+
+    int index = slice_stride * z + volume_size.x * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float near =            tex3D(jacobi, coord.x, coord.y, coord.z - 1.0f).x;
+    float south =           tex3D(jacobi, coord.x, coord.y - 1.0f, coord.z).x;
+    float west =            tex3D(jacobi, coord.x - 1.0f, coord.y, coord.z).x;
+    float4 packed_center =  tex3D(jacobi, coord.x, coord.y, coord.z);
+    float east =            tex3D(jacobi, coord.x + 1.0f, coord.y, coord.z).x;
+    float north =           tex3D(jacobi, coord.x, coord.y + 1.0f, coord.z).x;
+    float far =             tex3D(jacobi, coord.x, coord.y, coord.z + 1.0f).x;
+
+    float center = packed_center.x;
+
+    // Handle boundary problem
+    if (x >= volume_size.x - 1)
+        east = center;
+
+    if (x <= 0)
+        west = center;
+
+    if (y >= volume_size.y - 1)
+        north = center;
+
+    if (y <= 0)
+        south = center;
+
+    if (z >= volume_size.z - 1)
+        far = center;
+
+    if (z <= 0)
+        near = center;
+
+    float b_center = packed_center.y;
+    float u = one_minus_omega * center +
+        (west + east + south + north + far + near + minus_square_cell_size *
+        b_center) * omega_over_beta;
+    out_data[index] = make_float4(u, b_center, 0.0f, 0.0f);
 }
 
 // =============================================================================
@@ -478,4 +534,35 @@ void LaunchSubstractGradient(float4* dest_array, cudaArray* velocity_array,
 
     cudaUnbindTexture(&gradient_packed);
     cudaUnbindTexture(&gradient_velocity);
+}
+
+void LaunchDampedJacobi(float4* dest_array, cudaArray* packed_array,
+                        float one_minus_omega, float minus_square_cell_size,
+                        float omega_over_beta, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    jacobi.normalized = false;
+    jacobi.filterMode = cudaFilterModeLinear;
+    jacobi.addressMode[0] = cudaAddressModeClamp;
+    jacobi.addressMode[1] = cudaAddressModeClamp;
+    jacobi.addressMode[2] = cudaAddressModeClamp;
+    jacobi.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&jacobi, packed_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int num_of_blocks_per_slice = volume_size.y / 8;
+    int slice_stride = volume_size.x * volume_size.y;
+
+    DampedJacobiKernel<<<grid, block>>>(dest_array, one_minus_omega,
+                                        minus_square_cell_size, omega_over_beta,
+                                        num_of_blocks_per_slice, slice_stride,
+                                        volume_size);
+
+    cudaUnbindTexture(&jacobi);
 }

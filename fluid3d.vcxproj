@@ -102,7 +102,6 @@
     <ClInclude Include="shader\overlay_shader.h" />
     <ClInclude Include="shader\raycast_shader.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="targetver.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="vmath.hpp" />
   </ItemGroup>

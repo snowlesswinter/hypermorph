@@ -38,6 +38,10 @@ public:
     void SubstractGradient(GraphicsResource* velocity, GraphicsResource* packed,
                            GraphicsResource* out_pbo, float gradient_scale,
                            const Vectormath::Aos::Vector3& volume_size);
+    void DampedJacobi(GraphicsResource* packed, GraphicsResource* out_pbo,
+                      float one_minus_omega, float minus_square_cell_size,
+                      float omega_over_beta,
+                      const Vectormath::Aos::Vector3& volume_size);
 
     // For diagnosis.
     void RoundPassed(int round);

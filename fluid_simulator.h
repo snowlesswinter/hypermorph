@@ -46,10 +46,8 @@ private:
                     float dissipation);
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
-    void Jacobi(std::shared_ptr<GLTexture> pressure,
-                std::shared_ptr<GLTexture> divergence);
-    void DampedJacobi(std::shared_ptr<GLTexture> pressure,
-                      std::shared_ptr<GLTexture> divergence, float cell_size);
+    void Jacobi(float cell_size);
+    void DampedJacobi(float cell_size);
     void SolvePressure();
     void SubtractGradient();
     void ComputeDivergence();

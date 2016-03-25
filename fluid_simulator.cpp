@@ -28,7 +28,7 @@ static struct
 } Programs;
 
 FluidSimulator::FluidSimulator()
-    : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
+    : solver_choice_(POISSON_SOLVER_DAMPED_JACOBI)
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
     , velocity_()
@@ -38,12 +38,10 @@ FluidSimulator::FluidSimulator()
     , general3_()
     , use_cuda_(false)
 {
-
 }
 
 FluidSimulator::~FluidSimulator()
 {
-
 }
 
 bool FluidSimulator::Init()
@@ -56,7 +54,7 @@ bool FluidSimulator::Init()
                                   FluidShader::Jacobi());
     Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(),
                                         FluidShader::PickLayer(),
-                                        FluidShader::DampedJacobi());
+                                        FluidShader::DampedJacobiPacked());
     Programs.compute_residual = LoadProgram(FluidShader::Vertex(),
                                             FluidShader::PickLayer(),
                                             MultigridShader::ComputeResidual());
@@ -74,7 +72,8 @@ bool FluidSimulator::Init()
                                          FluidShader::Buoyancy());
 
     MultigridCore core; // TODO
-    velocity_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
+    velocity_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F,
+                                   GL_RGBA);
 
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
@@ -227,8 +226,7 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     std::swap(velocity_, general3_);
 }
 
-void FluidSimulator::Jacobi(std::shared_ptr<GLTexture> pressure,
-                            std::shared_ptr<GLTexture> divergence)
+void FluidSimulator::Jacobi(float cell_size)
 {
     GLuint p = Programs.Jacobi;
     glUseProgram(p);
@@ -238,36 +236,39 @@ void FluidSimulator::Jacobi(std::shared_ptr<GLTexture> pressure,
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, pressure->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, general3_->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, pressure->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, divergence->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure->depth());
+    glBindTexture(GL_TEXTURE_3D, general3_->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general3_->depth());
     ResetState();
 }
 
-void FluidSimulator::DampedJacobi(std::shared_ptr<GLTexture> pressure,
-                                  std::shared_ptr<GLTexture> divergence,
-                                  float cell_size)
+void FluidSimulator::DampedJacobi(float cell_size)
 {
-    GLuint p = Programs.DampedJacobi;
-    glUseProgram(p);
+    float one_minus_omega = 0.33333333f;
+    float minus_square_cell_size = -(cell_size * cell_size);
+    float omega_over_beta = 0.11111111f;
 
-    SetUniform("Alpha", -(cell_size * cell_size));
-    SetUniform("InverseBeta", 0.11111111f);
-    SetUniform("one_minus_omega", 0.33333333f);
-    SetUniform("Pressure", 0);
-    SetUniform("Divergence", 1);
-    SetUniform("Obstacles", 2);
+    if (use_cuda_) {
+        CudaMain::Instance()->DampedJacobi(general3_, general3_,
+                                           one_minus_omega,
+                                           minus_square_cell_size,
+                                           omega_over_beta);
+    } else {
+        GLuint p = Programs.DampedJacobi;
+        glUseProgram(p);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, pressure->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, pressure->handle());
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, divergence->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, pressure->depth());
-    ResetState();
+        SetUniform("Alpha", minus_square_cell_size);
+        SetUniform("InverseBeta", omega_over_beta);
+        SetUniform("one_minus_omega", one_minus_omega);
+        SetUniform("packed_tex", 0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, general3_->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, general3_->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general3_->depth());
+        ResetState();
+    }
 }
 
 void FluidSimulator::SolvePressure()
@@ -276,11 +277,10 @@ void FluidSimulator::SolvePressure()
     {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
-            // implemented by shader.
-            //             ClearSurface(pressure, 0.0f);
-            //             for (int i = 0; i < NumJacobiIterations; ++i) {
-            //                 Jacobi(pressure, divergence, obstacles);
-            //             }
+                                            // implemented by shader.
+            for (int i = 0; i < kNumJacobiIterations; ++i)
+                Jacobi(CellSize);
+
             break;
         }
         case POISSON_SOLVER_DAMPED_JACOBI: {
@@ -289,11 +289,9 @@ void FluidSimulator::SolvePressure()
             //
             // Our experiments reveals that increasing the iteration times to
             // 80 of Jacobi will NOT lead to higher accuracy.
+            for (int i = 0; i < kNumJacobiIterations; ++i)
+                DampedJacobi(CellSize);
 
-            //             ClearSurface(pressure, 0.0f);
-            //             for (int i = 0; i < NumJacobiIterations; ++i) {
-            //                 DampedJacobi(pressure, divergence, obstacles, CellSize);
-            //             }
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
@@ -343,7 +341,8 @@ void FluidSimulator::SolvePressure()
 void FluidSimulator::SubtractGradient()
 {
     if (use_cuda_) {
-        CudaMain::Instance()->SubstractGradient(velocity_, general3_, velocity_, GradientScale);
+        CudaMain::Instance()->SubstractGradient(velocity_, general3_, velocity_,
+                                                GradientScale);
     } else {
         GLuint p = Programs.SubtractGradient;
         glUseProgram(p);
@@ -365,14 +364,15 @@ void FluidSimulator::SubtractGradient()
 
 void FluidSimulator::ComputeDivergence()
 {
+    float half_inverse_cell_size = 0.5f / CellSize;
     if (use_cuda_) {
         CudaMain::Instance()->ComputeDivergence(velocity_, general3_,
-                                                0.5f / CellSize);
+                                                half_inverse_cell_size);
     } else {
         GLuint p = Programs.ComputeDivergence;
         glUseProgram(p);
 
-        SetUniform("HalfInverseCellSize", 0.5f / CellSize);
+        SetUniform("HalfInverseCellSize", half_inverse_cell_size);
         SetUniform("Obstacles", 1);
         SetUniform("velocity", 0);
 

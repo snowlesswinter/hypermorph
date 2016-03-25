@@ -51,6 +51,9 @@ public:
                            std::shared_ptr<GLTexture> packed,
                            std::shared_ptr<GLTexture> dest,
                            float gradient_scale);
+    void DampedJacobi(std::shared_ptr<GLTexture> packed,
+                      std::shared_ptr<GLTexture> dest, float one_minus_omega,
+                      float minus_square_cell_size, float omega_over_beta);
 
     // For diagnosis
     void RoundPassed(int round);
