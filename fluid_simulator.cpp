@@ -2,6 +2,7 @@
 #include "fluid_simulator.h"
 
 #include "full_multigrid_poisson_solver.h"
+#include "metrics.h"
 #include "multigrid_poisson_solver.h"
 #include "opengl/gl_texture.h"
 #include "opengl/glew.h"
@@ -9,6 +10,9 @@
 #include "shader/multigrid_shader.h"
 #include "utility.h"
 #include "vmath.hpp"
+
+//TODO
+#include "multigrid_core.h"
 
 static struct
 {
@@ -26,6 +30,11 @@ FluidSimulator::FluidSimulator()
     : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
+    , velocity_()
+    , density_()
+    , temperature_()
+    , general1_()
+    , general3_()
 {
 
 }
@@ -37,15 +46,133 @@ FluidSimulator::~FluidSimulator()
 
 bool FluidSimulator::Init()
 {
-    Programs.Advect = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Advect());
-    Programs.Jacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Jacobi());
-    Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::DampedJacobi());
-    Programs.compute_residual = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), MultigridShader::ComputeResidual());
-    Programs.SubtractGradient = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::SubtractGradient());
-    Programs.ComputeDivergence = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::ComputeDivergence());
-    Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Splat());
-    Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(), FluidShader::PickLayer(), FluidShader::Buoyancy());
+    Programs.Advect = LoadProgram(FluidShader::Vertex(),
+                                  FluidShader::PickLayer(),
+                                  FluidShader::Advect());
+    Programs.Jacobi = LoadProgram(FluidShader::Vertex(),
+                                  FluidShader::PickLayer(),
+                                  FluidShader::Jacobi());
+    Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(),
+                                        FluidShader::PickLayer(),
+                                        FluidShader::DampedJacobi());
+    Programs.compute_residual = LoadProgram(FluidShader::Vertex(),
+                                            FluidShader::PickLayer(),
+                                            MultigridShader::ComputeResidual());
+    Programs.SubtractGradient = LoadProgram(FluidShader::Vertex(),
+                                            FluidShader::PickLayer(),
+                                            FluidShader::SubtractGradient());
+    Programs.ComputeDivergence = LoadProgram(FluidShader::Vertex(),
+                                             FluidShader::PickLayer(),
+                                             FluidShader::ComputeDivergence());
+    Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(),
+                                        FluidShader::PickLayer(),
+                                        FluidShader::Splat());
+    Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(),
+                                         FluidShader::PickLayer(),
+                                         FluidShader::Buoyancy());
+
+    MultigridCore core; // TODO
+    velocity_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F, GL_RGBA);
+
+    // A hard lesson had told us: locality is a vital factor of the performance
+    // of raycast. Even a trivial-like adjustment that packing the temperature
+    // with the density field would surprisingly bring a 17% decline to the
+    // performance. 
+    //
+    // Here is the analysis:
+    // 
+    // In the original design, density buffer is 128 ^ 3 * 2 byte = 4 MB,
+    // where as the buffer had been increased to 128 ^ 3 * 6 byte = 12 MB in
+    // our experiment(it is 6 bytes wide instead of 4 because we need to
+    // swap it with the 3-byte-width buffer that shared with velocity buffer).
+    // That expanded buffer size would greatly increase the possibility of
+    // cache miss in GPU during raycast. So, it's a problem all about the cache
+    // shortage in graphic cards.
+
+    density_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F,
+                                  GL_RED);
+    temperature_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F,
+                                      GL_RED);
+    general1_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R32F,
+                                   GL_RED);
+    general3_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA32F,
+                                   GL_RGBA);
+
     return true;
+}
+
+void FluidSimulator::Reset()
+{
+    ClearSurface(velocity_.get(), 0.0f);
+    ClearSurface(density_.get(), 0.0f);
+    ClearSurface(temperature_.get(), 0.0f);
+    Metrics::Instance()->Reset();
+}
+
+void FluidSimulator::Update(float delta_time, double seconds_elapsed,
+                            int frame_count)
+{
+
+    float sin_factor = static_cast<float>(sin(0 / 4 * 3.1415926f));
+    float cos_factor = static_cast<float>(cos(0 / 4 * 3.1415926f));
+    float hotspot_x =
+        cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
+    float hotspot_z =
+        sin_factor * SplatRadius * 0.8f + kImpulsePosition.getZ();
+    vmath::Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
+
+    Metrics::Instance()->OnFrameUpdateBegins();
+
+    // Advect velocity
+    //CudaMain::Instance()->AdvectVelocity(*Surfaces.tex_velocity, *gb3, delta_time, VelocityDissipation);
+    AdvectVelocity(velocity_, general3_, delta_time, VelocityDissipation);
+    std::swap(velocity_, general3_);
+
+    Metrics::Instance()->OnVelocityAvected();
+
+    // Advect density and temperature
+    ClearSurface(general1_.get(), 0.0f);
+    //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb1, delta_time, TemperatureDissipation);
+    Advect(velocity_, temperature_, general1_, delta_time, TemperatureDissipation);
+    std::swap(temperature_, general1_);
+    Metrics::Instance()->OnTemperatureAvected();
+
+    ClearSurface(general1_.get(), 0.0f);
+    //CudaMain::Instance()->Advect(*Surfaces.tex_velocity, *Surfaces.tex_density, *gb1, delta_time, DensityDissipation);
+    Advect(velocity_, density_, general1_, delta_time, DensityDissipation);
+    std::swap(density_, general1_);
+    Metrics::Instance()->OnDensityAvected();
+
+    // Apply buoyancy and gravity
+    //CudaMain::Instance()->ApplyBuoyancy(*Surfaces.tex_velocity, *Surfaces.tex_temperature, *gb3, delta_time, AmbientTemperature, kBuoyancyCoef, SmokeWeight);
+    ApplyBuoyancy(velocity_, temperature_, general3_, delta_time);
+    std::swap(velocity_, general3_);
+    Metrics::Instance()->OnBuoyancyApplied();
+
+    // Splat new smoke
+    //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_density, kImpulsePosition, hotspot, SplatRadius, ImpulseDensity);
+    ApplyImpulse(density_, kImpulsePosition, hotspot, ImpulseDensity);
+
+    // Something wrong with the temperature impulsing.
+    //CudaMain::Instance()->ApplyImpulse(*Surfaces.tex_temperature, kImpulsePosition, hotspot, SplatRadius, ImpulseTemperature);
+    ApplyImpulse(temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
+    Metrics::Instance()->OnImpulseApplied();
+
+    // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
+    //CudaMain::Instance()->ComputeDivergence(*Surfaces.tex_velocity, *gb3, 0.5f / CellSize);
+    ComputeDivergence(velocity_, general3_);
+    Metrics::Instance()->OnDivergenceComputed();
+
+    // Solve pressure-velocity Poisson equation
+    SolvePressure(general3_);
+    Metrics::Instance()->OnPressureSolved();
+
+    // Rectify velocity via the gradient of pressure
+    //CudaMain::Instance()->SubstractGradient(*Surfaces.tex_velocity, *gb3, *Surfaces.tex_velocity, GradientScale);
+    SubtractGradient(velocity_, general3_);
+    Metrics::Instance()->OnVelocityRectified();
+
+    //CudaMain::Instance()->RoundPassed(frame_count);
 }
 
 void FluidSimulator::Advect(std::shared_ptr<GLTexture> velocity,
@@ -292,4 +419,9 @@ void FluidSimulator::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
     glBindTexture(GL_TEXTURE_3D, temperature->handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
     ResetState();
+}
+
+const GLTexture& FluidSimulator::GetDensityTexture() const
+{
+    return *density_;
 }

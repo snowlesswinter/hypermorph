@@ -631,7 +631,7 @@ void MultigridPoissonSolver::Diagnose(GLTexture* packed)
         // =========================================================================
 
         double avg = sum / (w * h * d);
-        PezDebugString("sum: %.8f\n", sum);
-        //PezDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
+        PrintDebugString("sum: %.8f\n", sum);
+        //PrintDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
     }
 }

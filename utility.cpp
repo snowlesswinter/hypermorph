@@ -1,4 +1,5 @@
-#include "Utility.h"
+#include "stdafx.h"
+#include "utility.h"
 
 #include <string.h>
 #include <math.h>
@@ -38,86 +39,6 @@ const float DensityDissipation = 0.988f;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 
-// void CreateObstacles(SurfacePod dest)
-// {
-//     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
-//     glViewport(0, 0, dest.Width, dest.Height);
-//     glClearColor(0, 0, 0, 0);
-//     glClear(GL_COLOR_BUFFER_BIT);
-// 
-//     GLuint vao;
-//     glGenVertexArrays(1, &vao);
-//     glBindVertexArray(vao);
-//     GLuint program = LoadProgram(FluidShader::Vertex(), 0,
-//                                  FluidShader::Fill());
-//     glUseProgram(program);
-// 
-//     GLuint lineVbo;
-//     glGenBuffers(1, &lineVbo);
-//     GLuint circleVbo;
-//     glGenBuffers(1, &circleVbo);
-//     glEnableVertexAttribArray(SlotPosition);
-// 
-//     for (int slice = 0; slice < dest.Depth; ++slice) {
-// 
-//         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dest.ColorTexture, 0, dest.Depth - 1 - slice);
-//         float z = dest.Depth / 2.0f;
-//         z = abs(slice - z) / z;
-//         float fraction = 1 - sqrt(z);
-//         float radius = 0.5f * fraction;
-// 
-//         if (slice == 0 || slice == dest.Depth - 1) {
-//             radius *= 100;
-//         }
-// 
-//         const bool DrawBorder = true;
-//         if (DrawBorder && slice != 0 && slice != dest.Depth - 1) {
-//             #define T 0.9999f
-//             float positions[] = { -T, -T, T, -T, T,  T, -T,  T, -T, -T };
-//             #undef T
-//             GLsizeiptr size = sizeof(positions);
-//             glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
-//             glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
-//             GLsizeiptr stride = 2 * sizeof(positions[0]);
-//             glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
-//             glDrawArrays(GL_LINE_STRIP, 0, 5);
-//         }
-// 
-//         const bool DrawSphere = false;
-//         if (DrawSphere || slice == 0 || slice == dest.Depth - 1) {
-//             const int slices = 64;
-//             float positions[slices*2*3];
-//             float twopi = 8*atan(1.0f);
-//             float theta = 0;
-//             float dtheta = twopi / (float) (slices - 1);
-//             float* pPositions = &positions[0];
-//             for (int i = 0; i < slices; i++) {
-//                 *pPositions++ = 0;
-//                 *pPositions++ = 0;
-// 
-//                 *pPositions++ = radius * cos(theta);
-//                 *pPositions++ = radius * sin(theta);
-//                 theta += dtheta;
-// 
-//                 *pPositions++ = radius * cos(theta);
-//                 *pPositions++ = radius * sin(theta);
-//             }
-//             GLsizeiptr size = sizeof(positions);
-//             glBindBuffer(GL_ARRAY_BUFFER, circleVbo);
-//             glBufferData(GL_ARRAY_BUFFER, size, positions, GL_STATIC_DRAW);
-//             GLsizeiptr stride = 2 * sizeof(positions[0]);
-//             glVertexAttribPointer(SlotPosition, 2, GL_FLOAT, GL_FALSE, stride, 0);
-//             glDrawArrays(GL_TRIANGLES, 0, slices * 3);
-//         }
-//     }
-// 
-//     // Cleanup
-//     glDeleteProgram(program);
-//     glDeleteVertexArrays(1, &vao);
-//     glDeleteBuffers(1, &lineVbo);
-//     glDeleteBuffers(1, &circleVbo);
-// }
-
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)
 {
@@ -134,7 +55,7 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
     glCompileShader(vsHandle);
     glGetShaderiv(vsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(vsHandle, sizeof(compilerSpew), 0, compilerSpew);
-    PezCheckCondition(compileSuccess, "Can't compile vs:\n%s", compilerSpew);
+    CheckCondition(compileSuccess, "Can't compile vs:\n%s", compilerSpew);
     glAttachShader(programHandle, vsHandle);
 
     GLuint gsHandle;
@@ -147,7 +68,7 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
         glCompileShader(gsHandle);
         glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(gsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        PezCheckCondition(compileSuccess, "Can't compile gs:\n%s", compilerSpew);
+        CheckCondition(compileSuccess, "Can't compile gs:\n%s", compilerSpew);
         glAttachShader(programHandle, gsHandle);
     }
     
@@ -160,7 +81,7 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
         glCompileShader(fsHandle);
         glGetShaderiv(fsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(fsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        PezCheckCondition(compileSuccess, "Can't compile fs:\n%s", compilerSpew);
+        CheckCondition(compileSuccess, "Can't compile fs:\n%s", compilerSpew);
         glAttachShader(programHandle, fsHandle);
     }
 
@@ -173,111 +94,12 @@ GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
     glGetProgramInfoLog(programHandle, sizeof(compilerSpew), 0, compilerSpew);
 
     if (!linkSuccess) {
-        PezDebugString("Link error.\n");
-        PezDebugString("%s\n", compilerSpew);
+        PrintDebugString("Link error.\n");
+        PrintDebugString("%s\n", compilerSpew);
     }
     
     return programHandle;
 }
-
-// SurfacePod CreateSurface(GLsizei width, GLsizei height, int numComponents)
-// {
-//     GLuint fboHandle;
-//     glGenFramebuffers(1, &fboHandle);
-//     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-// 
-//     GLuint textureHandle;
-//     glGenTextures(1, &textureHandle);
-//     glBindTexture(GL_TEXTURE_2D, textureHandle);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-// 
-//     switch (numComponents) {
-//         case 1:
-//             glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, 0);
-//             break;
-//         case 2:
-//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, 0);
-//             break;
-//         case 3:
-//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
-//             break;
-//         case 4:
-//             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, 0);
-//             break;
-//     }
-// 
-//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create normals texture");
-// 
-//     GLuint colorbuffer;
-//     glGenRenderbuffers(1, &colorbuffer);
-//     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
-//     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureHandle, 0);
-//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
-//     
-//     PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
-//     SurfacePod surface = { fboHandle, textureHandle };
-// 
-//     glClearColor(0, 0, 0, 0);
-//     glClear(GL_COLOR_BUFFER_BIT);
-//     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//     surface.Width = width;
-//     surface.Height = height;
-//     surface.Depth = 1;
-//     return surface;
-// }
-
-// SurfacePod CreateVolume(GLsizei width, GLsizei height, GLsizei depth, int numComponents)
-// {
-//     GLuint fboHandle;
-//     glGenFramebuffers(1, &fboHandle);
-//     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-// 
-//     GLuint textureHandle;
-//     glGenTextures(1, &textureHandle);
-//     glBindTexture(GL_TEXTURE_3D, textureHandle);
-//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-// 
-//     switch (numComponents) {
-//         case 1:
-//             glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, width, height, depth, 0, GL_RED, GL_FLOAT, 0);
-//             break;
-//         case 2:
-//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RG32F, width, height, depth, 0, GL_RG, GL_FLOAT, 0);
-//             break;
-//         case 3:
-//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, width, height, depth, 0, GL_RGB, GL_FLOAT, 0);
-//             break;
-//         case 4:
-//             glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, width, height, depth, 0, GL_RGBA, GL_FLOAT, 0);
-//             break;
-//     }
-// 
-//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to create volume texture");
-// 
-//     GLuint colorbuffer;
-//     glGenRenderbuffers(1, &colorbuffer);
-//     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
-//     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureHandle, 0);
-//     PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
-// 
-//     PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
-//     SurfacePod surface = { fboHandle, textureHandle };
-// 
-//     glClearColor(0, 0, 0, 0);
-//     glClear(GL_COLOR_BUFFER_BIT);
-//     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//     surface.Width = width;
-//     surface.Height = height;
-//     surface.Depth = depth;
-//     return surface;
-// }
 
 void ResetState()
 {
@@ -469,4 +291,45 @@ vmath::Vector3 CalculateInverseSize(const GLTexture& volume)
         vmath::Vector3(static_cast<float>(volume.width()),
                        static_cast<float>(volume.height()),
                        static_cast<float>(volume.depth())));
+}
+
+void PrintDebugString(const char* content, ...)
+{
+    char msg[1024] = {0};
+
+    va_list a;
+    va_start(a, content);
+
+    _vsnprintf_s(msg, _countof(msg), _TRUNCATE, content, a);
+    OutputDebugStringA(msg);
+}
+
+void FatalErrorImpl(const char* content, va_list a)
+{
+    char msg[1024] = {0};
+
+    _vsnprintf_s(msg, _countof(msg), _TRUNCATE, content, a);
+    OutputDebugStringA(msg);
+    OutputDebugStringA("\n");
+    exit(1);
+}
+
+void SetFatalError(const char* content, ...)
+{
+    va_list a;
+    va_start(a, content);
+    FatalErrorImpl(content, a);
+}
+
+void CheckCondition(int condition, ...)
+{
+    va_list a;
+    const char* content;
+
+    if (condition)
+        return;
+
+    va_start(a, condition);
+    content = va_arg(a, const char*);
+    FatalErrorImpl(content, a);
 }

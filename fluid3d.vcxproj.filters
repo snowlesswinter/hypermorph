@@ -17,11 +17,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="fluid3d.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="pez.h" />
-    <ClInclude Include="Utility.h" />
     <ClInclude Include="vmath.hpp" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="metrics.h" />
@@ -54,6 +51,7 @@
       <Filter>cuda</Filter>
     </ClInclude>
     <ClInclude Include="fluid_simulator.h" />
+    <ClInclude Include="utility.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -70,9 +68,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="Fluid3d.cpp" />
-    <ClCompile Include="Trackball.cpp" />
-    <ClCompile Include="Utility.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="poisson_solver.cpp" />
@@ -93,7 +88,6 @@
     <ClCompile Include="shader\multigrid_staggered_shader.cpp">
       <Filter>shader</Filter>
     </ClCompile>
-    <ClCompile Include="pez.win.cpp" />
     <ClCompile Include="opengl\gl_texture.cpp">
       <Filter>opengl</Filter>
     </ClCompile>
@@ -105,5 +99,8 @@
       <Filter>cuda</Filter>
     </ClCompile>
     <ClCompile Include="fluid_simulator.cpp" />
+    <ClCompile Include="fluid_main.cpp" />
+    <ClCompile Include="trackball.cpp" />
+    <ClCompile Include="utility.cpp" />
   </ItemGroup>
 </Project>

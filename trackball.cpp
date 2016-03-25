@@ -1,4 +1,5 @@
-#include "Utility.h"
+#include "stdafx.h"
+#include "utility.h"
 
 using namespace vmath;
 

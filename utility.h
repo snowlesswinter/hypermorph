@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 #include <vmath.hpp>
-#include <pez.h>
 #include "opengl/glew.h"
 
 class GLTexture;
@@ -55,8 +54,6 @@ void SetUniform(const char* name, vmath::Vector3 value);
 void SetUniform(const char* name, vmath::Point3 value);
 void SetUniform(const char* name, vmath::Vector4 value);
 TexturePod LoadTexture(const char* path);
-// SurfacePod CreateSurface(int width, int height, int numComponents = 4);
-// SurfacePod CreateVolume(int width, int height, int depth, int numComponents);
 GLuint CreatePointVbo(float x, float y, float z);
 GLuint CreateQuadVbo();
 MeshPod CreateQuadMesh(float left, float top, float right, float bottom);
@@ -65,6 +62,9 @@ void RenderMesh(const MeshPod& mesh);
 double GetCurrentTimeInSeconds();
 void ResetState();
 vmath::Vector3 CalculateInverseSize(const GLTexture& volume);
+void PrintDebugString(const char* content, ...);
+void SetFatalError(const char* content, ...);
+void CheckCondition(int condition, ...);
 
 extern const float CellSize;
 extern const int ViewportWidth;

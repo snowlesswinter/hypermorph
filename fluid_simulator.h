@@ -27,12 +27,19 @@ public:
     ~FluidSimulator();
 
     bool Init();
+    void Reset();
+    void Update(float delta_time, double seconds_elapsed, int frame_count);
+
     void set_solver_choice(PoissonMethod method) { solver_choice_ = method; }
     void set_num_multigrid_iterations(int n) { num_multigrid_iterations_ = n; }
     void set_num_full_multigrid_iterations(int n) {
         num_full_multigrid_iterations_ = n;
     }
 
+    // TODO
+    const GLTexture& GetDensityTexture() const;
+
+private:
     void Advect(std::shared_ptr<GLTexture> velocity,
                 std::shared_ptr<GLTexture> source,
                 std::shared_ptr<GLTexture> dest, float delta_time,
@@ -56,10 +63,15 @@ public:
                        std::shared_ptr<GLTexture> temperature,
                        std::shared_ptr<GLTexture> dest, float delta_time);
 
-private:
     PoissonMethod solver_choice_;
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
+
+    std::shared_ptr<GLTexture> velocity_;
+    std::shared_ptr<GLTexture> density_;
+    std::shared_ptr<GLTexture> temperature_;
+    std::shared_ptr<GLTexture> general1_;
+    std::shared_ptr<GLTexture> general3_;
 };
 
 #endif // _FLUID_SIMULATOR_H_

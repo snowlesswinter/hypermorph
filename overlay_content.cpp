@@ -2,7 +2,7 @@
 #include "overlay_content.h"
 
 #include "shader/overlay_shader.h"
-#include "Utility.h"
+#include "utility.h"
 
 OverlayContent::OverlayContent()
     : last_text_()
