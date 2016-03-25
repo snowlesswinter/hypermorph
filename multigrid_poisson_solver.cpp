@@ -4,7 +4,7 @@
 #include <cassert>
 #include <tuple>
 
-#include "cuda/cuda_main.h"
+#include "cuda_host/cuda_main.h"
 #include "metrics.h"
 #include "multigrid_core.h"
 #include "opengl/gl_program.h"

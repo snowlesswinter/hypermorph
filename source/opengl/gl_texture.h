@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "opengl/glew.h"
+#include "third_party/opengl/glew.h"
 
 class GLTexture
 {

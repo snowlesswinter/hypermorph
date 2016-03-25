@@ -3,10 +3,12 @@
 
 #include <cassert>
 
+#include "cuda/cuda_core.h"
+#include "cuda/fluid_impl_cuda.h"
+#include "cuda/fluid_impl_cuda_pure.h"
+#include "cuda/graphics_resource.h"
+#include "cuda_volume.h"
 #include "opengl/gl_texture.h"
-#include "cuda_core.h"
-#include "fluid_impl_cuda.h"
-#include "graphics_resource.h"
 #include "vmath.hpp"
 
 // =============================================================================
@@ -280,4 +282,14 @@ void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
                               minus_square_cell_size, omega_over_beta, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
+}
+
+void CudaMain::AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
+                                  std::shared_ptr<CudaVolume> velocity,
+                                  float time_step, float dissipation)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->AdvectVelocity(dest->dev_mem(), velocity->dev_mem(),
+                                     time_step, dissipation, v);
 }

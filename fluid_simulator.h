@@ -10,6 +10,7 @@ namespace Aos
 class Vector3;
 }
 }
+class CudaVolume;
 class GLTexture;
 class FluidSimulator
 {
@@ -65,6 +66,9 @@ private:
     std::shared_ptr<GLTexture> temperature_;
     std::shared_ptr<GLTexture> general1_;
     std::shared_ptr<GLTexture> general4_;
+
+    std::shared_ptr<CudaVolume> velocity_cuda_;
+    std::shared_ptr<CudaVolume> general4_cuda_;
 
     // TODO
     bool use_cuda_;

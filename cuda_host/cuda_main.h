@@ -12,7 +12,9 @@ class Vector3;
 }
 }
 class CudaCore;
+class CudaVolume;
 class FluidImplCuda;
+class FluidImplCudaPure;
 class GLTexture;
 class GraphicsResource;
 class CudaMain
@@ -55,6 +57,11 @@ public:
                       std::shared_ptr<GLTexture> dest, float one_minus_omega,
                       float minus_square_cell_size, float omega_over_beta);
 
+    // Pure cuda.
+    void AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
+                            std::shared_ptr<CudaVolume> velocity,
+                            float time_step, float dissipation);
+
     // For diagnosis
     void RoundPassed(int round);
 
@@ -64,6 +71,7 @@ public:
 private:
     std::unique_ptr<CudaCore> core_;
     std::unique_ptr<FluidImplCuda> fluid_impl_;
+    std::unique_ptr<FluidImplCudaPure> fluid_impl_pure_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
 };

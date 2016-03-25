@@ -2,16 +2,16 @@
 
 #include <sstream>
 
-#include "cuda/cuda_main.h"
+#include "cuda_host/cuda_main.h"
 #include "fluid_simulator.h"
 #include "metrics.h"
-#include "opengl/glew.h"
-#include "opengl/freeglut.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_texture.h"
 #include "overlay_content.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
+#include "third_party/opengl/glew.h"
+#include "third_party/opengl/freeglut.h"
 #include "utility.h"
 
 int timer_interval = 10; // ms

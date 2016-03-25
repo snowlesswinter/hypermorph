@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "opengl/glew.h"
+#include "third_party/opengl/glew.h"
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
@@ -227,4 +227,33 @@ void CudaCore::ProlongatePacked(GraphicsResource* coarse,
 //     delete[] a;
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
+}
+
+bool CudaCore::AllocVolumeMemory(cudaPitchedPtr** result,
+                                 const vmath::Vector3& extent,
+                                 int num_of_components, int byte_width)
+{
+    cudaExtent cuda_ext = make_cudaExtent(
+        num_of_components * byte_width * static_cast<int>(extent.getX()),
+        static_cast<int>(extent.getY()), static_cast<int>(extent.getZ()));
+
+    cudaPitchedPtr ptr;
+    cudaError_t e = cudaMalloc3D(&ptr, cuda_ext);
+    if (e == cudaSuccess)
+    {
+        cudaPitchedPtr* p = new cudaPitchedPtr();
+        *p = ptr;
+        *result = p;
+        return true;
+    }
+
+    return false;
+}
+
+void CudaCore::FreeVolumeMemory(cudaPitchedPtr* mem)
+{
+    if (mem) {
+        cudaFree(mem->ptr);
+        delete mem;
+    }
 }

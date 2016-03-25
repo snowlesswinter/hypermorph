@@ -1,19 +1,20 @@
 #include "stdafx.h"
 #include "fluid_simulator.h"
 
+#include "cuda_host/cuda_volume.h"
 #include "full_multigrid_poisson_solver.h"
 #include "metrics.h"
 #include "multigrid_poisson_solver.h"
 #include "opengl/gl_texture.h"
-#include "opengl/glew.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "third_party/opengl/glew.h"
 #include "utility.h"
 #include "vmath.hpp"
 
 //TODO
 #include "multigrid_core.h"
-#include "cuda/cuda_main.h"
+#include "cuda_host/cuda_main.h"
 
 static struct
 {
@@ -36,6 +37,8 @@ FluidSimulator::FluidSimulator()
     , temperature_()
     , general1_()
     , general4_()
+    , velocity_cuda_()
+    , general4_cuda_()
     , use_cuda_(false)
 {
 }
@@ -98,6 +101,12 @@ bool FluidSimulator::Init()
                                    GL_RED);
     general4_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_RGBA16F,
                                    GL_RGBA);
+
+    velocity_cuda_.reset(new CudaVolume());
+    velocity_cuda_->Create(GridWidth, GridHeight, GridDepth, 4, 2);
+
+    general4_cuda_.reset(new CudaVolume());
+    general4_cuda_->Create(GridWidth, GridHeight, GridDepth, 4, 2);
 
     return true;
 }
@@ -201,6 +210,8 @@ void FluidSimulator::AdvectTemperature(float delta_time)
 
 void FluidSimulator::AdvectVelocity(float delta_time)
 {
+    CudaMain::Instance()->AdvectVelocityPure(velocity_cuda_, general4_cuda_,
+                                             delta_time, VelocityDissipation);
     if (use_cuda_) {
         CudaMain::Instance()->AdvectVelocity(velocity_, general4_, delta_time,
                                              VelocityDissipation);

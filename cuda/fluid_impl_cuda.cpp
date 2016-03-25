@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "opengl/glew.h"
+#include "third_party/opengl/glew.h"
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>

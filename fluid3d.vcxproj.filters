@@ -8,11 +8,11 @@
     <Filter Include="shader">
       <UniqueIdentifier>{9a0d8298-86f6-4b87-9249-860168e7a43d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="cuda">
-      <UniqueIdentifier>{353a3ea1-4a41-4c81-8d88-249679979acd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="opengl">
       <UniqueIdentifier>{5dcee07a-f054-46e5-adba-682181a859c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cuda_host">
+      <UniqueIdentifier>{353a3ea1-4a41-4c81-8d88-249679979acd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -38,18 +38,22 @@
     <ClInclude Include="shader\multigrid_staggered_shader.h">
       <Filter>shader</Filter>
     </ClInclude>
-    <ClInclude Include="opengl\gl_texture.h">
-      <Filter>opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="opengl\gl_program.h">
-      <Filter>opengl</Filter>
-    </ClInclude>
     <ClInclude Include="multigrid_core.h" />
-    <ClInclude Include="cuda\cuda_main.h">
-      <Filter>cuda</Filter>
-    </ClInclude>
     <ClInclude Include="fluid_simulator.h" />
     <ClInclude Include="utility.h" />
+    <ClInclude Include="graphics_volume.h" />
+    <ClInclude Include="cuda_host\cuda_main.h">
+      <Filter>cuda_host</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_host\cuda_volume.h">
+      <Filter>cuda_host</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\gl_texture.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\gl_program.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -86,19 +90,23 @@
     <ClCompile Include="shader\multigrid_staggered_shader.cpp">
       <Filter>shader</Filter>
     </ClCompile>
-    <ClCompile Include="opengl\gl_texture.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="opengl\gl_program.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
     <ClCompile Include="multigrid_core.cpp" />
-    <ClCompile Include="cuda\cuda_main.cpp">
-      <Filter>cuda</Filter>
-    </ClCompile>
     <ClCompile Include="fluid_simulator.cpp" />
     <ClCompile Include="fluid_main.cpp" />
     <ClCompile Include="trackball.cpp" />
     <ClCompile Include="utility.cpp" />
+    <ClCompile Include="graphics_volume.cpp" />
+    <ClCompile Include="cuda_host\cuda_volume.cpp">
+      <Filter>cuda_host</Filter>
+    </ClCompile>
+    <ClCompile Include="cuda_host\cuda_main.cpp">
+      <Filter>cuda_host</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\gl_program.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\gl_texture.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

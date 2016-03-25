@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 #include <vmath.hpp>
-#include "opengl/glew.h"
+#include "third_party/opengl/glew.h"
 
 class GLTexture;
 

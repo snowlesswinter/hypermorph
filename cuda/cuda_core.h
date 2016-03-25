@@ -10,6 +10,7 @@ class Vector3;
 }
 
 struct cudaGraphicsResource;
+struct cudaPitchedPtr;
 class GraphicsResource;
 class CudaCore
 {
@@ -18,6 +19,11 @@ public:
     ~CudaCore();
 
     bool Init();
+    static bool AllocVolumeMemory(cudaPitchedPtr** result,
+                                  const Vectormath::Aos::Vector3& extent,
+                                  int num_of_components, int byte_width);
+    static void FreeVolumeMemory(cudaPitchedPtr* mem);
+
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);
     int RegisterGLBuffer(unsigned int buffer, GraphicsResource* graphics_res);
