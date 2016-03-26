@@ -167,10 +167,12 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnBuoyancyApplied();
 
     // Splat new smoke
-    ApplyImpulse(density_, kImpulsePosition, hotspot, ImpulseDensity);
+    ApplyImpulse(density_, density_cuda_, kImpulsePosition, hotspot,
+                 ImpulseDensity);
 
     // Something wrong with the temperature impulsing.
-    ApplyImpulse(temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
+    ApplyImpulse(temperature_, temperature_cuda_, kImpulsePosition, hotspot,
+                 ImpulseTemperature);
     Metrics::Instance()->OnImpulseApplied();
 
     // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
@@ -291,14 +293,19 @@ void FluidSimulator::AdvectVelocity(float delta_time)
 
 void FluidSimulator::ApplyBuoyancy(float delta_time)
 {
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
-    {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyBuoyancyPure(general4_cuda_, velocity_cuda_,
+                                                temperature_cuda_, delta_time,
+                                                AmbientTemperature,
+                                                kBuoyancyCoef, SmokeWeight);
+
+        std::swap(velocity_cuda_, general4_cuda_);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyBuoyancy(velocity_, temperature_, general4_,
                                             delta_time, AmbientTemperature,
                                             kBuoyancyCoef, SmokeWeight);
-    }
-    else
-    {
+        std::swap(velocity_, general4_);
+    } else {
         GLuint p = Programs.ApplyBuoyancy;
         glUseProgram(p);
 
@@ -316,22 +323,24 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
         glBindTexture(GL_TEXTURE_3D, temperature_->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, general4_->depth());
         ResetState();
-    }
 
-    std::swap(velocity_, general4_);
+        std::swap(velocity_, general4_);
+    }
 }
 
 void FluidSimulator::ApplyImpulse(std::shared_ptr<GLTexture> dest,
+                                  std::shared_ptr<CudaVolume> source,
                                   Vectormath::Aos::Vector3 position,
                                   Vectormath::Aos::Vector3 hotspot, float value)
 {
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
-    {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyImpulsePure(general1_cuda_, source, position,
+                                               hotspot, SplatRadius, value);
+        std::swap(source, general1_cuda_);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyImpulse(dest, kImpulsePosition, hotspot,
                                            SplatRadius, value);
-    }
-    else
-    {
+    } else {
         GLuint p = Programs.ApplyImpulse;
         glUseProgram(p);
 
@@ -351,13 +360,14 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GLTexture> dest,
 void FluidSimulator::ComputeDivergence()
 {
     float half_inverse_cell_size = 0.5f / CellSize;
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
-    {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ComputeDivergencePure(general4_cuda_,
+                                                    velocity_cuda_,
+                                                    half_inverse_cell_size);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ComputeDivergence(velocity_, general4_,
                                                 half_inverse_cell_size);
-    }
-    else
-    {
+    } else {
         GLuint p = Programs.ComputeDivergence;
         glUseProgram(p);
 
@@ -379,15 +389,12 @@ void FluidSimulator::DampedJacobi(float cell_size)
     float minus_square_cell_size = -(cell_size * cell_size);
     float omega_over_beta = 0.11111111f;
 
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
-    {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->DampedJacobi(general4_, general4_,
                                            one_minus_omega,
                                            minus_square_cell_size,
                                            omega_over_beta);
-    }
-    else
-    {
+    } else {
         GLuint p = Programs.DampedJacobi;
         glUseProgram(p);
 
@@ -423,8 +430,7 @@ void FluidSimulator::Jacobi(float cell_size)
 
 void FluidSimulator::SolvePressure()
 {
-    switch (solver_choice_)
-    {
+    switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
                                             // implemented by shader.
@@ -490,7 +496,11 @@ void FluidSimulator::SolvePressure()
 
 void FluidSimulator::SubtractGradient()
 {
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->SubstractGradientPure(velocity_cuda_,
+                                                    general4_cuda_,
+                                                    GradientScale);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->SubstractGradient(velocity_, general4_, velocity_,
                                                 GradientScale);
     } else {

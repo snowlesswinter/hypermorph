@@ -56,6 +56,7 @@ private:
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(std::shared_ptr<GLTexture> dest,
+                      std::shared_ptr<CudaVolume> source, 
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float value);
     void ComputeDivergence();

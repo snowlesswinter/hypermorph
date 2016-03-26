@@ -14,13 +14,30 @@
 #include "graphics_resource.h"
 #include "../vmath.hpp"
 
+extern void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
+                             cudaArray_t source_array, float time_step,
+                             float dissipation, int3 volume_size);
 extern void LaunchAdvectVelocityPure(cudaArray_t dest_array,
                                      cudaArray_t velocity_array,
                                      float time_step, float dissipation,
                                      int3 volume_size);
-extern void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
-                             cudaArray_t source_array, float time_step,
-                             float dissipation, int3 volume_size);
+extern void LaunchApplyBuoyancyPure(cudaArray* dest_array,
+                                    cudaArray* velocity_array,
+                                    cudaArray* temperature_array,
+                                    float time_step, float ambient_temperature,
+                                    float accel_factor, float gravity,
+                                    int3 volume_size);
+extern void LaunchApplyImpulsePure(cudaArray* dest_array,
+                                   cudaArray* original_array,
+                                   float3 center_point, float3 hotspot,
+                                   float radius, float value, int3 volume_size);
+extern void LaunchComputeDivergencePure(cudaArray* dest_array,
+                                        cudaArray* velocity_array,
+                                        float half_inverse_cell_size,
+                                        int3 volume_size);
+extern void LaunchSubstractGradientPure(cudaArray* dest_array,
+                                        cudaArray* packed_array,
+                                        float gradient_scale, int3 volume_size);
 
 namespace
 {
@@ -40,6 +57,15 @@ FluidImplCudaPure::~FluidImplCudaPure()
 {
 }
 
+void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
+                               cudaArray* source, float time_step,
+                               float dissipation,
+                               const Vectormath::Aos::Vector3& volume_size)
+{
+    LaunchAdvectPure(dest, velocity, source, time_step, dissipation,
+                     FromVmathVector(volume_size));
+}
+
 void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                        float time_step, float dissipation,
                                        const vmath::Vector3& volume_size)
@@ -48,11 +74,43 @@ void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                              FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
-                               cudaArray* source, float time_step,
-                               float dissipation,
-                               const Vectormath::Aos::Vector3& volume_size)
+void FluidImplCudaPure::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
+                                      cudaArray* temperature, float time_step,
+                                      float ambient_temperature,
+                                      float accel_factor, float gravity,
+                                      const vmath::Vector3& volume_size)
 {
-    LaunchAdvectPure(dest, velocity, source, time_step, dissipation,
-                     FromVmathVector(volume_size));
+    LaunchApplyBuoyancyPure(dest, velocity, temperature, time_step,
+                            ambient_temperature, accel_factor, gravity,
+                            FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
+                                     const vmath::Vector3& center_point,
+                                     const vmath::Vector3& hotspot,
+                                     float radius, float value,
+                                     const vmath::Vector3& volume_size)
+{
+    LaunchApplyImpulsePure(
+        dest, source,
+        make_float3(center_point.getX(), center_point.getY(),
+                    center_point.getZ()),
+        make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
+        radius, value, FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
+                                          float half_inverse_cell_size,
+                                          const vmath::Vector3& volume_size)
+{
+    LaunchComputeDivergencePure(dest, velocity, half_inverse_cell_size,
+                                FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::SubstractGradient(cudaArray* dest, cudaArray* packed,
+                                          float gradient_scale,
+                                          const vmath::Vector3& volume_size)
+{
+    LaunchSubstractGradientPure(dest, packed, gradient_scale,
+                                FromVmathVector(volume_size));
 }

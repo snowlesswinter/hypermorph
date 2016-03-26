@@ -58,13 +58,29 @@ public:
                       float minus_square_cell_size, float omega_over_beta);
 
     // Pure cuda.
-    void AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> velocity,
-                            float time_step, float dissipation);
     void AdvectPure(std::shared_ptr<CudaVolume> dest,
                     std::shared_ptr<CudaVolume> velocity,
                     std::shared_ptr<CudaVolume> source, float time_step,
                     float dissipation);
+    void AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
+                            std::shared_ptr<CudaVolume> velocity,
+                            float time_step, float dissipation);
+    void ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
+                           std::shared_ptr<CudaVolume> velocity,
+                           std::shared_ptr<CudaVolume> temperature,
+                           float time_step, float ambient_temperature,
+                           float accel_factor, float gravity);
+    void ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> source,
+                          const Vectormath::Aos::Vector3& center_point,
+                          const Vectormath::Aos::Vector3& hotspot, float radius,
+                          float value);
+    void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
+                               std::shared_ptr<CudaVolume> velocity,
+                               float half_inverse_cell_size);
+    void SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
+                               std::shared_ptr<CudaVolume> packed,
+                               float gradient_scale);
 
     // For diagnosis
     void RoundPassed(int round);

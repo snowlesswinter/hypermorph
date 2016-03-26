@@ -284,6 +284,17 @@ void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
     FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
+void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> velocity,
+                          std::shared_ptr<CudaVolume> source, float time_step,
+                          float dissipation)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->Advect(dest->dev_array(), velocity->dev_array(),
+                             source->dev_array(), time_step, dissipation, v);
+}
+
 void CudaMain::AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
                                   std::shared_ptr<CudaVolume> velocity,
                                   float time_step, float dissipation)
@@ -294,13 +305,49 @@ void CudaMain::AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
                                      time_step, dissipation, v);
 }
 
-void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
-                          std::shared_ptr<CudaVolume> velocity,
-                          std::shared_ptr<CudaVolume> source, float time_step,
-                          float dissipation)
+void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
+                                 std::shared_ptr<CudaVolume> velocity,
+                                 std::shared_ptr<CudaVolume> temperature,
+                                 float time_step, float ambient_temperature,
+                                 float accel_factor, float gravity)
 {
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    fluid_impl_pure_->Advect(dest->dev_array(), velocity->dev_array(),
-                             source->dev_array(), time_step, dissipation, v);
+    fluid_impl_pure_->ApplyBuoyancy(dest->dev_array(), velocity->dev_array(),
+                                    temperature->dev_array(), time_step,
+                                    ambient_temperature, accel_factor, gravity,
+                                    v);
+}
+
+void CudaMain::ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
+                                std::shared_ptr<CudaVolume> source,
+                                const vmath::Vector3& center_point,
+                                const vmath::Vector3& hotspot,
+                                float radius, float value)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->ApplyImpulse(dest->dev_array(), source->dev_array(),
+                                   center_point, hotspot, radius, value, v);
+}
+
+void CudaMain::ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
+                                     std::shared_ptr<CudaVolume> velocity,
+                                     float half_inverse_cell_size)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->ComputeDivergence(dest->dev_array(),
+                                        velocity->dev_array(),
+                                        half_inverse_cell_size, v);
+}
+
+void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
+                                     std::shared_ptr<CudaVolume> packed,
+                                     float gradient_scale)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->SubstractGradient(dest->dev_array(), packed->dev_array(),
+                                        gradient_scale, v);
 }

@@ -17,6 +17,7 @@ vmath::Vector3 FromIntValues(int x, int y, int z)
 
 CudaVolume::CudaVolume()
     : dev_array_(nullptr)
+    , dev_mem_(nullptr)
     , width_(0)
     , height_(0)
     , depth_(0)
