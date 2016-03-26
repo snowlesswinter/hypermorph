@@ -16,6 +16,19 @@
 
 int timer_interval = 10; // ms
 int main_frame_handle = 0;
+ITrackball* track_ball;
+vmath::Point3 EyePosition;
+GLuint RaycastProgram;
+float FieldOfView = 0.7f;
+bool SimulateFluid = true;
+OverlayContent overlay_;
+GLProgram advect_packed_program_;
+int kMainWindowWidth = ViewportWidth;
+int kMainWindowHeight = ViewportWidth;
+LARGE_INTEGER time_freq;
+LARGE_INTEGER prev_time;
+int g_diagnosis = 0;
+FluidSimulator* sim_ = nullptr;
 
 struct
 {
@@ -30,20 +43,6 @@ struct
     GLuint CubeCenter;
     GLuint FullscreenQuad;
 } Vbos;
-
-ITrackball* track_ball;
-vmath::Point3 EyePosition;
-GLuint RaycastProgram;
-float FieldOfView = 0.7f;
-bool SimulateFluid = true;
-OverlayContent overlay_;
-GLProgram advect_packed_program_;
-int kMainWindowWidth = ViewportWidth;
-int kMainWindowHeight = ViewportWidth;
-LARGE_INTEGER time_freq;
-LARGE_INTEGER prev_time;
-int g_diagnosis = 0;
-FluidSimulator* sim_ = nullptr;
 
 void Cleanup(int exit_code)
 {

@@ -22,17 +22,12 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 }
 
 __global__ void AdvectVelocityKernel(ushort4* out_data, float time_step,
-                                     float dissipation,
-                                     int num_of_blocks_per_slice,
-                                     int slice_stride, int3 volume_size)
+                                     float dissipation, int slice_stride,
+                                     int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -51,16 +46,12 @@ __global__ void AdvectVelocityKernel(ushort4* out_data, float time_step,
 }
 
 __global__ void AdvectKernel(ushort* out_data, float time_step,
-                             float dissipation, int num_of_blocks_per_slice,
-                             int slice_stride, int3 volume_size)
+                             float dissipation, int slice_stride,
+                             int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -78,16 +69,11 @@ __global__ void AdvectKernel(ushort* out_data, float time_step,
 __global__ void ApplyBuoyancyKernel(ushort4* out_data, float time_step,
                                     float ambient_temperature,
                                     float accel_factor, float gravity,
-                                    int num_of_blocks_per_slice,
                                     int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -109,16 +95,11 @@ __global__ void ApplyBuoyancyKernel(ushort4* out_data, float time_step,
 
 __global__ void ApplyImpulseKernel(ushort* out_data, float3 center_point,
                                    float3 hotspot, float radius, float value,
-                                   int num_of_blocks_per_slice,
                                    int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -147,16 +128,11 @@ __global__ void ApplyImpulseKernel(ushort* out_data, float3 center_point,
 
 __global__ void ComputeDivergenceKernel(ushort4* out_data,
                                         float half_inverse_cell_size,
-                                        int num_of_blocks_per_slice,
                                         int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -200,16 +176,11 @@ __global__ void ComputeDivergenceKernel(ushort4* out_data,
 
 __global__ void SubstractGradientKernel(ushort4* out_data,
                                         float gradient_scale,
-                                        int num_of_blocks_per_slice,
                                         int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -261,16 +232,11 @@ __global__ void SubstractGradientKernel(ushort4* out_data,
 __global__ void DampedJacobiKernel(ushort4* out_data, float one_minus_omega,
                                    float minus_square_cell_size,
                                    float omega_over_beta,
-                                   int num_of_blocks_per_slice,
                                    int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -341,12 +307,10 @@ void LaunchAdvectVelocity(ushort4* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     AdvectVelocityKernel<<<grid, block>>>(dest_array, time_step, dissipation,
-                                          num_of_blocks_per_slice, slice_stride,
-                                          volume_size);
+                                          slice_stride, volume_size);
 
     cudaUnbindTexture(&advect_velocity);
 }
@@ -355,7 +319,7 @@ void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
                   cudaArray* source_array, float time_step,
                   float dissipation, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     advect_velocity.normalized = false;
     advect_velocity.filterMode = cudaFilterModeLinear;
     advect_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -385,12 +349,10 @@ void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     AdvectKernel<<<grid, block>>>(dest_array, time_step, dissipation,
-                                  num_of_blocks_per_slice, slice_stride,
-                                  volume_size);
+                                  slice_stride, volume_size);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
@@ -432,13 +394,11 @@ void LaunchApplyBuoyancy(ushort4* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     ApplyBuoyancyKernel<<<grid, block>>>(dest_array, time_step,
                                          ambient_temperature, accel_factor,
-                                         gravity, num_of_blocks_per_slice,
-                                         slice_stride, volume_size);
+                                         gravity, slice_stride, volume_size);
 
     cudaUnbindTexture(&buoyancy_temperature);
     cudaUnbindTexture(&buoyancy_velocity);
@@ -465,12 +425,11 @@ void LaunchApplyImpulse(ushort* dest_array, cudaArray* original_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     ApplyImpulseKernel<<<grid, block>>>(dest_array, center_point, hotspot,
-                                        radius, value, num_of_blocks_per_slice,
-                                        slice_stride, volume_size);
+                                        radius, value, slice_stride,
+                                        volume_size);
 
     cudaUnbindTexture(&impulse_original);
 }
@@ -495,11 +454,9 @@ void LaunchComputeDivergence(ushort4* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     ComputeDivergenceKernel<<<grid, block>>>(dest_array, half_inverse_cell_size,
-                                             num_of_blocks_per_slice,
                                              slice_stride, volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
@@ -539,11 +496,9 @@ void LaunchSubstractGradient(ushort4* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     SubstractGradientKernel<<<grid, block>>>(dest_array, gradient_scale,
-                                             num_of_blocks_per_slice,
                                              slice_stride, volume_size);
 
     cudaUnbindTexture(&gradient_packed);
@@ -570,13 +525,11 @@ void LaunchDampedJacobi(ushort4* dest_array, cudaArray* packed_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     DampedJacobiKernel<<<grid, block>>>(dest_array, one_minus_omega,
                                         minus_square_cell_size, omega_over_beta,
-                                        num_of_blocks_per_slice, slice_stride,
-                                        volume_size);
+                                        slice_stride, volume_size);
 
     cudaUnbindTexture(&jacobi);
 }

@@ -210,8 +210,8 @@ void FluidSimulator::AdvectTemperature(float delta_time)
 
 void FluidSimulator::AdvectVelocity(float delta_time)
 {
-    CudaMain::Instance()->AdvectVelocityPure(velocity_cuda_, general4_cuda_,
-                                             delta_time, VelocityDissipation);
+//     CudaMain::Instance()->AdvectVelocityPure(velocity_cuda_, general4_cuda_,
+//                                              delta_time, VelocityDissipation);
     if (use_cuda_) {
         CudaMain::Instance()->AdvectVelocity(velocity_, general4_, delta_time,
                                              VelocityDissipation);

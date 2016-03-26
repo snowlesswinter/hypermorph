@@ -10,16 +10,11 @@ texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity
 
 __global__ void AdvectVelocityPureKernel(ushort4* out_data, float time_step,
                                          float dissipation,
-                                         int num_of_blocks_per_slice,
                                          int slice_stride, int3 volume_size)
 {
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     int index = slice_stride * z + volume_size.x * y + x;
 
@@ -61,12 +56,11 @@ void LaunchAdvectVelocityPure(void* dest_array, void* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
     AdvectVelocityPureKernel<<<grid, block>>>(
         reinterpret_cast<ushort4*>(dest_array), time_step, dissipation,
-        num_of_blocks_per_slice, slice_stride, volume_size);
+        slice_stride, volume_size);
 
     cudaUnbindTexture(&advect_velocity);
 }
