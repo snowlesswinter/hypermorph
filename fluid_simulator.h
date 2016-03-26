@@ -24,6 +24,13 @@ public:
         POISSON_SOLVER_FULL_MULTI_GRID
     };
 
+    enum GraphicsLib
+    {
+        GRAPHICS_LIB_GLSL,
+        GRAPHICS_LIB_CUDA,
+        GRAPHICS_LIB_CUDA_DIAGNOSIS,
+    };
+
     FluidSimulator();
     ~FluidSimulator();
 
@@ -36,7 +43,7 @@ public:
     void set_num_full_multigrid_iterations(int n) {
         num_full_multigrid_iterations_ = n;
     }
-    void set_use_cuda(bool use_cuda) { use_cuda_ = use_cuda; }
+    void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
     // TODO
     const GLTexture& GetDensityTexture() const;
@@ -68,10 +75,12 @@ private:
     std::shared_ptr<GLTexture> general4_;
 
     std::shared_ptr<CudaVolume> velocity_cuda_;
+    std::shared_ptr<CudaVolume> density_cuda_;
+    std::shared_ptr<CudaVolume> temperature_cuda_;
+    std::shared_ptr<CudaVolume> general1_cuda_;
     std::shared_ptr<CudaVolume> general4_cuda_;
 
-    // TODO
-    bool use_cuda_;
+    GraphicsLib graphics_lib_;
 };
 
 #endif // _FLUID_SIMULATOR_H_

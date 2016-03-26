@@ -61,6 +61,10 @@ public:
     void AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
                             std::shared_ptr<CudaVolume> velocity,
                             float time_step, float dissipation);
+    void AdvectPure(std::shared_ptr<CudaVolume> dest,
+                    std::shared_ptr<CudaVolume> velocity,
+                    std::shared_ptr<CudaVolume> source, float time_step,
+                    float dissipation);
 
     // For diagnosis
     void RoundPassed(int round);

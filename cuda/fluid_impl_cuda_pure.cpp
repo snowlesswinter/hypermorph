@@ -14,9 +14,13 @@
 #include "graphics_resource.h"
 #include "../vmath.hpp"
 
-extern void LaunchAdvectVelocityPure(void* dest_array, void* velocity_array,
+extern void LaunchAdvectVelocityPure(cudaArray_t dest_array,
+                                     cudaArray_t velocity_array,
                                      float time_step, float dissipation,
                                      int3 volume_size);
+extern void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
+                             cudaArray_t source_array, float time_step,
+                             float dissipation, int3 volume_size);
 
 namespace
 {
@@ -36,11 +40,19 @@ FluidImplCudaPure::~FluidImplCudaPure()
 {
 }
 
-void FluidImplCudaPure::AdvectVelocity(cudaPitchedPtr* dest,
-                                       cudaPitchedPtr* velocity,
+void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                        float time_step, float dissipation,
                                        const vmath::Vector3& volume_size)
 {
-    LaunchAdvectVelocityPure(dest->ptr, velocity->ptr, time_step, dissipation,
+    LaunchAdvectVelocityPure(dest, velocity, time_step, dissipation,
                              FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
+                               cudaArray* source, float time_step,
+                               float dissipation,
+                               const Vectormath::Aos::Vector3& volume_size)
+{
+    LaunchAdvectPure(dest, velocity, source, time_step, dissipation,
+                     FromVmathVector(volume_size));
 }

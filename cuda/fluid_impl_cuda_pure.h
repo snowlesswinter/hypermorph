@@ -3,7 +3,7 @@
 
 #include <memory>
 
-struct cudaPitchedPtr;
+struct cudaArray;
 namespace Vectormath
 {
 namespace Aos
@@ -18,9 +18,12 @@ public:
     FluidImplCudaPure();
     ~FluidImplCudaPure();
 
-    void AdvectVelocity(cudaPitchedPtr* dest, cudaPitchedPtr* velocity,
+    void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         float time_step, float dissipation,
                         const Vectormath::Aos::Vector3& volume_size);
+    void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
+                float time_step, float dissipation,
+                const Vectormath::Aos::Vector3& volume_size);
 
 };
 

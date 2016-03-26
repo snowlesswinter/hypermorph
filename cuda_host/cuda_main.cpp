@@ -290,6 +290,17 @@ void CudaMain::AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
 {
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    fluid_impl_pure_->AdvectVelocity(dest->dev_mem(), velocity->dev_mem(),
+    fluid_impl_pure_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
                                      time_step, dissipation, v);
+}
+
+void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> velocity,
+                          std::shared_ptr<CudaVolume> source, float time_step,
+                          float dissipation)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->Advect(dest->dev_array(), velocity->dev_array(),
+                             source->dev_array(), time_step, dissipation, v);
 }

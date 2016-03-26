@@ -257,6 +257,8 @@ void TimerProc(int value)
 void Initialize()
 {
     sim_ = new FluidSimulator();
+    sim_->set_graphics_lib(FluidSimulator::GRAPHICS_LIB_CUDA);
+    sim_->Init();
 
     track_ball = CreateTrackball(ViewportWidth * 1.0f, ViewportHeight * 1.0f,
                                  ViewportWidth * 0.5f);
@@ -267,8 +269,6 @@ void Initialize()
                                 FluidShader::GetAdvectPackedShaderCode());
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
-
-    sim_->Init();
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -298,10 +298,10 @@ int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT
     glutTimerFunc(timer_interval, TimerProc, 0);
 
     Initialize();
+
     QueryPerformanceFrequency(&time_freq);
     QueryPerformanceCounter(&prev_time);
 
-    //sim_->set_use_cuda(true);
     glutMainLoop();
 
     Cleanup(EXIT_SUCCESS);
