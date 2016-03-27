@@ -49,13 +49,13 @@ public:
     void ComputeDivergence(std::shared_ptr<GLTexture> velocity,
                            std::shared_ptr<GLTexture> dest,
                            float half_inverse_cell_size);
+    void DampedJacobi(std::shared_ptr<GLTexture> packed,
+                      std::shared_ptr<GLTexture> dest, float one_minus_omega,
+                      float minus_square_cell_size, float omega_over_beta);
     void SubstractGradient(std::shared_ptr<GLTexture> velocity,
                            std::shared_ptr<GLTexture> packed,
                            std::shared_ptr<GLTexture> dest,
                            float gradient_scale);
-    void DampedJacobi(std::shared_ptr<GLTexture> packed,
-                      std::shared_ptr<GLTexture> dest, float one_minus_omega,
-                      float minus_square_cell_size, float omega_over_beta);
 
     // Pure cuda.
     void AdvectPure(std::shared_ptr<CudaVolume> dest,
@@ -78,6 +78,10 @@ public:
     void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> velocity,
                                float half_inverse_cell_size);
+    void DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> packed,
+                          float one_minus_omega,
+                      float minus_square_cell_size, float omega_over_beta);
     void SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> packed,
                                float gradient_scale);

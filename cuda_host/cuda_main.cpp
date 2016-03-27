@@ -244,6 +244,25 @@ void CudaMain::ComputeDivergence(std::shared_ptr<GLTexture> velocity,
     FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
 
+void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
+                            std::shared_ptr<GLTexture> dest,
+                            float one_minus_omega, float minus_square_cell_size,
+                            float omega_over_beta)
+{
+    auto i = registerd_textures_.find(packed);
+    if (i == registerd_textures_.end())
+        return;
+
+    int n = 128 / dest->width();
+    auto pbo = GetPBO(core_.get(), n, 4, 2);
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_->DampedJacobi(i->second.get(), pbo.second, one_minus_omega,
+                              minus_square_cell_size, omega_over_beta, v);
+
+    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
+}
+
 void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
                                  std::shared_ptr<GLTexture> packed,
                                  std::shared_ptr<GLTexture> dest,
@@ -261,25 +280,6 @@ void CudaMain::SubstractGradient(std::shared_ptr<GLTexture> velocity,
                                      velocity->depth());
     fluid_impl_->SubstractGradient(i->second.get(), j->second.get(), pbo.second,
                                    gradient_scale, v);
-
-    FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
-}
-
-void CudaMain::DampedJacobi(std::shared_ptr<GLTexture> packed,
-                            std::shared_ptr<GLTexture> dest,
-                            float one_minus_omega, float minus_square_cell_size,
-                            float omega_over_beta)
-{
-    auto i = registerd_textures_.find(packed);
-    if (i == registerd_textures_.end())
-        return;
-
-    int n = 128 / dest->width();
-    auto pbo = GetPBO(core_.get(), n, 4, 2);
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_->DampedJacobi(i->second.get(), pbo.second, one_minus_omega,
-                              minus_square_cell_size, omega_over_beta, v);
 
     FlushPBO(pbo.first, GL_RGBA, dest.get(), true);
 }
@@ -340,6 +340,19 @@ void CudaMain::ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
     fluid_impl_pure_->ComputeDivergence(dest->dev_array(),
                                         velocity->dev_array(),
                                         half_inverse_cell_size, v);
+}
+
+void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
+                                std::shared_ptr<CudaVolume> packed,
+                                float one_minus_omega,
+                                float minus_square_cell_size,
+                                float omega_over_beta)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->DampedJacobi(dest->dev_array(), packed->dev_array(),
+                                   one_minus_omega, minus_square_cell_size,
+                                   omega_over_beta, v);
 }
 
 void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,

@@ -36,6 +36,10 @@ public:
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
                            const Vectormath::Aos::Vector3& volume_size);
+    void DampedJacobi(cudaArray* dest, cudaArray* packed,
+                      float one_minus_omega, float minus_square_cell_size,
+                      float omega_over_beta,
+                      const Vectormath::Aos::Vector3& volume_size);
     void SubstractGradient(cudaArray* dest, cudaArray* packed,
                            float gradient_scale,
                            const Vectormath::Aos::Vector3& volume_size);

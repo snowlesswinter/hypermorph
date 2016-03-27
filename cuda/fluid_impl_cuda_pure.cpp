@@ -35,6 +35,11 @@ extern void LaunchComputeDivergencePure(cudaArray* dest_array,
                                         cudaArray* velocity_array,
                                         float half_inverse_cell_size,
                                         int3 volume_size);
+extern void LaunchDampedJacobiPure(cudaArray* dest_array,
+                                   cudaArray* packed_array,
+                                   float one_minus_omega,
+                                   float minus_square_cell_size,
+                                   float omega_over_beta, int3 volume_size);
 extern void LaunchSubstractGradientPure(cudaArray* dest_array,
                                         cudaArray* packed_array,
                                         float gradient_scale, int3 volume_size);
@@ -105,6 +110,17 @@ void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
 {
     LaunchComputeDivergencePure(dest, velocity, half_inverse_cell_size,
                                 FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* packed,
+                                     float one_minus_omega,
+                                     float minus_square_cell_size,
+                                     float omega_over_beta,
+                                     const vmath::Vector3& volume_size)
+{
+    LaunchDampedJacobiPure(dest, packed, one_minus_omega,
+                           minus_square_cell_size, omega_over_beta,
+                           FromVmathVector(volume_size));
 }
 
 void FluidImplCudaPure::SubstractGradient(cudaArray* dest, cudaArray* packed,

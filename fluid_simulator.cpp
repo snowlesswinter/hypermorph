@@ -93,13 +93,13 @@ bool FluidSimulator::Init()
     // shortage in graphic cards.
 
     MultigridCore core; // TODO
+    density_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R16F,
+                                  GL_RED);
     switch (graphics_lib_) {
         case GRAPHICS_LIB_GLSL:
         case GRAPHICS_LIB_CUDA_DIAGNOSIS:
             velocity_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
                                            GL_RGBA16F, GL_RGBA);
-            density_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
-                                          GL_R16F, GL_RED);
             temperature_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
                                               GL_R16F, GL_RED);
             general1_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
@@ -389,7 +389,12 @@ void FluidSimulator::DampedJacobi(float cell_size)
     float minus_square_cell_size = -(cell_size * cell_size);
     float omega_over_beta = 0.11111111f;
 
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->DampedJacobiPure(general4_cuda_, general4_cuda_,
+                                               one_minus_omega,
+                                               minus_square_cell_size,
+                                               omega_over_beta);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->DampedJacobi(general4_, general4_,
                                            one_minus_omega,
                                            minus_square_cell_size,

@@ -18,6 +18,8 @@ surface<void, cudaTextureType3D> divergence_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
 surface<void, cudaTextureType3D> gradient_velocity;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
+surface<void, cudaTextureType3D> jacobi;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 
 __global__ void AdvectPureKernel(float time_step, float dissipation,
                                  int slice_stride, int3 volume_size)
@@ -167,6 +169,56 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
                 cudaBoundaryModeTrap);
 }
 
+__global__ void DampedJacobiPureKernel(float one_minus_omega,
+                                       float minus_square_cell_size,
+                                       float omega_over_beta,
+                                       int slice_stride, int3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float near =           tex3D(jacobi_packed, coord.x, coord.y, coord.z - 1.0f).x;
+    float south =          tex3D(jacobi_packed, coord.x, coord.y - 1.0f, coord.z).x;
+    float west =           tex3D(jacobi_packed, coord.x - 1.0f, coord.y, coord.z).x;
+    float4 packed_center = tex3D(jacobi_packed, coord.x, coord.y, coord.z);
+    float east =           tex3D(jacobi_packed, coord.x + 1.0f, coord.y, coord.z).x;
+    float north =          tex3D(jacobi_packed, coord.x, coord.y + 1.0f, coord.z).x;
+    float far =            tex3D(jacobi_packed, coord.x, coord.y, coord.z + 1.0f).x;
+
+    float center = packed_center.x;
+
+    // Handle boundary problem
+    if (x >= volume_size.x - 1)
+        east = center;
+
+    if (x <= 0)
+        west = center;
+
+    if (y >= volume_size.y - 1)
+        north = center;
+
+    if (y <= 0)
+        south = center;
+
+    if (z >= volume_size.z - 1)
+        far = center;
+
+    if (z <= 0)
+        near = center;
+
+    float b_center = packed_center.y;
+    float u = one_minus_omega * center +
+        (west + east + south + north + far + near + minus_square_cell_size *
+        b_center) * omega_over_beta;
+    ushort4 raw = make_ushort4(__float2half_rn(u),
+                               __float2half_rn(b_center), 0, 0);
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+}
+
 __global__ void SubstractGradientPureKernel(float gradient_scale,
                                             int slice_stride, int3 volume_size)
 {
@@ -210,7 +262,7 @@ __global__ void SubstractGradientPureKernel(float gradient_scale,
         mask.z = 0;
 
     ushort4 raw;
-    surf3Dread(&raw, gradient_velocity, x, y, z);
+    surf3Dread(&raw, gradient_velocity, x * sizeof(ushort4), y, z);
     float3 old_v = make_float3(__half2float(raw.x), __half2float(raw.y),
                                __half2float(raw.z));
     float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * gradient_scale;
@@ -440,6 +492,44 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
                                                  slice_stride, volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
+}
+
+void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,
+                            float one_minus_omega, float minus_square_cell_size,
+                            float omega_over_beta, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    jacobi.channelDesc = desc;
+
+    cudaError_t result = cudaBindSurfaceToArray(&jacobi, dest_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDescHalf4();
+    jacobi_packed.normalized = false;
+    jacobi_packed.filterMode = cudaFilterModeLinear;
+    jacobi_packed.addressMode[0] = cudaAddressModeClamp;
+    jacobi_packed.addressMode[1] = cudaAddressModeClamp;
+    jacobi_packed.addressMode[2] = cudaAddressModeClamp;
+    jacobi_packed.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&jacobi_packed, packed_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int slice_stride = volume_size.x * volume_size.y;
+
+    DampedJacobiPureKernel<<<grid, block>>>(one_minus_omega,
+                                            minus_square_cell_size,
+                                            omega_over_beta, slice_stride,
+                                            volume_size);
+
+    cudaUnbindTexture(&jacobi_packed);
 }
 
 void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
