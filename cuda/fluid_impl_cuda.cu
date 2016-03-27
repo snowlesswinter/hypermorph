@@ -21,6 +21,27 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
     dest_array[0] = x * x - round * round;
 }
 
+__global__ void AdvectKernel(ushort* out_data, float time_step,
+                             float dissipation, int slice_stride,
+                             int3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    int index = slice_stride * z + volume_size.x * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
+    float3 back_traced =
+        coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
+
+    float result = dissipation * tex3D(advect_source, back_traced.x,
+                                       back_traced.y, back_traced.z);
+    out_data[index] = __float2half_rn(result);
+}
+
 __global__ void AdvectVelocityKernel(ushort4* out_data, float time_step,
                                      float dissipation, int slice_stride,
                                      int3 volume_size)
@@ -43,27 +64,6 @@ __global__ void AdvectVelocityKernel(ushort4* out_data, float time_step,
                                    __float2half_rn(result.y),
                                    __float2half_rn(result.z),
                                    0);
-}
-
-__global__ void AdvectKernel(ushort* out_data, float time_step,
-                             float dissipation, int slice_stride,
-                             int3 volume_size)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    int index = slice_stride * z + volume_size.x * y + x;
-
-    float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
-    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
-    float3 back_traced =
-        coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
-
-    float result = dissipation * tex3D(advect_source, back_traced.x,
-                                       back_traced.y, back_traced.z);
-    out_data[index] = __float2half_rn(result);
 }
 
 __global__ void ApplyBuoyancyKernel(ushort4* out_data, float time_step,
@@ -174,6 +174,57 @@ __global__ void ComputeDivergenceKernel(ushort4* out_data,
     out_data[index] = make_ushort4(0, __float2half_rn(result), 0, 0);
 }
 
+__global__ void DampedJacobiKernel(ushort4* out_data, float one_minus_omega,
+                                   float minus_square_cell_size,
+                                   float omega_over_beta,
+                                   int slice_stride, int3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    int index = slice_stride * z + volume_size.x * y + x;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float near = tex3D(jacobi, coord.x, coord.y, coord.z - 1.0f).x;
+    float south = tex3D(jacobi, coord.x, coord.y - 1.0f, coord.z).x;
+    float west = tex3D(jacobi, coord.x - 1.0f, coord.y, coord.z).x;
+    float4 packed_center = tex3D(jacobi, coord.x, coord.y, coord.z);
+    float east = tex3D(jacobi, coord.x + 1.0f, coord.y, coord.z).x;
+    float north = tex3D(jacobi, coord.x, coord.y + 1.0f, coord.z).x;
+    float far = tex3D(jacobi, coord.x, coord.y, coord.z + 1.0f).x;
+
+    float center = packed_center.x;
+
+    // Handle boundary problem
+    if (x >= volume_size.x - 1)
+        east = center;
+
+    if (x <= 0)
+        west = center;
+
+    if (y >= volume_size.y - 1)
+        north = center;
+
+    if (y <= 0)
+        south = center;
+
+    if (z >= volume_size.z - 1)
+        far = center;
+
+    if (z <= 0)
+        near = center;
+
+    float b_center = packed_center.y;
+    float u = one_minus_omega * center +
+        (west + east + south + north + far + near + minus_square_cell_size *
+        b_center) * omega_over_beta;
+    out_data[index] = make_ushort4(__float2half_rn(u),
+                                   __float2half_rn(b_center), 0, 0);
+}
+
 __global__ void SubstractGradientKernel(ushort4* out_data,
                                         float gradient_scale,
                                         int slice_stride, int3 volume_size)
@@ -229,90 +280,11 @@ __global__ void SubstractGradientKernel(ushort4* out_data,
                                    0);
 }
 
-__global__ void DampedJacobiKernel(ushort4* out_data, float one_minus_omega,
-                                   float minus_square_cell_size,
-                                   float omega_over_beta,
-                                   int slice_stride, int3 volume_size)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    int index = slice_stride * z + volume_size.x * y + x;
-
-    float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
-
-    float near =            tex3D(jacobi, coord.x, coord.y, coord.z - 1.0f).x;
-    float south =           tex3D(jacobi, coord.x, coord.y - 1.0f, coord.z).x;
-    float west =            tex3D(jacobi, coord.x - 1.0f, coord.y, coord.z).x;
-    float4 packed_center =  tex3D(jacobi, coord.x, coord.y, coord.z);
-    float east =            tex3D(jacobi, coord.x + 1.0f, coord.y, coord.z).x;
-    float north =           tex3D(jacobi, coord.x, coord.y + 1.0f, coord.z).x;
-    float far =             tex3D(jacobi, coord.x, coord.y, coord.z + 1.0f).x;
-
-    float center = packed_center.x;
-
-    // Handle boundary problem
-    if (x >= volume_size.x - 1)
-        east = center;
-
-    if (x <= 0)
-        west = center;
-
-    if (y >= volume_size.y - 1)
-        north = center;
-
-    if (y <= 0)
-        south = center;
-
-    if (z >= volume_size.z - 1)
-        far = center;
-
-    if (z <= 0)
-        near = center;
-
-    float b_center = packed_center.y;
-    float u = one_minus_omega * center +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        b_center) * omega_over_beta;
-    out_data[index] = make_ushort4(__float2half_rn(u),
-                                   __float2half_rn(b_center), 0, 0);
-}
-
 // =============================================================================
 
 void LaunchRoundPassed(int* dest_array, int round, int x)
 {
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
-}
-
-void LaunchAdvectVelocity(ushort4* dest_array, cudaArray* velocity_array,
-                          float time_step, float dissipation, int3 volume_size)
-{
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    cudaError_t result = cudaBindTextureToArray(&advect_velocity,
-                                                velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
-    AdvectVelocityKernel<<<grid, block>>>(dest_array, time_step, dissipation,
-                                          slice_stride, volume_size);
-
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
@@ -355,6 +327,34 @@ void LaunchAdvect(ushort* dest_array, cudaArray* velocity_array,
                                   slice_stride, volume_size);
 
     cudaUnbindTexture(&advect_source);
+    cudaUnbindTexture(&advect_velocity);
+}
+
+void LaunchAdvectVelocity(ushort4* dest_array, cudaArray* velocity_array,
+                          float time_step, float dissipation, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    advect_velocity.normalized = false;
+    advect_velocity.filterMode = cudaFilterModeLinear;
+    advect_velocity.addressMode[0] = cudaAddressModeClamp;
+    advect_velocity.addressMode[1] = cudaAddressModeClamp;
+    advect_velocity.addressMode[2] = cudaAddressModeClamp;
+    advect_velocity.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&advect_velocity,
+                                                velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int slice_stride = volume_size.x * volume_size.y;
+
+    AdvectVelocityKernel << <grid, block >> >(dest_array, time_step, dissipation,
+                                              slice_stride, volume_size);
+
     cudaUnbindTexture(&advect_velocity);
 }
 
@@ -462,6 +462,35 @@ void LaunchComputeDivergence(ushort4* dest_array, cudaArray* velocity_array,
     cudaUnbindTexture(&divergence_velocity);
 }
 
+void LaunchDampedJacobi(ushort4* dest_array, cudaArray* packed_array,
+                        float one_minus_omega, float minus_square_cell_size,
+                        float omega_over_beta, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    jacobi.normalized = false;
+    jacobi.filterMode = cudaFilterModeLinear;
+    jacobi.addressMode[0] = cudaAddressModeClamp;
+    jacobi.addressMode[1] = cudaAddressModeClamp;
+    jacobi.addressMode[2] = cudaAddressModeClamp;
+    jacobi.channelDesc = desc;
+
+    cudaError_t result = cudaBindTextureToArray(&jacobi, packed_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    int slice_stride = volume_size.x * volume_size.y;
+
+    DampedJacobiKernel << <grid, block >> >(dest_array, one_minus_omega,
+                                            minus_square_cell_size, omega_over_beta,
+                                            slice_stride, volume_size);
+
+    cudaUnbindTexture(&jacobi);
+}
+
 void LaunchSubstractGradient(ushort4* dest_array, cudaArray* velocity_array,
                              cudaArray* packed_array, float gradient_scale,
                              int3 volume_size)
@@ -503,33 +532,4 @@ void LaunchSubstractGradient(ushort4* dest_array, cudaArray* velocity_array,
 
     cudaUnbindTexture(&gradient_packed);
     cudaUnbindTexture(&gradient_velocity);
-}
-
-void LaunchDampedJacobi(ushort4* dest_array, cudaArray* packed_array,
-                        float one_minus_omega, float minus_square_cell_size,
-                        float omega_over_beta, int3 volume_size)
-{
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    jacobi.normalized = false;
-    jacobi.filterMode = cudaFilterModeLinear;
-    jacobi.addressMode[0] = cudaAddressModeClamp;
-    jacobi.addressMode[1] = cudaAddressModeClamp;
-    jacobi.addressMode[2] = cudaAddressModeClamp;
-    jacobi.channelDesc = desc;
-
-    cudaError_t result = cudaBindTextureToArray(&jacobi, packed_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
-    DampedJacobiKernel<<<grid, block>>>(dest_array, one_minus_omega,
-                                        minus_square_cell_size, omega_over_beta,
-                                        slice_stride, volume_size);
-
-    cudaUnbindTexture(&jacobi);
 }

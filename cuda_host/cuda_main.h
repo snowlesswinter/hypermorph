@@ -58,6 +58,10 @@ public:
                            float gradient_scale);
 
     // Pure cuda.
+    void AdvectDensityPure(std::shared_ptr<GLTexture> dest,
+                          std::shared_ptr<CudaVolume> velocity,
+                          std::shared_ptr<GLTexture> density, float time_step,
+                          float dissipation);
     void AdvectPure(std::shared_ptr<CudaVolume> dest,
                     std::shared_ptr<CudaVolume> velocity,
                     std::shared_ptr<CudaVolume> source, float time_step,
@@ -70,6 +74,11 @@ public:
                            std::shared_ptr<CudaVolume> temperature,
                            float time_step, float ambient_temperature,
                            float accel_factor, float gravity);
+    void ApplyImpulseDensityPure(std::shared_ptr<GLTexture> dest,
+                                 std::shared_ptr<GLTexture> density,
+                                 const Vectormath::Aos::Vector3& center_point,
+                                 const Vectormath::Aos::Vector3& hotspot,
+                                 float radius, float value);
     void ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> source,
                           const Vectormath::Aos::Vector3& center_point,

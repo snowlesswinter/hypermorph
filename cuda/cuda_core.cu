@@ -9,6 +9,7 @@
 texture<float1, cudaTextureType3D, cudaReadModeElementType> in_tex;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_coarse;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_fine;
+surface<void, cudaTextureType3D> clear_volume;
 
 __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
 {
@@ -62,6 +63,31 @@ __global__ void ProlongatePackedKernel(float4* out_data,
     out_data[index] = result;
 }
 
+__global__ void ClearVolume4Kernel(float4 value)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    ushort4 raw = make_ushort4(__float2half_rn(value.x),
+                               __float2half_rn(value.y),
+                               __float2half_rn(value.z),
+                               __float2half_rn(value.w));
+    surf3Dwrite(raw, clear_volume, x * sizeof(ushort4), y, z,
+                cudaBoundaryModeTrap);
+}
+
+__global__ void ClearVolume1Kernel(float4 value)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    ushort1 raw = make_ushort1(__float2half_rn(value.x));
+    surf3Dwrite(raw, clear_volume, x * sizeof(ushort1), y, z,
+                cudaBoundaryModeTrap);
+}
+
 // =============================================================================
 
 void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
@@ -107,4 +133,32 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
 
     cudaUnbindTexture(&prolongate_fine);
     cudaUnbindTexture(&prolongate_coarse);
+}
+
+void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
+                             int3 volume_size)
+{
+    cudaChannelFormatDesc desc;
+    cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    result = cudaBindSurfaceToArray(&clear_volume, dest_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+
+    assert(
+        desc.x ==16 &&
+           ((desc.y == 0 && desc.z == 0) ||
+            (desc.y == 16 && desc.z == 16)));
+    if (desc.x == 16 && desc.y == 0 && desc.z == 0 && desc.w == 0)
+        ClearVolume1Kernel<<<grid, block>>>(value);
+    else if (desc.x == 16 && desc.y == 16 && desc.z == 16 && desc.w == 0)
+        ClearVolume4Kernel<<<grid, block>>>(value);
 }

@@ -15,6 +15,8 @@
 extern void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                                    cudaArray* fine_array,
                                    int3 volume_size_fine);
+extern void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
+                                    int3 volume_size);
 
 namespace
 {
@@ -48,7 +50,7 @@ int CudaCore::RegisterGLImage(unsigned int texture, unsigned int target,
 {
     cudaError_t result = cudaGraphicsGLRegisterImage(
         graphics_res->Receive(), texture, target,
-        cudaGraphicsRegisterFlagsReadOnly);
+        cudaGraphicsRegisterFlagsSurfaceLoadStore);
     assert(result == cudaSuccess);
     return result == cudaSuccess ? 0 : -1;
 }
@@ -335,15 +337,25 @@ bool CudaCore::AllocVolumeMemory(cudaArray** result,
     return false;
 }
 
-void CudaCore::FreeVolumeMemory(cudaArray* mem)
-{
-    cudaFreeArray(mem);
-}
-
 void CudaCore::FreeVolumeInPlaceMemory(cudaPitchedPtr* mem)
 {
     if (mem) {
         cudaFree(mem->ptr);
         delete mem;
     }
+}
+
+void CudaCore::FreeVolumeMemory(cudaArray* mem)
+{
+    cudaFreeArray(mem);
+}
+
+void CudaCore::ClearVolume(cudaArray* dest, const vmath::Vector4& value,
+                           const vmath::Vector3& volume_size)
+{
+    LaunchClearVolumeKernel(
+        dest,
+        make_float4(value.getX(), value.getY(), value.getZ(), value.getW()),
+        FromVmathVector(volume_size));
+
 }

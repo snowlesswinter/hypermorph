@@ -79,12 +79,12 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
         if (diagnosis_)
             multi_grid_surfaces_->push_back(
                 std::make_tuple(
-                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED),
-                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED),
-                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED)));
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED, false),
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED, false),
+                    core_->CreateTexture(w, h, d, GL_R16F, GL_RED, false)));
         else
             surf_resource.push_back(
-                core_->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA));
+                core_->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA, false));
 
         scale <<= 1;
     }
@@ -92,7 +92,8 @@ void MultigridPoissonSolver::Initialize(int width, int height, int depth)
     if (diagnosis_) {
         temp_surface_.reset(
             new std::shared_ptr<GLTexture>(
-                core_->CreateTexture(width, height, depth, GL_R16F, GL_RED)));
+                core_->CreateTexture(width, height, depth, GL_R16F, GL_RED,
+                                     false)));
 
         residual_program_.reset(new GLProgram());
         residual_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),

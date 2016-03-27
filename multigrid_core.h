@@ -14,7 +14,7 @@ public:
 
     std::shared_ptr<GLTexture> CreateTexture(int width, int height, int depth,
                                              GLuint internal_format,
-                                             GLenum format);
+                                             GLenum format, bool enable_cuda);
     void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
                           std::shared_ptr<GLTexture> fine);
 

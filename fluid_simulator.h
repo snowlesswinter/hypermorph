@@ -59,6 +59,8 @@ private:
                       std::shared_ptr<CudaVolume> source, 
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float value);
+    void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
+                             Vectormath::Aos::Vector3 hotspot, float value);
     void ComputeDivergence();
     void DampedJacobi(float cell_size);
     void Jacobi(float cell_size);
@@ -71,12 +73,12 @@ private:
 
     std::shared_ptr<GLTexture> velocity_;
     std::shared_ptr<GLTexture> density_;
+    std::shared_ptr<GLTexture> density2_;
     std::shared_ptr<GLTexture> temperature_;
     std::shared_ptr<GLTexture> general1_;
     std::shared_ptr<GLTexture> general4_;
 
     std::shared_ptr<CudaVolume> velocity_cuda_;
-    std::shared_ptr<CudaVolume> density_cuda_;
     std::shared_ptr<CudaVolume> temperature_cuda_;
     std::shared_ptr<CudaVolume> general1_cuda_;
     std::shared_ptr<CudaVolume> general4_cuda_;

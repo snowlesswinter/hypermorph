@@ -34,11 +34,11 @@ FluidSimulator::FluidSimulator()
     , num_full_multigrid_iterations_(2)
     , velocity_()
     , density_()
+    , density2_()
     , temperature_()
     , general1_()
     , general4_()
     , velocity_cuda_()
-    , density_cuda_()
     , temperature_cuda_()
     , general1_cuda_()
     , general4_cuda_()
@@ -52,31 +52,6 @@ FluidSimulator::~FluidSimulator()
 
 bool FluidSimulator::Init()
 {
-    Programs.Advect = LoadProgram(FluidShader::Vertex(),
-                                  FluidShader::PickLayer(),
-                                  FluidShader::Advect());
-    Programs.Jacobi = LoadProgram(FluidShader::Vertex(),
-                                  FluidShader::PickLayer(),
-                                  FluidShader::Jacobi());
-    Programs.DampedJacobi = LoadProgram(FluidShader::Vertex(),
-                                        FluidShader::PickLayer(),
-                                        FluidShader::DampedJacobiPacked());
-    Programs.compute_residual = LoadProgram(FluidShader::Vertex(),
-                                            FluidShader::PickLayer(),
-                                            MultigridShader::ComputeResidual());
-    Programs.SubtractGradient = LoadProgram(FluidShader::Vertex(),
-                                            FluidShader::PickLayer(),
-                                            FluidShader::SubtractGradient());
-    Programs.ComputeDivergence = LoadProgram(FluidShader::Vertex(),
-                                             FluidShader::PickLayer(),
-                                             FluidShader::ComputeDivergence());
-    Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(),
-                                        FluidShader::PickLayer(),
-                                        FluidShader::Splat());
-    Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(),
-                                         FluidShader::PickLayer(),
-                                         FluidShader::Buoyancy());
-
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
     // with the density field would surprisingly bring a 17% decline to the
@@ -93,26 +68,53 @@ bool FluidSimulator::Init()
     // shortage in graphic cards.
 
     MultigridCore core; // TODO
+    bool enable_cuda =
+        graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS ||
+        graphics_lib_ == GRAPHICS_LIB_CUDA;
     density_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R16F,
-                                  GL_RED);
+                                  GL_RED, enable_cuda);
+    density2_ = core.CreateTexture(GridWidth, GridHeight, GridDepth, GL_R16F,
+                                   GL_RED, enable_cuda);
     switch (graphics_lib_) {
         case GRAPHICS_LIB_GLSL:
         case GRAPHICS_LIB_CUDA_DIAGNOSIS:
+            Programs.Advect = LoadProgram(FluidShader::Vertex(),
+                                          FluidShader::PickLayer(),
+                                          FluidShader::Advect());
+            Programs.Jacobi = LoadProgram(FluidShader::Vertex(),
+                                          FluidShader::PickLayer(),
+                                          FluidShader::Jacobi());
+            Programs.DampedJacobi = LoadProgram(
+                FluidShader::Vertex(), FluidShader::PickLayer(),
+                FluidShader::DampedJacobiPacked());
+            Programs.compute_residual = LoadProgram(
+                FluidShader::Vertex(), FluidShader::PickLayer(),
+                MultigridShader::ComputeResidual());
+            Programs.SubtractGradient = LoadProgram(
+                FluidShader::Vertex(), FluidShader::PickLayer(),
+                FluidShader::SubtractGradient());
+            Programs.ComputeDivergence = LoadProgram(
+                FluidShader::Vertex(), FluidShader::PickLayer(),
+                FluidShader::ComputeDivergence());
+            Programs.ApplyImpulse = LoadProgram(FluidShader::Vertex(),
+                                                FluidShader::PickLayer(),
+                                                FluidShader::Splat());
+            Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(),
+                                                 FluidShader::PickLayer(),
+                                                 FluidShader::Buoyancy());
+
             velocity_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
-                                           GL_RGBA16F, GL_RGBA);
+                                           GL_RGBA16F, GL_RGBA, enable_cuda);
             temperature_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
-                                              GL_R16F, GL_RED);
+                                              GL_R16F, GL_RED, enable_cuda);
             general1_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
-                                           GL_R16F, GL_RED);
+                                           GL_R16F, GL_RED, enable_cuda);
             general4_ = core.CreateTexture(GridWidth, GridHeight, GridDepth,
-                                           GL_RGBA16F, GL_RGBA);
+                                           GL_RGBA16F, GL_RGBA, enable_cuda);
             break;
         case GRAPHICS_LIB_CUDA:
             velocity_cuda_.reset(new CudaVolume());
             velocity_cuda_->Create(GridWidth, GridHeight, GridDepth, 4, 2);
-
-            density_cuda_.reset(new CudaVolume());
-            density_cuda_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
 
             temperature_cuda_.reset(new CudaVolume());
             temperature_cuda_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
@@ -135,14 +137,16 @@ void FluidSimulator::Reset()
     ClearSurface(velocity_.get(), 0.0f);
     ClearSurface(density_.get(), 0.0f);
     ClearSurface(temperature_.get(), 0.0f);
+    temperature_cuda_->Clear();
+    velocity_cuda_->Clear();
     Metrics::Instance()->Reset();
 }
 
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
-    float sin_factor = static_cast<float>(sin(0 / 4 * 3.1415926f));
-    float cos_factor = static_cast<float>(cos(0 / 4 * 3.1415926f));
+    float sin_factor = static_cast<float>(sin(seconds_elapsed / 4 * 3.1415926f));
+    float cos_factor = static_cast<float>(cos(seconds_elapsed / 4 * 3.1415926f));
     float hotspot_x =
         cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
     float hotspot_z =
@@ -167,8 +171,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnBuoyancyApplied();
 
     // Splat new smoke
-    ApplyImpulse(density_, density_cuda_, kImpulsePosition, hotspot,
-                 ImpulseDensity);
+    ApplyImpulseDensity(kImpulsePosition, hotspot, ImpulseDensity);
 
     // Something wrong with the temperature impulsing.
     ApplyImpulse(temperature_, temperature_cuda_, kImpulsePosition, hotspot,
@@ -206,10 +209,11 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
 void FluidSimulator::AdvectDensity(float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectPure(general1_cuda_, velocity_cuda_,
-                                         density_cuda_, delta_time,
-                                         DensityDissipation);
-        std::swap(density_cuda_, general1_cuda_);
+        ClearSurface(density2_.get(), 0.0f);
+        CudaMain::Instance()->AdvectDensityPure(density2_, velocity_cuda_,
+                                                density_, delta_time,
+                                                DensityDissipation);
+        std::swap(density_, density2_);
     } else {
         AdvectImpl(density_, delta_time, DensityDissipation);
         std::swap(density_, general1_);
@@ -246,6 +250,7 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GLTexture> source,
 void FluidSimulator::AdvectTemperature(float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        general1_cuda_->Clear(); // TODO: Clear could be slow.
         CudaMain::Instance()->AdvectPure(general1_cuda_, velocity_cuda_,
                                          temperature_cuda_, delta_time,
                                          TemperatureDissipation);
@@ -336,7 +341,7 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GLTexture> dest,
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulsePure(general1_cuda_, source, position,
                                                hotspot, SplatRadius, value);
-        std::swap(source, general1_cuda_);
+        std::swap(temperature_cuda_, general1_cuda_);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyImpulse(dest, kImpulsePosition, hotspot,
                                            SplatRadius, value);
@@ -353,6 +358,34 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GLTexture> dest,
         glBindFramebuffer(GL_FRAMEBUFFER, dest->frame_buffer());
         glEnable(GL_BLEND);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, dest->depth());
+        ResetState();
+    }
+}
+
+void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
+                                         vmath::Vector3 hotspot, float value)
+{
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyImpulseDensityPure(density2_, density_,
+                                                      position, hotspot,
+                                                      SplatRadius, value);
+        std::swap(density_, density2_);
+    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
+        CudaMain::Instance()->ApplyImpulse(density_, kImpulsePosition, hotspot,
+                                           SplatRadius, value);
+    } else {
+        GLuint p = Programs.ApplyImpulse;
+        glUseProgram(p);
+
+        SetUniform("center_point", position);
+        SetUniform("hotspot", hotspot);
+        SetUniform("radius", SplatRadius);
+        SetUniform("fill_color_r", value);
+        SetUniform("fill_color_g", value);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, density_->frame_buffer());
+        glEnable(GL_BLEND);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, density_->depth());
         ResetState();
     }
 }

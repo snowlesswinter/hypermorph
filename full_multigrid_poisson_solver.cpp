@@ -45,7 +45,7 @@ void FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
         int d = depth / scale;
 
         std::shared_ptr<GLTexture> t = 
-            solver_->core()->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA);
+            solver_->core()->CreateTexture(w, h, d, GL_RGBA32F, GL_RGBA, false);
         packed_textures_.push_back(t);
 
         scale <<= 1;

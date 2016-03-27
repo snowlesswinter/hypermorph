@@ -23,7 +23,8 @@ void MultigridCore::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
 std::shared_ptr<GLTexture> MultigridCore::CreateTexture(int width, int height,
                                                         int depth,
                                                         GLuint internal_format,
-                                                        GLenum format)
+                                                        GLenum format,
+                                                        bool enable_cuda)
 {
     std::shared_ptr<GLTexture> r(new GLTexture());
     r->Create(width, height, depth, internal_format, format);
@@ -35,6 +36,8 @@ std::shared_ptr<GLTexture> MultigridCore::CreateTexture(int width, int height,
     // tortured me a few hours, so I surrendered, and put the image register
     // code here.
 
-    CudaMain::Instance()->RegisterGLImage(r);
+    if (enable_cuda)
+        CudaMain::Instance()->RegisterGLImage(r);
+
     return r;
 }

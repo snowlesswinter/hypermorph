@@ -12,6 +12,7 @@ public:
     CudaVolume();
     ~CudaVolume();
 
+    void Clear();
     bool Create(int width, int height, int depth, int num_of_components,
                 int byte_width);
     bool CreateInPlace(int width, int height, int depth, int num_of_components,
@@ -29,6 +30,7 @@ private:
     int width_;
     int height_;
     int depth_;
+    int num_of_components_;
 };
 
 #endif // _CUDA_VOLUME_H_

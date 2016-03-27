@@ -6,6 +6,7 @@ namespace Vectormath
 namespace Aos
 {
 class Vector3;
+class Vector4;
 }
 }
 
@@ -28,6 +29,10 @@ public:
                                   int num_of_components, int byte_width);
     static void FreeVolumeInPlaceMemory(cudaPitchedPtr* mem);
     static void FreeVolumeMemory(cudaArray* mem);
+
+    static void ClearVolume(cudaArray* dest,
+                            const Vectormath::Aos::Vector4& value,
+                            const Vectormath::Aos::Vector3& volume_size);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);

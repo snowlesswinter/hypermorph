@@ -12,6 +12,7 @@ class Vector3;
 }
 }
 class CudaVolume;
+class GraphicsResource;
 class FluidImplCudaPure
 {
 public:
@@ -21,6 +22,10 @@ public:
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
                 float time_step, float dissipation,
                 const Vectormath::Aos::Vector3& volume_size);
+    void AdvectDensity(GraphicsResource* dest, cudaArray* velocity,
+                       GraphicsResource* density, float time_step,
+                       float dissipation,
+                       const Vectormath::Aos::Vector3& volume_size);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         float time_step, float dissipation,
                         const Vectormath::Aos::Vector3& volume_size);
@@ -33,6 +38,11 @@ public:
                       const Vectormath::Aos::Vector3& center_point,
                       const Vectormath::Aos::Vector3& hotspot, float radius,
                       float value, const Vectormath::Aos::Vector3& volume_size);
+    void ApplyImpulseDensity(GraphicsResource* dest, GraphicsResource* density,
+                             const Vectormath::Aos::Vector3& center_point,
+                             const Vectormath::Aos::Vector3& hotspot,
+                             float radius, float value,
+                             const Vectormath::Aos::Vector3& volume_size);
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
                            const Vectormath::Aos::Vector3& volume_size);

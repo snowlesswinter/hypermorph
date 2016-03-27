@@ -21,6 +21,7 @@ CudaVolume::CudaVolume()
     , width_(0)
     , height_(0)
     , depth_(0)
+    , num_of_components_(0)
 {
 
 }
@@ -38,6 +39,18 @@ CudaVolume::~CudaVolume()
     }
 }
 
+void CudaVolume::Clear()
+{
+    if (dev_array_) {
+        CudaCore::ClearVolume(
+            dev_array_, vmath::Vector4(0.0f),
+            vmath::Vector3(static_cast<float>(width_),
+                           static_cast<float>(height_),
+                           static_cast<float>(depth_)));
+    }
+    
+}
+
 bool CudaVolume::Create(int width, int height, int depth, int num_of_components,
                         int byte_width)
 {
@@ -52,6 +65,7 @@ bool CudaVolume::Create(int width, int height, int depth, int num_of_components,
         width_ = width;
         height_ = height;
         depth_ = depth;
+        num_of_components_ = num_of_components;
     }
     return result;
 }
@@ -70,6 +84,7 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
         width_ = width;
         height_ = height;
         depth_ = depth;
+        num_of_components_ = num_of_components;
     }
     return result;
 }
