@@ -71,11 +71,6 @@ private:
     std::shared_ptr<GraphicsVolume> general1_;
     std::shared_ptr<GraphicsVolume> general4_;
 
-//     std::shared_ptr<CudaVolume> velocity_cuda_;
-//     std::shared_ptr<CudaVolume> temperature_cuda_;
-//     std::shared_ptr<CudaVolume> general1_cuda_;
-//     std::shared_ptr<CudaVolume> general4_cuda_;
-
     GraphicsLib graphics_lib_;
 };
 

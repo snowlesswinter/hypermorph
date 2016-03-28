@@ -50,7 +50,7 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth)
 
     int min_width = std::min(std::min(width, height), depth);
     int scale = 2;
-    while (min_width / scale > 32) {
+    while (min_width / scale > 16) {
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;

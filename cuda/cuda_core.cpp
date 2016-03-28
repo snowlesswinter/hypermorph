@@ -216,6 +216,40 @@ bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
     return false;
 }
 
+// About the CUDA texture, here is another valuable article which collaborates
+// some deep insight of the mechanism:
+// http://stackoverflow.com/questions/6647915/cuda-texture-memory-space
+//
+// Which says:
+//
+// "The resulting CUDA array contains a spatially ordered version
+// of the linear source, stored in global memory in some sort of (undocumented)
+// space filling curve.",
+//
+// and also njuffa gave a confirmation that filtering is also enabled in
+// cudaArray bound from linear memory.
+//
+// One more article from the CUDA forum:
+// https://devtalk.nvidia.com/default/topic/469992/why-whould-i-want-to-use-surfaces-instead-of-textures-or-global-memory-/
+//
+// In which the fact that surface reads are cached is confirmed, and the
+// question about binding surface and texture references to the same cudaArray
+// is clarified by Simon Green:
+//
+// "If you want texture features like interpolation and normalized coordinates
+// you can always bind a texture reference to the same CUDA array.".
+//
+// We may use a table to conclude all of the above:
+// +------------------------------+---------+-----------+-------+
+// |                              | reorder | filtering | cache |
+// +------------------------------+---------+-----------+-------+
+// | cudaArray                    |    Y    |     Y     |   Y   |
+// +------------------------------+---------+-----------+-------+
+// | cudaArray(bound to surface)  |    N    |     Y     |   Y   |
+// +------------------------------+---------+-----------+-------+
+// | linear mem                   |    N    |     Y     |   Y   |
+// +------------------------------+---------+-----------+-------+
+
 bool CudaCore::AllocVolumeMemory(cudaArray** result,
                                  const vmath::Vector3& extent,
                                  int num_of_components, int byte_width)

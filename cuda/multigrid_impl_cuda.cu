@@ -16,6 +16,8 @@ surface<void, cudaTextureType3D> guess_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> guess_source;
 surface<void, cudaTextureType3D> restrict_residual_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residual_source;
+surface<void, cudaTextureType3D> restrict_dest;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
 
 __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
                                                 int3 volume_size)
@@ -184,6 +186,200 @@ __global__ void RelaxWithZeroGuessPackedPureKernel(
                                0, 0);
     surf3Dwrite(raw, guess_dest, x * sizeof(ushort4), y, z,
                 cudaBoundaryModeTrap); 
+}
+
+__global__ void RestrictPackedPureKernel(int3 volume_size_fine)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
+
+    float c1 = 0.015625f;
+    float c2 = 0.03125f;
+    float c4 = 0.0625f;
+    float c8 = 0.125f;
+
+    float4 north_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z - 1.0f);
+    float4 north_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z - 1.0f);
+    float4 north_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z - 1.0f);
+    float4 center_east_near =     c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z - 1.0f);
+    float4 center_center_near =   c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z - 1.0f);
+    float4 center_west_near =     c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z - 1.0f);
+    float4 south_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z - 1.0f);
+    float4 south_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z - 1.0f);
+    float4 south_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z - 1.0f);
+
+    float4 north_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z);
+    float4 north_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z);
+    float4 north_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z);
+    float4 center_east_center =   c4 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z);
+    float4 center_center_center = c8 * tex3D(restrict_source, coord.x,        coord.y,        coord.z);
+    float4 center_west_center =   c4 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z);
+    float4 south_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z);
+    float4 south_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z);
+    float4 south_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z);
+
+    float4 north_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z + 1.0f);
+    float4 north_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z + 1.0f);
+    float4 north_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z + 1.0f);
+    float4 center_east_far =      c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z + 1.0f);
+    float4 center_center_far =    c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z + 1.0f);
+    float4 center_west_far =      c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z + 1.0f);
+    float4 south_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z + 1.0f);
+    float4 south_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f);
+    float4 south_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f);
+
+    float3 tex_size = make_float3(volume_size_fine) - 1.001f;
+    float scale = 0.5f;
+
+    if (coord.x > tex_size.x) {
+        center_east_center = center_center_center;
+    }
+
+    if (coord.x < 1.0001f) { 
+        center_west_center = scale * center_center_center;
+    }
+
+    if (coord.z > tex_size.z) {
+        center_center_far = scale * center_center_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        center_center_near = scale * center_center_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_center_center = scale * center_center_center;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_center_center = scale * center_center_center;
+    }
+
+    // Pass 2: 1-center cells.
+    if (coord.x > tex_size.x) {
+        center_east_near = scale * center_center_near;
+        north_east_center = scale * north_center_center;
+        south_east_center = scale * south_center_center;
+        center_east_far = scale * center_center_far;
+    }
+
+    if (coord.x < 1.0001f) {
+        center_west_near = scale * center_center_near;
+        north_west_center = scale * north_center_center;
+        south_west_center = scale * south_center_center;
+        center_west_far = scale * center_center_far;
+    }
+
+    if (coord.z > tex_size.z) {
+        north_center_far = scale * north_center_center;
+        center_east_far = scale * center_east_center;
+        center_west_far = scale * center_west_center;
+        south_center_far = scale * south_center_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        north_center_near = scale * north_center_center;
+        center_east_near = scale * center_east_center;
+        center_west_near = scale * center_west_center;
+        south_center_near = scale * south_center_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_center_near = scale * center_center_near;
+        north_east_center = scale * center_east_center;
+        north_west_center = scale * center_west_center;
+        north_center_far = scale * center_center_far;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_center_near = scale * center_center_near;
+        south_east_center = scale * center_east_center;
+        south_west_center = scale * center_west_center;
+        south_center_far = scale * center_center_far;
+    }
+
+    // Pass 3: corner cells.
+    if (coord.x > tex_size.x) {
+        north_east_near = scale * north_center_near;
+        south_east_near = scale * south_center_near;
+        north_east_far = scale * north_center_far;
+        south_east_far = scale * south_center_far;
+    }
+
+    if (coord.x < 1.0001f) {
+        north_west_near = scale * north_center_near;
+        south_west_near = scale * south_center_near;
+        north_west_far = scale * north_center_far;
+        south_west_far = scale * south_center_far;
+    }
+
+    if (coord.z > tex_size.z) {
+        north_east_far = scale * north_east_center;
+        north_west_far = scale * north_west_center;
+        south_east_far = scale * south_east_center;
+        south_west_far = scale * south_west_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        north_east_near = scale * north_east_center;
+        north_west_near = scale * north_west_center;
+        south_east_near = scale * south_east_center;
+        south_west_near = scale * south_west_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_east_near = scale * center_east_near;
+        north_west_near = scale * center_west_near;
+        north_east_far = scale * center_east_far;
+        north_west_far = scale * center_west_far;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_east_near = scale * center_east_near;
+        south_west_near = scale * center_west_near;
+        south_east_far = scale * center_east_far;
+        south_west_far = scale * center_west_far;
+    }
+
+    float4 result =
+        north_east_near +
+        north_center_near +
+        north_west_near +
+        center_east_near +
+        center_center_near +
+        center_west_near +
+        south_east_near +
+        south_center_near +
+        south_west_near +
+
+        north_east_center +
+        north_center_center +
+        north_west_center +
+        center_west_center +
+        center_center_center +
+        center_west_center +
+        south_east_center +
+        south_center_center +
+        south_west_center +
+
+        north_east_far +
+        north_center_far +
+        north_west_far +
+        center_east_far +
+        center_center_far +
+        center_west_far +
+        south_east_far +
+        south_center_far +
+        south_west_far;
+
+    ushort4 raw = make_ushort4(__float2half_rn(result.x),
+                               __float2half_rn(result.y),
+                               0, 0);
+    surf3Dwrite(raw, restrict_dest, x * sizeof(ushort4), y, z,
+                cudaBoundaryModeTrap);
 }
 
 __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
@@ -547,6 +743,40 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
         omega_times_inverse_beta, volume_size);
 
     cudaUnbindTexture(&guess_source);
+}
+
+void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
+                              int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    restrict_dest.channelDesc = desc;
+
+    cudaError_t result = cudaBindSurfaceToArray(&restrict_dest, dest_array,
+                                                &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDescHalf4();
+    restrict_source.normalized = false;
+    restrict_source.filterMode = cudaFilterModeLinear;
+    restrict_source.addressMode[0] = cudaAddressModeClamp;
+    restrict_source.addressMode[1] = cudaAddressModeClamp;
+    restrict_source.addressMode[2] = cudaAddressModeClamp;
+    restrict_source.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&restrict_source, source_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    int3 volume_size_fine = volume_size * 2;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    RestrictPackedPureKernel<<<grid, block>>>(volume_size_fine);
+
+    cudaUnbindTexture(&restrict_source);
 }
 
 void LaunchRestrictResidualPackedPure(cudaArray* dest_array,

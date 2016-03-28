@@ -34,7 +34,7 @@ static struct
 } Programs;
 
 FluidSimulator::FluidSimulator()
-    : solver_choice_(POISSON_SOLVER_DAMPED_JACOBI)
+    : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
     , velocity_()

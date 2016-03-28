@@ -471,6 +471,15 @@ void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
                                                        v);
 }
 
+void CudaMain::RestrictPackedPure(std::shared_ptr<CudaVolume> coarse,
+                                  std::shared_ptr<CudaVolume> fine)
+{
+    vmath::Vector3 v = FromIntValues(coarse->width(), coarse->height(),
+                                     coarse->depth());
+    multigrid_impl_pure_->RestrictPackedPure(coarse->dev_array(),
+                                             fine->dev_array(), v);
+}
+
 void CudaMain::RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
                                           std::shared_ptr<CudaVolume> fine)
 {

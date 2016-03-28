@@ -42,8 +42,7 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
     int min_width = std::min(std::min(width, height), depth);
 
     int scale = 2;
-    while (min_width / scale > 32) { // TODO: CUDA has some problem with 32^3
-                                     //       volumes.
+    while (min_width / scale > 16) {
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;
@@ -109,8 +108,8 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
 
         // For comparison.
         // 
-        // Damped Jacobi is still faster than Multigrid, no much though. With
-        // a base relaxation times 5, Multigrid had achieved a notable
+        // Damped Jacobi is still faster than Multigrid, not much though. With
+        // a base relaxation times of 5, Multigrid had achieved a notable
         // lower avg/max |r| compared to Jacobi in our experiments.
 
         //RelaxPacked(fine_volume, level_cell_size, 15);

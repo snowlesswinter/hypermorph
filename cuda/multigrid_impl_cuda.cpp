@@ -32,6 +32,8 @@ extern void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
                                                float minus_h_square,
                                                float omega_times_inverse_beta,
                                                int3 volume_size);
+extern void LaunchRestrictPackedPure(cudaArray* dest_array,
+                                     cudaArray* source_array, int3 volume_size);
 extern void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
                                              cudaArray* source_array,
                                              int3 volume_size);
@@ -152,6 +154,14 @@ void MultigridImplCuda::RelaxWithZeroGuessPackedPure(
                                        alpha_omega_over_beta, one_minus_omega,
                                        minus_h_square, omega_times_inverse_beta,
                                        FromVmathVector(volume_size));
+}
+
+void MultigridImplCuda::RestrictPackedPure(cudaArray* dest_array,
+                                           cudaArray* source_array,
+                                           const vmath::Vector3& volume_size)
+{
+    LaunchRestrictPackedPure(dest_array, source_array,
+                             FromVmathVector(volume_size));
 }
 
 void MultigridImplCuda::RestrictResidualPackedPure(

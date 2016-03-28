@@ -80,7 +80,8 @@ void MultigridCoreCuda::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
 void MultigridCoreCuda::RestrictPacked(const GraphicsVolume& fine,
                                        const GraphicsVolume& coarse)
 {
-    
+    CudaMain::Instance()->RestrictPackedPure(coarse.cuda_volume(),
+                                             fine.cuda_volume());
 }
 
 void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,

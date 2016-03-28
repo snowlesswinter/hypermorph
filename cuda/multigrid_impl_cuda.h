@@ -34,6 +34,8 @@ public:
         float alpha_omega_over_beta, float one_minus_omega,
         float minus_h_square, float omega_times_inverse_beta,
         const Vectormath::Aos::Vector3& volume_size);
+    void RestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
+                            const Vectormath::Aos::Vector3& volume_size);
     void RestrictResidualPackedPure(
         cudaArray* dest_array, cudaArray* source_array,
         const Vectormath::Aos::Vector3& volume_size);

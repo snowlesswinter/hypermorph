@@ -42,6 +42,7 @@ bool GraphicsVolume::Create(int width, int height, int depth,
         if (result)
             cuda_volume_ = r;
 
+        Clear(); // TODO
         return result;
     } else {
         GLuint internal_format = GL_RGBA16F;
