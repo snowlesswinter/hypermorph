@@ -99,6 +99,9 @@ public:
                                float gradient_scale);
 
     // Multigrid.
+    void ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
+                                   std::shared_ptr<CudaVolume> packed,
+                                   float inverse_h_square);
     void ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
                               std::shared_ptr<CudaVolume> fine);
     void RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
@@ -107,6 +110,8 @@ public:
                                       float one_minus_omega,
                                       float minus_h_square,
                                       float omega_times_inverse_beta);
+    void RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
+                                    std::shared_ptr<CudaVolume> fine);
 
     // For diagnosis
     void RoundPassed(int round);

@@ -14,6 +14,10 @@
 #include "graphics_resource.h"
 #include "../vmath.hpp"
 
+extern void LaunchComputeResidualPackedPure(cudaArray* dest_array,
+                                            cudaArray* source_array,
+                                            float inverse_h_square,
+                                            int3 volume_size);
 extern void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                                    cudaArray* fine_array,
                                    int3 volume_size_fine);
@@ -28,6 +32,9 @@ extern void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
                                                float minus_h_square,
                                                float omega_times_inverse_beta,
                                                int3 volume_size);
+extern void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
+                                             cudaArray* source_array,
+                                             int3 volume_size);
 
 namespace
 {
@@ -40,11 +47,18 @@ int3 FromVmathVector(const vmath::Vector3& v)
 
 MultigridImplCuda::MultigridImplCuda()
 {
-
 }
 
 MultigridImplCuda::~MultigridImplCuda()
 {
+}
+
+void MultigridImplCuda::ComputeResidualPackedPure(
+    cudaArray* dest_array, cudaArray* source_array, float inverse_h_square,
+    const vmath::Vector3& volume_size)
+{
+    LaunchComputeResidualPackedPure(dest_array, source_array, inverse_h_square,
+                                    FromVmathVector(volume_size));
 }
 
 void MultigridImplCuda::ProlongatePacked(GraphicsResource* coarse,
@@ -138,4 +152,12 @@ void MultigridImplCuda::RelaxWithZeroGuessPackedPure(
                                        alpha_omega_over_beta, one_minus_omega,
                                        minus_h_square, omega_times_inverse_beta,
                                        FromVmathVector(volume_size));
+}
+
+void MultigridImplCuda::RestrictResidualPackedPure(
+    cudaArray* dest_array, cudaArray* source_array,
+    const vmath::Vector3& volume_size)
+{
+    LaunchRestrictResidualPackedPure(dest_array, source_array,
+                                     FromVmathVector(volume_size));
 }

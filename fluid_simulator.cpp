@@ -7,6 +7,7 @@
 #include "full_multigrid_poisson_solver.h"
 #include "graphics_volume.h"
 #include "metrics.h"
+#include "multigrid_core_cuda.h"
 #include "multigrid_core_glsl.h"
 #include "multigrid_poisson_solver.h"
 #include "opengl/gl_texture.h"
@@ -501,8 +502,12 @@ void FluidSimulator::Jacobi(float cell_size)
 void FluidSimulator::SolvePressure()
 {
     static MultigridCore* m_core = nullptr;
-    if (!m_core)
-        m_core = new MultigridCoreGlsl();
+    if (!m_core) {
+        if (graphics_lib_ == GRAPHICS_LIB_CUDA)
+            m_core = new MultigridCoreCuda();
+        else
+            m_core = new MultigridCoreGlsl();
+    }
 
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:

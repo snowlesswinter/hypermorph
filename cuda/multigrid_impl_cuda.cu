@@ -4,9 +4,9 @@
 
 #include <helper_math.h>
 
-surface<void, cudaTextureType3D> advect_dest;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
+surface<void, cudaTextureType3D> residual_dest;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> residual_source;
+
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_coarse;
 texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_fine;
 surface<void, cudaTextureType3D> prolongate_pure_dest;
@@ -14,9 +14,11 @@ texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure_fine;
 surface<void, cudaTextureType3D> guess_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> guess_source;
+surface<void, cudaTextureType3D> restrict_residual_dest;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residual_source;
 
-__global__ void AdvectKernel(float time_step, float dissipation,
-                                 int slice_stride, int3 volume_size)
+__global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
+                                                int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -24,13 +26,42 @@ __global__ void AdvectKernel(float time_step, float dissipation,
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
-    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
-    float3 back_traced =
-        coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
 
-    float result = dissipation * tex3D(advect_source, back_traced.x,
-                                       back_traced.y, back_traced.z);
-    surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z,
+    float near = tex3D(residual_source, coord.x, coord.y, coord.z - 1.0f).x;
+    float south = tex3D(residual_source, coord.x, coord.y - 1.0f, coord.z).x;
+    float west = tex3D(residual_source, coord.x - 1.0f, coord.y, coord.z).x;
+    float4 center = tex3D(residual_source, coord.x, coord.y, coord.z);
+    float east = tex3D(residual_source, coord.x + 1.0f, coord.y, coord.z).x;
+    float north = tex3D(residual_source, coord.x, coord.y + 1.0f, coord.z).x;
+    float far = tex3D(residual_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float b_center = center.y;
+
+    if (coord.y == volume_size.y - 1)
+        north = center.x;
+
+    if (coord.y == 0)
+        south = center.x;
+
+    if (coord.x == volume_size.x - 1)
+        east = center.x;
+
+    if (coord.x == 0)
+        west = center.x;
+
+    if (coord.z == volume_size.z - 1)
+        far = center.x;
+
+    if (coord.z == 0)
+        near = center.x;
+
+    float v = b_center -
+        (north + south + east + west + far + near - 6.0 * center.x) *
+        inverse_h_square;
+    ushort4 raw = make_ushort4(__float2half_rn(center.x),
+                               __float2half_rn(b_center),
+                               __float2half_rn(v),
+                               0);
+    surf3Dwrite(raw, residual_dest, x * sizeof(ushort4), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -102,8 +133,8 @@ __global__ void ProlongatePackedPureKernel(int3 volume_size)
                                __float2half_rn(result.y),
                                __float2half_rn(result.z),
                                0);
-    surf3Dwrite(raw, prolongate_pure_dest, x * sizeof(ushort), y,
-                z, cudaBoundaryModeTrap);
+    surf3Dwrite(raw, prolongate_pure_dest, x * sizeof(ushort4), y, z,
+                cudaBoundaryModeTrap);
 }
 
 __global__ void RelaxWithZeroGuessPackedPureKernel(
@@ -117,13 +148,13 @@ __global__ void RelaxWithZeroGuessPackedPureKernel(
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
 
-    float near =    tex3D(guess_source, coord.x, coord.y, coord.z - 1.0f).x;
-    float south =   tex3D(guess_source, coord.x, coord.y - 1.0f, coord.z).x;
-    float west =    tex3D(guess_source, coord.x - 1.0f, coord.y, coord.z).x;
+    float near =    tex3D(guess_source, coord.x, coord.y, coord.z - 1.0f).y;
+    float south =   tex3D(guess_source, coord.x, coord.y - 1.0f, coord.z).y;
+    float west =    tex3D(guess_source, coord.x - 1.0f, coord.y, coord.z).y;
     float4 center = tex3D(guess_source, coord.x, coord.y, coord.z);
-    float east =    tex3D(guess_source, coord.x + 1.0f, coord.y, coord.z).x;
-    float north =   tex3D(guess_source, coord.x, coord.y + 1.0f, coord.z).x;
-    float far =     tex3D(guess_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float east =    tex3D(guess_source, coord.x + 1.0f, coord.y, coord.z).y;
+    float north =   tex3D(guess_source, coord.x, coord.y + 1.0f, coord.z).y;
+    float far =     tex3D(guess_source, coord.x, coord.y, coord.z + 1.0f).y;
     float b_center = center.y;
 
     if (coord.y == volume_size.y - 1)
@@ -155,43 +186,223 @@ __global__ void RelaxWithZeroGuessPackedPureKernel(
                 cudaBoundaryModeTrap); 
 }
 
+__global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
+
+    float c1 = 0.015625f;
+    float c2 = 0.03125f;
+    float c4 = 0.0625f;
+    float c8 = 0.125f;
+
+    float north_east_near =      c1 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y + 1.0f, coord.z - 1.0f).z;
+    float north_center_near =    c2 * tex3D(restrict_residual_source, coord.x,        coord.y + 1.0f, coord.z - 1.0f).z;
+    float north_west_near =      c1 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y + 1.0f, coord.z - 1.0f).z;
+    float center_east_near =     c2 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y,        coord.z - 1.0f).z;
+    float center_center_near =   c4 * tex3D(restrict_residual_source, coord.x,        coord.y,        coord.z - 1.0f).z;
+    float center_west_near =     c2 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y,        coord.z - 1.0f).z;
+    float south_east_near =      c1 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y - 1.0f, coord.z - 1.0f).z;
+    float south_center_near =    c2 * tex3D(restrict_residual_source, coord.x,        coord.y - 1.0f, coord.z - 1.0f).z;
+    float south_west_near =      c1 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y - 1.0f, coord.z - 1.0f).z;
+
+    float north_east_center =    c2 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y + 1.0f, coord.z).z;
+    float north_center_center =  c4 * tex3D(restrict_residual_source, coord.x,        coord.y + 1.0f, coord.z).z;
+    float north_west_center =    c2 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y + 1.0f, coord.z).z;
+    float center_east_center =   c4 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y,        coord.z).z;
+    float center_center_center = c8 * tex3D(restrict_residual_source, coord.x,        coord.y,        coord.z).z;
+    float center_west_center =   c4 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y,        coord.z).z;
+    float south_east_center =    c2 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y - 1.0f, coord.z).z;
+    float south_center_center =  c4 * tex3D(restrict_residual_source, coord.x,        coord.y - 1.0f, coord.z).z;
+    float south_west_center =    c2 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y - 1.0f, coord.z).z;
+
+    float north_east_far =       c1 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y + 1.0f, coord.z + 1.0f).z;
+    float north_center_far =     c2 * tex3D(restrict_residual_source, coord.x,        coord.y + 1.0f, coord.z + 1.0f).z;
+    float north_west_far =       c1 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y + 1.0f, coord.z + 1.0f).z;
+    float center_east_far =      c2 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y,        coord.z + 1.0f).z;
+    float center_center_far =    c4 * tex3D(restrict_residual_source, coord.x,        coord.y,        coord.z + 1.0f).z;
+    float center_west_far =      c2 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y,        coord.z + 1.0f).z;
+    float south_east_far =       c1 * tex3D(restrict_residual_source, coord.x + 1.0f, coord.y - 1.0f, coord.z + 1.0f).z;
+    float south_center_far =     c2 * tex3D(restrict_residual_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f).z;
+    float south_west_far =       c1 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f).z;
+
+    float3 tex_size = make_float3(volume_size_fine) - 1.001f;
+    float scale = 0.5f;
+
+    if (coord.x > tex_size.x) {
+        center_east_center = center_center_center;
+    }
+
+    if (coord.x < 1.0001f) { 
+        center_west_center = scale * center_center_center;
+    }
+
+    if (coord.z > tex_size.z) {
+        center_center_far = scale * center_center_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        center_center_near = scale * center_center_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_center_center = scale * center_center_center;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_center_center = scale * center_center_center;
+    }
+
+    // Pass 2: 1-center cells.
+    if (coord.x > tex_size.x) {
+        center_east_near = scale * center_center_near;
+        north_east_center = scale * north_center_center;
+        south_east_center = scale * south_center_center;
+        center_east_far = scale * center_center_far;
+    }
+
+    if (coord.x < 1.0001f) {
+        center_west_near = scale * center_center_near;
+        north_west_center = scale * north_center_center;
+        south_west_center = scale * south_center_center;
+        center_west_far = scale * center_center_far;
+    }
+
+    if (coord.z > tex_size.z) {
+        north_center_far = scale * north_center_center;
+        center_east_far = scale * center_east_center;
+        center_west_far = scale * center_west_center;
+        south_center_far = scale * south_center_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        north_center_near = scale * north_center_center;
+        center_east_near = scale * center_east_center;
+        center_west_near = scale * center_west_center;
+        south_center_near = scale * south_center_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_center_near = scale * center_center_near;
+        north_east_center = scale * center_east_center;
+        north_west_center = scale * center_west_center;
+        north_center_far = scale * center_center_far;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_center_near = scale * center_center_near;
+        south_east_center = scale * center_east_center;
+        south_west_center = scale * center_west_center;
+        south_center_far = scale * center_center_far;
+    }
+
+    // Pass 3: corner cells.
+    if (coord.x > tex_size.x) {
+        north_east_near = scale * north_center_near;
+        south_east_near = scale * south_center_near;
+        north_east_far = scale * north_center_far;
+        south_east_far = scale * south_center_far;
+    }
+
+    if (coord.x < 1.0001f) {
+        north_west_near = scale * north_center_near;
+        south_west_near = scale * south_center_near;
+        north_west_far = scale * north_center_far;
+        south_west_far = scale * south_center_far;
+    }
+
+    if (coord.z > tex_size.z) {
+        north_east_far = scale * north_east_center;
+        north_west_far = scale * north_west_center;
+        south_east_far = scale * south_east_center;
+        south_west_far = scale * south_west_center;
+    }
+
+    if (coord.z < 1.0001f) {
+        north_east_near = scale * north_east_center;
+        north_west_near = scale * north_west_center;
+        south_east_near = scale * south_east_center;
+        south_west_near = scale * south_west_center;
+    }
+
+    if (coord.y > tex_size.y) {
+        north_east_near = scale * center_east_near;
+        north_west_near = scale * center_west_near;
+        north_east_far = scale * center_east_far;
+        north_west_far = scale * center_west_far;
+    }
+
+    if (coord.y < 1.0001f) {
+        south_east_near = scale * center_east_near;
+        south_west_near = scale * center_west_near;
+        south_east_far = scale * center_east_far;
+        south_west_far = scale * center_west_far;
+    }
+
+    float result =
+        north_east_near +
+        north_center_near +
+        north_west_near +
+        center_east_near +
+        center_center_near +
+        center_west_near +
+        south_east_near +
+        south_center_near +
+        south_west_near +
+
+        north_east_center +
+        north_center_center +
+        north_west_center +
+        center_west_center +
+        center_center_center +
+        center_west_center +
+        south_east_center +
+        south_center_center +
+        south_west_center +
+
+        north_east_far +
+        north_center_far +
+        north_west_far +
+        center_east_far +
+        center_center_far +
+        center_west_far +
+        south_east_far +
+        south_center_far +
+        south_west_far;
+
+    ushort4 raw = make_ushort4(0, __float2half_rn(result), 0, 0);
+    surf3Dwrite(raw, restrict_residual_dest, x * sizeof(ushort4), y, z,
+                cudaBoundaryModeTrap);
+}
+
 // =============================================================================
 
-void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
-                      cudaArray_t source_array, float time_step,
-                      float dissipation, int3 volume_size)
+void LaunchComputeResidualPackedPure(cudaArray* dest_array,
+                                     cudaArray* source_array,
+                                     float inverse_h_square,
+                                     int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf();
-    advect_dest.channelDesc = desc;
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    residual_dest.channelDesc = desc;
 
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
+    cudaError_t result = cudaBindSurfaceToArray(&residual_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
     desc = cudaCreateChannelDescHalf4();
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
+    residual_source.normalized = false;
+    residual_source.filterMode = cudaFilterModeLinear;
+    residual_source.addressMode[0] = cudaAddressModeClamp;
+    residual_source.addressMode[1] = cudaAddressModeClamp;
+    residual_source.addressMode[2] = cudaAddressModeClamp;
+    residual_source.channelDesc = desc;
 
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    desc = cudaCreateChannelDescHalf();
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
+    result = cudaBindTextureToArray(&residual_source, source_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -199,13 +410,10 @@ void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
+    ComputeResidualPackedPureKernel<<<grid, block>>>(inverse_h_square,
+                                                     volume_size);
 
-    AdvectKernel<<<grid, block>>>(time_step, dissipation, slice_stride,
-                                      volume_size);
-
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
+    cudaUnbindTexture(&residual_source);
 }
 
 void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
@@ -339,4 +547,39 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
         omega_times_inverse_beta, volume_size);
 
     cudaUnbindTexture(&guess_source);
+}
+
+void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
+                                      cudaArray* source_array, int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
+    restrict_residual_dest.channelDesc = desc;
+
+    cudaError_t result = cudaBindSurfaceToArray(&restrict_residual_dest,
+                                                dest_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDescHalf4();
+    restrict_residual_source.normalized = false;
+    restrict_residual_source.filterMode = cudaFilterModeLinear;
+    restrict_residual_source.addressMode[0] = cudaAddressModeClamp;
+    restrict_residual_source.addressMode[1] = cudaAddressModeClamp;
+    restrict_residual_source.addressMode[2] = cudaAddressModeClamp;
+    restrict_residual_source.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&restrict_residual_source, source_array,
+                                    &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    int3 volume_size_fine = volume_size * 2;
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    RestrictResidualPackedPureKernel<<<grid, block>>>(volume_size_fine);
+
+    cudaUnbindTexture(&restrict_residual_source);
 }

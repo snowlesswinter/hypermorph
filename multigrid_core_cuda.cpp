@@ -34,7 +34,10 @@ std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
 void MultigridCoreCuda::ComputeResidualPacked(const GraphicsVolume& packed,
                                               float cell_size)
 {
-    
+    float inverse_h_square = 1.0f / (cell_size * cell_size);
+    CudaMain::Instance()->ComputeResidualPackedPure(packed.cuda_volume(),
+                                                    packed.cuda_volume(),
+                                                    inverse_h_square);
 }
 
 void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
@@ -47,6 +50,13 @@ void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
 void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
                                     float cell_size)
 {
+    float one_minus_omega = 0.33333333f;
+    float minus_h_square = -(cell_size * cell_size);
+    float omega_over_beta = 0.11111111f;
+    CudaMain::Instance()->DampedJacobiPure(u_and_b.cuda_volume(),
+                                           u_and_b.cuda_volume(),
+                                           one_minus_omega, minus_h_square,
+                                           omega_over_beta);
 }
 
 void MultigridCoreCuda::RelaxWithZeroGuessAndComputeResidual(
@@ -76,7 +86,8 @@ void MultigridCoreCuda::RestrictPacked(const GraphicsVolume& fine,
 void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,
                                                const GraphicsVolume& coarse)
 {
-    
+    CudaMain::Instance()->RestrictResidualPackedPure(coarse.cuda_volume(),
+                                                     fine.cuda_volume());
 }
 
 void MultigridCoreCuda::ComputeResidualPackedDiagnosis(

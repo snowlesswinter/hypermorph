@@ -84,7 +84,7 @@ std::shared_ptr<CudaVolume> GraphicsVolume::cuda_volume() const
 int GraphicsVolume::GetWidth() const
 {
     assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && cuda_volume_)
+    if (!gl_texture_ && !cuda_volume_)
         return 0;
 
     if (gl_texture_)
@@ -96,7 +96,7 @@ int GraphicsVolume::GetWidth() const
 int GraphicsVolume::GetHeight() const
 {
     assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && cuda_volume_)
+    if (!gl_texture_ && !cuda_volume_)
         return 0;
 
     if (gl_texture_)
@@ -108,7 +108,7 @@ int GraphicsVolume::GetHeight() const
 int GraphicsVolume::GetDepth() const
 {
     assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && cuda_volume_)
+    if (!gl_texture_ && !cuda_volume_)
         return 0;
 
     if (gl_texture_)

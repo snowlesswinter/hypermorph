@@ -432,6 +432,17 @@ void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
                                         gradient_scale, v);
 }
 
+void CudaMain::ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
+                                         std::shared_ptr<CudaVolume> packed,
+                                         float inverse_h_square)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    multigrid_impl_pure_->ComputeResidualPackedPure(dest->dev_array(),
+                                                    packed->dev_array(),
+                                                    inverse_h_square, v);
+}
+
 void CudaMain::ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
                                     std::shared_ptr<CudaVolume> fine)
 {
@@ -458,4 +469,13 @@ void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
                                                        minus_h_square,
                                                        omega_times_inverse_beta,
                                                        v);
+}
+
+void CudaMain::RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
+                                          std::shared_ptr<CudaVolume> fine)
+{
+    vmath::Vector3 v = FromIntValues(coarse->width(), coarse->height(),
+                                     coarse->depth());
+    multigrid_impl_pure_->RestrictResidualPackedPure(coarse->dev_array(),
+                                                     fine->dev_array(), v);
 }
