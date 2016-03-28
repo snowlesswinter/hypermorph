@@ -6,7 +6,7 @@
 #include "third_party/opengl/glew.h"
 
 class GLTexture;
-
+class CudaVolume;
 enum AttributeSlot
 {
     SlotPosition,
@@ -62,6 +62,7 @@ void RenderMesh(const MeshPod& mesh);
 double GetCurrentTimeInSeconds();
 void ResetState();
 vmath::Vector3 CalculateInverseSize(const GLTexture& volume);
+vmath::Vector3 CalculateInverseSize(const CudaVolume& volume);
 void PrintDebugString(const char* content, ...);
 void SetFatalError(const char* content, ...);
 void CheckCondition(int condition, ...);

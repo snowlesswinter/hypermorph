@@ -13,7 +13,6 @@ public:
 
     // Optimization.
     static std::string ComputeResidualPacked();
-    static std::string ProlongateAndRelax();
     static std::string RelaxAndComputeResidual();
     static std::string RelaxPacked();
     static std::string RelaxWithZeroGuessPacked();

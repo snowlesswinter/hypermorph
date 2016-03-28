@@ -21,11 +21,13 @@ class CudaMain
 {
 public:
     static CudaMain* Instance();
+    static void DestroyInstance();
 
     CudaMain();
     ~CudaMain();
 
     bool Init();
+
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void Absolute(std::shared_ptr<GLTexture> texture);
     void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
@@ -100,6 +102,10 @@ public:
 
     // temporary ===============================================================
     CudaCore* core() { return core_.get(); }
+    std::shared_ptr<GLTexture> CreateTexture(int width, int height, int depth,
+                                             unsigned int internal_format,
+                                             unsigned int format,
+                                             bool enable_cuda);
 
 private:
     std::unique_ptr<CudaCore> core_;

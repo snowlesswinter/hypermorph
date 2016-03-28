@@ -81,6 +81,11 @@ CudaMain* CudaMain::Instance()
     return instance;
 }
 
+void CudaMain::DestroyInstance()
+{
+    delete Instance();
+}
+
 CudaMain::CudaMain()
     : core_(new CudaCore())
     , fluid_impl_(new FluidImplCuda())
@@ -182,6 +187,28 @@ void CudaMain::Advect(std::shared_ptr<GLTexture> velocity,
 void CudaMain::RoundPassed(int round)
 {
     fluid_impl_->RoundPassed(round);
+}
+
+std::shared_ptr<GLTexture> CudaMain::CreateTexture(int width, int height,
+                                                   int depth,
+                                                   unsigned int internal_format,
+                                                   unsigned int format,
+                                                   bool enable_cuda)
+{
+    std::shared_ptr<GLTexture> r(new GLTexture());
+    r->Create(width, height, depth, internal_format, format);
+
+    // Here we found something supernatural:
+    //
+    // If we don't register the texture immediately, we will never get a
+    // chance to successfully register it. This unbelievable behavior had
+    // tortured me a few hours, so I surrendered, and put the image register
+    // code here.
+
+    if (enable_cuda)
+        RegisterGLImage(r);
+
+    return r;
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,

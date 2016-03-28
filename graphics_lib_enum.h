@@ -1,0 +1,11 @@
+#ifndef _GRAPHICS_LIB_ENUM_H_
+#define _GRAPHICS_LIB_ENUM_H_
+
+enum GraphicsLib
+{
+    GRAPHICS_LIB_GLSL,
+    GRAPHICS_LIB_CUDA,
+    GRAPHICS_LIB_CUDA_DIAGNOSIS,
+};
+
+#endif // _GRAPHICS_LIB_ENUM_H_

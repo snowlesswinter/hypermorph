@@ -59,7 +59,7 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         glTexImage3D(GL_TEXTURE_3D, 0, internal_format, width, height, depth, 0,
-                     format, GL_FLOAT, 0);
+                     format, GL_HALF_FLOAT, 0);
         if (glGetError() != GL_NO_ERROR)
             break;
 

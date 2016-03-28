@@ -1,5 +1,3 @@
-#include "fluid_impl_cuda.h"
-
 #include <cassert>
 
 #include "third_party/opengl/glew.h"

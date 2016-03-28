@@ -91,8 +91,8 @@
       <AdditionalDependencies>cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
-copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
     <CudaCompile>
       <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
@@ -135,8 +135,8 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <AdditionalDependencies>cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
-copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
     <CudaCompile>
       <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
@@ -170,18 +170,21 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="fluid_impl_cuda.cu" />
     <CudaCompile Include="fluid_impl_cuda_pure.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="multigrid_impl_cuda.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cuda_core.h" />
     <ClInclude Include="fluid_impl_cuda.h" />
     <ClInclude Include="fluid_impl_cuda_pure.h" />
     <ClInclude Include="graphics_resource.h" />
+    <ClInclude Include="multigrid_impl_cuda.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="fluid_impl_cuda_pure.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
+    <ClCompile Include="multigrid_impl_cuda.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

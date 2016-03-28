@@ -3,15 +3,15 @@
 
 #include <memory>
 
-class GLTexture;
+class GraphicsVolume;
 class PoissonSolver
 {
 public:
     PoissonSolver();
     virtual ~PoissonSolver();
 
-    virtual void Initialize(int width, int height, int depth) = 0;
-    virtual void Solve(std::shared_ptr<GLTexture> u_and_b, float cell_size,
+    virtual bool Initialize(int width, int height, int depth) = 0;
+    virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
                        bool as_precondition) = 0;
 };
 

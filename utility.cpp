@@ -9,6 +9,7 @@
 #include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "cuda_host/cuda_volume.h"
 
 using namespace vmath;
 
@@ -24,7 +25,7 @@ const int GridWidth = 128;
 const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
-const float SplatRadius = GridWidth / 4.0f;
+const float SplatRadius = GridWidth / 16.0f;
 const float AmbientTemperature = 0.0f;
 const float ImpulseTemperature = 40.0f;
 const float ImpulseDensity = 3.0f;
@@ -286,6 +287,14 @@ double GetCurrentTimeInSeconds()
 }
 
 vmath::Vector3 CalculateInverseSize(const GLTexture& volume)
+{
+    return recipPerElem(
+        vmath::Vector3(static_cast<float>(volume.width()),
+                       static_cast<float>(volume.height()),
+                       static_cast<float>(volume.depth())));
+}
+
+vmath::Vector3 CalculateInverseSize(const CudaVolume& volume)
 {
     return recipPerElem(
         vmath::Vector3(static_cast<float>(volume.width()),

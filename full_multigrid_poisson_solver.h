@@ -6,26 +6,25 @@
 
 #include "poisson_solver.h"
 
-class GLProgram;
-class GLTexture;
+class MultigridCore;
 class MultigridPoissonSolver;
 class FullMultigridPoissonSolver : public PoissonSolver
 {
 public:
-    FullMultigridPoissonSolver();
+    explicit FullMultigridPoissonSolver(MultigridCore* core);
     virtual ~FullMultigridPoissonSolver();
 
-    virtual void Initialize(int width, int height, int depth) override;
-    virtual void Solve(std::shared_ptr<GLTexture> u_and_b, float cell_size,
+    virtual bool Initialize(int width, int height, int depth) override;
+    virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
                        bool as_precondition) override;
 
 private:
-    void Restrict(std::shared_ptr<GLTexture> fine,
-                  std::shared_ptr<GLTexture> coarse);
+    void RelaxPacked(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
+                     int times);
 
+    MultigridCore* core_;
     std::unique_ptr<MultigridPoissonSolver> solver_;
-    std::vector<std::shared_ptr<GLTexture>> packed_textures_;
-    std::unique_ptr<GLProgram> restrict_packed_program_;
+    std::vector<std::shared_ptr<GraphicsVolume>> packed_textures_;
 };
 
 #endif // _FULL_MULTIGRID_POISSON_SOLVER_H_

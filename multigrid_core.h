@@ -3,22 +3,37 @@
 
 #include <memory>
 
-#include "third_party/opengl/glew.h"
-
-class GLTexture;
+class GraphicsVolume;
 class MultigridCore
 {
 public:
     MultigridCore();
-    ~MultigridCore();
+    virtual ~MultigridCore();
 
-    std::shared_ptr<GLTexture> CreateTexture(int width, int height, int depth,
-                                             GLuint internal_format,
-                                             GLenum format, bool enable_cuda);
-    void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
-                          std::shared_ptr<GLTexture> fine);
+    virtual std::shared_ptr<GraphicsVolume> CreateVolume(int width, int height,
+                                                         int depth,
+                                                         int num_of_components,
+                                                         int byte_width) = 0;
 
-private:
+    virtual void ComputeResidualPacked(const GraphicsVolume& packed,
+                                       float cell_size) = 0;
+    virtual void ProlongatePacked(const GraphicsVolume& coarse,
+                                  const GraphicsVolume& fine) = 0;
+    virtual void RelaxPacked(const GraphicsVolume& u_and_b,
+                             float cell_size) = 0;
+    virtual void RelaxWithZeroGuessAndComputeResidual(
+        const GraphicsVolume& packed_volumes, float cell_size, int times) = 0;
+    virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
+                                          float cell_size) = 0;
+    virtual void RestrictPacked(const GraphicsVolume& fine,
+                                const GraphicsVolume& coarse) = 0;
+    virtual void RestrictResidualPacked(const GraphicsVolume& fine,
+                                        const GraphicsVolume& coarse) = 0;
+
+    // For diagnosis.
+    virtual void ComputeResidualPackedDiagnosis(const GraphicsVolume& packed,
+                                                const GraphicsVolume& diagnosis,
+                                                float cell_size) = 0;
 };
 
 #endif // _MULTIGRID_CORE_H_

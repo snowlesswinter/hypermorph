@@ -4,14 +4,15 @@
 
 #include "cuda_host/cuda_main.h"
 #include "fluid_simulator.h"
+#include "graphics_volume.h"
 #include "metrics.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_texture.h"
 #include "overlay_content.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
-#include "third_party/opengl/glew.h"
 #include "third_party/opengl/freeglut.h"
+#include "third_party/opengl/glew.h"
 #include "utility.h"
 
 int timer_interval = 10; // ms
@@ -49,10 +50,11 @@ void Cleanup(int exit_code)
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);
 
+    CudaMain::DestroyInstance();
     exit(EXIT_SUCCESS);
 }
 
-bool InitGL(int* argc, char** argv)
+bool InitGraphics(int* argc, char** argv)
 {
     // Create GL context
     glutInit(argc, argv);
@@ -83,6 +85,7 @@ bool InitGL(int* argc, char** argv)
     glViewport(0, 0, kMainWindowWidth, kMainWindowHeight);
     PrintDebugString("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
+    CudaMain::Instance();
     return true;
 }
 
@@ -167,7 +170,8 @@ void RenderFrame()
     glEnable(GL_BLEND);
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D, sim_->GetDensityTexture().handle());
+    glBindTexture(GL_TEXTURE_3D,
+                  sim_->GetDensityTexture().gl_texture()->handle());
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -207,7 +211,7 @@ void Keyboard(unsigned char key, int x, int y)
     switch (key)
     {
         case VK_ESCAPE:
-            PostQuitMessage(0);
+            Cleanup(EXIT_SUCCESS);
             break;
         case VK_SPACE:
             SimulateFluid = !SimulateFluid;
@@ -254,11 +258,12 @@ void TimerProc(int value)
     glutTimerFunc(timer_interval, TimerProc, 0);
 }
 
-void Initialize()
+bool Initialize()
 {
     sim_ = new FluidSimulator();
-    sim_->set_graphics_lib(FluidSimulator::GRAPHICS_LIB_CUDA);
-    sim_->Init();
+    sim_->set_graphics_lib(GRAPHICS_LIB_GLSL);
+    if (!sim_->Init())
+        return false;
 
     track_ball = CreateTrackball(ViewportWidth * 1.0f, ViewportHeight * 1.0f,
                                  ViewportWidth * 0.5f);
@@ -278,16 +283,19 @@ void Initialize()
     Metrics::Instance()->SetOperationSync([]() { glFinish(); });
     Metrics::Instance()->SetTimeSource(
         []() -> double { return GetCurrentTimeInSeconds(); });
+
+    return true;
 }
 
 int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
 {
     char* command_line = GetCommandLineA();
     int agrc = 1;
-    if (!InitGL(&agrc, &command_line))
+    if (!InitGraphics(&agrc, &command_line))
         return -1;
 
-    CudaMain::Instance();
+    if (!Initialize())
+        Cleanup(EXIT_FAILURE);
 
     // register callbacks
     glutDisplayFunc(Display);
@@ -296,8 +304,6 @@ int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT
     glutMotionFunc(Motion);
     glutMouseWheelFunc(Wheel);
     glutTimerFunc(timer_interval, TimerProc, 0);
-
-    Initialize();
 
     QueryPerformanceFrequency(&time_freq);
     QueryPerformanceCounter(&prev_time);

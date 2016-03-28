@@ -48,7 +48,6 @@ void CudaVolume::Clear()
                            static_cast<float>(height_),
                            static_cast<float>(depth_)));
     }
-    
 }
 
 bool CudaVolume::Create(int width, int height, int depth, int num_of_components,

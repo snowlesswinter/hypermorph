@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "graphics_lib_enum.h"
+
 namespace Vectormath
 {
 namespace Aos
@@ -10,8 +12,7 @@ namespace Aos
 class Vector3;
 }
 }
-class CudaVolume;
-class GLTexture;
+class GraphicsVolume;
 class FluidSimulator
 {
 public:
@@ -22,13 +23,6 @@ public:
         POISSON_SOLVER_GAUSS_SEIDEL,
         POISSON_SOLVER_MULTI_GRID,
         POISSON_SOLVER_FULL_MULTI_GRID
-    };
-
-    enum GraphicsLib
-    {
-        GRAPHICS_LIB_GLSL,
-        GRAPHICS_LIB_CUDA,
-        GRAPHICS_LIB_CUDA_DIAGNOSIS,
     };
 
     FluidSimulator();
@@ -46,17 +40,16 @@ public:
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
     // TODO
-    const GLTexture& GetDensityTexture() const;
+    const GraphicsVolume& GetDensityTexture() const;
 
 private:
     void AdvectDensity(float delta_time);
-    void AdvectImpl(std::shared_ptr<GLTexture> source, float delta_time,
+    void AdvectImpl(std::shared_ptr<GraphicsVolume> source, float delta_time,
                     float dissipation);
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
-    void ApplyImpulse(std::shared_ptr<GLTexture> dest,
-                      std::shared_ptr<CudaVolume> source, 
+    void ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float value);
     void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
@@ -71,17 +64,17 @@ private:
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
 
-    std::shared_ptr<GLTexture> velocity_;
-    std::shared_ptr<GLTexture> density_;
-    std::shared_ptr<GLTexture> density2_;
-    std::shared_ptr<GLTexture> temperature_;
-    std::shared_ptr<GLTexture> general1_;
-    std::shared_ptr<GLTexture> general4_;
+    std::shared_ptr<GraphicsVolume> velocity_;
+    std::shared_ptr<GraphicsVolume> density_;
+    std::shared_ptr<GraphicsVolume> density2_;
+    std::shared_ptr<GraphicsVolume> temperature_;
+    std::shared_ptr<GraphicsVolume> general1_;
+    std::shared_ptr<GraphicsVolume> general4_;
 
-    std::shared_ptr<CudaVolume> velocity_cuda_;
-    std::shared_ptr<CudaVolume> temperature_cuda_;
-    std::shared_ptr<CudaVolume> general1_cuda_;
-    std::shared_ptr<CudaVolume> general4_cuda_;
+//     std::shared_ptr<CudaVolume> velocity_cuda_;
+//     std::shared_ptr<CudaVolume> temperature_cuda_;
+//     std::shared_ptr<CudaVolume> general1_cuda_;
+//     std::shared_ptr<CudaVolume> general4_cuda_;
 
     GraphicsLib graphics_lib_;
 };

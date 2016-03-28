@@ -21,6 +21,7 @@ public:
     ~CudaCore();
 
     bool Init();
+
     static bool AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
                                          const Vectormath::Aos::Vector3& extent,
                                          int num_of_components, int byte_width);
