@@ -36,7 +36,7 @@ const float SmokeWeight = 0.0001f;
 const float GradientScale = 1.125f / CellSize;
 const float TemperatureDissipation = 0.95f;
 const float VelocityDissipation = 1.0f;//0.999f;
-const float DensityDissipation = 0.988f;
+const float DensityDissipation = 0.998f;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, (int)SplatRadius / 2.0f, GridDepth / 2.0f);
 const float kBuoyancyCoef = sqrtf(GridWidth / 128.0f);
 

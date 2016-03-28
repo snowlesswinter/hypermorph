@@ -104,9 +104,6 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
 
         core_->ProlongatePacked(*coarse_volume, *fine_volume);
 
-        // Testing done.
-        //solver_->ProlongatePacked2(packed_textures_[j + 1], packed_textures_[j]);
-
         for (int k = 0; k < times_to_iterate; k++)
             solver_->Solve(fine_volume, level_cell_size, false);
 
