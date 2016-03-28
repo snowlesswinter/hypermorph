@@ -20,7 +20,7 @@ surface<void, cudaTextureType3D> jacobi;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 
 __global__ void AdvectPureKernel(float time_step, float dissipation,
-                                 int slice_stride, int3 volume_size)
+                                 int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -38,9 +38,8 @@ __global__ void AdvectPureKernel(float time_step, float dissipation,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void AdvectVelocityPureKernel(float time_step,
-                                         float dissipation,
-                                         int slice_stride, int3 volume_size)
+__global__ void AdvectVelocityPureKernel(float time_step, float dissipation,
+                                         int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -65,7 +64,7 @@ __global__ void AdvectVelocityPureKernel(float time_step,
 __global__ void ApplyBuoyancyPureKernel(float time_step,
                                         float ambient_temperature,
                                         float accel_factor, float gravity,
-                                        int slice_stride, int3 volume_size)
+                                        int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -91,7 +90,7 @@ __global__ void ApplyBuoyancyPureKernel(float time_step,
 
 __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
                                        float radius, float value,
-                                       int slice_stride, int3 volume_size)
+                                       int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -121,7 +120,7 @@ __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
 }
 
 __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
-                                            int slice_stride, int3 volume_size)
+                                            int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -130,13 +129,13 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
 
-    float4 near = tex3D(divergence_velocity, coord.x, coord.y, coord.z - 1.0f);
-    float4 south = tex3D(divergence_velocity, coord.x, coord.y - 1.0f, coord.z);
-    float4 west = tex3D(divergence_velocity, coord.x - 1.0f, coord.y, coord.z);
+    float4 near =   tex3D(divergence_velocity, coord.x, coord.y, coord.z - 1.0f);
+    float4 south =  tex3D(divergence_velocity, coord.x, coord.y - 1.0f, coord.z);
+    float4 west =   tex3D(divergence_velocity, coord.x - 1.0f, coord.y, coord.z);
     float4 center = tex3D(divergence_velocity, coord.x, coord.y, coord.z);
-    float4 east = tex3D(divergence_velocity, coord.x + 1.0f, coord.y, coord.z);
-    float4 north = tex3D(divergence_velocity, coord.x, coord.y + 1.0f, coord.z);
-    float4 far = tex3D(divergence_velocity, coord.x, coord.y, coord.z + 1.0f);
+    float4 east =   tex3D(divergence_velocity, coord.x + 1.0f, coord.y, coord.z);
+    float4 north =  tex3D(divergence_velocity, coord.x, coord.y + 1.0f, coord.z);
+    float4 far =    tex3D(divergence_velocity, coord.x, coord.y, coord.z + 1.0f);
 
     float diff_ew = east.x - west.x;
     float diff_ns = north.y - south.y;
@@ -169,8 +168,7 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
 
 __global__ void DampedJacobiPureKernel(float one_minus_omega,
                                        float minus_square_cell_size,
-                                       float omega_over_beta,
-                                       int slice_stride, int3 volume_size)
+                                       float omega_over_beta, int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -218,7 +216,7 @@ __global__ void DampedJacobiPureKernel(float one_minus_omega,
 }
 
 __global__ void SubstractGradientPureKernel(float gradient_scale,
-                                            int slice_stride, int3 volume_size)
+                                            int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -316,10 +314,7 @@ void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
-    AdvectPureKernel<<<grid, block>>>(time_step, dissipation, slice_stride,
-                                      volume_size);
+    AdvectPureKernel<<<grid, block>>>(time_step, dissipation, volume_size);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
@@ -355,10 +350,8 @@ void LaunchAdvectVelocityPure(cudaArray_t dest_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
     AdvectVelocityPureKernel<<<grid, block>>>(time_step, dissipation,
-                                              slice_stride, volume_size);
+                                              volume_size);
 
     cudaUnbindTexture(&advect_velocity);
 }
@@ -407,11 +400,9 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
     ApplyBuoyancyPureKernel<<<grid, block>>>(time_step, ambient_temperature,
                                              accel_factor, gravity,
-                                             slice_stride, volume_size);
+                                             volume_size);
 
     cudaUnbindTexture(&buoyancy_temperature);
     cudaUnbindTexture(&buoyancy_velocity);
@@ -446,10 +437,8 @@ void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
     ApplyImpulsePureKernel<<<grid, block>>>(center_point, hotspot, radius,
-                                            value, slice_stride, volume_size);
+                                            value, volume_size);
 
     cudaUnbindTexture(&impulse_original);
 }
@@ -484,10 +473,8 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
     ComputeDivergencePureKernel<<<grid, block>>>(half_inverse_cell_size,
-                                                 slice_stride, volume_size);
+                                                 volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
 }
@@ -520,12 +507,9 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
     DampedJacobiPureKernel<<<grid, block>>>(one_minus_omega,
                                             minus_square_cell_size,
-                                            omega_over_beta, slice_stride,
-                                            volume_size);
+                                            omega_over_beta, volume_size);
 
     cudaUnbindTexture(&jacobi_packed);
 }
@@ -558,10 +542,7 @@ void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    int slice_stride = volume_size.x * volume_size.y;
-
-    SubstractGradientPureKernel<<<grid, block>>>(gradient_scale, slice_stride,
-                                                 volume_size);
+    SubstractGradientPureKernel<<<grid, block>>>(gradient_scale, volume_size);
 
     cudaUnbindTexture(&gradient_packed);
 }

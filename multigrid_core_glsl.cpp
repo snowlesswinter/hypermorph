@@ -13,7 +13,8 @@
 #include "utility.h"
 
 MultigridCoreGlsl::MultigridCoreGlsl()
-    : prolongate_and_relax_program_()
+    : MultigridCore()
+    , prolongate_and_relax_program_()
     , prolongate_packed_program_()
     , relax_packed_program_()
     , relax_zero_guess_packed_program_()

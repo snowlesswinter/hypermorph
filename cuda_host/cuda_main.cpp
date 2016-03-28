@@ -7,6 +7,7 @@
 #include "cuda/fluid_impl_cuda.h"
 #include "cuda/fluid_impl_cuda_pure.h"
 #include "cuda/graphics_resource.h"
+#include "cuda/multigrid_impl_cuda.h"
 #include "cuda_volume.h"
 #include "opengl/gl_texture.h"
 #include "vmath.hpp"
@@ -89,6 +90,8 @@ void CudaMain::DestroyInstance()
 CudaMain::CudaMain()
     : core_(new CudaCore())
     , fluid_impl_(new FluidImplCuda())
+    , fluid_impl_pure_(new FluidImplCudaPure())
+    , multigrid_impl_pure_(new MultigridImplCuda())
     , registerd_textures_()
 {
 
@@ -140,7 +143,8 @@ void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
     auto pbo = GetPBO(core_.get(), n, 4, 4);
     vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
                                      fine->depth());
-    core_->ProlongatePacked(i->second.get(), j->second.get(), pbo.second, v);
+    multigrid_impl_pure_->ProlongatePacked(i->second.get(), j->second.get(),
+                                           pbo.second, v);
 
     FlushPBO(pbo.first, GL_RGBA, fine.get(), false);
 }
@@ -426,4 +430,32 @@ void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
                                      dest->depth());
     fluid_impl_pure_->SubstractGradient(dest->dev_array(), packed->dev_array(),
                                         gradient_scale, v);
+}
+
+void CudaMain::ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
+                                    std::shared_ptr<CudaVolume> fine)
+{
+    vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
+                                     fine->depth());
+    multigrid_impl_pure_->ProlongatePackedPure(fine->dev_array(),
+                                               coarse->dev_array(),
+                                               fine->dev_array(), v);
+}
+
+void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
+                                            std::shared_ptr<CudaVolume> packed,
+                                            float alpha_omega_over_beta,
+                                            float one_minus_omega,
+                                            float minus_h_square,
+                                            float omega_times_inverse_beta)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    multigrid_impl_pure_->RelaxWithZeroGuessPackedPure(dest->dev_array(),
+                                                       packed->dev_array(),
+                                                       alpha_omega_over_beta,
+                                                       one_minus_omega,
+                                                       minus_h_square,
+                                                       omega_times_inverse_beta,
+                                                       v);
 }

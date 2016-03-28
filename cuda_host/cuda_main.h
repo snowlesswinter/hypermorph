@@ -17,6 +17,7 @@ class FluidImplCuda;
 class FluidImplCudaPure;
 class GLTexture;
 class GraphicsResource;
+class MultigridImplCuda;
 class CudaMain
 {
 public:
@@ -97,6 +98,16 @@ public:
                                std::shared_ptr<CudaVolume> packed,
                                float gradient_scale);
 
+    // Multigrid.
+    void ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
+                              std::shared_ptr<CudaVolume> fine);
+    void RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
+                                      std::shared_ptr<CudaVolume> packed,
+                                      float alpha_omega_over_beta,
+                                      float one_minus_omega,
+                                      float minus_h_square,
+                                      float omega_times_inverse_beta);
+
     // For diagnosis
     void RoundPassed(int round);
 
@@ -111,6 +122,7 @@ private:
     std::unique_ptr<CudaCore> core_;
     std::unique_ptr<FluidImplCuda> fluid_impl_;
     std::unique_ptr<FluidImplCudaPure> fluid_impl_pure_;
+    std::unique_ptr<MultigridImplCuda> multigrid_impl_pure_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
 };

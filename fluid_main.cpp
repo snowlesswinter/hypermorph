@@ -261,7 +261,7 @@ void TimerProc(int value)
 bool Initialize()
 {
     sim_ = new FluidSimulator();
-    sim_->set_graphics_lib(GRAPHICS_LIB_GLSL);
+    sim_->set_graphics_lib(GRAPHICS_LIB_CUDA);
     if (!sim_->Init())
         return false;
 

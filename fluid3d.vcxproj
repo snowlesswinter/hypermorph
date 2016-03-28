@@ -94,6 +94,7 @@
     <ClInclude Include="graphics_volume.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="multigrid_core.h" />
+    <ClInclude Include="multigrid_core_cuda.h" />
     <ClInclude Include="multigrid_core_glsl.h" />
     <ClInclude Include="multigrid_poisson_solver.h" />
     <ClInclude Include="overlay_content.h" />
@@ -118,6 +119,7 @@
     <ClCompile Include="graphics_volume.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="multigrid_core.cpp" />
+    <ClCompile Include="multigrid_core_cuda.cpp" />
     <ClCompile Include="multigrid_core_glsl.cpp" />
     <ClCompile Include="multigrid_poisson_solver.cpp" />
     <ClCompile Include="overlay_content.cpp" />

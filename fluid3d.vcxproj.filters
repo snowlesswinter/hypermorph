@@ -56,6 +56,7 @@
     </ClInclude>
     <ClInclude Include="graphics_lib_enum.h" />
     <ClInclude Include="multigrid_core_glsl.h" />
+    <ClInclude Include="multigrid_core_cuda.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="fluid3d.rc">
@@ -111,5 +112,6 @@
       <Filter>opengl</Filter>
     </ClCompile>
     <ClCompile Include="multigrid_core_glsl.cpp" />
+    <ClCompile Include="multigrid_core_cuda.cpp" />
   </ItemGroup>
 </Project>
