@@ -12,6 +12,7 @@ namespace Aos
 class Vector3;
 }
 }
+class FluidUnittest;
 class GraphicsVolume;
 class FluidSimulator
 {
@@ -44,6 +45,8 @@ public:
     const GraphicsVolume& GetDensityTexture() const;
 
 private:
+    friend class FluidUnittest;
+
     void AdvectDensity(float delta_time);
     void AdvectImpl(std::shared_ptr<GraphicsVolume> source, float delta_time,
                     float dissipation);

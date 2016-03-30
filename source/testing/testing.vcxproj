@@ -11,19 +11,19 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{EA215366-78F3-4ABE-BF75-DC095B5CFE50}</ProjectGuid>
+    <ProjectGuid>{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>fluid3d</RootNamespace>
+    <RootNamespace>testing</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v120</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v120</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -41,23 +41,22 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(Configuration)\obj\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(Configuration)\obj\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -73,8 +72,9 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -86,60 +86,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="cuda_host\cuda_main.h" />
-    <ClInclude Include="cuda_host\cuda_volume.h" />
-    <ClInclude Include="fluid_simulator.h" />
-    <ClInclude Include="full_multigrid_poisson_solver.h" />
-    <ClInclude Include="graphics_lib_enum.h" />
-    <ClInclude Include="graphics_volume.h" />
-    <ClInclude Include="metrics.h" />
-    <ClInclude Include="multigrid_core.h" />
-    <ClInclude Include="multigrid_core_cuda.h" />
-    <ClInclude Include="multigrid_core_glsl.h" />
-    <ClInclude Include="multigrid_poisson_solver.h" />
-    <ClInclude Include="overlay_content.h" />
-    <ClInclude Include="poisson_solver.h" />
-    <ClInclude Include="shader\fluid_shader.h" />
-    <ClInclude Include="shader\multigrid_shader.h" />
-    <ClInclude Include="shader\multigrid_staggered_shader.h" />
-    <ClInclude Include="shader\overlay_shader.h" />
-    <ClInclude Include="shader\raycast_shader.h" />
-    <ClInclude Include="source\opengl\gl_program.h" />
-    <ClInclude Include="source\opengl\gl_texture.h" />
-    <ClInclude Include="stdafx.h" />
-    <ClInclude Include="utility.h" />
-    <ClInclude Include="vmath.hpp" />
+    <ResourceCompile Include="testing.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cuda_host\cuda_main.cpp" />
-    <ClCompile Include="cuda_host\cuda_volume.cpp" />
-    <ClCompile Include="fluid_simulator.cpp" />
-    <ClCompile Include="full_multigrid_poisson_solver.cpp" />
-    <ClCompile Include="graphics_volume.cpp" />
-    <ClCompile Include="metrics.cpp" />
-    <ClCompile Include="multigrid_core.cpp" />
-    <ClCompile Include="multigrid_core_cuda.cpp" />
-    <ClCompile Include="multigrid_core_glsl.cpp" />
-    <ClCompile Include="multigrid_poisson_solver.cpp" />
-    <ClCompile Include="overlay_content.cpp" />
-    <ClCompile Include="poisson_solver.cpp" />
-    <ClCompile Include="shader\fluid_shader.cpp" />
-    <ClCompile Include="shader\multigrid_shader.cpp" />
-    <ClCompile Include="shader\multigrid_staggered_shader.cpp" />
-    <ClCompile Include="shader\overlay_shader.cpp" />
-    <ClCompile Include="shader\raycast_shader.cpp" />
-    <ClCompile Include="source\opengl\gl_program.cpp" />
-    <ClCompile Include="source\opengl\gl_texture.cpp" />
+    <Image Include="small.ico" />
+    <Image Include="testing.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="fluid_unittest.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="trackball.cpp" />
-    <ClCompile Include="utility.cpp" />
+    <ClCompile Include="testing.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="cuda\cuda.vcxproj">
+    <ClInclude Include="fluid_unittest.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="testing.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\cuda\cuda.vcxproj">
       <Project>{1dba4bf2-a5a1-49bc-b010-7f893810a3c8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\fluid3d.vcxproj">
+      <Project>{ea215366-78f3-4abe-bf75-dc095b5cfe50}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

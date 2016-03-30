@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="shader">
       <UniqueIdentifier>{9a0d8298-86f6-4b87-9249-860168e7a43d}</UniqueIdentifier>
     </Filter>
@@ -59,19 +55,6 @@
     <ClInclude Include="multigrid_core_cuda.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="fluid3d.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="fluid3d.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="metrics.cpp" />
@@ -95,7 +78,6 @@
     </ClCompile>
     <ClCompile Include="multigrid_core.cpp" />
     <ClCompile Include="fluid_simulator.cpp" />
-    <ClCompile Include="fluid_main.cpp" />
     <ClCompile Include="trackball.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="graphics_volume.cpp" />

@@ -7,6 +7,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fluid3d", "fluid3d.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cuda", "cuda\cuda.vcxproj", "{1DBA4BF2-A5A1-49BC-B010-7F893810A3C8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testing", "source\testing\testing.vcxproj", "{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fluid3d_app", "fluid3d_app.vcxproj", "{8AEFA7D0-673A-45D9-B24C-1F034B386F79}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -29,6 +33,18 @@ Global
 		{1DBA4BF2-A5A1-49BC-B010-7F893810A3C8}.Release|Win32.Build.0 = Release|Win32
 		{1DBA4BF2-A5A1-49BC-B010-7F893810A3C8}.Release|x64.ActiveCfg = Release|x64
 		{1DBA4BF2-A5A1-49BC-B010-7F893810A3C8}.Release|x64.Build.0 = Release|x64
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Debug|Win32.Build.0 = Debug|Win32
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Debug|x64.ActiveCfg = Debug|Win32
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Release|Win32.ActiveCfg = Release|Win32
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Release|Win32.Build.0 = Release|Win32
+		{CF574FB9-9111-4EBA-B93A-B0A06A45BC62}.Release|x64.ActiveCfg = Release|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Debug|Win32.Build.0 = Debug|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Debug|x64.ActiveCfg = Debug|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|Win32.ActiveCfg = Release|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|Win32.Build.0 = Release|Win32
+		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
