@@ -3,6 +3,7 @@
 
 #include <cassert>
 
+#include "cuda_host/cuda_main.h"
 #include "cuda_host/cuda_volume.h"
 #include "full_multigrid_poisson_solver.h"
 #include "graphics_volume.h"
@@ -17,10 +18,6 @@
 #include "utility.h"
 #include "vmath.hpp"
 
-//TODO
-#include "multigrid_core.h"
-#include "cuda_host/cuda_main.h"
-
 static struct
 {
     GLuint Advect;
@@ -31,18 +28,21 @@ static struct
     GLuint ComputeDivergence;
     GLuint ApplyImpulse;
     GLuint ApplyBuoyancy;
+    GLuint diagnose_;
 } Programs;
 
 FluidSimulator::FluidSimulator()
     : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
+    , diagnosis_(false)
     , velocity_()
     , density_()
     , density2_()
     , temperature_()
     , general1_()
     , general4_()
+    , diagnosis_volume_()
     , graphics_lib_(GRAPHICS_LIB_GLSL)
 {
 }
@@ -137,6 +137,9 @@ bool FluidSimulator::Init()
         Programs.ApplyBuoyancy = LoadProgram(FluidShader::Vertex(),
                                              FluidShader::PickLayer(),
                                              FluidShader::Buoyancy());
+        Programs.diagnose_ = LoadProgram(
+            FluidShader::Vertex(), FluidShader::PickLayer(),
+            MultigridShader::ComputeResidualPackedDiagnosis());
     }
 
     return true;
@@ -147,6 +150,8 @@ void FluidSimulator::Reset()
     velocity_->Clear();
     density_->Clear();
     temperature_->Clear();
+
+    diagnosis_volume_.reset();
 
     Metrics::Instance()->Reset();
 }
@@ -239,8 +244,7 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
                                      general1_->gl_texture(), delta_time,
                                      dissipation);
     } else {
-        GLuint p = Programs.Advect;
-        glUseProgram(p);
+        glUseProgram(Programs.Advect);
 
         SetUniform("InverseSize", CalculateInverseSize(*source->gl_texture()));
         SetUniform("TimeStep", delta_time);
@@ -287,8 +291,7 @@ void FluidSimulator::AdvectVelocity(float delta_time)
                                              general4_->gl_texture(),
                                              delta_time, VelocityDissipation);
     } else {
-        GLuint p = Programs.Advect;
-        glUseProgram(p);
+        glUseProgram(Programs.Advect);
 
         SetUniform("InverseSize",
                    CalculateInverseSize(*velocity_->gl_texture()));
@@ -326,8 +329,7 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
                                             delta_time, AmbientTemperature,
                                             kBuoyancyCoef, SmokeWeight);
     } else {
-        GLuint p = Programs.ApplyBuoyancy;
-        glUseProgram(p);
+        glUseProgram(Programs.ApplyBuoyancy);
 
         SetUniform("Velocity", 0);
         SetUniform("Temperature", 1);
@@ -365,8 +367,7 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
                                            kImpulsePosition, hotspot,
                                            SplatRadius, value);
     } else {
-        GLuint p = Programs.ApplyImpulse;
-        glUseProgram(p);
+        glUseProgram(Programs.ApplyImpulse);
 
         SetUniform("center_point", position);
         SetUniform("hotspot", hotspot);
@@ -397,8 +398,7 @@ void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
                                            kImpulsePosition, hotspot,
                                            SplatRadius, value);
     } else {
-        GLuint p = Programs.ApplyImpulse;
-        glUseProgram(p);
+        glUseProgram(Programs.ApplyImpulse);
 
         SetUniform("center_point", position);
         SetUniform("hotspot", hotspot);
@@ -427,8 +427,7 @@ void FluidSimulator::ComputeDivergence()
                                                 general4_->gl_texture(),
                                                 half_inverse_cell_size);
     } else {
-        GLuint p = Programs.ComputeDivergence;
-        glUseProgram(p);
+        glUseProgram(Programs.ComputeDivergence);
 
         SetUniform("HalfInverseCellSize", half_inverse_cell_size);
         SetUniform("Obstacles", 1);
@@ -441,6 +440,80 @@ void FluidSimulator::ComputeDivergence()
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               general4_->gl_texture()->depth());
         ResetState();
+    }
+}
+
+void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
+{
+    if (!diagnosis_)
+        return;
+
+    if (!diagnosis_volume_) {
+        std::shared_ptr<GraphicsVolume> v(new GraphicsVolume(graphics_lib_));
+        bool result = v->Create(GridWidth, GridHeight, GridDepth, 1, 4);
+        assert(result);
+        if (!result)
+            return;
+
+        diagnosis_volume_ = v;
+    }
+
+    float inverse_h_square = 1.0f / (cell_size * cell_size);
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ComputeResidualPackedDiagnosis(
+            diagnosis_volume_->cuda_volume(), general4_->cuda_volume(),
+            inverse_h_square);
+    } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
+        glUseProgram(Programs.diagnose_);
+
+        SetUniform("packed_tex", 0);
+        SetUniform("inverse_h_square", inverse_h_square);
+
+        diagnosis_volume_->gl_texture()->BindFrameBuffer();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, general4_->gl_texture()->handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
+                              diagnosis_volume_->gl_texture()->depth());
+        ResetState();
+
+        // =====================================================================
+        glFinish();
+        GraphicsVolume* p = diagnosis_volume_.get();
+
+        int w = p->GetWidth();
+        int h = p->GetHeight();
+        int d = p->GetDepth();
+        int n = 1;
+        int element_size = sizeof(float);
+        GLenum format = GL_RED;
+
+        static char* v = nullptr;
+        if (!v)
+            v = new char[w * h * d * element_size * n];
+
+        memset(v, 0, w * h * d * element_size * n);
+        p->gl_texture()->GetTexImage(format, GL_FLOAT, v);
+
+        float* f = (float*)v;
+        double sum = 0.0;
+        double q = 0.0f;
+        double m = 0.0f;
+        for (int i = 0; i < d; i++) {
+            for (int j = 0; j < h; j++) {
+                for (int k = 0; k < w; k++) {
+                    for (int l = 0; l < n; l++) {
+                        q = f[i * w * h * n + j * w * n + k * n + l];
+                        //if (i == 30 && j == 0 && k == 56)
+                            //if (q > 1)
+                            sum += q;
+                        m = std::max(q, m);
+                    }
+                }
+            }
+        }
+
+        double avg = sum / (w * h * d);
+        PrintDebugString("(GLSL) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
     }
 }
 
@@ -463,8 +536,7 @@ void FluidSimulator::DampedJacobi(float cell_size)
                                            minus_square_cell_size,
                                            omega_over_beta);
     } else {
-        GLuint p = Programs.DampedJacobi;
-        glUseProgram(p);
+        glUseProgram(Programs.DampedJacobi);
 
         SetUniform("Alpha", minus_square_cell_size);
         SetUniform("InverseBeta", omega_over_beta);
@@ -483,8 +555,7 @@ void FluidSimulator::DampedJacobi(float cell_size)
 
 void FluidSimulator::Jacobi(float cell_size)
 {
-    GLuint p = Programs.Jacobi;
-    glUseProgram(p);
+    glUseProgram(Programs.Jacobi);
 
     SetUniform("Alpha", -CellSize * CellSize);
     SetUniform("InverseBeta", 0.1666f);
@@ -575,6 +646,8 @@ void FluidSimulator::SolvePressure()
             break;
         }
     }
+
+    ComputeResidualDiagnosis(CellSize);
 }
 
 void FluidSimulator::SubtractGradient()
@@ -589,8 +662,7 @@ void FluidSimulator::SubtractGradient()
                                                 velocity_->gl_texture(),
                                                 GradientScale);
     } else {
-        GLuint p = Programs.SubtractGradient;
-        glUseProgram(p);
+        glUseProgram(Programs.SubtractGradient);
 
         SetUniform("GradientScale", GradientScale);
         SetUniform("HalfInverseCellSize", 0.5f / CellSize);

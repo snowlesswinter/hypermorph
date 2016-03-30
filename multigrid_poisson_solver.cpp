@@ -208,10 +208,6 @@ void MultigridPoissonSolver::Diagnose(GraphicsVolume* packed)
             }
         }
 
-        // =========================================================================
-        //CudaMain::Instance()->Absolute(diagnosis_volume_);
-        // =========================================================================
-
         double avg = sum / (w * h * d);
         PrintDebugString("sum: %.8f\n", sum);
         //PrintDebugString("avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);

@@ -90,10 +90,3 @@ void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,
     CudaMain::Instance()->RestrictResidualPackedPure(coarse.cuda_volume(),
                                                      fine.cuda_volume());
 }
-
-void MultigridCoreCuda::ComputeResidualPackedDiagnosis(
-    const GraphicsVolume& packed, const GraphicsVolume& diagnosis,
-    float cell_size)
-{
-    
-}

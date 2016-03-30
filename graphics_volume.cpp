@@ -32,7 +32,7 @@ void GraphicsVolume::Clear()
 bool GraphicsVolume::Create(int width, int height, int depth,
                             int num_of_components, int byte_width)
 {
-    if (byte_width != 2)
+    if (byte_width != 2 && byte_width != 4)
         return false;   // Not supported yet.
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
@@ -45,13 +45,13 @@ bool GraphicsVolume::Create(int width, int height, int depth,
         Clear(); // TODO
         return result;
     } else {
-        GLuint internal_format = GL_RGBA16F;
+        GLuint internal_format = byte_width == 2 ? GL_RGBA16F : GL_RGBA32F;
         GLenum format = GL_RGBA;
         if (num_of_components != 4) {
             if (num_of_components != 1)
                 return false;
 
-            internal_format = GL_R16F;
+            internal_format = byte_width == 2 ? GL_R16F : GL_R32F;
             format = GL_RED;
         }
 

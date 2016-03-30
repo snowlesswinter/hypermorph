@@ -254,19 +254,22 @@ bool CudaCore::AllocVolumeMemory(cudaArray** result,
                                  const vmath::Vector3& extent,
                                  int num_of_components, int byte_width)
 {
-    if (byte_width != 2)
+    if (byte_width != 2 && byte_width != 4)
         return false; // Currently not supported.
 
     cudaChannelFormatDesc desc;
     switch (num_of_components) {
         case 1:
-            desc = cudaCreateChannelDescHalf();
+            desc = byte_width == 2 ?
+                cudaCreateChannelDescHalf() : cudaCreateChannelDesc<float>();
             break;
         case 2:
-            desc = cudaCreateChannelDescHalf2();
+            desc = byte_width == 2 ?
+                cudaCreateChannelDescHalf2() : cudaCreateChannelDesc<float2>();
             break;
         case 4:
-            desc = cudaCreateChannelDescHalf4();
+            desc = byte_width == 2 ?
+                cudaCreateChannelDescHalf4() : cudaCreateChannelDesc<float4>();
             break;
         default:
             return false;
@@ -318,4 +321,24 @@ void CudaCore::ClearVolume(cudaArray* dest, const vmath::Vector4& value,
         make_float4(value.getX(), value.getY(), value.getZ(), value.getW()),
         FromVmathVector(volume_size));
 
+}
+
+void CudaCore::CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
+                              cudaArray* source, 
+                              const vmath::Vector3& volume_size)
+{
+    cudaDeviceSynchronize();
+
+    cudaMemcpy3DParms cpy_parms = {};
+    cpy_parms.dstPtr.ptr = dest;
+    cpy_parms.dstPtr.pitch = pitch;
+    cpy_parms.dstPtr.xsize = static_cast<size_t>(volume_size.getX());
+    cpy_parms.dstPtr.ysize = static_cast<size_t>(volume_size.getY());
+    cpy_parms.srcArray = source;
+    cpy_parms.extent.width = static_cast<size_t>(volume_size.getX());
+    cpy_parms.extent.height = static_cast<size_t>(volume_size.getY());
+    cpy_parms.extent.depth = static_cast<size_t>(volume_size.getX());
+    cpy_parms.kind = cudaMemcpyDeviceToHost;
+    cudaError_t e = cudaMemcpy3D(&cpy_parms);
+    assert(e == cudaSuccess);
 }

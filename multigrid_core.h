@@ -29,11 +29,6 @@ public:
                                 const GraphicsVolume& coarse) = 0;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) = 0;
-
-    // For diagnosis.
-    virtual void ComputeResidualPackedDiagnosis(const GraphicsVolume& packed,
-                                                const GraphicsVolume& diagnosis,
-                                                float cell_size) = 0;
 };
 
 #endif // _MULTIGRID_CORE_H_

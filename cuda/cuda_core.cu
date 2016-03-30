@@ -30,6 +30,26 @@ __global__ void ClearVolume4Kernel(float4 value)
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
+    surf3Dwrite(value, clear_volume, x * sizeof(float4), y, z,
+                cudaBoundaryModeTrap);
+}
+
+__global__ void ClearVolume1Kernel(float4 value)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    surf3Dwrite(value.x, clear_volume, x * sizeof(float1), y, z,
+                cudaBoundaryModeTrap);
+}
+
+__global__ void ClearVolumeHalf4Kernel(float4 value)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
     ushort4 raw = make_ushort4(__float2half_rn(value.x),
                                __float2half_rn(value.y),
                                __float2half_rn(value.z),
@@ -38,7 +58,7 @@ __global__ void ClearVolume4Kernel(float4 value)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolume1Kernel(float4 value)
+__global__ void ClearVolumeHalf1Kernel(float4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -50,6 +70,31 @@ __global__ void ClearVolume1Kernel(float4 value)
 }
 
 // =============================================================================
+
+bool IsHalf1Or4(const cudaChannelFormatDesc& desc)
+{
+    if (desc.f != cudaChannelFormatKindFloat)
+        return false;
+
+    return desc.x == 16 &&
+        ((desc.y == 0 && desc.z == 0 && desc.w == 0) ||
+            (desc.y == 16 && desc.z == 16 && desc.w == 16));
+}
+
+bool IsFloat1Or4(const cudaChannelFormatDesc& desc)
+{
+    if (desc.f != cudaChannelFormatKindFloat)
+        return false;
+
+    return desc.x == 32 &&
+        ((desc.y == 0 && desc.z == 0 && desc.w == 0) ||
+            (desc.y == 32 && desc.z == 32 && desc.w == 32));
+}
+
+bool IsCompliant(const cudaChannelFormatDesc& desc)
+{
+    return IsHalf1Or4(desc) || IsFloat1Or4(desc);
+}
 
 void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
                              int3 volume_size)
@@ -69,12 +114,17 @@ void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
 
-    assert(
-        desc.x ==16 &&
-           ((desc.y == 0 && desc.z == 0) ||
-            (desc.y == 16 && desc.z == 16)));
-    if (desc.x == 16 && desc.y == 0 && desc.z == 0 && desc.w == 0)
+    assert(IsCompliant(desc));
+    if (desc.x == 16 && desc.y == 0 && desc.z == 0 && desc.w == 0 &&
+            desc.f == cudaChannelFormatKindFloat)
+        ClearVolumeHalf1Kernel<<<grid, block>>>(value);
+    else if (desc.x == 16 && desc.y == 16 && desc.z == 16 && desc.w == 16 &&
+             desc.f == cudaChannelFormatKindFloat)
+        ClearVolumeHalf4Kernel<<<grid, block>>>(value);
+    else if (desc.x == 32 && desc.y == 0 && desc.z == 0 && desc.w == 0 &&
+            desc.f == cudaChannelFormatKindFloat)
         ClearVolume1Kernel<<<grid, block>>>(value);
-    else if (desc.x == 16 && desc.y == 16 && desc.z == 16 && desc.w == 0)
+    else if (desc.x == 32 && desc.y == 32 && desc.z == 32 && desc.w == 32 &&
+             desc.f == cudaChannelFormatKindFloat)
         ClearVolume4Kernel<<<grid, block>>>(value);
 }

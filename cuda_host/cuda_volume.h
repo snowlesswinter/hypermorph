@@ -31,6 +31,7 @@ private:
     int height_;
     int depth_;
     int num_of_components_;
+    int byte_width_;
 };
 
 #endif // _CUDA_VOLUME_H_

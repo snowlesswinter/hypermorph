@@ -36,17 +36,10 @@ public:
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) override;
 
-    // For diagnosis.
-    virtual void ComputeResidualPackedDiagnosis(const GraphicsVolume& packed,
-                                                const GraphicsVolume& diagnosis,
-                                                float cell_size) override;
-
 private:
-    GLProgram* GetAbsoluteProgram();
     GLProgram* GetProlongatePackedProgram();
     GLProgram* GetRelaxPackedProgram();
     GLProgram* GetRelaxZeroGuessPackedProgram();
-    GLProgram* GetResidualDiagnosisProgram();
     GLProgram* GetResidualPackedProgram();
     GLProgram* GetRestrictPackedProgram();
     GLProgram* GetRestrictResidualPackedProgram();
@@ -59,10 +52,6 @@ private:
     std::unique_ptr<GLProgram> residual_packed_program_;
     std::unique_ptr<GLProgram> restrict_packed_program_;
     std::unique_ptr<GLProgram> restrict_residual_packed_program_;
-
-    // For diagnosis.
-    std::unique_ptr<GLProgram> absolute_program_;
-    std::unique_ptr<GLProgram> residual_diagnosis_program_;
 };
 
 #endif // _MULTIGRID_CORE_GLSL_H_

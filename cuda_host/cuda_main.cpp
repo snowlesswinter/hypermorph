@@ -2,6 +2,7 @@
 #include "cuda_main.h"
 
 #include <cassert>
+#include <algorithm>
 
 #include "cuda/cuda_core.h"
 #include "cuda/fluid_impl_cuda.h"
@@ -11,6 +12,7 @@
 #include "cuda_volume.h"
 #include "opengl/gl_texture.h"
 #include "vmath.hpp"
+#include "utility.h"
 
 // =============================================================================
 std::pair<GLuint, GraphicsResource*> GetPBO(CudaCore* core, int n,
@@ -407,6 +409,53 @@ void CudaMain::ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
     fluid_impl_pure_->ComputeDivergence(dest->dev_array(),
                                         velocity->dev_array(),
                                         half_inverse_cell_size, v);
+}
+
+void CudaMain::ComputeResidualPackedDiagnosis(
+    std::shared_ptr<CudaVolume> dest, std::shared_ptr<CudaVolume> source,
+    float inverse_h_square)
+{
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->ComputeResidualPackedDiagnosis(dest->dev_array(),
+                                                     source->dev_array(),
+                                                     inverse_h_square, v);
+
+    // =========================================================================
+    int w = dest->width();
+    int h = dest->height();
+    int d = dest->depth();
+    int n = 1;
+    int element_size = sizeof(float);
+
+    static char* buf = nullptr;
+    if (!buf)
+        buf = new char[w * h * d * element_size * n];
+
+    memset(buf, 0, w * h * d * element_size * n);
+    CudaCore::CopyFromVolume(buf, w * h * d * element_size * n,
+                             w * element_size * n, dest->dev_array(), v);
+
+    float* f = (float*)buf;
+    double sum = 0.0;
+    double q = 0.0f;
+    double m = 0.0f;
+    for (int i = 0; i < d; i++) {
+        for (int j = 0; j < h; j++) {
+            for (int k = 0; k < w; k++) {
+                for (int l = 0; l < n; l++) {
+                    q = f[i * w * h * n + j * w * n + k * n + l];
+                    //if (i == 30 && j == 0 && k == 56)
+                    //if (q > 1)
+                    sum += q;
+                    m = std::max(q, m);
+                }
+            }
+        }
+    }
+
+    double avg = sum / (w * h * d);
+    PrintDebugString("(CUDA) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
 }
 
 void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> dest,

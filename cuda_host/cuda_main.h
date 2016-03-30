@@ -90,6 +90,9 @@ public:
     void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> velocity,
                                float half_inverse_cell_size);
+    void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> dest,
+                                        std::shared_ptr<CudaVolume> velocity,
+                                        float inverse_h_square);
     void DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> packed,
                           float one_minus_omega,

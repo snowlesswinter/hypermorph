@@ -222,6 +222,7 @@ void Keyboard(unsigned char key, int x, int y)
             break;
         case 'g':
             g_diagnosis = 1 - g_diagnosis;
+            sim_->set_diagnosis(!!g_diagnosis);
             break;
         case 'r':
             sim_->Reset();

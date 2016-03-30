@@ -46,6 +46,9 @@ public:
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
                            const Vectormath::Aos::Vector3& volume_size);
+    void ComputeResidualPackedDiagnosis(
+        cudaArray* dest, cudaArray* source, float inverse_h_square,
+        const Vectormath::Aos::Vector3& volume_size);
     void DampedJacobi(cudaArray* dest, cudaArray* packed,
                       float one_minus_omega, float minus_square_cell_size,
                       float omega_over_beta,

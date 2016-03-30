@@ -17,8 +17,6 @@ public:
     static std::string RelaxPacked();
     static std::string RelaxWithZeroGuessPacked();
 
-    // For diagnosis.
-    static std::string Absolute();
     static std::string ComputeResidualPackedDiagnosis();
 };
 

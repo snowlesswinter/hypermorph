@@ -65,6 +65,7 @@ bool CudaVolume::Create(int width, int height, int depth, int num_of_components,
         height_ = height;
         depth_ = depth;
         num_of_components_ = num_of_components;
+        byte_width_ = byte_width;
     }
     return result;
 }
@@ -84,6 +85,7 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
         height_ = height;
         depth_ = depth;
         num_of_components_ = num_of_components;
+        byte_width_ = byte_width;
     }
     return result;
 }

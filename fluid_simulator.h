@@ -37,6 +37,7 @@ public:
     void set_num_full_multigrid_iterations(int n) {
         num_full_multigrid_iterations_ = n;
     }
+    void set_diagnosis(bool diagnosis) { diagnosis_ = diagnosis; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
     // TODO
@@ -55,6 +56,7 @@ private:
     void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
                              Vectormath::Aos::Vector3 hotspot, float value);
     void ComputeDivergence();
+    void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size);
     void Jacobi(float cell_size);
     void SolvePressure();
@@ -63,6 +65,7 @@ private:
     PoissonMethod solver_choice_;
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
+    bool diagnosis_;
 
     std::shared_ptr<GraphicsVolume> velocity_;
     std::shared_ptr<GraphicsVolume> density_;
@@ -70,6 +73,7 @@ private:
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> general1_;
     std::shared_ptr<GraphicsVolume> general4_;
+    std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
     GraphicsLib graphics_lib_;
 };

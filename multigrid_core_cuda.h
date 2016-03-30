@@ -31,11 +31,6 @@ public:
                                 const GraphicsVolume& coarse) override;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) override;
-
-    // For diagnosis.
-    virtual void ComputeResidualPackedDiagnosis(const GraphicsVolume& packed,
-                                                const GraphicsVolume& diagnosis,
-                                                float cell_size) override;
 };
 
 #endif // _MULTIGRID_CORE_CUDA_H_

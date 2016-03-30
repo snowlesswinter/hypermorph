@@ -482,23 +482,6 @@ void main()
 )";
 }
 
-std::string MultigridShader::Absolute()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D t;
-
-in float gLayer;
-
-void main()
-{
-    ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
-    frag_color = vec3(abs(texelFetch(t, coord, 0).r), 0.0f, 0.0f);
-}
-)";
-}
-
 std::string MultigridShader::ComputeResidualPackedDiagnosis()
 {
     std::string part1 = R"(
@@ -517,7 +500,7 @@ void main()
     float v = b_center -
         (north + south + east + west + far + near - 6.0 * center.r) *
             inverse_h_square;
-    frag_color = vec3(v, 0.0f, 0.0f);
+    frag_color = vec3(abs(v), 0.0f, 0.0f);
 }
 )";
     return part1 + kResidualCore + part2;

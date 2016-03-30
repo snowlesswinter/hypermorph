@@ -18,6 +18,8 @@ surface<void, cudaTextureType3D> gradient_velocity;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
 surface<void, cudaTextureType3D> jacobi;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
+surface<void, cudaTextureType3D> diagnosis;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
 __global__ void AdvectPureKernel(float time_step, float dissipation,
                                  int3 volume_size)
@@ -163,6 +165,50 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     ushort4 result = make_ushort4(0, __float2half_rn(div), 0, 0);
     surf3Dwrite(result, divergence_dest, x * sizeof(ushort4), y, z,
+                cudaBoundaryModeTrap);
+}
+
+__global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
+                                                     int3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+
+    float near =    tex3D(diagnosis_source, coord.x, coord.y, coord.z - 1.0f).x;
+    float south =   tex3D(diagnosis_source, coord.x, coord.y - 1.0f, coord.z).x;
+    float west =    tex3D(diagnosis_source, coord.x - 1.0f, coord.y, coord.z).x;
+    float4 center = tex3D(diagnosis_source, coord.x, coord.y, coord.z);
+    float east =    tex3D(diagnosis_source, coord.x + 1.0f, coord.y, coord.z).x;
+    float north =   tex3D(diagnosis_source, coord.x, coord.y + 1.0f, coord.z).x;
+    float far =     tex3D(diagnosis_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float b_center = center.y;
+
+    if (coord.y == volume_size.y - 1)
+        north = center.x;
+
+    if (coord.y == 0)
+        south = center.x;
+
+    if (coord.x == volume_size.x - 1)
+        east = center.x;
+
+    if (coord.x == 0)
+        west = center.x;
+
+    if (coord.z == volume_size.z - 1)
+        far = center.x;
+
+    if (coord.z == 0)
+        near = center.x;
+
+    float v = b_center -
+        (north + south + east + west + far + near - 6.0 * center.x) *
+        inverse_h_square;
+    surf3Dwrite(fabsf(v), diagnosis, x * sizeof(float), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -477,6 +523,41 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
                                                  volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
+}
+
+void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
+                                          cudaArray* source_array,
+                                          float inverse_h_square,
+                                          int3 volume_size)
+{
+    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
+    diagnosis.channelDesc = desc;
+
+    cudaError_t result = cudaBindSurfaceToArray(&diagnosis, dest_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    desc = cudaCreateChannelDescHalf4();
+    diagnosis_source.normalized = false;
+    diagnosis_source.filterMode = cudaFilterModeLinear;
+    diagnosis_source.addressMode[0] = cudaAddressModeClamp;
+    diagnosis_source.addressMode[1] = cudaAddressModeClamp;
+    diagnosis_source.addressMode[2] = cudaAddressModeClamp;
+    diagnosis_source.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&diagnosis_source, source_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, volume_size.x / 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    ComputeResidualPackedDiagnosisKernel<<<grid, block>>>(inverse_h_square,
+                                                          volume_size);
+
+    cudaUnbindTexture(&diagnosis_source);
 }
 
 void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,

@@ -35,6 +35,10 @@ extern void LaunchComputeDivergencePure(cudaArray* dest_array,
                                         cudaArray* velocity_array,
                                         float half_inverse_cell_size,
                                         int3 volume_size);
+extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
+                                                 cudaArray* source_array,
+                                                 float inverse_h_square,
+                                                 int3 volume_size);
 extern void LaunchDampedJacobiPure(cudaArray* dest_array,
                                    cudaArray* packed_array,
                                    float one_minus_omega,
@@ -189,6 +193,14 @@ void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
 {
     LaunchComputeDivergencePure(dest, velocity, half_inverse_cell_size,
                                 FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::ComputeResidualPackedDiagnosis(
+    cudaArray* dest, cudaArray* source, float inverse_h_square,
+    const vmath::Vector3& volume_size)
+{
+    LaunchComputeResidualPackedDiagnosis(dest, source, inverse_h_square,
+                                         FromVmathVector(volume_size));
 }
 
 void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* packed,

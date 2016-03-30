@@ -34,6 +34,9 @@ public:
     static void ClearVolume(cudaArray* dest,
                             const Vectormath::Aos::Vector4& value,
                             const Vectormath::Aos::Vector3& volume_size);
+    static void CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
+                               cudaArray* source,
+                               const Vectormath::Aos::Vector3& volume_size);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);

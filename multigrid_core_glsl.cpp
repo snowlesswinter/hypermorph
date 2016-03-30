@@ -21,8 +21,6 @@ MultigridCoreGlsl::MultigridCoreGlsl()
     , residual_packed_program_()
     , restrict_packed_program_()
     , restrict_residual_packed_program_()
-    , absolute_program_()
-    , residual_diagnosis_program_()
 {
 
 }
@@ -154,47 +152,6 @@ void MultigridCoreGlsl::RestrictResidualPacked(const GraphicsVolume& fine,
     ResetState();
 }
 
-void MultigridCoreGlsl::ComputeResidualPackedDiagnosis(
-    const GraphicsVolume& packed, const GraphicsVolume& diagnosis,
-    float cell_size)
-{
-    GetResidualDiagnosisProgram()->Use();
-
-    SetUniform("packed_tex", 0);
-    SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
-
-    diagnosis.gl_texture()->BindFrameBuffer();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.gl_texture()->handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          diagnosis.gl_texture()->depth());
-    ResetState();
-
-    // =========================================================================
-    GetAbsoluteProgram()->Use();
-
-    SetUniform("t", 0);
-
-    diagnosis.gl_texture()->BindFrameBuffer();
-    glActiveTexture(GL_TEXTURE0);
-    diagnosis.gl_texture()->Bind();
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          diagnosis.gl_texture()->depth());
-    ResetState();
-}
-
-GLProgram* MultigridCoreGlsl::GetAbsoluteProgram()
-{
-    if (!absolute_program_)
-    {
-        absolute_program_.reset(new GLProgram());
-        absolute_program_->Load(FluidShader::Vertex(), FluidShader::PickLayer(),
-                                MultigridShader::Absolute());
-    }
-
-    return absolute_program_.get();
-}
-
 GLProgram* MultigridCoreGlsl::GetProlongatePackedProgram()
 {
     if (!prolongate_packed_program_)
@@ -232,19 +189,6 @@ GLProgram* MultigridCoreGlsl::GetRelaxZeroGuessPackedProgram()
     }
 
     return relax_zero_guess_packed_program_.get();
-}
-
-GLProgram* MultigridCoreGlsl::GetResidualDiagnosisProgram()
-{
-    if (!residual_diagnosis_program_)
-    {
-        residual_diagnosis_program_.reset(new GLProgram());
-        residual_diagnosis_program_->Load(
-            FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridShader::ComputeResidualPackedDiagnosis());
-    }
-
-    return residual_diagnosis_program_.get();
 }
 
 GLProgram* MultigridCoreGlsl::GetResidualPackedProgram()
