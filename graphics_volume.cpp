@@ -56,7 +56,8 @@ bool GraphicsVolume::Create(int width, int height, int depth,
         }
 
         std::shared_ptr<GLTexture> r(new GLTexture());
-        bool result = r->Create(width, height, depth, internal_format, format);
+        bool result = r->Create(width, height, depth, internal_format, format,
+                                byte_width);
         if (result) {
             if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
                 CudaMain::Instance()->RegisterGLImage(r);

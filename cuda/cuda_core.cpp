@@ -67,96 +67,6 @@ void CudaCore::UnregisterGLResource(GraphicsResource* graphics_res)
     cudaGraphicsUnregisterResource(graphics_res->resource());
 }
 
-void CudaCore::Absolute(GraphicsResource* graphics_res, unsigned int aa)
-{
-}
-
-#if 0
-void CudaCore::Absolute(GraphicsResource* graphics_res, unsigned int aa)
-{
-    assert(graphics_res);
-    if (!graphics_res)
-        return;
-
-    float* out_data = nullptr;
-    cudaError_t result1 = cudaMalloc((void**)&out_data, 128 * 128 * 128 * 4);
-    assert(result1 == cudaSuccess);
-    if (result1 != cudaSuccess)
-        return;
-    //cudaGraphicsResource_t res1;
-    //cudaError_t result1 = cudaGraphicsGLRegisterBuffer(
-    //    &res1, aa, cudaGraphicsRegisterFlagsNone);
-    //
-    //result1 = cudaGraphicsMapResources(1, &res1);
-    //assert(result1 == cudaSuccess);
-    //if (result1 != cudaSuccess)
-    //    return;
-
-    //result1 = cudaGraphicsResourceGetMappedPointer(
-    //    reinterpret_cast<void**>(&out_data), &out_size, res1);
-    //assert(result1 == cudaSuccess);
-    //if (result1 != cudaSuccess)
-    //    return;
-
-    cudaGraphicsResource_t res = graphics_res->resource();
-    cudaError_t result = cudaGraphicsMapResources(1, &res);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaArray* dest_array = nullptr;
-    result = cudaGraphicsSubResourceGetMappedArray(&dest_array, res, 0, 0);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf();
-    in_tex.normalized = true;
-    in_tex.filterMode = cudaFilterModeLinear;
-    in_tex.addressMode[0] = cudaAddressModeClamp;
-    in_tex.addressMode[1] = cudaAddressModeClamp;
-    in_tex.addressMode[2] = cudaAddressModeClamp;
-    in_tex.channelDesc = desc;
-    
-    result = cudaBindTextureToArray(&in_tex, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, 8);
-    dim3 grid(16, 16, 16);
-    AbsoluteKernel<<<grid, block>>>(out_data, 128, 128, 128);
-
-    result = cudaGetLastError();
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    float* a = new float[128 * 128 * 128];
-    result = cudaMemcpy(a, out_data, 128 * 128 * 128 * 4, cudaMemcpyDeviceToHost);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    double p = 0;
-    double sum = 0;
-    for (int i = 0; i < 128; i++)
-    {
-        for (int j = 0; j < 128; j++)
-        {
-            for (int k = 0; k < 128; k++)
-            {
-                p = a[i * 128 * 128 + j * 128 + k];
-                sum += p;
-            }
-        }
-    }
-
-    cudaUnbindTexture(&in_tex);
-    cudaGraphicsUnmapResources(1, &res);
-}
-#endif
-
 bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
                                         const vmath::Vector3& extent,
                                         int num_of_components, int byte_width)
@@ -339,6 +249,23 @@ void CudaCore::CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
     cpy_parms.extent.height = static_cast<size_t>(volume_size.getY());
     cpy_parms.extent.depth = static_cast<size_t>(volume_size.getX());
     cpy_parms.kind = cudaMemcpyDeviceToHost;
+    cudaError_t e = cudaMemcpy3D(&cpy_parms);
+    assert(e == cudaSuccess);
+}
+
+void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t size_in_bytes,
+                            size_t pitch, const vmath::Vector3& volume_size)
+{
+    cudaMemcpy3DParms cpy_parms = {};
+    cpy_parms.srcPtr.ptr = source;
+    cpy_parms.srcPtr.pitch = pitch;
+    cpy_parms.srcPtr.xsize = static_cast<size_t>(volume_size.getX());
+    cpy_parms.srcPtr.ysize = static_cast<size_t>(volume_size.getY());
+    cpy_parms.dstArray = dest;
+    cpy_parms.extent.width = static_cast<size_t>(volume_size.getX());
+    cpy_parms.extent.height = static_cast<size_t>(volume_size.getY());
+    cpy_parms.extent.depth = static_cast<size_t>(volume_size.getX());
+    cpy_parms.kind = cudaMemcpyHostToDevice;
     cudaError_t e = cudaMemcpy3D(&cpy_parms);
     assert(e == cudaSuccess);
 }

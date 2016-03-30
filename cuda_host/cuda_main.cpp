@@ -123,15 +123,6 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
     return 0;
 }
 
-void CudaMain::Absolute(std::shared_ptr<GLTexture> texture)
-{
-    auto i = registerd_textures_.find(texture);
-    if (i == registerd_textures_.end())
-        return;
-
-    core_->Absolute(i->second.get(), i->first->handle());
-}
-
 void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
                                 std::shared_ptr<GLTexture> fine)
 {
@@ -202,7 +193,7 @@ std::shared_ptr<GLTexture> CudaMain::CreateTexture(int width, int height,
                                                    bool enable_cuda)
 {
     std::shared_ptr<GLTexture> r(new GLTexture());
-    r->Create(width, height, depth, internal_format, format);
+    r->Create(width, height, depth, internal_format, format, 0);
 
     // Here we found something supernatural:
     //
@@ -438,8 +429,8 @@ void CudaMain::ComputeResidualPackedDiagnosis(
 
     float* f = (float*)buf;
     double sum = 0.0;
-    double q = 0.0f;
-    double m = 0.0f;
+    double q = 0.0;
+    double m = 0.0;
     for (int i = 0; i < d; i++) {
         for (int j = 0; j < h; j++) {
             for (int k = 0; k < w; k++) {

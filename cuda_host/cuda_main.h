@@ -30,7 +30,6 @@ public:
     bool Init();
 
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
-    void Absolute(std::shared_ptr<GLTexture> texture);
     void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
                           std::shared_ptr<GLTexture> fine);
     void AdvectVelocity(std::shared_ptr<GLTexture> velocity,

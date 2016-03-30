@@ -17,9 +17,6 @@ public:
     static std::string SubtractGradient();
     static std::string Splat();
     static std::string Buoyancy();
-
-    // Optimization.
-    static std::string GetAdvectPackedShaderCode();
 };
 
 #endif // _FLUID_SHADER_H_

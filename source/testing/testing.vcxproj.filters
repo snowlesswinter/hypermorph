@@ -5,6 +5,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="half_float">
+      <UniqueIdentifier>{1987c12e-b677-4bc3-bdeb-2602144167e7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="testing.rc">
@@ -23,10 +26,31 @@
     <ClCompile Include="testing.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="fluid_unittest.cpp" />
+    <ClCompile Include="half_float\half.cpp">
+      <Filter>half_float</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="testing.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="fluid_unittest.h" />
+    <ClInclude Include="half_float\half.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
+    <ClInclude Include="half_float\halfExport.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
+    <ClInclude Include="half_float\halfFunction.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
+    <ClInclude Include="half_float\halfLimits.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
+    <ClInclude Include="half_float\eLut.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
+    <ClInclude Include="half_float\toFloat.h">
+      <Filter>half_float</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

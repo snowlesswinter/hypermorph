@@ -53,6 +53,9 @@
     <ClInclude Include="graphics_lib_enum.h" />
     <ClInclude Include="multigrid_core_glsl.h" />
     <ClInclude Include="multigrid_core_cuda.h" />
+    <ClInclude Include="source\opengl\gl_utility.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -95,5 +98,8 @@
     </ClCompile>
     <ClCompile Include="multigrid_core_glsl.cpp" />
     <ClCompile Include="multigrid_core_cuda.cpp" />
+    <ClCompile Include="source\opengl\gl_utility.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

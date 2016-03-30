@@ -37,12 +37,14 @@ public:
     static void CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
                                cudaArray* source,
                                const Vectormath::Aos::Vector3& volume_size);
+    static void CopyToVolume(cudaArray* dest, void* source,
+                             size_t size_in_bytes, size_t pitch,
+                             const Vectormath::Aos::Vector3& volume_size);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);
     int RegisterGLBuffer(unsigned int buffer, GraphicsResource* graphics_res);
     void UnregisterGLResource(GraphicsResource* graphics_res);
-    void Absolute(GraphicsResource* graphics_res, unsigned int aa);
 };
 
 #endif // _CUDA_CORE_H_

@@ -22,6 +22,7 @@ CudaVolume::CudaVolume()
     , height_(0)
     , depth_(0)
     , num_of_components_(0)
+    , byte_width_(0)
 {
 
 }

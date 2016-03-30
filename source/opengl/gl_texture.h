@@ -14,8 +14,9 @@ public:
     void Bind() const;
     void BindFrameBuffer() const;
     bool Create(int width, int height, int depth, GLint internal_format,
-                GLenum format);
-    void GetTexImage(GLenum format, GLenum type, void* buffer);
+                GLenum format, int byte_width);
+    void GetTexImage(void* buffer);
+    void TexImage3D(void* buffer);
     void Unbind() const;
 
     GLuint frame_buffer() const { return frame_buffer_; }
@@ -25,6 +26,7 @@ public:
     int width() const { return width_; }
     int height() const { return height_; }
     int depth() const { return depth_; }
+    int byte_width() const { return byte_width_; }
 
 private:
     GLuint frame_buffer_;
@@ -34,6 +36,9 @@ private:
     int width_;
     int height_;
     int depth_;
+    int byte_width_;
+    GLint internal_format_;
+    GLenum format_;
 };
 
 #endif // _GL_PROGRAM_H_

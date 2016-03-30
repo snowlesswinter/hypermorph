@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "gl_texture.h"
 
+#include <cassert>
+
 #include "utility.h"
 
 GLTexture::GLTexture()
@@ -11,6 +13,9 @@ GLTexture::GLTexture()
     , width_(0)
     , height_(0)
     , depth_(0)
+    , byte_width_(0)
+    , internal_format_(0)
+    , format_(0)
 {
 
 }
@@ -41,8 +46,12 @@ void GLTexture::BindFrameBuffer() const
 }
 
 bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
-                       GLenum format)
+                       GLenum format, int byte_width)
 {
+    assert(byte_width == 2 || byte_width == 4);
+    if (byte_width != 2 && byte_width != 4)
+        return false;
+
     GLuint frame_buffer = 0;
     GLuint color_buffer = 0;
     GLuint texture_handle = 0;
@@ -88,6 +97,9 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
         width_ = width;
         height_ = height;
         depth_ = depth;
+        byte_width_ = byte_width;
+        internal_format_ = internal_format;
+        format_ = format;
         return true;
     } while (0);
 
@@ -103,17 +115,28 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
     return false;
 }
 
-void GLTexture::GetTexImage(GLenum format, GLenum type, void* buffer)
+void GLTexture::GetTexImage(void* buffer)
 {
     Bind();
-    glGetTexImage(GL_TEXTURE_3D, 0, format, type, buffer);
-    //Unbind();
+    glGetTexImage(GL_TEXTURE_3D, 0, format_,
+                  byte_width_ == 2 ? GL_HALF_FLOAT : GL_FLOAT, buffer);
+    GLenum e = glGetError();
+    assert(e == GL_NO_ERROR);
+    Unbind();
+}
+
+void GLTexture::TexImage3D(void* buffer)
+{
+    Bind();
+    glTexImage3D(GL_TEXTURE_3D, 0, internal_format_, width_, height_, depth_, 0,
+                 format_, byte_width_ == 2 ? GL_HALF_FLOAT : GL_FLOAT, buffer);
+    GLenum e = glGetError();
+    assert(e == GL_NO_ERROR);
+    Unbind();
 }
 
 void GLTexture::Unbind() const
 {
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

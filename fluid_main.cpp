@@ -23,7 +23,6 @@ GLuint RaycastProgram;
 float FieldOfView = 0.7f;
 bool SimulateFluid = true;
 OverlayContent overlay_;
-GLProgram advect_packed_program_;
 int kMainWindowWidth = ViewportWidth;
 int kMainWindowHeight = ViewportWidth;
 LARGE_INTEGER time_freq;
@@ -262,7 +261,7 @@ void TimerProc(int value)
 bool Initialize()
 {
     sim_ = new FluidSimulator();
-    sim_->set_graphics_lib(GRAPHICS_LIB_CUDA);
+    sim_->set_graphics_lib(GRAPHICS_LIB_GLSL);
     if (!sim_->Init())
         return false;
 
@@ -271,8 +270,6 @@ bool Initialize()
     RaycastProgram = LoadProgram(RaycastShader::Vertex(),
                                  RaycastShader::Geometry(),
                                  RaycastShader::Fragment());
-    advect_packed_program_.Load(FluidShader::Vertex(), FluidShader::PickLayer(),
-                                FluidShader::GetAdvectPackedShaderCode());
     Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
     Vbos.FullscreenQuad = CreateQuadVbo();
 
@@ -291,8 +288,8 @@ bool Initialize()
 int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
 {
     char* command_line = GetCommandLineA();
-    int agrc = 1;
-    if (!InitGraphics(&agrc, &command_line))
+    int argc = 1;
+    if (!InitGraphics(&argc, &command_line))
         return -1;
 
     if (!Initialize())

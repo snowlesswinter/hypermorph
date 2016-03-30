@@ -439,31 +439,3 @@ void main()
 }
 )";
 }
-
-std::string FluidShader::GetAdvectPackedShaderCode()
-{
-    return R"(
-out vec3 frag_color;
-
-uniform sampler3D velocity;
-uniform sampler3D source;
-
-uniform vec3 inverse_size;
-uniform float time_step;
-uniform float dissipation_r;
-uniform float dissipation_g;
-
-in float gLayer;
-
-void main()
-{
-    vec3 f_coord = vec3(gl_FragCoord.xy, gLayer);
-    vec3 u = texture(velocity, inverse_size * f_coord).xyz;
-
-    vec3 coord = f_coord - time_step * u;
-    vec3 s = texture(source, inverse_size * coord).xyz;
-
-    frag_color = vec3(dissipation_r * s.r, dissipation_g * s.g, 0);
-}
-)";
-}

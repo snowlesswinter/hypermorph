@@ -492,12 +492,12 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
             v = new char[w * h * d * element_size * n];
 
         memset(v, 0, w * h * d * element_size * n);
-        p->gl_texture()->GetTexImage(format, GL_FLOAT, v);
+        p->gl_texture()->GetTexImage(v);
 
         float* f = (float*)v;
         double sum = 0.0;
-        double q = 0.0f;
-        double m = 0.0f;
+        double q = 0.0;
+        double m = 0.0;
         for (int i = 0; i < d; i++) {
             for (int j = 0; j < h; j++) {
                 for (int k = 0; k < w; k++) {
