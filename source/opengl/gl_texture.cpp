@@ -127,6 +127,7 @@ void GLTexture::GetTexImage(void* buffer)
 
 void GLTexture::TexImage3D(void* buffer)
 {
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     Bind();
     glTexImage3D(GL_TEXTURE_3D, 0, internal_format_, width_, height_, depth_, 0,
                  format_, byte_width_ == 2 ? GL_HALF_FLOAT : GL_FLOAT, buffer);

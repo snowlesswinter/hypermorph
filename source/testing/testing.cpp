@@ -52,7 +52,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prev_instance,
     glBindBuffer(GL_ARRAY_BUFFER, quad);
     glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
 
-    FluidUnittest::Test();
+    int random_seed = 0x01133108;
+    //FluidUnittest::TestVelocityAdvection(random_seed);
+    //FluidUnittest::TestDensityAdvection(random_seed);
+    FluidUnittest::TestTemperatureAdvection(random_seed);
 
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);

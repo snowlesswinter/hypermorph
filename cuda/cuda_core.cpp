@@ -233,8 +233,7 @@ void CudaCore::ClearVolume(cudaArray* dest, const vmath::Vector4& value,
 
 }
 
-void CudaCore::CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
-                              cudaArray* source, 
+void CudaCore::CopyFromVolume(void* dest, size_t pitch, cudaArray* source, 
                               const vmath::Vector3& volume_size)
 {
     cudaDeviceSynchronize();
@@ -253,8 +252,8 @@ void CudaCore::CopyFromVolume(void* dest, size_t size_in_bytes, size_t pitch,
     assert(e == cudaSuccess);
 }
 
-void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t size_in_bytes,
-                            size_t pitch, const vmath::Vector3& volume_size)
+void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t pitch,
+                            const vmath::Vector3& volume_size)
 {
     cudaMemcpy3DParms cpy_parms = {};
     cpy_parms.srcPtr.ptr = source;

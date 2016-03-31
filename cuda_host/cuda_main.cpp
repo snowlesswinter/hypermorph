@@ -424,8 +424,7 @@ void CudaMain::ComputeResidualPackedDiagnosis(
         buf = new char[w * h * d * element_size * n];
 
     memset(buf, 0, w * h * d * element_size * n);
-    CudaCore::CopyFromVolume(buf, w * h * d * element_size * n,
-                             w * element_size * n, dest->dev_array(), v);
+    CudaCore::CopyFromVolume(buf, w * element_size * n, dest->dev_array(), v);
 
     float* f = (float*)buf;
     double sum = 0.0;
