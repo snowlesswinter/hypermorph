@@ -7,6 +7,7 @@ public:
     FluidUnittest();
     ~FluidUnittest();
 
+    static void TestBuoyancyApplication(int random_seed);
     static void TestDensityAdvection(int random_seed);
     static void TestTemperatureAdvection(int random_seed);
     static void TestVelocityAdvection(int random_seed);
