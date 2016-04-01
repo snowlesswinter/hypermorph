@@ -305,10 +305,10 @@ void main()
         diff_ns = vN.y + vC.y;
 
     if (T.z >= tex_size.z - 1)
-        diff_ud = -vC.z - vU.z;
+        diff_ud = -vC.z - vD.z;
 
     if (T.z <= 0)
-        diff_ud = vD.z + vC.z;
+        diff_ud = vU.z + vC.z;
 
     FragColor = vec3(
         0.0f, HalfInverseCellSize * (diff_ew + diff_ns + diff_ud), 0.0f);

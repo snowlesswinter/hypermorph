@@ -129,7 +129,6 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
     float4 near =   tex3D(divergence_velocity, coord.x, coord.y, coord.z - 1.0f);
     float4 south =  tex3D(divergence_velocity, coord.x, coord.y - 1.0f, coord.z);
@@ -157,10 +156,10 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
         diff_ns = north.y + center.y;
 
     if (z >= volume_size.z - 1)
-        diff_fn = -center.z - far.z;
+        diff_fn = -center.z - near.z;
 
     if (z <= 0)
-        diff_fn = near.z + center.z;
+        diff_fn = far.z + center.z;
 
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     ushort4 result = make_ushort4(0, __float2half_rn(div), 0, 0);
@@ -499,7 +498,7 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
 
     cudaGetChannelDesc(&desc, velocity_array);
     divergence_velocity.normalized = false;
-    divergence_velocity.filterMode = cudaFilterModeLinear;
+    divergence_velocity.filterMode = cudaFilterModePoint;
     divergence_velocity.addressMode[0] = cudaAddressModeClamp;
     divergence_velocity.addressMode[1] = cudaAddressModeClamp;
     divergence_velocity.addressMode[2] = cudaAddressModeClamp;

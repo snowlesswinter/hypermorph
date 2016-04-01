@@ -81,7 +81,7 @@ namespace
 // that conformed to IEEE-754 though), it is more likely that GLSL has bigger
 // errors dealing with half-floats.
 
-const float kErrorThreshold = 0.00390625;
+const float kErrorThreshold = 0.08f;
 const float kTimeStep = 0.33f;
 
 float random(const std::pair<float, float>& scope)
@@ -145,7 +145,8 @@ failure:
 
 void VerifyResult4(const std::vector<uint16_t>& result_cuda,
                    const std::vector<uint16_t>& result_glsl,
-                   int width, int height, int depth, int n, char* function_name)
+                   int width, int height, int depth, int n,
+                   uint32_t channel_mask, char* function_name)
 {
     assert(n == 4);
 
@@ -167,8 +168,6 @@ void VerifyResult4(const std::vector<uint16_t>& result_cuda,
                     half h_glsl1; h_glsl1.setBits(result_glsl[index + 1]);
                     half h_cuda2; h_cuda2.setBits(result_cuda[index + 2]);
                     half h_glsl2; h_glsl2.setBits(result_glsl[index + 2]);
-                    half h_cuda3; h_cuda3.setBits(result_cuda[index + 3]);
-                    half h_glsl3; h_glsl3.setBits(result_glsl[index + 3]);
 
                     float v_cuda0 = h_cuda0.operator float();
                     float v_glsl0 = h_glsl0.operator float();
@@ -185,11 +184,17 @@ void VerifyResult4(const std::vector<uint16_t>& result_cuda,
                     error = std::max(error, error2);
 
                     max_error = std::max(static_cast<double>(error), max_error);
-//                     if (max_error > kErrorThreshold)
-//                         goto failure;
+                    if (max_error > kErrorThreshold)
+                        goto failure;
 
-                    sum_error += error0 + error1 + error2;
-                    count += 3;
+                    float errors[] = {error0, error1, error2};
+                    int t = 0;
+                    for (float e : errors) {
+                        if (channel_mask & (1 << (t++))) {
+                            sum_error += e;
+                            count++;
+                        }
+                    }
                 }
             }
         }
@@ -278,6 +283,32 @@ void InitializeDensityVolume(GraphicsVolume* cuda_volume,
     glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
 }
 
+void CollectAndVerifyResult(int width, int height, int depth, int size,
+                            int pitch, int n, uint32_t channel_mask,
+                            GraphicsVolume* cuda_volume,
+                            GraphicsVolume* glsl_volume, char* function_name)
+{
+    // Copy the result back to CPU.
+    vmath::Vector3 volume_size(static_cast<float>(width),
+                               static_cast<float>(height),
+                               static_cast<float>(depth));
+    std::vector<uint16_t> result_cuda(size, 0);
+    CudaCore::CopyFromVolume(&result_cuda[0], pitch,
+                             cuda_volume->cuda_volume()->dev_array(),
+                             volume_size);
+
+    // Copy the result back to CPU.
+    std::vector<uint16_t> result_glsl(size, 0);
+    glsl_volume->gl_texture()->GetTexImage(&result_glsl[0]);
+
+    assert(n == 1 || n == 4);
+    if (n == 1)
+        VerifyResult1(result_cuda, result_glsl, width, height, depth, n,
+                      function_name);
+    else if (n == 4)
+        VerifyResult4(result_cuda, result_glsl, width, height, depth, n,
+                      channel_mask, function_name);
+}
 } // Anonymous namespace.
 
 void FluidUnittest::TestBuoyancyApplication(int random_seed)
@@ -310,21 +341,9 @@ void FluidUnittest::TestBuoyancyApplication(int random_seed)
     sim_cuda.ApplyBuoyancy(kTimeStep);
     sim_glsl.ApplyBuoyancy(kTimeStep);
 
-    // Copy the result back to CPU.
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
-    std::vector<uint16_t> result_cuda(size_4, 0);
-    CudaCore::CopyFromVolume(&result_cuda[0], pitch_4,
-                             sim_cuda.velocity_->cuda_volume()->dev_array(),
-                             volume_size);
-
-    // Copy the result back to CPU.
-    std::vector<uint16_t> result_glsl(size_4, 0);
-    sim_glsl.velocity_->gl_texture()->GetTexImage(&result_glsl[0]);
-
-    VerifyResult4(result_cuda, result_glsl, width, height, depth, n_4,
-                  __FUNCTION__);
+    CollectAndVerifyResult(width, height, depth, size_4, pitch_4, n_4, 7,
+                           sim_cuda.velocity_.get(), sim_glsl.velocity_.get(),
+                           __FUNCTION__);
 }
 
 void FluidUnittest::TestDensityAdvection(int random_seed)
@@ -354,6 +373,7 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
                             size_d, std::make_pair(0.0f, 3.0f));
 
     sim_cuda.AdvectDensity(kTimeStep);
+    sim_glsl.AdvectDensity(kTimeStep);
 
     // Copy the result back to CPU.
     vmath::Vector3 volume_size(static_cast<float>(width),
@@ -362,14 +382,41 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
     std::vector<uint16_t> result_cuda(size_d, 0);
     sim_cuda.density_->gl_texture()->GetTexImage(&result_cuda[0]);
 
-    sim_glsl.AdvectDensity(kTimeStep);
-
     // Copy the result back to CPU.
     std::vector<uint16_t> result_glsl(size_d, 0);
     sim_glsl.density_->gl_texture()->GetTexImage(&result_glsl[0]);
 
     VerifyResult1(result_cuda, result_glsl, width, height, depth, n_d,
                   __FUNCTION__);
+}
+
+void FluidUnittest::TestDivergenceCalculation(int random_seed)
+{
+    srand(random_seed);
+
+    FluidSimulator sim_cuda;
+    FluidSimulator sim_glsl;
+    if (!InitializeSimulators(&sim_cuda, &sim_glsl))
+        return;
+
+    int width = sim_cuda.velocity_->GetWidth();
+    int height = sim_cuda.velocity_->GetHeight();
+    int depth = sim_cuda.velocity_->GetDepth();
+    int n = 4;
+    int pitch = width * sizeof(uint16_t) * n;
+    int size = pitch * height * depth;
+
+    // Copy the initialized data to GPU.
+    InitializeVolume4(sim_cuda.velocity_.get(), sim_glsl.velocity_.get(), width,
+                      height, depth, n, pitch, size,
+                      std::make_pair(-5.0f, 5.0f));
+
+    sim_cuda.ComputeDivergence();
+    sim_glsl.ComputeDivergence();
+
+    CollectAndVerifyResult(width, height, depth, size, pitch, n, 2,
+                           sim_cuda.general4_.get(), sim_glsl.general4_.get(),
+                           __FUNCTION__);
 }
 
 void FluidUnittest::TestTemperatureAdvection(int random_seed)
@@ -400,24 +447,11 @@ void FluidUnittest::TestTemperatureAdvection(int random_seed)
                       std::make_pair(0.0f, 40.0f));
 
     sim_cuda.AdvectTemperature(kTimeStep);
-
-    // Copy the result back to CPU.
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
-    std::vector<uint16_t> result_cuda(size_1, 0);
-    CudaCore::CopyFromVolume(&result_cuda[0], pitch_1,
-                             sim_cuda.temperature_->cuda_volume()->dev_array(),
-                             volume_size);
-
     sim_glsl.AdvectTemperature(kTimeStep);
 
-    // Copy the result back to CPU.
-    std::vector<uint16_t> result_glsl(size_1, 0);
-    sim_glsl.temperature_->gl_texture()->GetTexImage(&result_glsl[0]);
-
-    VerifyResult1(result_cuda, result_glsl, width, height, depth, n_1,
-                  __FUNCTION__);
+    CollectAndVerifyResult(width, height, depth, size_1, pitch_1, n_1, 1,
+                           sim_cuda.temperature_.get(),
+                           sim_glsl.temperature_.get(), __FUNCTION__);
 }
 
 void FluidUnittest::TestVelocityAdvection(int random_seed)
@@ -440,23 +474,11 @@ void FluidUnittest::TestVelocityAdvection(int random_seed)
     InitializeVolume4(sim_cuda.velocity_.get(), sim_glsl.velocity_.get(), width,
                       height, depth, n, pitch, size,
                       std::make_pair(-5.0f, 5.0f));
+
     sim_cuda.AdvectVelocity(kTimeStep);
-
-    // Copy the result back to CPU.
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
-    std::vector<uint16_t> result_cuda(size, 0);
-    CudaCore::CopyFromVolume(&result_cuda[0], pitch,
-                             sim_cuda.velocity_->cuda_volume()->dev_array(),
-                             volume_size);
-
     sim_glsl.AdvectVelocity(kTimeStep);
 
-    // Copy the result back to CPU.
-    std::vector<uint16_t> result_glsl(size, 0);
-    sim_glsl.velocity_->gl_texture()->GetTexImage(&result_glsl[0]);
-
-    VerifyResult4(result_cuda, result_glsl, width, height, depth, n,
-                  __FUNCTION__);
+    CollectAndVerifyResult(width, height, depth, size, pitch, n, 7,
+                           sim_cuda.velocity_.get(), sim_glsl.velocity_.get(),
+                           __FUNCTION__);
 }
