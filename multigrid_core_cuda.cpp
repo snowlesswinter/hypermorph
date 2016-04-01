@@ -54,7 +54,6 @@ void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
     float minus_h_square = -(cell_size * cell_size);
     float omega_over_beta = 0.11111111f;
     CudaMain::Instance()->DampedJacobiPure(u_and_b.cuda_volume(),
-                                           u_and_b.cuda_volume(),
                                            one_minus_omega, minus_h_square,
                                            omega_over_beta);
 }

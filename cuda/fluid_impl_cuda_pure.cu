@@ -73,7 +73,7 @@ __global__ void ApplyBuoyancyPureKernel(float time_step,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
+
     float4 velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
     float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
 
@@ -220,7 +220,6 @@ __global__ void DampedJacobiPureKernel(float one_minus_omega,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
     float near =           tex3D(jacobi_packed, coord.x, coord.y, coord.z - 1.0f).x;
     float south =          tex3D(jacobi_packed, coord.x, coord.y - 1.0f, coord.z).x;
@@ -268,7 +267,6 @@ __global__ void SubstractGradientPureKernel(float gradient_scale,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
     float4 near = tex3D(gradient_packed, coord.x, coord.y, coord.z - 1.0f);
     float4 south = tex3D(gradient_packed, coord.x, coord.y - 1.0f, coord.z);
@@ -414,7 +412,7 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
 
     cudaGetChannelDesc(&desc, velocity_array);
     buoyancy_velocity.normalized = false;
-    buoyancy_velocity.filterMode = cudaFilterModeLinear;
+    buoyancy_velocity.filterMode = cudaFilterModePoint;
     buoyancy_velocity.addressMode[0] = cudaAddressModeClamp;
     buoyancy_velocity.addressMode[1] = cudaAddressModeClamp;
     buoyancy_velocity.addressMode[2] = cudaAddressModeClamp;
@@ -427,7 +425,7 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
 
     cudaGetChannelDesc(&desc, temperature_array);
     buoyancy_temperature.normalized = false;
-    buoyancy_temperature.filterMode = cudaFilterModeLinear;
+    buoyancy_temperature.filterMode = cudaFilterModePoint;
     buoyancy_temperature.addressMode[0] = cudaAddressModeClamp;
     buoyancy_temperature.addressMode[1] = cudaAddressModeClamp;
     buoyancy_temperature.addressMode[2] = cudaAddressModeClamp;
@@ -553,20 +551,20 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
     cudaUnbindTexture(&diagnosis_source);
 }
 
-void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,
-                            float one_minus_omega, float minus_square_cell_size,
-                            float omega_over_beta, int3 volume_size)
+void LaunchDampedJacobiPure(cudaArray* packed_array, float one_minus_omega,
+                            float minus_square_cell_size, float omega_over_beta,
+                            int3 volume_size)
 {
     cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&jacobi, dest_array, &desc);
+    cudaGetChannelDesc(&desc, packed_array);
+    cudaError_t result = cudaBindSurfaceToArray(&jacobi, packed_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
     cudaGetChannelDesc(&desc, packed_array);
     jacobi_packed.normalized = false;
-    jacobi_packed.filterMode = cudaFilterModeLinear;
+    jacobi_packed.filterMode = cudaFilterModePoint;
     jacobi_packed.addressMode[0] = cudaAddressModeClamp;
     jacobi_packed.addressMode[1] = cudaAddressModeClamp;
     jacobi_packed.addressMode[2] = cudaAddressModeClamp;
@@ -600,7 +598,7 @@ void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
 
     cudaGetChannelDesc(&desc, packed_array);
     gradient_packed.normalized = false;
-    gradient_packed.filterMode = cudaFilterModeLinear;
+    gradient_packed.filterMode = cudaFilterModePoint;
     gradient_packed.addressMode[0] = cudaAddressModeClamp;
     gradient_packed.addressMode[1] = cudaAddressModeClamp;
     gradient_packed.addressMode[2] = cudaAddressModeClamp;

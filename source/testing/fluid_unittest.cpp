@@ -346,6 +346,35 @@ void FluidUnittest::TestBuoyancyApplication(int random_seed)
                            __FUNCTION__);
 }
 
+void FluidUnittest::TestDampedJacobi(int random_seed)
+{
+    srand(random_seed);
+
+    FluidSimulator sim_cuda;
+    FluidSimulator sim_glsl;
+    if (!InitializeSimulators(&sim_cuda, &sim_glsl))
+        return;
+
+    int width = sim_cuda.general4_->GetWidth();
+    int height = sim_cuda.general4_->GetHeight();
+    int depth = sim_cuda.general4_->GetDepth();
+    int n = 4;
+    int pitch = width * sizeof(uint16_t) * n;
+    int size = pitch * height * depth;
+
+    // Copy the initialized data to GPU.
+    InitializeVolume4(sim_cuda.general4_.get(), sim_glsl.general4_.get(), width,
+                      height, depth, n, pitch, size,
+                      std::make_pair(-5.0f, 5.0f));
+
+    sim_cuda.DampedJacobi(CellSize);
+    sim_glsl.DampedJacobi(CellSize);
+
+    CollectAndVerifyResult(width, height, depth, size, pitch, n, 1,
+                           sim_cuda.general4_.get(), sim_glsl.general4_.get(),
+                           __FUNCTION__);
+}
+
 void FluidUnittest::TestDensityAdvection(int random_seed)
 {
     srand(random_seed);
