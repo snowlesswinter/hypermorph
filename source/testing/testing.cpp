@@ -58,7 +58,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prev_instance,
     //FluidUnittest::TestTemperatureAdvection(random_seed);
     //FluidUnittest::TestBuoyancyApplication(random_seed);
     //FluidUnittest::TestDivergenceCalculation(random_seed);
-    FluidUnittest::TestDampedJacobi(random_seed);
+    //FluidUnittest::TestDampedJacobi(random_seed);
+    FluidUnittest::TestGradientSubtraction(random_seed);
 
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);

@@ -448,6 +448,38 @@ void FluidUnittest::TestDivergenceCalculation(int random_seed)
                            __FUNCTION__);
 }
 
+void FluidUnittest::TestGradientSubtraction(int random_seed)
+{
+    srand(random_seed);
+
+    FluidSimulator sim_cuda;
+    FluidSimulator sim_glsl;
+    if (!InitializeSimulators(&sim_cuda, &sim_glsl))
+        return;
+
+    int width = sim_cuda.velocity_->GetWidth();
+    int height = sim_cuda.velocity_->GetHeight();
+    int depth = sim_cuda.velocity_->GetDepth();
+    int n = 4;
+    int pitch = width * sizeof(uint16_t) * n;
+    int size = pitch * height * depth;
+
+    // Copy the initialized data to GPU.
+    InitializeVolume4(sim_cuda.velocity_.get(), sim_glsl.velocity_.get(), width,
+                      height, depth, n, pitch, size,
+                      std::make_pair(-5.0f, 5.0f));
+    InitializeVolume4(sim_cuda.general4_.get(), sim_glsl.general4_.get(),
+                      width, height, depth, n, pitch, size,
+                      std::make_pair(-4.0f, 4.0f));
+
+    sim_cuda.SubtractGradient();
+    sim_glsl.SubtractGradient();
+
+    CollectAndVerifyResult(width, height, depth, size, pitch, n, 7,
+                           sim_cuda.velocity_.get(), sim_glsl.velocity_.get(),
+                           __FUNCTION__);
+}
+
 void FluidUnittest::TestTemperatureAdvection(int random_seed)
 {
     srand(random_seed);
