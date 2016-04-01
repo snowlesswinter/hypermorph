@@ -581,16 +581,15 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
                                      float inverse_h_square,
                                      int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    residual_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&residual_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, source_array);
     residual_source.normalized = false;
     residual_source.filterMode = cudaFilterModeLinear;
     residual_source.addressMode[0] = cudaAddressModeClamp;
@@ -615,7 +614,8 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
 void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
                             cudaArray* fine_array, int3 volume_size_fine)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float4>();
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, coarse_array);
     prolongate_coarse.normalized = false;
     prolongate_coarse.filterMode = cudaFilterModeLinear;
     prolongate_coarse.addressMode[0] = cudaAddressModeClamp;
@@ -629,6 +629,7 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
     if (result != cudaSuccess)
         return;
 
+    cudaGetChannelDesc(&desc, fine_array);
     prolongate_fine.normalized = false;
 
     // TODO: Disabling the linear filter mode may slightly speed up the kernel.
@@ -650,8 +651,8 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
     int num_of_blocks_per_slice = volume_size.y / 8;
     int slice_stride = volume_size.x * volume_size.y;
 
-    ProlongatePackedKernel << <grid, block >> >(dest_array, num_of_blocks_per_slice,
-                                                slice_stride, volume_size);
+    ProlongatePackedKernel<<<grid, block>>>(dest_array, num_of_blocks_per_slice,
+                                            slice_stride, volume_size);
 
     cudaUnbindTexture(&prolongate_fine);
     cudaUnbindTexture(&prolongate_coarse);
@@ -660,16 +661,15 @@ void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
 void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
                                 cudaArray* fine_array, int3 volume_size_fine)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    prolongate_pure_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&prolongate_pure_dest,
                                                 dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, coarse_array);
     prolongate_pure_coarse.normalized = false;
     prolongate_pure_coarse.filterMode = cudaFilterModeLinear;
     prolongate_pure_coarse.addressMode[0] = cudaAddressModeClamp;
@@ -683,7 +683,7 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, fine_array);
     prolongate_pure_fine.normalized = false;
     prolongate_pure_fine.filterMode = cudaFilterModeLinear;
     prolongate_pure_fine.addressMode[0] = cudaAddressModeClamp;
@@ -714,15 +714,14 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
                                         float omega_times_inverse_beta,
                                         int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    guess_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&guess_dest, dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, source_array);
     guess_source.normalized = false;
     guess_source.filterMode = cudaFilterModeLinear;
     guess_source.addressMode[0] = cudaAddressModeClamp;
@@ -748,16 +747,15 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
 void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
                               int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    restrict_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&restrict_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, source_array);
     restrict_source.normalized = false;
     restrict_source.filterMode = cudaFilterModeLinear;
     restrict_source.addressMode[0] = cudaAddressModeClamp;
@@ -782,16 +780,15 @@ void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
 void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
                                       cudaArray* source_array, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    restrict_residual_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&restrict_residual_dest,
                                                 dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, source_array);
     restrict_residual_source.normalized = false;
     restrict_residual_source.filterMode = cudaFilterModeLinear;
     restrict_residual_source.addressMode[0] = cudaAddressModeClamp;

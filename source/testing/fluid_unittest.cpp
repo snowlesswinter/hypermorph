@@ -17,6 +17,71 @@
 
 namespace
 {
+// In both velocity and temperature test cases, I encountered the same maximum
+// difference number 0.00390625, which had drawn my attention. So I stopped
+// writing more test cases and got a look into it.
+// It seemed to be connected with CUDA's interpolation implementation that
+// using 9-bit floating point numbers as the coefficients:
+// https://devtalk.nvidia.com/default/topic/528016/cuda-programming-and-performance/accuracy-of-1d-linear-interpolation-by-cuda-texture-interpolation
+// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#linear-filtering
+//
+// However, if I change the scope of the random data, say, from 10.0f to 20.0f,
+// the difference between CUDA and GLSL results will become much bigger,
+// indicating that this is not a system error cause by either of the
+// implementations.
+//
+// I then wrote my own interpolation for comparison. But the result is
+// frustrating: the difference is even bigger than both of the previous results.
+// I checked many times and didn't find anything wrong with the tri-linear
+// interpolation algorithm(after all differing form those results doesn't mean
+// the algorithm is wrong), and I just turned to another way: I began to
+// suspect the 16-bit floating point conversion.
+//
+// It is possible that GLSL shaders use a different standard of half-precision,
+// which means using openEXR(specified by CUDA) to convert single-precision
+// floating point numbers could be a problem. So I changed the texture back to
+// 32-bit floating point format, and finally I got the same results came from
+// CUDA and GLSL.
+//
+// Piece of test results(with random seed 0x56784321, and scope [-5, 5]):
+//
+//  Point(0, 0, 0)
+//  ----------------------------------------------------------------------------
+//  cuda interpolation :
+//  new_velocity{x = -2.0389745, y = 0.65754491, z = -0.085241824, w = 0}
+//
+//  glsl interpolation :
+//  new_velocity{x = -2.03710938, y = 0.657226563, z = -0.0852050781, w = 0}
+//
+//  single-precision float interpolation :
+//  new_velocity{x = -2.03835416, y = 0.657923460, z = -0.0852115080, w = 0}
+//
+//  single-precision float DIY interpolation :
+//  new_velocity{x = -2.03192258, y = 0.654677153, z = -0.103225358, w = 0}
+//
+//  Point(36, 36, 36)
+//  ----------------------------------------------------------------------------
+//  cuda interpolation :
+//  new_velocity{x = -3.10351563, y = -1.29296875, z = 1.08203125, w = 0}
+//
+//  glsl interpolation :
+//  new_velocity{x = -3.10351563, y = -1.29199219, z = 1.08105469, w = 0}
+//
+//  single-precision float interpolation :
+//  new_velocity{x = -3.10525894, y = -1.29387271, z = 1.08214724, w = 0}
+//
+//  single-precision float DIY interpolation :
+//  new_velocity{x = -3.12161803, y = -1.29015040, z = 1.08285618, w = 0}
+//
+// There could be difference if the scope goes big(e.g. [-15, 15]).
+//
+// Conclusion:
+//
+// Maybe the GLSL uses a different implementation of half-floats(it's announced
+// that conformed to IEEE-754 though), it is more likely that GLSL has bigger
+// errors dealing with half-floats.
+
+const float kErrorThreshold = 0.00390625;
 const float kTimeStep = 0.33f;
 
 float random()
@@ -55,7 +120,7 @@ void VerifyResult1(const std::vector<uint16_t>& result_cuda,
                     float error = error0;
 
                     max_error = std::max(static_cast<double>(error), max_error);
-                    if (max_error > 0.004)
+                    if (max_error > kErrorThreshold)
                         goto failure;
 
                     sum_error += error0;
@@ -120,7 +185,7 @@ void VerifyResult4(const std::vector<uint16_t>& result_cuda,
                     error = std::max(error, error2);
 
                     max_error = std::max(static_cast<double>(error), max_error);
-                    if (max_error > 0.004)
+                    if (max_error > kErrorThreshold)
                         goto failure;
 
                     sum_error += error0 + error1 + error2;

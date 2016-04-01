@@ -322,16 +322,15 @@ void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
                       cudaArray_t source_array, float time_step,
                       float dissipation, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf();
-    advect_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, velocity_array);
     advect_velocity.normalized = false;
     advect_velocity.filterMode = cudaFilterModeLinear;
     advect_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -344,7 +343,7 @@ void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf();
+    cudaGetChannelDesc(&desc, source_array);
     advect_source.normalized = false;
     advect_source.filterMode = cudaFilterModeLinear;
     advect_source.addressMode[0] = cudaAddressModeClamp;
@@ -371,16 +370,15 @@ void LaunchAdvectVelocityPure(cudaArray_t dest_array,
                               float time_step, float dissipation,
                               int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    advect_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, velocity_array);
     advect_velocity.normalized = false;
     advect_velocity.filterMode = cudaFilterModeLinear;
     advect_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -407,16 +405,15 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
                              float ambient_temperature, float accel_factor,
                              float gravity, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    buoyancy_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&buoyancy_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, velocity_array);
     buoyancy_velocity.normalized = false;
     buoyancy_velocity.filterMode = cudaFilterModeLinear;
     buoyancy_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -429,7 +426,7 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf();
+    cudaGetChannelDesc(&desc, temperature_array);
     buoyancy_temperature.normalized = false;
     buoyancy_temperature.filterMode = cudaFilterModeLinear;
     buoyancy_temperature.addressMode[0] = cudaAddressModeClamp;
@@ -458,16 +455,15 @@ void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
                             float3 center_point, float3 hotspot, float radius,
                             float value, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf();
-    impulse_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&impulse_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf();
+    cudaGetChannelDesc(&desc, original_array);
     impulse_original.normalized = false;
     impulse_original.filterMode = cudaFilterModeLinear;
     impulse_original.addressMode[0] = cudaAddressModeClamp;
@@ -493,16 +489,15 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
                                  cudaArray* velocity_array,
                                  float half_inverse_cell_size, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    divergence_dest.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&divergence_dest, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, velocity_array);
     divergence_velocity.normalized = false;
     divergence_velocity.filterMode = cudaFilterModeLinear;
     divergence_velocity.addressMode[0] = cudaAddressModeClamp;
@@ -530,15 +525,14 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                           float inverse_h_square,
                                           int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
-    diagnosis.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&diagnosis, dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, source_array);
     diagnosis_source.normalized = false;
     diagnosis_source.filterMode = cudaFilterModeLinear;
     diagnosis_source.addressMode[0] = cudaAddressModeClamp;
@@ -564,15 +558,14 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,
                             float one_minus_omega, float minus_square_cell_size,
                             float omega_over_beta, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    jacobi.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&jacobi, dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, packed_array);
     jacobi_packed.normalized = false;
     jacobi_packed.filterMode = cudaFilterModeLinear;
     jacobi_packed.addressMode[0] = cudaAddressModeClamp;
@@ -598,16 +591,15 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* packed_array,
 void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
                                  float gradient_scale, int3 volume_size)
 {
-    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
-    gradient_velocity.channelDesc = desc;
-
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
     cudaError_t result = cudaBindSurfaceToArray(&gradient_velocity, dest_array,
                                                 &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    desc = cudaCreateChannelDescHalf4();
+    cudaGetChannelDesc(&desc, packed_array);
     gradient_packed.normalized = false;
     gradient_packed.filterMode = cudaFilterModeLinear;
     gradient_packed.addressMode[0] = cudaAddressModeClamp;
