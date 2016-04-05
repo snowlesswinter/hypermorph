@@ -4,6 +4,11 @@
 class MultigridUnittest
 {
 public:
+    // Residual calculation test doesn't pass unless we turn to use
+    // single-precision floating point numbers. Maybe I should choose the
+    // testing data more carefully that make it more suitable for half-float
+    // storage.
+    static void TestResidualCalculation(int random_seed);
     static void TestZeroGuessRelaxation(int random_seed);
 
 private:

@@ -27,15 +27,14 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
-    float near = tex3D(residual_source, coord.x, coord.y, coord.z - 1.0f).x;
-    float south = tex3D(residual_source, coord.x, coord.y - 1.0f, coord.z).x;
-    float west = tex3D(residual_source, coord.x - 1.0f, coord.y, coord.z).x;
+    float near =    tex3D(residual_source, coord.x, coord.y, coord.z - 1.0f).x;
+    float south =   tex3D(residual_source, coord.x, coord.y - 1.0f, coord.z).x;
+    float west =    tex3D(residual_source, coord.x - 1.0f, coord.y, coord.z).x;
     float4 center = tex3D(residual_source, coord.x, coord.y, coord.z);
-    float east = tex3D(residual_source, coord.x + 1.0f, coord.y, coord.z).x;
-    float north = tex3D(residual_source, coord.x, coord.y + 1.0f, coord.z).x;
-    float far = tex3D(residual_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float east =    tex3D(residual_source, coord.x + 1.0f, coord.y, coord.z).x;
+    float north =   tex3D(residual_source, coord.x, coord.y + 1.0f, coord.z).x;
+    float far =     tex3D(residual_source, coord.x, coord.y, coord.z + 1.0f).x;
     float b_center = center.y;
 
     if (coord.y == volume_size.y - 1)
@@ -590,7 +589,7 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
 
     cudaGetChannelDesc(&desc, source_array);
     residual_source.normalized = false;
-    residual_source.filterMode = cudaFilterModeLinear;
+    residual_source.filterMode = cudaFilterModePoint;
     residual_source.addressMode[0] = cudaAddressModeClamp;
     residual_source.addressMode[1] = cudaAddressModeClamp;
     residual_source.addressMode[2] = cudaAddressModeClamp;
