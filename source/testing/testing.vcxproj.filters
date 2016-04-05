@@ -29,6 +29,8 @@
     <ClCompile Include="half_float\half.cpp">
       <Filter>half_float</Filter>
     </ClCompile>
+    <ClCompile Include="multigrid_unittest.cpp" />
+    <ClCompile Include="unittest_common.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="testing.h" />
@@ -52,5 +54,7 @@
     <ClInclude Include="half_float\toFloat.h">
       <Filter>half_float</Filter>
     </ClInclude>
+    <ClInclude Include="multigrid_unittest.h" />
+    <ClInclude Include="unittest_common.h" />
   </ItemGroup>
 </Project>

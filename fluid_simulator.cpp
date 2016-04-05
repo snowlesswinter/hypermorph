@@ -32,7 +32,9 @@ static struct
 } Programs;
 
 FluidSimulator::FluidSimulator()
-    : solver_choice_(POISSON_SOLVER_DAMPED_JACOBI)
+    : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
+    , multigrid_core_()
+    , solver_()
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
     , diagnosis_(false)
@@ -571,12 +573,11 @@ void FluidSimulator::Jacobi(float cell_size)
 
 void FluidSimulator::SolvePressure()
 {
-    static MultigridCore* m_core = nullptr;
-    if (!m_core) {
+    if (!multigrid_core_) {
         if (graphics_lib_ == GRAPHICS_LIB_CUDA)
-            m_core = new MultigridCoreCuda();
+            multigrid_core_.reset(new MultigridCoreCuda());
         else
-            m_core = new MultigridCoreGlsl();
+            multigrid_core_.reset(new MultigridCoreGlsl());
     }
 
     switch (solver_choice_) {
@@ -600,13 +601,12 @@ void FluidSimulator::SolvePressure()
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
-            static PoissonSolver* p_solver = nullptr;
-            if (!p_solver)
-            {
-                p_solver = new MultigridPoissonSolver(m_core);
-                p_solver->Initialize(general4_->GetWidth(),
-                                     general4_->GetHeight(),
-                                     general4_->GetDepth());
+            if (!solver_) {
+                solver_.reset(
+                    new MultigridPoissonSolver(multigrid_core_.get()));
+                solver_->Initialize(general4_->GetWidth(),
+                                    general4_->GetHeight(),
+                                    general4_->GetDepth());
             }
 
             // An iteration times lower than 4 will introduce significant
@@ -621,23 +621,22 @@ void FluidSimulator::SolvePressure()
             // That's a pretty good score!
 
             for (int i = 0; i < num_multigrid_iterations_; i++)
-                p_solver->Solve(general4_, CellSize, !i);
+                solver_->Solve(general4_, CellSize, !i);
 
             break;
         }
         case POISSON_SOLVER_FULL_MULTI_GRID: {
-            static PoissonSolver* p_solver = nullptr;
-            if (!p_solver)
-            {
-                p_solver = new FullMultigridPoissonSolver(m_core);
-                p_solver->Initialize(general4_->GetWidth(),
-                                     general4_->GetHeight(),
-                                     general4_->GetDepth());
+            if (!solver_) {
+                solver_.reset(
+                    new FullMultigridPoissonSolver(multigrid_core_.get()));
+                solver_->Initialize(general4_->GetWidth(),
+                                    general4_->GetHeight(),
+                                    general4_->GetDepth());
             }
 
             // Chaos occurs if the iteration times is set to a value above 2.
             for (int i = 0; i < num_full_multigrid_iterations_; i++)
-                p_solver->Solve(general4_, CellSize, !i);
+                solver_->Solve(general4_, CellSize, !i);
 
             break;
         }

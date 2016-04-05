@@ -4,6 +4,7 @@
 #include "third_party/opengl/glew.h"
 #include "third_party/opengl/freeglut.h"
 #include "fluid_unittest.h"
+#include "multigrid_unittest.h"
 #include "utility.h"
 
 int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prev_instance,
@@ -59,7 +60,9 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prev_instance,
     //FluidUnittest::TestBuoyancyApplication(random_seed);
     //FluidUnittest::TestDivergenceCalculation(random_seed);
     //FluidUnittest::TestDampedJacobi(random_seed);
-    FluidUnittest::TestGradientSubtraction(random_seed);
+    //FluidUnittest::TestGradientSubtraction(random_seed);
+
+    MultigridUnittest::TestZeroGuessRelaxation(random_seed);
 
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);

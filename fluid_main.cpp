@@ -262,6 +262,7 @@ bool Initialize()
 {
     sim_ = new FluidSimulator();
     sim_->set_graphics_lib(GRAPHICS_LIB_GLSL);
+    sim_->set_solver_choice(FluidSimulator::POISSON_SOLVER_MULTI_GRID);
     if (!sim_->Init())
         return false;
 

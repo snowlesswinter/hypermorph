@@ -148,7 +148,6 @@ __global__ void RelaxWithZeroGuessPackedPureKernel(
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
     float near =    tex3D(guess_source, coord.x, coord.y, coord.z - 1.0f).y;
     float south =   tex3D(guess_source, coord.x, coord.y - 1.0f, coord.z).y;
@@ -723,7 +722,7 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
 
     cudaGetChannelDesc(&desc, source_array);
     guess_source.normalized = false;
-    guess_source.filterMode = cudaFilterModeLinear;
+    guess_source.filterMode = cudaFilterModePoint;
     guess_source.addressMode[0] = cudaAddressModeClamp;
     guess_source.addressMode[1] = cudaAddressModeClamp;
     guess_source.addressMode[2] = cudaAddressModeClamp;

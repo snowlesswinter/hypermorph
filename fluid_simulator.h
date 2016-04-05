@@ -14,6 +14,8 @@ class Vector3;
 }
 class FluidUnittest;
 class GraphicsVolume;
+class MultigridCore;
+class PoissonSolver;
 class FluidSimulator
 {
 public:
@@ -66,6 +68,8 @@ private:
     void SubtractGradient();
 
     PoissonMethod solver_choice_;
+    std::unique_ptr<MultigridCore> multigrid_core_;
+    std::unique_ptr<PoissonSolver> solver_;
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
     bool diagnosis_;
