@@ -147,7 +147,7 @@ void VerifyResult4(const std::vector<uint16_t>& result_cuda,
         }
     }
 
-    avg_error = sum_error / count;
+    avg_error = count ? sum_error / count : 0.0;
     if (avg_error > 0.0008)
         goto failure;
 

@@ -123,8 +123,7 @@ __global__ void ProlongatePackedPureKernel(int3 volume_size)
     float3 t_c = make_float3(c.x + t_x, c.y + t_y, c.z + t_z);
     float4 result_float = tex3D(prolongate_pure_coarse, t_c.x, t_c.y, t_c.z);
 
-    float3 f_coord = make_float3(float(x) + 0.5f, float(y) + 0.5f,
-                                 float(z) + 0.5f);
+    float3 f_coord = make_float3(x, y, z) + 0.5f;
 
     float4 original = tex3D(prolongate_pure_fine, f_coord.x, f_coord.y, f_coord.z);
     float4 result = make_float4(original.x + result_float.x, original.y, 0.0f,
@@ -132,8 +131,7 @@ __global__ void ProlongatePackedPureKernel(int3 volume_size)
 
     ushort4 raw = make_ushort4(__float2half_rn(result.x),
                                __float2half_rn(result.y),
-                               __float2half_rn(result.z),
-                               0);
+                               0, 0);
     surf3Dwrite(raw, prolongate_pure_dest, x * sizeof(ushort4), y, z,
                 cudaBoundaryModeTrap);
 }

@@ -175,7 +175,6 @@ __global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
 
     float near =    tex3D(diagnosis_source, coord.x, coord.y, coord.z - 1.0f).x;
     float south =   tex3D(diagnosis_source, coord.x, coord.y - 1.0f, coord.z).x;
@@ -531,7 +530,7 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
 
     cudaGetChannelDesc(&desc, source_array);
     diagnosis_source.normalized = false;
-    diagnosis_source.filterMode = cudaFilterModeLinear;
+    diagnosis_source.filterMode = cudaFilterModePoint;
     diagnosis_source.addressMode[0] = cudaAddressModeClamp;
     diagnosis_source.addressMode[1] = cudaAddressModeClamp;
     diagnosis_source.addressMode[2] = cudaAddressModeClamp;

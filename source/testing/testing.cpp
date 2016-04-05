@@ -65,7 +65,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prev_instance,
     //MultigridUnittest::TestZeroGuessRelaxation(random_seed);
     //MultigridUnittest::TestResidualCalculation(random_seed);
     //MultigridUnittest::TestResidualRestriction(random_seed);
-    MultigridUnittest::TestRestriction(random_seed);
+    //MultigridUnittest::TestRestriction(random_seed);
+    MultigridUnittest::TestProlongation(random_seed);
 
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);

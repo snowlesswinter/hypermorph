@@ -9,6 +9,46 @@
 #include "unittest_common.h"
 #include "utility.h"
 
+void MultigridUnittest::TestProlongation(int random_seed)
+{
+    srand(random_seed);
+
+    GraphicsVolume cuda_fine(GRAPHICS_LIB_CUDA);
+    GraphicsVolume glsl_fine(GRAPHICS_LIB_GLSL);
+    GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
+    GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
+
+    cuda_fine.Create(128, 128, 128, 4, 2);
+    glsl_fine.Create(128, 128, 128, 4, 2);
+    cuda_coarse.Create(64, 64, 64, 4, 2);
+    glsl_coarse.Create(64, 64, 64, 4, 2);
+
+    int width = cuda_coarse.GetWidth();
+    int height = cuda_coarse.GetHeight();
+    int depth = cuda_coarse.GetDepth();
+    int n = 4;
+    int pitch = width * sizeof(uint16_t) * n;
+    int size = pitch * height * depth;
+    UnittestCommon::InitializeVolume4(&cuda_coarse, &glsl_coarse, width, height,
+                                      depth, n, pitch, size,
+                                      std::make_pair(-4.0f, 4.0f));
+
+    MultigridCoreCuda cuda_core;
+    cuda_core.ProlongatePacked(cuda_coarse, cuda_fine);
+
+    MultigridCoreGlsl glsl_core;
+    glsl_core.ProlongatePacked(glsl_coarse, glsl_fine);
+
+    int pitch_fine = cuda_fine.GetWidth() * sizeof(uint16_t) * n;
+    int size_fine = pitch_fine * cuda_fine.GetHeight() *
+        cuda_fine.GetDepth();
+    UnittestCommon::CollectAndVerifyResult(cuda_fine.GetWidth(),
+                                           cuda_fine.GetHeight(),
+                                           cuda_fine.GetDepth(), size_fine,
+                                           pitch_fine, n, 3, &cuda_fine,
+                                           &glsl_fine, __FUNCTION__);
+}
+
 void MultigridUnittest::TestResidualCalculation(int random_seed)
 {
     srand(random_seed);
