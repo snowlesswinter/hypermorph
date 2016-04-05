@@ -186,26 +186,9 @@ void CudaMain::RoundPassed(int round)
     fluid_impl_->RoundPassed(round);
 }
 
-std::shared_ptr<GLTexture> CudaMain::CreateTexture(int width, int height,
-                                                   int depth,
-                                                   unsigned int internal_format,
-                                                   unsigned int format,
-                                                   bool enable_cuda)
+void CudaMain::Sync()
 {
-    std::shared_ptr<GLTexture> r(new GLTexture());
-    r->Create(width, height, depth, internal_format, format, 0);
-
-    // Here we found something supernatural:
-    //
-    // If we don't register the texture immediately, we will never get a
-    // chance to successfully register it. This unbelievable behavior had
-    // tortured me a few hours, so I surrendered, and put the image register
-    // code here.
-
-    if (enable_cuda)
-        RegisterGLImage(r);
-
-    return r;
+    core_->Sync();
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,

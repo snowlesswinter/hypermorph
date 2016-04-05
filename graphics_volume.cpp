@@ -59,8 +59,15 @@ bool GraphicsVolume::Create(int width, int height, int depth,
         bool result = r->Create(width, height, depth, internal_format, format,
                                 byte_width);
         if (result) {
-            if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS)
+            if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
+                // Here we found something supernatural:
+                //
+                // If we don't register the texture immediately, we will never
+                // get a chance to successfully register it. This unbelievable
+                // behavior had tortured me a few hours, so I surrendered, and
+                // put the image register code here.
                 CudaMain::Instance()->RegisterGLImage(r);
+            }
 
             gl_texture_ = r;
         }

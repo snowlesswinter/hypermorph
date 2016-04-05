@@ -117,14 +117,8 @@ public:
                                     std::shared_ptr<CudaVolume> fine);
 
     // For diagnosis
+    void Sync();
     void RoundPassed(int round);
-
-    // temporary ===============================================================
-    CudaCore* core() { return core_.get(); }
-    std::shared_ptr<GLTexture> CreateTexture(int width, int height, int depth,
-                                             unsigned int internal_format,
-                                             unsigned int format,
-                                             bool enable_cuda);
 
 private:
     std::unique_ptr<CudaCore> core_;

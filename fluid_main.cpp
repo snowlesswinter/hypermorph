@@ -279,7 +279,8 @@ bool Initialize()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnableVertexAttribArray(SlotPosition);
 
-    Metrics::Instance()->SetOperationSync([]() { glFinish(); });
+    Metrics::Instance()->SetOperationSync(
+        []() { glFinish(); CudaMain::Instance()->Sync(); });
     Metrics::Instance()->SetTimeSource(
         []() -> double { return GetCurrentTimeInSeconds(); });
 

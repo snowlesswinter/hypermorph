@@ -268,3 +268,8 @@ void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t pitch,
     cudaError_t e = cudaMemcpy3D(&cpy_parms);
     assert(e == cudaSuccess);
 }
+
+void CudaCore::Sync()
+{
+    cudaDeviceSynchronize();
+}

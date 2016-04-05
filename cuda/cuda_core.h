@@ -43,6 +43,8 @@ public:
                         GraphicsResource* graphics_res);
     int RegisterGLBuffer(unsigned int buffer, GraphicsResource* graphics_res);
     void UnregisterGLResource(GraphicsResource* graphics_res);
+
+    void Sync();
 };
 
 #endif // _CUDA_CORE_H_
