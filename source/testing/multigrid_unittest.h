@@ -9,6 +9,7 @@ public:
     // testing data more carefully that make it more suitable for half-float
     // storage.
     static void TestResidualCalculation(int random_seed);
+    static void TestResidualRestriction(int random_seed);
     static void TestZeroGuessRelaxation(int random_seed);
 
 private:
