@@ -80,6 +80,46 @@ void MultigridUnittest::TestResidualRestriction(int random_seed)
                                            &glsl_coarse, __FUNCTION__);
 }
 
+void MultigridUnittest::TestRestriction(int random_seed)
+{
+    srand(random_seed);
+
+    GraphicsVolume cuda_fine(GRAPHICS_LIB_CUDA);
+    GraphicsVolume glsl_fine(GRAPHICS_LIB_GLSL);
+    GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
+    GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
+
+    cuda_fine.Create(128, 128, 128, 4, 2);
+    glsl_fine.Create(128, 128, 128, 4, 2);
+    cuda_coarse.Create(64, 64, 64, 4, 2);
+    glsl_coarse.Create(64, 64, 64, 4, 2);
+
+    int width = cuda_fine.GetWidth();
+    int height = cuda_fine.GetHeight();
+    int depth = cuda_fine.GetDepth();
+    int n = 4;
+    int pitch = width * sizeof(uint16_t) * n;
+    int size = pitch * height * depth;
+    UnittestCommon::InitializeVolume4(&cuda_fine, &glsl_fine, width, height,
+                                      depth, n, pitch, size,
+                                      std::make_pair(-4.0f, 4.0f));
+
+    MultigridCoreCuda cuda_core;
+    cuda_core.RestrictPacked(cuda_fine, cuda_coarse);
+
+    MultigridCoreGlsl glsl_core;
+    glsl_core.RestrictPacked(glsl_fine, glsl_coarse);
+
+    int pitch_coarse = cuda_coarse.GetWidth() * sizeof(uint16_t) * n;
+    int size_coarse = pitch_coarse * cuda_coarse.GetHeight() *
+        cuda_coarse.GetDepth();
+    UnittestCommon::CollectAndVerifyResult(cuda_coarse.GetWidth(),
+                                           cuda_coarse.GetHeight(),
+                                           cuda_coarse.GetDepth(), size_coarse,
+                                           pitch_coarse, n, 3, &cuda_coarse,
+                                           &glsl_coarse, __FUNCTION__);
+}
+
 void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
 {
     srand(random_seed);
