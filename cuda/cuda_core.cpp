@@ -6,6 +6,7 @@
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include <cuda_profiler_api.h>
 #include <helper_cuda.h>
 #include <helper_cuda_gl.h>
 
@@ -39,6 +40,8 @@ bool CudaCore::Init()
     int dev_id = findCudaGLDevice(0, nullptr);
     cudaDeviceProp prop = {0};
     cudaGetDeviceProperties(&prop, dev_id);
+
+    cudaProfilerStart();
     return 0;
 }
 
@@ -267,6 +270,16 @@ void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t pitch,
     cpy_parms.kind = cudaMemcpyHostToDevice;
     cudaError_t e = cudaMemcpy3D(&cpy_parms);
     assert(e == cudaSuccess);
+}
+
+void CudaCore::FlushProfilingData()
+{
+    // Still not able to make visual profiler work. Maybe it's a problem with
+    // the graphics drivers:
+    // https://devtalk.nvidia.com/default/topic/630905/nsight-visual-studio-edition/-quot-profile-cuda-application-quot-always-fails-with-quot-no-kernel-launches-captured-quot-/
+
+    cudaDeviceSynchronize();
+    cudaProfilerStop();
 }
 
 void CudaCore::Sync()

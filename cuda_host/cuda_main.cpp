@@ -86,6 +86,7 @@ CudaMain* CudaMain::Instance()
 
 void CudaMain::DestroyInstance()
 {
+    Instance()->core_->FlushProfilingData();
     delete Instance();
 }
 

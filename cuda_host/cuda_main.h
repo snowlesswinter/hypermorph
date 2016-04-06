@@ -117,8 +117,8 @@ public:
                                     std::shared_ptr<CudaVolume> fine);
 
     // For diagnosis
-    void Sync();
     void RoundPassed(int round);
+    void Sync();
 
 private:
     std::unique_ptr<CudaCore> core_;

@@ -197,6 +197,8 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
     float c4 = 0.0625f;
     float c8 = 0.125f;
 
+    // Changing the order of the following voxel-fetching code will NOT affect
+    // the performance of this kernel.
     float4 north_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z - 1.0f);
     float4 north_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z - 1.0f);
     float4 north_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z - 1.0f);

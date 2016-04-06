@@ -44,6 +44,7 @@ public:
     int RegisterGLBuffer(unsigned int buffer, GraphicsResource* graphics_res);
     void UnregisterGLResource(GraphicsResource* graphics_res);
 
+    void FlushProfilingData();
     void Sync();
 };
 
