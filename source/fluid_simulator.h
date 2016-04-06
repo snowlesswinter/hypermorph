@@ -57,9 +57,11 @@ private:
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
                       Vectormath::Aos::Vector3 position,
-                      Vectormath::Aos::Vector3 hotspot, float value);
+                      Vectormath::Aos::Vector3 hotspot, float splat_radius,
+                      float value);
     void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
-                             Vectormath::Aos::Vector3 hotspot, float value);
+                             Vectormath::Aos::Vector3 hotspot,
+                             float splat_radius, float value);
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size);

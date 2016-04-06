@@ -71,6 +71,7 @@
     <ClInclude Include="poisson_solver\multigrid_core_cuda.h">
       <Filter>poisson_solver</Filter>
     </ClInclude>
+    <ClInclude Include="fluid_config.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -128,5 +129,6 @@
     <ClCompile Include="poisson_solver\multigrid_core_cuda.cpp">
       <Filter>poisson_solver</Filter>
     </ClCompile>
+    <ClCompile Include="fluid_config.cpp" />
   </ItemGroup>
 </Project>

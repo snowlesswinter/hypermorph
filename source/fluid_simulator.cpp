@@ -5,6 +5,7 @@
 
 #include "cuda_host/cuda_main.h"
 #include "cuda_host/cuda_volume.h"
+#include "fluid_config.h"
 #include "graphics_volume.h"
 #include "metrics.h"
 #include "opengl/gl_texture.h"
@@ -161,12 +162,14 @@ void FluidSimulator::Reset()
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
+    float splat_radius =
+        GridWidth * FluidConfig::Instance()->splat_radius_factor();
     float sin_factor = static_cast<float>(sin(seconds_elapsed / 4 * 3.1415926f));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / 4 * 3.1415926f));
     float hotspot_x =
-        cos_factor * SplatRadius * 0.8f + kImpulsePosition.getX();
+        cos_factor * splat_radius * 0.8f + kImpulsePosition.getX();
     float hotspot_z =
-        sin_factor * SplatRadius * 0.8f + kImpulsePosition.getZ();
+        sin_factor * splat_radius * 0.8f + kImpulsePosition.getZ();
     vmath::Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     Metrics::Instance()->OnFrameUpdateBegins();
@@ -187,10 +190,12 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnBuoyancyApplied();
 
     // Splat new smoke
-    ApplyImpulseDensity(kImpulsePosition, hotspot, ImpulseDensity);
+    ApplyImpulseDensity(kImpulsePosition, hotspot, splat_radius,
+                        FluidConfig::Instance()->impulse_density());
 
     // Something wrong with the temperature impulsing.
-    ApplyImpulse(&temperature_, kImpulsePosition, hotspot, ImpulseTemperature);
+    ApplyImpulse(&temperature_, kImpulsePosition, hotspot, splat_radius,
+                 FluidConfig::Instance()->impulse_temperature());
     Metrics::Instance()->OnImpulseApplied();
 
     // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
@@ -223,15 +228,16 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
 
 void FluidSimulator::AdvectDensity(float delta_time)
 {
+    float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         density2_->Clear();
         CudaMain::Instance()->AdvectDensityPure(density2_->gl_texture(),
                                                 velocity_->cuda_volume(),
                                                 density_->gl_texture(),
-                                                delta_time, DensityDissipation);
+                                                delta_time, density_dissipation);
         std::swap(density_, density2_);
     } else {
-        AdvectImpl(density_, delta_time, DensityDissipation);
+        AdvectImpl(density_, delta_time, density_dissipation);
         std::swap(density_, general1_);
     }
 }
@@ -268,14 +274,16 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
 
 void FluidSimulator::AdvectTemperature(float delta_time)
 {
+    float temperature_dissipation =
+        FluidConfig::Instance()->temperature_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         general1_->Clear(); // TODO: Clearing CUDA texture could be slow.
         CudaMain::Instance()->AdvectPure(general1_->cuda_volume(),
                                          velocity_->cuda_volume(),
                                          temperature_->cuda_volume(),
-                                         delta_time, TemperatureDissipation);
+                                         delta_time, temperature_dissipation);
     } else {
-        AdvectImpl(temperature_, delta_time, TemperatureDissipation);
+        AdvectImpl(temperature_, delta_time, temperature_dissipation);
     }
 
     std::swap(temperature_, general1_);
@@ -283,22 +291,24 @@ void FluidSimulator::AdvectTemperature(float delta_time)
 
 void FluidSimulator::AdvectVelocity(float delta_time)
 {
+    float velocity_dissipation =
+        FluidConfig::Instance()->velocity_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->AdvectVelocityPure(general4_->cuda_volume(),
                                                  velocity_->cuda_volume(),
                                                  delta_time,
-                                                 VelocityDissipation);
+                                                 velocity_dissipation);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->AdvectVelocity(velocity_->gl_texture(),
                                              general4_->gl_texture(),
-                                             delta_time, VelocityDissipation);
+                                             delta_time, velocity_dissipation);
     } else {
         glUseProgram(Programs.Advect);
 
         SetUniform("InverseSize",
                    CalculateInverseSize(*velocity_->gl_texture()));
         SetUniform("TimeStep", delta_time);
-        SetUniform("Dissipation", VelocityDissipation);
+        SetUniform("Dissipation", velocity_dissipation);
         SetUniform("SourceTexture", 1);
         SetUniform("Obstacles", 2);
 
@@ -318,27 +328,29 @@ void FluidSimulator::AdvectVelocity(float delta_time)
 
 void FluidSimulator::ApplyBuoyancy(float delta_time)
 {
+    float smoke_weight = FluidConfig::Instance()->smoke_weight();
+    float ambient_temperature = FluidConfig::Instance()->ambient_temperature();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyBuoyancyPure(general4_->cuda_volume(),
                                                 velocity_->cuda_volume(),
                                                 temperature_->cuda_volume(),
-                                                delta_time, AmbientTemperature,
-                                                kBuoyancyCoef, SmokeWeight);
+                                                delta_time, ambient_temperature,
+                                                kBuoyancyCoef, smoke_weight);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyBuoyancy(velocity_->gl_texture(),
                                             temperature_->gl_texture(),
                                             general4_->gl_texture(),
-                                            delta_time, AmbientTemperature,
-                                            kBuoyancyCoef, SmokeWeight);
+                                            delta_time, ambient_temperature,
+                                            kBuoyancyCoef, smoke_weight);
     } else {
         glUseProgram(Programs.ApplyBuoyancy);
 
         SetUniform("Velocity", 0);
         SetUniform("Temperature", 1);
-        SetUniform("AmbientTemperature", AmbientTemperature);
+        SetUniform("AmbientTemperature", ambient_temperature);
         SetUniform("TimeStep", delta_time);
         SetUniform("Sigma", kBuoyancyCoef);
-        SetUniform("Kappa", SmokeWeight);
+        SetUniform("Kappa", smoke_weight);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
                           general4_->gl_texture()->frame_buffer());
@@ -355,25 +367,26 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
 }
 
 void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
-                                  Vectormath::Aos::Vector3 position,
-                                  Vectormath::Aos::Vector3 hotspot, float value)
+                                  vmath::Vector3 position,
+                                  vmath::Vector3 hotspot, float splat_radius,
+                                  float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulsePure(general1_->cuda_volume(),
                                                (*dest)->cuda_volume(),
-                                               position, hotspot, SplatRadius,
+                                               position, hotspot, splat_radius,
                                                value);
         std::swap(*dest, general1_);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyImpulse((*dest)->gl_texture(),
                                            kImpulsePosition, hotspot,
-                                           SplatRadius, value);
+                                           splat_radius, value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
         SetUniform("center_point", position);
         SetUniform("hotspot", hotspot);
-        SetUniform("radius", SplatRadius);
+        SetUniform("radius", splat_radius);
         SetUniform("fill_color_r", value);
         SetUniform("fill_color_g", value);
 
@@ -387,24 +400,25 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
 }
 
 void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
-                                         vmath::Vector3 hotspot, float value)
+                                         vmath::Vector3 hotspot,
+                                         float splat_radius, float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulseDensityPure(density2_->gl_texture(),
                                                       density_->gl_texture(),
                                                       position, hotspot,
-                                                      SplatRadius, value);
+                                                      splat_radius, value);
         std::swap(density_, density2_);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ApplyImpulse(density_->gl_texture(),
                                            kImpulsePosition, hotspot,
-                                           SplatRadius, value);
+                                           splat_radius, value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
         SetUniform("center_point", position);
         SetUniform("hotspot", hotspot);
-        SetUniform("radius", SplatRadius);
+        SetUniform("radius", splat_radius);
         SetUniform("fill_color_r", value);
         SetUniform("fill_color_g", value);
 
@@ -580,11 +594,13 @@ void FluidSimulator::SolvePressure()
             multigrid_core_.reset(new MultigridCoreGlsl());
     }
 
+    int num_jacobi_iterations =
+        FluidConfig::Instance()->num_jacobi_iterations();
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL: { // Bad in parallelism. Hard to be
                                             // implemented by shader.
-            for (int i = 0; i < kNumJacobiIterations; ++i)
+            for (int i = 0; i < num_jacobi_iterations; ++i)
                 Jacobi(CellSize);
 
             break;
@@ -595,7 +611,7 @@ void FluidSimulator::SolvePressure()
             //
             // Our experiments reveals that increasing the iteration times to
             // 80 of Jacobi will NOT lead to higher accuracy.
-            for (int i = 0; i < kNumJacobiIterations; ++i)
+            for (int i = 0; i < num_jacobi_iterations; ++i)
                 DampedJacobi(CellSize);
 
             break;

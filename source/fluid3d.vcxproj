@@ -86,6 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="fluid_config.h" />
     <ClInclude Include="cuda_host\cuda_main.h" />
     <ClInclude Include="cuda_host\cuda_volume.h" />
     <ClInclude Include="fluid_simulator.h" />
@@ -112,6 +113,7 @@
     <ClInclude Include="vmath.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="fluid_config.cpp" />
     <ClCompile Include="cuda_host\cuda_main.cpp" />
     <ClCompile Include="cuda_host\cuda_volume.cpp" />
     <ClCompile Include="fluid_simulator.cpp" />

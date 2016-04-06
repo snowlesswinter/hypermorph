@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "cuda_host/cuda_main.h"
+#include "fluid_config.h"
 #include "fluid_simulator.h"
 #include "graphics_volume.h"
 #include "metrics.h"
@@ -205,6 +206,17 @@ void Display()
     glutSwapBuffers();
 }
 
+bool ResetSimulator()
+{
+    if (sim_)
+        delete sim_;
+
+    sim_ = new FluidSimulator();
+    sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
+    sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
+    return sim_->Init();
+}
+
 void Keyboard(unsigned char key, int x, int y)
 {
     switch (key)
@@ -224,7 +236,8 @@ void Keyboard(unsigned char key, int x, int y)
             sim_->set_diagnosis(!!g_diagnosis);
             break;
         case 'r':
-            sim_->Reset();
+            FluidConfig::Instance()->Reload();
+            ResetSimulator();
             break;
         case '`':
             track_ball->ReturnHome();
@@ -260,10 +273,7 @@ void TimerProc(int value)
 
 bool Initialize()
 {
-    sim_ = new FluidSimulator();
-    sim_->set_graphics_lib(GRAPHICS_LIB_CUDA);
-    sim_->set_solver_choice(FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID);
-    if (!sim_->Init())
+    if (!ResetSimulator())
         return false;
 
     track_ball = CreateTrackball(ViewportWidth * 1.0f, ViewportHeight * 1.0f,
@@ -287,8 +297,22 @@ bool Initialize()
     return true;
 }
 
-int __stdcall WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
+void LoadConfig()
 {
+    char cur_path_buf[MAX_PATH] = {0};
+    DWORD cur_path_len = GetModuleFileNameA(nullptr, cur_path_buf, MAX_PATH);
+    std::string cur_path = cur_path_buf;
+    cur_path.replace(std::find(cur_path.rbegin(), cur_path.rend(), '\\').base(),
+                     cur_path.end(), "fluid_config.txt");
+    FluidConfig::Instance()->CreateIfNeeded(cur_path);
+    FluidConfig::Instance()->Load(cur_path);
+}
+
+int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
+                      int ignore_me2)
+{
+    LoadConfig();
+
     char* command_line = GetCommandLineA();
     int argc = 1;
     if (!InitGraphics(&argc, &command_line))
