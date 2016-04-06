@@ -97,6 +97,9 @@
     <ClInclude Include="multigrid_core_cuda.h" />
     <ClInclude Include="multigrid_core_glsl.h" />
     <ClInclude Include="multigrid_poisson_solver.h" />
+    <ClInclude Include="opengl\gl_program.h" />
+    <ClInclude Include="opengl\gl_texture.h" />
+    <ClInclude Include="opengl\gl_utility.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="poisson_solver.h" />
     <ClInclude Include="shader\fluid_shader.h" />
@@ -104,9 +107,6 @@
     <ClInclude Include="shader\multigrid_staggered_shader.h" />
     <ClInclude Include="shader\overlay_shader.h" />
     <ClInclude Include="shader\raycast_shader.h" />
-    <ClInclude Include="source\opengl\gl_program.h" />
-    <ClInclude Include="source\opengl\gl_texture.h" />
-    <ClInclude Include="source\opengl\gl_utility.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="vmath.hpp" />
@@ -122,6 +122,9 @@
     <ClCompile Include="multigrid_core_cuda.cpp" />
     <ClCompile Include="multigrid_core_glsl.cpp" />
     <ClCompile Include="multigrid_poisson_solver.cpp" />
+    <ClCompile Include="opengl\gl_program.cpp" />
+    <ClCompile Include="opengl\gl_texture.cpp" />
+    <ClCompile Include="opengl\gl_utility.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="poisson_solver.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
@@ -129,9 +132,6 @@
     <ClCompile Include="shader\multigrid_staggered_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />
     <ClCompile Include="shader\raycast_shader.cpp" />
-    <ClCompile Include="source\opengl\gl_program.cpp" />
-    <ClCompile Include="source\opengl\gl_texture.cpp" />
-    <ClCompile Include="source\opengl\gl_utility.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

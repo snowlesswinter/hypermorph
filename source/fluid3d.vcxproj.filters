@@ -44,16 +44,16 @@
     <ClInclude Include="cuda_host\cuda_volume.h">
       <Filter>cuda_host</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\gl_texture.h">
-      <Filter>opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\gl_program.h">
-      <Filter>opengl</Filter>
-    </ClInclude>
     <ClInclude Include="graphics_lib_enum.h" />
     <ClInclude Include="multigrid_core_glsl.h" />
     <ClInclude Include="multigrid_core_cuda.h" />
-    <ClInclude Include="source\opengl\gl_utility.h">
+    <ClInclude Include="opengl\gl_texture.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="opengl\gl_utility.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="opengl\gl_program.h">
       <Filter>opengl</Filter>
     </ClInclude>
   </ItemGroup>
@@ -90,15 +90,15 @@
     <ClCompile Include="cuda_host\cuda_main.cpp">
       <Filter>cuda_host</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\gl_program.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="source\opengl\gl_texture.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
     <ClCompile Include="multigrid_core_glsl.cpp" />
     <ClCompile Include="multigrid_core_cuda.cpp" />
-    <ClCompile Include="source\opengl\gl_utility.cpp">
+    <ClCompile Include="opengl\gl_texture.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="opengl\gl_utility.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="opengl\gl_program.cpp">
       <Filter>opengl</Filter>
     </ClCompile>
   </ItemGroup>
