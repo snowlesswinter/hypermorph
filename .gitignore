@@ -11,3 +11,4 @@
 /Release
 /*.user
 /cuda/*.user
+/source/cuda/*.user
