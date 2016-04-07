@@ -172,7 +172,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <CudaCompile Include="cuda_core.cu" />
     <CudaCompile Include="fluid_impl_cuda.cu" />
-    <CudaCompile Include="fluid_impl_cuda_pure.cu" />
+    <CudaCompile Include="fluid_impl_cuda_pure.cu">
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
+    </CudaCompile>
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="multigrid_impl_cuda.cu" />
   </ItemGroup>

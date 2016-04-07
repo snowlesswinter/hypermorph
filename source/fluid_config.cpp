@@ -72,7 +72,7 @@ std::istream& operator >> <GraphicsLib>(
     std::istream& is, FluidConfig::ConfigField<GraphicsLib>& field)
 {
     std::string lib;
-    is >> lib;
+    std::getline(is, lib);
     std::string lower_trimmed = to_lower(trimmed(lib));
     for (auto i : lib_enum_desc)
         if (lower_trimmed == i.desc_)
@@ -87,7 +87,7 @@ std::istream& operator >> <FluidSimulator::PoissonMethod>(
     FluidConfig::ConfigField<FluidSimulator::PoissonMethod>& field)
 {
     std::string method;
-    is >> method;
+    std::getline(is, method);
     std::string lower_trimmed = to_lower(trimmed(method));
     for (auto i : method_enum_desc)
         if (lower_trimmed == i.desc_)
@@ -161,7 +161,7 @@ void FluidConfig::Load(const std::string& path)
         std::string key;
         if (std::getline(line_stream, key, '=')) {
             std::string value;
-            line_stream >> value;
+            std::getline(line_stream, value);
             Parse(key, value);
         }
     }
