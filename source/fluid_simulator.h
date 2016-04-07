@@ -80,6 +80,7 @@ private:
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> density2_;
     std::shared_ptr<GraphicsVolume> temperature_;
+    std::shared_ptr<GraphicsVolume> packed_;
     std::shared_ptr<GraphicsVolume> general1_;
     std::shared_ptr<GraphicsVolume> general4_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;

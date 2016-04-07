@@ -15,10 +15,10 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> impulse_original
 surface<void, cudaTextureType3D> divergence_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
 surface<void, cudaTextureType3D> gradient_velocity;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
+texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
 surface<void, cudaTextureType3D> jacobi;
-texture<ushort4, cudaTextureType3D, cudaReadModeElementType> jacobi_raw;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
+texture<ushort2, cudaTextureType3D, cudaReadModeElementType> jacobi_raw;
+texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 surface<void, cudaTextureType3D> diagnosis;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
@@ -163,8 +163,8 @@ __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
         diff_fn = far.z + center.z;
 
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
-    ushort4 result = make_ushort4(0, __float2half_rn(div), 0, 0);
-    surf3Dwrite(result, divergence_dest, x * sizeof(ushort4), y, z,
+    ushort2 result = make_ushort2(0, __float2half_rn(div));
+    surf3Dwrite(result, divergence_dest, x * sizeof(ushort2), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -211,11 +211,6 @@ __global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
                 cudaBoundaryModeTrap);
 }
 
-__device__ float2 xy(float4 v)
-{
-    return make_float2(v.x, v.y);
-}
-
 __device__ float2 xys(ushort4 v)
 {
     return make_float2(__half2float(v.x), __half2float(v.y));
@@ -226,7 +221,7 @@ __device__ ushort2 xyt(ushort4 v)
     return make_ushort2(v.x, v.y);
 }
 
-__device__ ushort2 xyu(float4 v)
+__device__ ushort2 xyu(float2 v)
 {
     return make_ushort2(__float2half_rn(v.x), __float2half_rn(v.y));
 }
@@ -247,7 +242,7 @@ __global__ void DampedJacobiPureKernel(float minus_square_cell_size,
     float near =              tex3D(jacobi_packed, x, y, z - 1.0f).x;
     float south =             tex3D(jacobi_packed, x, y - 1.0f, z).x;
     float west =              tex3D(jacobi_packed, x - 1.0f, y, z).x;
-    float2 packed_center = xy(tex3D(jacobi_packed, x, y, z));
+    float2 packed_center =    tex3D(jacobi_packed, x, y, z);
     float east =              tex3D(jacobi_packed, x + 1.0f, y, z).x;
     float north =             tex3D(jacobi_packed, x, y + 1.0f, z).x;
     float far =               tex3D(jacobi_packed, x, y, z + 1.0f).x;
@@ -274,9 +269,9 @@ __global__ void DampedJacobiPureKernel(float minus_square_cell_size,
     float u = omega_over_beta * 3.0f * packed_center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
         packed_center.y) * omega_over_beta;
-    ushort4 raw = make_ushort4(__float2half_rn(u),
-                               __float2half_rn(packed_center.y), 0, 0);
-    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+    ushort2 raw = make_ushort2(__float2half_rn(u),
+                               __float2half_rn(packed_center.y));
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void DampedJacobiPureKernel_smem_full(float minus_square_cell_size,
@@ -323,9 +318,8 @@ __global__ void DampedJacobiPureKernel_smem_full(float minus_square_cell_size,
     float u = omega_over_beta * 3.0f * center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
         center.y) * omega_over_beta;
-    ushort4 raw = make_ushort4(__float2half_rn(u),
-                               __float2half_rn(center.y), 0, 0);
-    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+    ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void DampedJacobiPureKernel_smem_full_float(float minus_square_cell_size,
@@ -339,25 +333,25 @@ __global__ void DampedJacobiPureKernel_smem_full_float(float minus_square_cell_s
 
     int index = (threadIdx.z + 1) * (blockDim.x + 2) * (blockDim.y + 2) + (threadIdx.y + 1) * (blockDim.x + 2) +
         threadIdx.x + 1;
-    cached_block[index] = xy(tex3D(jacobi_packed, x, y, z));
+    cached_block[index] = tex3D(jacobi_packed, x, y, z);
 
     if (threadIdx.x == 0)
-        cached_block[index - 1] = x == 0 ? cached_block[index] : xy(tex3D(jacobi_packed, x - 1, y, z));
+        cached_block[index - 1] = x == 0 ? cached_block[index] : tex3D(jacobi_packed, x - 1, y, z);
 
     if (threadIdx.x == blockDim.x - 1)
-        cached_block[index + 1] = x == volume_size.x - 1 ? cached_block[index] : xy(tex3D(jacobi_packed, x + 1, y, z));
+        cached_block[index + 1] = x == volume_size.x - 1 ? cached_block[index] : tex3D(jacobi_packed, x + 1, y, z);
 
     if (threadIdx.y == 0)
-        cached_block[index - (blockDim.x + 2)] = y == 0 ? cached_block[index] : xy(tex3D(jacobi_packed, x, y - 1, z));
+        cached_block[index - (blockDim.x + 2)] = y == 0 ? cached_block[index] : tex3D(jacobi_packed, x, y - 1, z);
 
     if (threadIdx.y == blockDim.y - 1)
-        cached_block[index + (blockDim.x + 2)] = y == volume_size.y - 1 ? cached_block[index] : xy(tex3D(jacobi_packed, x, y + 1, z));
+        cached_block[index + (blockDim.x + 2)] = y == volume_size.y - 1 ? cached_block[index] : tex3D(jacobi_packed, x, y + 1, z);
 
     if (threadIdx.z == 0)
-        cached_block[index - (blockDim.x + 2) * (blockDim.y + 2)] = z == 0 ? cached_block[index] : xy(tex3D(jacobi_packed, x, y, z - 1));
+        cached_block[index - (blockDim.x + 2) * (blockDim.y + 2)] = z == 0 ? cached_block[index] : tex3D(jacobi_packed, x, y, z - 1);
 
     if (threadIdx.z == blockDim.z - 1)
-        cached_block[index + (blockDim.x + 2) * (blockDim.y + 2)] = z == volume_size.z - 1 ? cached_block[index] : xy(tex3D(jacobi_packed, x, y, z + 1));
+        cached_block[index + (blockDim.x + 2) * (blockDim.y + 2)] = z == volume_size.z - 1 ? cached_block[index] : tex3D(jacobi_packed, x, y, z + 1);
 
     __syncthreads();
 
@@ -372,11 +366,11 @@ __global__ void DampedJacobiPureKernel_smem_full_float(float minus_square_cell_s
     float u = omega_over_beta * 3.0f * center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
         center.y) * omega_over_beta;
-    ushort4 raw = make_ushort4(__float2half_rn(u),
-                               __float2half_rn(center.y), 0, 0);
-    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+    ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
+/*
 __global__ void DampedJacobiPureKernel3(float minus_square_cell_size,
                                        float omega_over_beta, int3 volume_size)
 {
@@ -453,6 +447,7 @@ __global__ void DampedJacobiPureKernel4(float minus_square_cell_size,
                                __float2half_rn(b_center), 0, 0);
     surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
 }
+*/
 
 __global__ void DampedJacobiPureKernel_smem_reduced(float minus_square_cell_size,
                                         float omega_over_beta, int3 volume_size)
@@ -482,16 +477,15 @@ __global__ void DampedJacobiPureKernel_smem_reduced(float minus_square_cell_size
     float u = omega_over_beta * 3.0f * center +
         (west + east + south + north + far + near + minus_square_cell_size *
         b_center) * omega_over_beta;
-    ushort4 raw = make_ushort4(__float2half_rn(u),
-                               __float2half_rn(b_center), 0, 0);
+    ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(b_center));
     cached_block[index].x = raw.x;
-    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void DampedJacobiPureKernel_smem_reduced_float(float minus_square_cell_size,
                                                     float omega_over_beta, int3 volume_size)
 {
-    __shared__ float2 cached_block[512];
+    __shared__ float2 cached_block[256];
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -500,7 +494,7 @@ __global__ void DampedJacobiPureKernel_smem_reduced_float(float minus_square_cel
     int index = threadIdx.z * blockDim.x * blockDim.y + threadIdx.y * blockDim.x +
         threadIdx.x;
 
-    cached_block[index] = xy(tex3D(jacobi_packed, x, y, z));
+    cached_block[index] = tex3D(jacobi_packed, x, y, z);
     __syncthreads();
 
     float center = cached_block[index].x;
@@ -516,10 +510,9 @@ __global__ void DampedJacobiPureKernel_smem_reduced_float(float minus_square_cel
     float u = omega_over_beta * 3.0f * center +
         (west + east + south + north + far + near + minus_square_cell_size *
         b_center) * omega_over_beta;
-    ushort4 raw = make_ushort4(__float2half_rn(u),
-                               __float2half_rn(b_center), 0, 0);
+    ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(b_center));
 
-    surf3Dwrite(raw, jacobi, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void SubstractGradientPureKernel(float gradient_scale,
@@ -531,17 +524,17 @@ __global__ void SubstractGradientPureKernel(float gradient_scale,
 
     float3 coord = make_float3(x, y, z);
 
-    float4 near = tex3D(gradient_packed, coord.x, coord.y, coord.z - 1.0f);
-    float4 south = tex3D(gradient_packed, coord.x, coord.y - 1.0f, coord.z);
-    float4 west = tex3D(gradient_packed, coord.x - 1.0f, coord.y, coord.z);
-    float4 center = tex3D(gradient_packed, coord.x, coord.y, coord.z);
-    float4 east = tex3D(gradient_packed, coord.x + 1.0f, coord.y, coord.z);
-    float4 north = tex3D(gradient_packed, coord.x, coord.y + 1.0f, coord.z);
-    float4 far = tex3D(gradient_packed, coord.x, coord.y, coord.z + 1.0f);
+    float near =   tex3D(gradient_packed, coord.x, coord.y, coord.z - 1.0f).x;
+    float south =  tex3D(gradient_packed, coord.x, coord.y - 1.0f, coord.z).x;
+    float west =   tex3D(gradient_packed, coord.x - 1.0f, coord.y, coord.z).x;
+    float center = tex3D(gradient_packed, coord.x, coord.y, coord.z).x;
+    float east =   tex3D(gradient_packed, coord.x + 1.0f, coord.y, coord.z).x;
+    float north =  tex3D(gradient_packed, coord.x, coord.y + 1.0f, coord.z).x;
+    float far =    tex3D(gradient_packed, coord.x, coord.y, coord.z + 1.0f).x;
 
-    float diff_ew = east.x - west.x;
-    float diff_ns = north.x - south.x;
-    float diff_fn = far.x - near.x;
+    float diff_ew = east - west;
+    float diff_ns = north - south;
+    float diff_fn = far - near;
 
     // Handle boundary problem
     float3 mask = make_float3(1.0f, 1.0f, 1.0f);

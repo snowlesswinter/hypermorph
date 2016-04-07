@@ -43,6 +43,7 @@ FluidSimulator::FluidSimulator()
     , density_()
     , density2_()
     , temperature_()
+    , packed_()
     , general1_()
     , general4_()
     , diagnosis_volume_()
@@ -66,6 +67,7 @@ bool FluidSimulator::Init()
             graphics_lib_ == GRAPHICS_LIB_CUDA ?
                 GRAPHICS_LIB_CUDA_DIAGNOSIS : GRAPHICS_LIB_GLSL));
     temperature_.reset(new GraphicsVolume(graphics_lib_));
+    packed_.reset(new GraphicsVolume(graphics_lib_));
     general1_.reset(new GraphicsVolume(graphics_lib_));
     general4_.reset(new GraphicsVolume(graphics_lib_));
 
@@ -100,6 +102,11 @@ bool FluidSimulator::Init()
         return false;
 
     result = temperature_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    assert(result);
+    if (!result)
+        return false;
+
+    result = packed_->Create(GridWidth, GridHeight, GridDepth, 2, 2);
     assert(result);
     if (!result)
         return false;
@@ -435,12 +442,12 @@ void FluidSimulator::ComputeDivergence()
 {
     float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ComputeDivergencePure(general4_->cuda_volume(),
+        CudaMain::Instance()->ComputeDivergencePure(packed_->cuda_volume(),
                                                     velocity_->cuda_volume(),
                                                     half_inverse_cell_size);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->ComputeDivergence(velocity_->gl_texture(),
-                                                general4_->gl_texture(),
+                                                packed_->gl_texture(),
                                                 half_inverse_cell_size);
     } else {
         glUseProgram(Programs.ComputeDivergence);
@@ -450,11 +457,11 @@ void FluidSimulator::ComputeDivergence()
         SetUniform("velocity", 0);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4_->gl_texture()->frame_buffer());
+                          packed_->gl_texture()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4_->gl_texture()->depth());
+                              packed_->gl_texture()->depth());
         ResetState();
     }
 }
@@ -540,13 +547,13 @@ void FluidSimulator::DampedJacobi(float cell_size)
     float omega_over_beta = 0.11111111f;
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->DampedJacobiPure(general4_->cuda_volume(),
+        CudaMain::Instance()->DampedJacobiPure(packed_->cuda_volume(),
                                                one_minus_omega,
                                                minus_square_cell_size,
                                                omega_over_beta);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->DampedJacobi(general4_->gl_texture(),
-                                           general4_->gl_texture(),
+        CudaMain::Instance()->DampedJacobi(packed_->gl_texture(),
+                                           packed_->gl_texture(),
                                            one_minus_omega,
                                            minus_square_cell_size,
                                            omega_over_beta);
@@ -559,11 +566,11 @@ void FluidSimulator::DampedJacobi(float cell_size)
         SetUniform("packed_tex", 0);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4_->gl_texture()->frame_buffer());
+                          packed_->gl_texture()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, general4_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4_->gl_texture()->depth());
+                              packed_->gl_texture()->depth());
         ResetState();
     }
 }
@@ -577,11 +584,11 @@ void FluidSimulator::Jacobi(float cell_size)
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, general4_->gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, packed_->gl_texture()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, general4_->gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          general4_->gl_texture()->depth());
+                          packed_->gl_texture()->depth());
     ResetState();
 }
 
@@ -620,9 +627,8 @@ void FluidSimulator::SolvePressure()
             if (!solver_) {
                 solver_.reset(
                     new MultigridPoissonSolver(multigrid_core_.get()));
-                solver_->Initialize(general4_->GetWidth(),
-                                    general4_->GetHeight(),
-                                    general4_->GetDepth());
+                solver_->Initialize(packed_->GetWidth(), packed_->GetHeight(),
+                                    packed_->GetDepth());
             }
 
             // An iteration times lower than 4 will introduce significant
@@ -637,7 +643,7 @@ void FluidSimulator::SolvePressure()
             // That's a pretty good score!
 
             for (int i = 0; i < num_multigrid_iterations_; i++)
-                solver_->Solve(general4_, CellSize, !i);
+                solver_->Solve(packed_, CellSize, !i);
 
             break;
         }
@@ -645,14 +651,13 @@ void FluidSimulator::SolvePressure()
             if (!solver_) {
                 solver_.reset(
                     new FullMultigridPoissonSolver(multigrid_core_.get()));
-                solver_->Initialize(general4_->GetWidth(),
-                                    general4_->GetHeight(),
-                                    general4_->GetDepth());
+                solver_->Initialize(packed_->GetWidth(), packed_->GetHeight(),
+                                    packed_->GetDepth());
             }
 
             // Chaos occurs if the iteration times is set to a value above 2.
             for (int i = 0; i < num_full_multigrid_iterations_; i++)
-                solver_->Solve(general4_, CellSize, !i);
+                solver_->Solve(packed_, CellSize, !i);
 
             break;
         }
@@ -668,11 +673,11 @@ void FluidSimulator::SubtractGradient()
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->SubstractGradientPure(velocity_->cuda_volume(),
-                                                    general4_->cuda_volume(),
+                                                    packed_->cuda_volume(),
                                                     GradientScale);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
         CudaMain::Instance()->SubstractGradient(velocity_->gl_texture(),
-                                                general4_->gl_texture(),
+                                                packed_->gl_texture(),
                                                 velocity_->gl_texture(),
                                                 GradientScale);
     } else {
@@ -688,7 +693,7 @@ void FluidSimulator::SubtractGradient()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, general4_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               velocity_->gl_texture()->depth());
         ResetState();

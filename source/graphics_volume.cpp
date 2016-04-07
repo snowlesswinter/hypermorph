@@ -47,12 +47,19 @@ bool GraphicsVolume::Create(int width, int height, int depth,
     } else {
         GLuint internal_format = byte_width == 2 ? GL_RGBA16F : GL_RGBA32F;
         GLenum format = GL_RGBA;
-        if (num_of_components != 4) {
-            if (num_of_components != 1)
+        switch (num_of_components) {
+            case 4:
+                break;
+            case 2:
+                internal_format = byte_width == 2 ? GL_RG16F : GL_RG32F;
+                format = GL_RG;
+                break;
+            case 1:
+                internal_format = byte_width == 2 ? GL_R16F : GL_R32F;
+                format = GL_RED;
+                break;
+            default:
                 return false;
-
-            internal_format = byte_width == 2 ? GL_R16F : GL_R32F;
-            format = GL_RED;
         }
 
         std::shared_ptr<GLTexture> r(new GLTexture());
