@@ -144,6 +144,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
     <CudaCompile>
       <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

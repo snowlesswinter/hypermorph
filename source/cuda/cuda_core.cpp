@@ -42,6 +42,8 @@ bool CudaCore::Init()
     cudaGetDeviceProperties(&prop, dev_id);
 
     cudaProfilerStart();
+
+    cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
     return 0;
 }
 
