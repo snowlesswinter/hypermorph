@@ -93,8 +93,7 @@ public:
                                         std::shared_ptr<CudaVolume> velocity,
                                         float inverse_h_square);
     void DampedJacobiPure(std::shared_ptr<CudaVolume> packed,
-                          float one_minus_omega,
-                      float minus_square_cell_size, float omega_over_beta);
+                          float minus_square_cell_size, float omega_over_beta);
     void SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> packed,
                                float gradient_scale);

@@ -433,14 +433,13 @@ void CudaMain::ComputeResidualPackedDiagnosis(
 }
 
 void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> packed,
-                                float one_minus_omega,
                                 float minus_square_cell_size,
                                 float omega_over_beta)
 {
     vmath::Vector3 v = FromIntValues(packed->width(), packed->height(),
                                      packed->depth());
-    fluid_impl_pure_->DampedJacobi(packed->dev_array(), one_minus_omega,
-                                   minus_square_cell_size, omega_over_beta, v);
+    fluid_impl_pure_->DampedJacobi(packed->dev_array(), minus_square_cell_size,
+                                   omega_over_beta, v);
 }
 
 void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,

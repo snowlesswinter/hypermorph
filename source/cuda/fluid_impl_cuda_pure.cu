@@ -308,23 +308,38 @@ __global__ void DampedJacobiPureKernel_smem_branch(float minus_square_cell_size,
 __global__ void DampedJacobiPureKernel_smem_assist_thread(
     float minus_square_cell_size, float omega_over_beta, int3 volume_size)
 {
-    __shared__ float2 cached_block[1000];
+    // Shared memory solution with halo handled by assistant threads still
+    // runs a bit slower than the texture-only way(less than 3ms on my GTX
+    // 660Ti doing 40 times Jacobi).
+    //
+    // With the bank conflicts solved, I think the difference can be narrowed
+    // down to around 1ms. But, it may say that the power of shared memory is
+    // not as that great as expected, for Jacobi at least. Or maybe the texture
+    // cache is truely really fast.
+
+    const int cache_size = 1000;
+    const int bd = 10;
+    const int bh = 10;
+    const int slice_stride = cache_size / bd;
+    const int bw = slice_stride / bh;
+
+    __shared__ float2 cached_block[cache_size];
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    int bw = blockDim.x + 2;
-    int bh = blockDim.y + 2;
-    int index = (threadIdx.z + 1) * bw * bh + (threadIdx.y + 1) * bw +
+    int index = (threadIdx.z + 1) * slice_stride + (threadIdx.y + 1) * bw +
         threadIdx.x + 1;
 
+    // Kernel runs faster if we place the normal fetch prior to the assistant
+    // process.
     cached_block[index] = tex3D(jacobi_packed, x, y, z);
 
+    int inner = 0;
     int inner_x = 0;
     int inner_y = 0;
     int inner_z = 0;
-    int inner = 0;
     switch (threadIdx.z) {
         case 0: {
             // near
@@ -332,61 +347,72 @@ __global__ void DampedJacobiPureKernel_smem_assist_thread(
             inner_x = x;
             inner_y = y;
             inner_z = blockIdx.z * blockDim.z - 1;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
         }
         case 1: {
             // south
-            inner = (threadIdx.y + 1) * bw * bh + threadIdx.x + 1;
+            inner = (threadIdx.y + 1) * slice_stride + threadIdx.x + 1;
             inner_x = x;
             inner_y = blockIdx.y * blockDim.y - 1;
             inner_z = blockIdx.z * blockDim.z + threadIdx.y;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
         }
         case 2: {
             // west
-            inner = (threadIdx.y + 1) * bw * bh + (threadIdx.x + 1) * bw;
+            inner = (threadIdx.x + 1) * slice_stride + (threadIdx.y + 1) * bw;
+
+            // It's more efficient to put z in the inner-loop than y.
             inner_x = blockIdx.x * blockDim.x - 1;
-            inner_y = blockIdx.y * blockDim.y + threadIdx.x;
-            inner_z = blockIdx.z * blockDim.z + threadIdx.y;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.x;
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
         }
         case 5:
             // east
-            inner = (threadIdx.y + 1) * bw * bh + (threadIdx.x + 1) * bw + blockDim.x + 1;
+            inner = (threadIdx.x + 1) * slice_stride + (threadIdx.y + 1) * bw +
+                blockDim.x + 1;
             inner_x = blockIdx.x * blockDim.x + blockDim.x;
-            inner_y = blockIdx.y * blockDim.y + threadIdx.x;
-            inner_z = blockIdx.z * blockDim.z + threadIdx.y;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.x;
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
         case 6:
             // north
-            inner = (threadIdx.y + 1) * bw * bh + (blockDim.y + 1) * bw + threadIdx.x + 1;
+            inner = (threadIdx.y + 1) * slice_stride + (blockDim.y + 1) * bw +
+                threadIdx.x + 1;
             inner_x = x;
             inner_y = blockIdx.y * blockDim.y + blockDim.y;
             inner_z = blockIdx.z * blockDim.z + threadIdx.y;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
         case 7:
             // far
-            inner = ((blockDim.z + 1) * bw * bh) + (threadIdx.y + 1) * bw + threadIdx.x + 1;
+            inner = (blockDim.z + 1) * slice_stride + (threadIdx.y + 1) * bw +
+                threadIdx.x + 1;
             inner_x = x;
             inner_y = y;
             inner_z = blockIdx.z * blockDim.z + blockDim.z;
-            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y, inner_z);
+            cached_block[inner] = tex3D(jacobi_packed, inner_x, inner_y,
+                                        inner_z);
             break;
     }
     __syncthreads();
 
-    float  near =    cached_block[index - bw * bh].x;
-    float  south =   cached_block[index - bw].x;
-    float  west =    cached_block[index - 1].x;
-    float2 center =  cached_block[index];
-    float  east =    cached_block[index + 1].x;
-    float  north =   cached_block[index + bw].x;
-    float  far =     cached_block[index + bw * bh].x;
+    float  near =   cached_block[index - slice_stride].x;
+    float  south =  cached_block[index - bw].x;
+    float  west =   cached_block[index - 1].x;
+    float2 center = cached_block[index];
+    float  east =   cached_block[index + 1].x;
+    float  north =  cached_block[index + bw].x;
+    float  far =    cached_block[index + slice_stride].x;
 
     float u = omega_over_beta * 3.0f * center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
@@ -503,12 +529,12 @@ __global__ void DampedJacobiPureKernel_smem_no_halo_storage(
     __syncthreads();
 
     float center = cached_block[index].x;
-    float near = threadIdx.z == 0 ? (z == 0 ? center : tex3D(jacobi_packed, x, y, z - 1.0f).x) : cached_block[index - blockDim.x * blockDim.y].x;
-    float south = threadIdx.y == 0 ? (y == 0 ? center : tex3D(jacobi_packed, x, y - 1.0f, z).x) : cached_block[index - blockDim.x].x;
-    float west = threadIdx.x == 0 ? (x == 0 ? center : tex3D(jacobi_packed, x - 1.0f, y, z).x) : cached_block[index - 1].x;
-    float east = threadIdx.x == blockDim.x - 1 ? (x == volume_size.x - 1 ? center : tex3D(jacobi_packed, x + 1.0f, y, z).x) : cached_block[index + 1].x;
+    float near =  threadIdx.z == 0 ?              (z == 0 ?                 center : tex3D(jacobi_packed, x, y, z - 1.0f).x) : cached_block[index - blockDim.x * blockDim.y].x;
+    float south = threadIdx.y == 0 ?              (y == 0 ?                 center : tex3D(jacobi_packed, x, y - 1.0f, z).x) : cached_block[index - blockDim.x].x;
+    float west =  threadIdx.x == 0 ?              (x == 0 ?                 center : tex3D(jacobi_packed, x - 1.0f, y, z).x) : cached_block[index - 1].x;
+    float east =  threadIdx.x == blockDim.x - 1 ? (x == volume_size.x - 1 ? center : tex3D(jacobi_packed, x + 1.0f, y, z).x) : cached_block[index + 1].x;
     float north = threadIdx.y == blockDim.y - 1 ? (y == volume_size.y - 1 ? center : tex3D(jacobi_packed, x, y + 1.0f, z).x) : cached_block[index + blockDim.x].x;
-    float far = threadIdx.z == blockDim.z - 1 ? (z == volume_size.z - 1 ? center : tex3D(jacobi_packed, x, y, z + 1.0f).x) : cached_block[index + blockDim.x * blockDim.y].x;
+    float far =   threadIdx.z == blockDim.z - 1 ? (z == volume_size.z - 1 ? center : tex3D(jacobi_packed, x, y, z + 1.0f).x) : cached_block[index + blockDim.x * blockDim.y].x;
 
     float b_center = cached_block[index].y;
 
@@ -812,7 +838,7 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
     cudaUnbindTexture(&diagnosis_source);
 }
 
-void LaunchDampedJacobiPure(cudaArray* packed_array, float one_minus_omega,
+void LaunchDampedJacobiPure(cudaArray* packed_array,
                             float minus_square_cell_size, float omega_over_beta,
                             int3 volume_size)
 {
