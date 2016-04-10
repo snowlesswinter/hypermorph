@@ -49,8 +49,8 @@ public:
     void ComputeResidualPackedDiagnosis(
         cudaArray* dest, cudaArray* source, float inverse_h_square,
         const Vectormath::Aos::Vector3& volume_size);
-    void DampedJacobi(cudaArray* packed, float minus_square_cell_size,
-                      float omega_over_beta,
+    void DampedJacobi(cudaArray* dest, cudaArray* source,
+                      float minus_square_cell_size, float omega_over_beta,
                       const Vectormath::Aos::Vector3& volume_size);
     void SubstractGradient(cudaArray* dest, cudaArray* packed,
                            float gradient_scale,

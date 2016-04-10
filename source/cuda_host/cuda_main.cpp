@@ -432,14 +432,15 @@ void CudaMain::ComputeResidualPackedDiagnosis(
     PrintDebugString("(CUDA) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
 }
 
-void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> packed,
+void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
+                                std::shared_ptr<CudaVolume> source,
                                 float minus_square_cell_size,
                                 float omega_over_beta)
 {
-    vmath::Vector3 v = FromIntValues(packed->width(), packed->height(),
-                                     packed->depth());
-    fluid_impl_pure_->DampedJacobi(packed->dev_array(), minus_square_cell_size,
-                                   omega_over_beta, v);
+    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
+                                     dest->depth());
+    fluid_impl_pure_->DampedJacobi(dest->dev_array(), source->dev_array(),
+                                   minus_square_cell_size, omega_over_beta, v);
 }
 
 void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,

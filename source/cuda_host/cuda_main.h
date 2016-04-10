@@ -92,7 +92,8 @@ public:
     void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> dest,
                                         std::shared_ptr<CudaVolume> velocity,
                                         float inverse_h_square);
-    void DampedJacobiPure(std::shared_ptr<CudaVolume> packed,
+    void DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> source,
                           float minus_square_cell_size, float omega_over_beta);
     void SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> packed,

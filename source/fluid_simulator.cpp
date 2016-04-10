@@ -548,6 +548,7 @@ void FluidSimulator::DampedJacobi(float cell_size)
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->DampedJacobiPure(packed_->cuda_volume(),
+                                               packed_->cuda_volume(),
                                                minus_square_cell_size,
                                                omega_over_beta);
     } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {

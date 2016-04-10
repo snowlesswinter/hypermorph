@@ -17,7 +17,6 @@ texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velo
 surface<void, cudaTextureType3D> gradient_velocity;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
 surface<void, cudaTextureType3D> jacobi;
-texture<ushort2, cudaTextureType3D, cudaReadModeElementType> jacobi_raw;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 surface<void, cudaTextureType3D> diagnosis;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
@@ -838,18 +837,18 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
     cudaUnbindTexture(&diagnosis_source);
 }
 
-void LaunchDampedJacobiPure(cudaArray* packed_array,
+void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
                             float minus_square_cell_size, float omega_over_beta,
                             int3 volume_size)
 {
     cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, packed_array);
-    cudaError_t result = cudaBindSurfaceToArray(&jacobi, packed_array, &desc);
+    cudaGetChannelDesc(&desc, dest_array);
+    cudaError_t result = cudaBindSurfaceToArray(&jacobi, dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, packed_array);
+    cudaGetChannelDesc(&desc, source_array);
     jacobi_packed.normalized = false;
     jacobi_packed.filterMode = cudaFilterModePoint;
     jacobi_packed.addressMode[0] = cudaAddressModeClamp;
@@ -857,7 +856,7 @@ void LaunchDampedJacobiPure(cudaArray* packed_array,
     jacobi_packed.addressMode[2] = cudaAddressModeClamp;
     jacobi_packed.channelDesc = desc;
 
-    result = cudaBindTextureToArray(&jacobi_packed, packed_array, &desc);
+    result = cudaBindTextureToArray(&jacobi_packed, source_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
