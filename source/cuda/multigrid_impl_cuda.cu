@@ -6,8 +6,6 @@
 
 surface<void, cudaTextureType3D> residual_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> residual_source;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_coarse;
-texture<float4, cudaTextureType3D, cudaReadModeElementType> prolongate_fine;
 surface<void, cudaTextureType3D> prolongate_pure_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure_coarse;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure_fine;
@@ -16,7 +14,7 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> guess_source;
 surface<void, cudaTextureType3D> restrict_residual_dest;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residual_source;
 surface<void, cudaTextureType3D> restrict_dest;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
+texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
 
 __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
                                                 int3 volume_size)
@@ -60,43 +58,6 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
     ushort raw = __float2half_rn(v);
     surf3Dwrite(raw, residual_dest, x * sizeof(ushort), y, z,
                 cudaBoundaryModeTrap);
-}
-
-__global__ void ProlongatePackedKernel(float4* out_data,
-                                       int num_of_blocks_per_slice,
-                                       int slice_stride, int3 volume_size)
-{
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-
-    int x = threadIdx.z * blockDim.x + threadIdx.x;
-    int z = block_offset / num_of_blocks_per_slice;
-    int y = (block_offset - z * num_of_blocks_per_slice) * blockDim.y +
-        threadIdx.y;
-
-    int index = slice_stride * z + volume_size.x * y + x;
-
-    float3 c = make_float3(x, y, z);
-    c *= 0.5f;
-
-    int odd_x = x - ((x >> 1) << 1);
-    int odd_y = y - ((y >> 1) << 1);
-    int odd_z = z - ((z >> 1) << 1);
-
-    float t_x = -1.0f * (1 - odd_x) * 0.08333333f;
-    float t_y = -1.0f * (1 - odd_y) * 0.08333333f;
-    float t_z = -1.0f * (1 - odd_z) * 0.08333333f;
-
-    float3 t_c = make_float3(c.x + t_x, c.y + t_y, c.z + t_z);
-    float4 result_float = tex3D(prolongate_coarse, t_c.x, t_c.y, t_c.z);
-
-    float3 f_coord = make_float3(float(x) + 0.5f, float(y) + 0.5f,
-                                 float(z) + 0.5f);
-
-    float4 original = tex3D(prolongate_fine, f_coord.x, f_coord.y, f_coord.z);
-    float4 result = make_float4(original.x + result_float.x, original.y, 0, 0);
-
-    out_data[index] = result;
 }
 
 __global__ void ProlongatePackedPureKernel(int3 volume_size)
@@ -191,35 +152,35 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
 
     // Changing the order of the following voxel-fetching code will NOT affect
     // the performance of this kernel.
-    float4 north_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z - 1.0f);
-    float4 north_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z - 1.0f);
-    float4 north_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z - 1.0f);
-    float4 center_east_near =     c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z - 1.0f);
-    float4 center_center_near =   c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z - 1.0f);
-    float4 center_west_near =     c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z - 1.0f);
-    float4 south_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z - 1.0f);
-    float4 south_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z - 1.0f);
-    float4 south_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z - 1.0f);
+    float2 north_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z - 1.0f);
+    float2 north_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z - 1.0f);
+    float2 north_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z - 1.0f);
+    float2 center_east_near =     c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z - 1.0f);
+    float2 center_center_near =   c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z - 1.0f);
+    float2 center_west_near =     c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z - 1.0f);
+    float2 south_east_near =      c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z - 1.0f);
+    float2 south_center_near =    c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z - 1.0f);
+    float2 south_west_near =      c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z - 1.0f);
 
-    float4 north_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z);
-    float4 north_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z);
-    float4 north_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z);
-    float4 center_east_center =   c4 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z);
-    float4 center_center_center = c8 * tex3D(restrict_source, coord.x,        coord.y,        coord.z);
-    float4 center_west_center =   c4 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z);
-    float4 south_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z);
-    float4 south_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z);
-    float4 south_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z);
+    float2 north_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z);
+    float2 north_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z);
+    float2 north_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z);
+    float2 center_east_center =   c4 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z);
+    float2 center_center_center = c8 * tex3D(restrict_source, coord.x,        coord.y,        coord.z);
+    float2 center_west_center =   c4 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z);
+    float2 south_east_center =    c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z);
+    float2 south_center_center =  c4 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z);
+    float2 south_west_center =    c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z);
 
-    float4 north_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z + 1.0f);
-    float4 north_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z + 1.0f);
-    float4 north_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z + 1.0f);
-    float4 center_east_far =      c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z + 1.0f);
-    float4 center_center_far =    c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z + 1.0f);
-    float4 center_west_far =      c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z + 1.0f);
-    float4 south_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z + 1.0f);
-    float4 south_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f);
-    float4 south_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f);
+    float2 north_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y + 1.0f, coord.z + 1.0f);
+    float2 north_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y + 1.0f, coord.z + 1.0f);
+    float2 north_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y + 1.0f, coord.z + 1.0f);
+    float2 center_east_far =      c2 * tex3D(restrict_source, coord.x + 1.0f, coord.y,        coord.z + 1.0f);
+    float2 center_center_far =    c4 * tex3D(restrict_source, coord.x,        coord.y,        coord.z + 1.0f);
+    float2 center_west_far =      c2 * tex3D(restrict_source, coord.x - 1.0f, coord.y,        coord.z + 1.0f);
+    float2 south_east_far =       c1 * tex3D(restrict_source, coord.x + 1.0f, coord.y - 1.0f, coord.z + 1.0f);
+    float2 south_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f);
+    float2 south_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f);
 
     float3 tex_size = make_float3(volume_size_fine) - 1.001f;
     float scale = 0.5f;
@@ -334,7 +295,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         south_west_far = scale * center_west_far;
     }
 
-    float4 result =
+    float2 result =
         north_east_near +
         north_center_near +
         north_west_near +
@@ -365,10 +326,9 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         south_center_far +
         south_west_far;
 
-    ushort4 raw = make_ushort4(__float2half_rn(result.x),
-                               __float2half_rn(result.y),
-                               0, 0);
-    surf3Dwrite(raw, restrict_dest, x * sizeof(ushort4), y, z,
+    ushort2 raw = make_ushort2(__float2half_rn(result.x),
+                               __float2half_rn(result.y));
+    surf3Dwrite(raw, restrict_dest, x * sizeof(ushort2), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -599,53 +559,6 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
                                                      volume_size);
 
     cudaUnbindTexture(&residual_source);
-}
-
-void LaunchProlongatePacked(float4* dest_array, cudaArray* coarse_array,
-                            cudaArray* fine_array, int3 volume_size_fine)
-{
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, coarse_array);
-    prolongate_coarse.normalized = false;
-    prolongate_coarse.filterMode = cudaFilterModeLinear;
-    prolongate_coarse.addressMode[0] = cudaAddressModeClamp;
-    prolongate_coarse.addressMode[1] = cudaAddressModeClamp;
-    prolongate_coarse.addressMode[2] = cudaAddressModeClamp;
-    prolongate_coarse.channelDesc = desc;
-
-    cudaError_t result = cudaBindTextureToArray(&prolongate_coarse,
-                                                coarse_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, fine_array);
-    prolongate_fine.normalized = false;
-
-    // TODO: Disabling the linear filter mode may slightly speed up the kernel.
-    prolongate_fine.filterMode = cudaFilterModeLinear;
-    prolongate_fine.addressMode[0] = cudaAddressModeClamp;
-    prolongate_fine.addressMode[1] = cudaAddressModeClamp;
-    prolongate_fine.addressMode[2] = cudaAddressModeClamp;
-    prolongate_fine.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&prolongate_fine, fine_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    int3 volume_size = volume_size_fine;
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    int num_of_blocks_per_slice = volume_size.y / 8;
-    int slice_stride = volume_size.x * volume_size.y;
-
-    ProlongatePackedKernel<<<grid, block>>>(dest_array, num_of_blocks_per_slice,
-                                            slice_stride, volume_size);
-
-    cudaUnbindTexture(&prolongate_fine);
-    cudaUnbindTexture(&prolongate_coarse);
 }
 
 void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,

@@ -124,25 +124,6 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
     return 0;
 }
 
-void CudaMain::ProlongatePacked(std::shared_ptr<GLTexture> coarse,
-                                std::shared_ptr<GLTexture> fine)
-{
-    auto i = registerd_textures_.find(coarse);
-    auto j = registerd_textures_.find(fine);
-    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
-    if (i == registerd_textures_.end() || j == registerd_textures_.end())
-        return;
-
-    int n = 128 / fine->width();
-    auto pbo = GetPBO(core_.get(), n, 4, 4);
-    vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
-                                     fine->depth());
-    multigrid_impl_pure_->ProlongatePacked(i->second.get(), j->second.get(),
-                                           pbo.second, v);
-
-    FlushPBO(pbo.first, GL_RGBA, fine.get(), false);
-}
-
 void CudaMain::AdvectVelocity(std::shared_ptr<GLTexture> velocity,
                               std::shared_ptr<GLTexture> dest, float time_step,
                               float dissipation)

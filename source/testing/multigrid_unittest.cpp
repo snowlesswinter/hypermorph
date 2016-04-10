@@ -18,15 +18,15 @@ void MultigridUnittest::TestProlongation(int random_seed)
     GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
 
-    cuda_fine.Create(128, 128, 128, 4, 2);
-    glsl_fine.Create(128, 128, 128, 4, 2);
-    cuda_coarse.Create(64, 64, 64, 4, 2);
-    glsl_coarse.Create(64, 64, 64, 4, 2);
+    cuda_fine.Create(128, 128, 128, 2, 2);
+    glsl_fine.Create(128, 128, 128, 2, 2);
+    cuda_coarse.Create(64, 64, 64, 2, 2);
+    glsl_coarse.Create(64, 64, 64, 2, 2);
 
     int width = cuda_coarse.GetWidth();
     int height = cuda_coarse.GetHeight();
     int depth = cuda_coarse.GetDepth();
-    int n = 4;
+    int n = 2;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
     UnittestCommon::InitializeVolume4(&cuda_coarse, &glsl_coarse, width, height,
@@ -139,18 +139,18 @@ void MultigridUnittest::TestRestriction(int random_seed)
     GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
 
-    cuda_fine.Create(128, 128, 128, 4, 2);
-    glsl_fine.Create(128, 128, 128, 4, 2);
-    cuda_coarse.Create(64, 64, 64, 4, 2);
-    glsl_coarse.Create(64, 64, 64, 4, 2);
+    cuda_fine.Create(128, 128, 128, 2, 2);
+    glsl_fine.Create(128, 128, 128, 2, 2);
+    cuda_coarse.Create(64, 64, 64, 2, 2);
+    glsl_coarse.Create(64, 64, 64, 2, 2);
 
     int width = cuda_fine.GetWidth();
     int height = cuda_fine.GetHeight();
     int depth = cuda_fine.GetDepth();
-    int n = 4;
+    int n = 2;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
-    UnittestCommon::InitializeVolume4(&cuda_fine, &glsl_fine, width, height,
+    UnittestCommon::InitializeVolume2(&cuda_fine, &glsl_fine, width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-4.0f, 4.0f));
 
@@ -177,13 +177,13 @@ void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
     GraphicsVolume cuda_volume(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_volume(GRAPHICS_LIB_GLSL);
 
-    cuda_volume.Create(128, 128, 128, 4, 2);
-    glsl_volume.Create(128, 128, 128, 4, 2);
+    cuda_volume.Create(128, 128, 128, 2, 2);
+    glsl_volume.Create(128, 128, 128, 2, 2);
 
     int width = cuda_volume.GetWidth();
     int height = cuda_volume.GetHeight();
     int depth = cuda_volume.GetDepth();
-    int n = 4;
+    int n = 2;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
     UnittestCommon::InitializeVolume4(&cuda_volume, &glsl_volume, width, height,

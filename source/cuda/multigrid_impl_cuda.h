@@ -23,9 +23,6 @@ public:
                                    cudaArray* source_array,
                                    float inverse_h_square,
                                    const Vectormath::Aos::Vector3& volume_size);
-    void ProlongatePacked(GraphicsResource* coarse, GraphicsResource* fine,
-                          GraphicsResource* out_pbo,
-                          const Vectormath::Aos::Vector3& volume_size_fine);
     void ProlongatePackedPure(cudaArray* dest, cudaArray* coarse,
                               cudaArray* fine,
                               const Vectormath::Aos::Vector3& volume_size);
