@@ -11,12 +11,13 @@ namespace Aos
 class Vector3;
 }
 }
+class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
 class MultigridImplCuda
 {
 public:
-    MultigridImplCuda();
+    explicit MultigridImplCuda(BlockArrangement* ba);
     ~MultigridImplCuda();
 
     void ComputeResidualPackedPure(cudaArray* dest_array,
@@ -36,6 +37,9 @@ public:
     void RestrictResidualPackedPure(
         cudaArray* dest_array, cudaArray* source_array,
         const Vectormath::Aos::Vector3& volume_size);
+
+private:
+    BlockArrangement* ba_;
 };
 
 #endif // _MULTIGRID_IMPL_CUDA_H_

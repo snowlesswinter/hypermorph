@@ -1,6 +1,8 @@
 #ifndef _CUDA_CORE_H_
 #define _CUDA_CORE_H_
 
+#include "block_arrangement.h"
+
 namespace Vectormath
 {
 namespace Aos
@@ -46,6 +48,11 @@ public:
 
     void FlushProfilingData();
     void Sync();
+
+    BlockArrangement* block_arrangement() { return &block_arrangement_; }
+
+private:
+    BlockArrangement block_arrangement_;
 };
 
 #endif // _CUDA_CORE_H_

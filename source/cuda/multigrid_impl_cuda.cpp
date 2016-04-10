@@ -17,7 +17,8 @@
 extern void LaunchComputeResidualPackedPure(cudaArray* dest_array,
                                             cudaArray* source_array,
                                             float inverse_h_square,
-                                            int3 volume_size);
+                                            int3 volume_size,
+                                            BlockArrangement* ba);
 extern void LaunchProlongatePackedPure(cudaArray* dest_array,
                                        cudaArray* coarse_array,
                                        cudaArray* fine_array,
@@ -44,7 +45,8 @@ int3 FromVmathVector(const vmath::Vector3& v)
 }
 } // Anonymous namespace.
 
-MultigridImplCuda::MultigridImplCuda()
+MultigridImplCuda::MultigridImplCuda(BlockArrangement* ba)
+    :ba_(ba)
 {
 }
 
@@ -57,7 +59,7 @@ void MultigridImplCuda::ComputeResidualPackedPure(
     const vmath::Vector3& volume_size)
 {
     LaunchComputeResidualPackedPure(dest_array, source_array, inverse_h_square,
-                                    FromVmathVector(volume_size));
+                                    FromVmathVector(volume_size), ba_);
 }
 
 void MultigridImplCuda::ProlongatePackedPure(

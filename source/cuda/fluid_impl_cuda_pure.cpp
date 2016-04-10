@@ -42,7 +42,8 @@ extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
 extern void LaunchDampedJacobiPure(cudaArray* dest_array,
                                    cudaArray* source_array,
                                    float minus_square_cell_size,
-                                   float omega_over_beta, int3 volume_size);
+                                   float omega_over_beta, int3 volume_size,
+                                   BlockArrangement* ba);
 extern void LaunchSubstractGradientPure(cudaArray* dest_array,
                                         cudaArray* packed_array,
                                         float gradient_scale, int3 volume_size);
@@ -56,7 +57,8 @@ int3 FromVmathVector(const vmath::Vector3& v)
 }
 } // Anonymous namespace.
 
-FluidImplCudaPure::FluidImplCudaPure()
+FluidImplCudaPure::FluidImplCudaPure(BlockArrangement* ba)
+    : ba_(ba)
 {
 
 }
@@ -208,7 +210,7 @@ void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* source,
                                      const vmath::Vector3& volume_size)
 {
     LaunchDampedJacobiPure(dest, source, minus_square_cell_size,
-                           omega_over_beta, FromVmathVector(volume_size));
+                           omega_over_beta, FromVmathVector(volume_size), ba_);
 }
 
 void FluidImplCudaPure::SubstractGradient(cudaArray* dest, cudaArray* packed,

@@ -4,6 +4,8 @@
 
 #include <helper_math.h>
 
+#include "block_arrangement.h"
+
 surface<void, cudaTextureType3D> advect_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
@@ -224,25 +226,6 @@ __global__ void DampedJacobiPureKernel(float minus_square_cell_size,
     float east =              tex3D(jacobi_packed, x + 1.0f, y, z).x;
     float north =             tex3D(jacobi_packed, x, y + 1.0f, z).x;
     float far =               tex3D(jacobi_packed, x, y, z + 1.0f).x;
-
-    // Handle boundary problem
-    if (x >= volume_size.x - 1)
-        east = packed_center.x;
-
-    if (x <= 0)
-        west = packed_center.x;
-
-    if (y >= volume_size.y - 1)
-        north = packed_center.x;
-
-    if (y <= 0)
-        south = packed_center.x;
-
-    if (z >= volume_size.z - 1)
-        far = packed_center.x;
-
-    if (z <= 0)
-        near = packed_center.x;
 
     float u = omega_over_beta * 3.0f * packed_center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
@@ -881,7 +864,7 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
 
 void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
                             float minus_square_cell_size, float omega_over_beta,
-                            int3 volume_size)
+                            int3 volume_size, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -912,14 +895,9 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
         DampedJacobiPureKernel_smem_assist_thread<<<grid, block>>>(
             minus_square_cell_size, omega_over_beta, volume_size);
     } else {
-        const int kMaxThreadsPerBlock = 512;
-        int bw = volume_size.x;
-        int bh = kMaxThreadsPerBlock / volume_size.x;
-        int bd = kMaxThreadsPerBlock / bw / bh;
-        dim3 block(bw, bh, bd);
-        dim3 grid((volume_size.x + block.x - 1) / block.x,
-                  (volume_size.x + block.y - 1) / block.y,
-                  (volume_size.x + block.z - 1) / block.z);
+        dim3 block;
+        dim3 grid;
+        ba->Arrange(&block, &grid, volume_size);
         DampedJacobiPureKernel<<<grid, block>>>(minus_square_cell_size,
                                                 omega_over_beta, volume_size);
     }

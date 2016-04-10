@@ -4,6 +4,8 @@
 
 #include <helper_math.h>
 
+#include "block_arrangement.h"
+
 surface<void, cudaTextureType3D> residual_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> residual_source;
 surface<void, cudaTextureType3D> prolongate_pure_dest;
@@ -23,34 +25,14 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    float3 coord = make_float3(x, y, z);
-
-    float  near =   tex3D(residual_source, coord.x, coord.y, coord.z - 1.0f).x;
-    float  south =  tex3D(residual_source, coord.x, coord.y - 1.0f, coord.z).x;
-    float  west =   tex3D(residual_source, coord.x - 1.0f, coord.y, coord.z).x;
-    float2 center = tex3D(residual_source, coord.x, coord.y, coord.z);
-    float  east =   tex3D(residual_source, coord.x + 1.0f, coord.y, coord.z).x;
-    float  north =  tex3D(residual_source, coord.x, coord.y + 1.0f, coord.z).x;
-    float  far =    tex3D(residual_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float  near =   tex3D(residual_source, x, y, z - 1.0f).x;
+    float  south =  tex3D(residual_source, x, y - 1.0f, z).x;
+    float  west =   tex3D(residual_source, x - 1.0f, y, z).x;
+    float2 center = tex3D(residual_source, x, y, z);
+    float  east =   tex3D(residual_source, x + 1.0f, y, z).x;
+    float  north =  tex3D(residual_source, x, y + 1.0f, z).x;
+    float  far =    tex3D(residual_source, x, y, z + 1.0f).x;
     float  b_center = center.y;
-
-    if (coord.y == volume_size.y - 1)
-        north = center.x;
-
-    if (coord.y == 0)
-        south = center.x;
-
-    if (coord.x == volume_size.x - 1)
-        east = center.x;
-
-    if (coord.x == 0)
-        west = center.x;
-
-    if (coord.z == volume_size.z - 1)
-        far = center.x;
-
-    if (coord.z == 0)
-        near = center.x;
 
     float v = b_center -
         (north + south + east + west + far + near - 6.0 * center.x) *
@@ -529,7 +511,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
 void LaunchComputeResidualPackedPure(cudaArray* dest_array,
                                      cudaArray* source_array,
                                      float inverse_h_square,
-                                     int3 volume_size)
+                                     int3 volume_size, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -552,9 +534,9 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->Arrange(&block, &grid, volume_size);
     ComputeResidualPackedPureKernel<<<grid, block>>>(inverse_h_square,
                                                      volume_size);
 

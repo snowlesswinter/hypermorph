@@ -214,6 +214,8 @@ bool ResetSimulator()
     sim_ = new FluidSimulator();
     sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
     sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
+    sim_->set_num_full_multigrid_iterations(
+        FluidConfig::Instance()->num_full_multigrid_iterations());
     sim_->set_diagnosis(!!g_diagnosis);
     return sim_->Init();
 }
@@ -239,6 +241,7 @@ void Keyboard(unsigned char key, int x, int y)
         case 'r':
             FluidConfig::Instance()->Reload();
             ResetSimulator();
+            Metrics::Instance()->Reset();
             break;
         case '`':
             track_ball->ReturnHome();

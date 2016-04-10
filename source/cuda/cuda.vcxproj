@@ -181,6 +181,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="multigrid_impl_cuda.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="block_arrangement.h" />
     <ClInclude Include="cuda_core.h" />
     <ClInclude Include="fluid_impl_cuda.h" />
     <ClInclude Include="fluid_impl_cuda_pure.h" />
@@ -188,6 +189,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="multigrid_impl_cuda.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="block_arrangement.cpp" />
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="fluid_impl_cuda_pure.cpp" />

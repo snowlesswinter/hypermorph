@@ -93,8 +93,8 @@ void CudaMain::DestroyInstance()
 CudaMain::CudaMain()
     : core_(new CudaCore())
     , fluid_impl_(new FluidImplCuda())
-    , fluid_impl_pure_(new FluidImplCudaPure())
-    , multigrid_impl_pure_(new MultigridImplCuda())
+    , fluid_impl_pure_(new FluidImplCudaPure(core_->block_arrangement()))
+    , multigrid_impl_pure_(new MultigridImplCuda(core_->block_arrangement()))
     , registerd_textures_()
 {
 

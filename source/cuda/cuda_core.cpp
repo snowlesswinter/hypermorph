@@ -26,6 +26,7 @@ int3 FromVmathVector(const vmath::Vector3& v)
 } // Anonymous namespace.
 
 CudaCore::CudaCore()
+    : block_arrangement_()
 {
 
 }
@@ -38,8 +39,7 @@ CudaCore::~CudaCore()
 bool CudaCore::Init()
 {
     int dev_id = findCudaGLDevice(0, nullptr);
-    cudaDeviceProp prop = {0};
-    cudaGetDeviceProperties(&prop, dev_id);
+    block_arrangement_.Init(dev_id);
 
     cudaProfilerStart();
 

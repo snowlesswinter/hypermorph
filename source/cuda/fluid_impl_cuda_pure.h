@@ -11,12 +11,13 @@ namespace Aos
 class Vector3;
 }
 }
+class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
 class FluidImplCudaPure
 {
 public:
-    FluidImplCudaPure();
+    explicit FluidImplCudaPure(BlockArrangement* ba);
     ~FluidImplCudaPure();
 
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
@@ -55,6 +56,9 @@ public:
     void SubstractGradient(cudaArray* dest, cudaArray* packed,
                            float gradient_scale,
                            const Vectormath::Aos::Vector3& volume_size);
+
+private:
+    BlockArrangement* ba_;
 };
 
 #endif // _FLUID_IMPL_CUDA_PURE_H_
