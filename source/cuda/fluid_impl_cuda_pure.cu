@@ -570,6 +570,11 @@ __global__ void DampedJacobiPureKernel_smem_no_halo_storage(
     surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
+__global__ void RoundPassedKernel(int* dest_array, int round, int x)
+{
+    dest_array[0] = x * x - round * round;
+}
+
 __global__ void SubstractGradientPureKernel(float gradient_scale,
                                             int3 volume_size)
 {
@@ -904,6 +909,11 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
     
 
     cudaUnbindTexture(&jacobi_packed);
+}
+
+void LaunchRoundPassed(int* dest_array, int round, int x)
+{
+    RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
 void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,

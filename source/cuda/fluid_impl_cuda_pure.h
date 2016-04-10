@@ -57,6 +57,9 @@ public:
                            float gradient_scale,
                            const Vectormath::Aos::Vector3& volume_size);
 
+    // For debugging.
+    void RoundPassed(int round);
+
 private:
     BlockArrangement* ba_;
 };

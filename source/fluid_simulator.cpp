@@ -253,30 +253,23 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
                                 float delta_time, float dissipation)
 {
     general1_->Clear();
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->Advect(velocity_->gl_texture(),
-                                     source->gl_texture(),
-                                     general1_->gl_texture(), delta_time,
-                                     dissipation);
-    } else {
-        glUseProgram(Programs.Advect);
+    glUseProgram(Programs.Advect);
 
-        SetUniform("InverseSize", CalculateInverseSize(*source->gl_texture()));
-        SetUniform("TimeStep", delta_time);
-        SetUniform("Dissipation", dissipation);
-        SetUniform("SourceTexture", 1);
-        SetUniform("Obstacles", 2);
+    SetUniform("InverseSize", CalculateInverseSize(*source->gl_texture()));
+    SetUniform("TimeStep", delta_time);
+    SetUniform("Dissipation", dissipation);
+    SetUniform("SourceTexture", 1);
+    SetUniform("Obstacles", 2);
 
-        glBindFramebuffer(GL_FRAMEBUFFER,
-                          general1_->gl_texture()->frame_buffer());
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, source->gl_texture()->handle());
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general1_->gl_texture()->depth());
-        ResetState();
-    }
+    glBindFramebuffer(GL_FRAMEBUFFER,
+                      general1_->gl_texture()->frame_buffer());
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, source->gl_texture()->handle());
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
+                          general1_->gl_texture()->depth());
+    ResetState();
 }
 
 void FluidSimulator::AdvectTemperature(float delta_time)
@@ -305,10 +298,6 @@ void FluidSimulator::AdvectVelocity(float delta_time)
                                                  velocity_->cuda_volume(),
                                                  delta_time,
                                                  velocity_dissipation);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->AdvectVelocity(velocity_->gl_texture(),
-                                             general4_->gl_texture(),
-                                             delta_time, velocity_dissipation);
     } else {
         glUseProgram(Programs.Advect);
 
@@ -343,12 +332,6 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
                                                 temperature_->cuda_volume(),
                                                 delta_time, ambient_temperature,
                                                 kBuoyancyCoef, smoke_weight);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->ApplyBuoyancy(velocity_->gl_texture(),
-                                            temperature_->gl_texture(),
-                                            general4_->gl_texture(),
-                                            delta_time, ambient_temperature,
-                                            kBuoyancyCoef, smoke_weight);
     } else {
         glUseProgram(Programs.ApplyBuoyancy);
 
@@ -384,10 +367,6 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
                                                position, hotspot, splat_radius,
                                                value);
         std::swap(*dest, general1_);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->ApplyImpulse((*dest)->gl_texture(),
-                                           kImpulsePosition, hotspot,
-                                           splat_radius, value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
@@ -416,10 +395,6 @@ void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
                                                       position, hotspot,
                                                       splat_radius, value);
         std::swap(density_, density2_);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->ApplyImpulse(density_->gl_texture(),
-                                           kImpulsePosition, hotspot,
-                                           splat_radius, value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
@@ -445,10 +420,6 @@ void FluidSimulator::ComputeDivergence()
         CudaMain::Instance()->ComputeDivergencePure(packed_->cuda_volume(),
                                                     velocity_->cuda_volume(),
                                                     half_inverse_cell_size);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->ComputeDivergence(velocity_->gl_texture(),
-                                                packed_->gl_texture(),
-                                                half_inverse_cell_size);
     } else {
         glUseProgram(Programs.ComputeDivergence);
 
@@ -551,12 +522,6 @@ void FluidSimulator::DampedJacobi(float cell_size)
                                                packed_->cuda_volume(),
                                                minus_square_cell_size,
                                                omega_over_beta);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->DampedJacobi(packed_->gl_texture(),
-                                           packed_->gl_texture(),
-                                           one_minus_omega,
-                                           minus_square_cell_size,
-                                           omega_over_beta);
     } else {
         glUseProgram(Programs.DampedJacobi);
 
@@ -675,11 +640,6 @@ void FluidSimulator::SubtractGradient()
         CudaMain::Instance()->SubstractGradientPure(velocity_->cuda_volume(),
                                                     packed_->cuda_volume(),
                                                     GradientScale);
-    } else if (graphics_lib_ == GRAPHICS_LIB_CUDA_DIAGNOSIS) {
-        CudaMain::Instance()->SubstractGradient(velocity_->gl_texture(),
-                                                packed_->gl_texture(),
-                                                velocity_->gl_texture(),
-                                                GradientScale);
     } else {
         glUseProgram(Programs.SubtractGradient);
 

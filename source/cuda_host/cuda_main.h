@@ -13,7 +13,6 @@ class Vector3;
 }
 class CudaCore;
 class CudaVolume;
-class FluidImplCuda;
 class FluidImplCudaPure;
 class GLTexture;
 class GraphicsResource;
@@ -30,36 +29,7 @@ public:
     bool Init();
 
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
-    void ProlongatePacked(std::shared_ptr<GLTexture> coarse,
-                          std::shared_ptr<GLTexture> fine);
-    void AdvectVelocity(std::shared_ptr<GLTexture> velocity,
-                        std::shared_ptr<GLTexture> dest, float time_step,
-                        float dissipation);
-    void Advect(std::shared_ptr<GLTexture> velocity,
-                std::shared_ptr<GLTexture> source,
-                std::shared_ptr<GLTexture> dest, float time_step,
-                float dissipation);
-    void ApplyBuoyancy(std::shared_ptr<GLTexture> velocity,
-                       std::shared_ptr<GLTexture> temperature,
-                       std::shared_ptr<GLTexture> dest, float time_step,
-                       float ambient_temperature, float accel_factor,
-                       float gravity);
-    void ApplyImpulse(std::shared_ptr<GLTexture> dest,
-                      const Vectormath::Aos::Vector3& center_point,
-                      const Vectormath::Aos::Vector3& hotspot, float radius,
-                      float value);
-    void ComputeDivergence(std::shared_ptr<GLTexture> velocity,
-                           std::shared_ptr<GLTexture> dest,
-                           float half_inverse_cell_size);
-    void DampedJacobi(std::shared_ptr<GLTexture> packed,
-                      std::shared_ptr<GLTexture> dest, float one_minus_omega,
-                      float minus_square_cell_size, float omega_over_beta);
-    void SubstractGradient(std::shared_ptr<GLTexture> velocity,
-                           std::shared_ptr<GLTexture> packed,
-                           std::shared_ptr<GLTexture> dest,
-                           float gradient_scale);
 
-    // Pure cuda.
     void AdvectDensityPure(std::shared_ptr<GLTexture> dest,
                           std::shared_ptr<CudaVolume> velocity,
                           std::shared_ptr<GLTexture> density, float time_step,
@@ -122,7 +92,6 @@ public:
 
 private:
     std::unique_ptr<CudaCore> core_;
-    std::unique_ptr<FluidImplCuda> fluid_impl_;
     std::unique_ptr<FluidImplCudaPure> fluid_impl_pure_;
     std::unique_ptr<MultigridImplCuda> multigrid_impl_pure_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>

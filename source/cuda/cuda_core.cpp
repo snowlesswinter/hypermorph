@@ -60,6 +60,14 @@ int CudaCore::RegisterGLImage(unsigned int texture, unsigned int target,
 int CudaCore::RegisterGLBuffer(unsigned int buffer,
                                GraphicsResource* graphics_res)
 {
+    // Believe it or not: using another CudaCore instance would cause
+    //                    cudaGraphicsMapResources() crash or returning
+    //                    unknown error!
+    //                    This shit just tortured me for a whole day.
+    //
+    // So, don't treat .cu file as normal cpp files, CUDA must has done
+    // something dirty with it. Just put as less as cpp code inside it
+    // as possible.
     cudaError_t result = cudaGraphicsGLRegisterBuffer(
         graphics_res->Receive(), buffer, cudaGraphicsRegisterFlagsNone);
     result = cudaDeviceSynchronize();

@@ -44,6 +44,7 @@ extern void LaunchDampedJacobiPure(cudaArray* dest_array,
                                    float minus_square_cell_size,
                                    float omega_over_beta, int3 volume_size,
                                    BlockArrangement* ba);
+extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubstractGradientPure(cudaArray* dest_array,
                                         cudaArray* packed_array,
                                         float gradient_scale, int3 volume_size);
@@ -219,4 +220,17 @@ void FluidImplCudaPure::SubstractGradient(cudaArray* dest, cudaArray* packed,
 {
     LaunchSubstractGradientPure(dest, packed, gradient_scale,
                                 FromVmathVector(volume_size));
+}
+
+void FluidImplCudaPure::RoundPassed(int round)
+{
+    int* dest_array = nullptr;
+    cudaError_t result = cudaMalloc(&dest_array, 4);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchRoundPassed(dest_array, round, 3);
+
+    cudaFree(dest_array);
 }
