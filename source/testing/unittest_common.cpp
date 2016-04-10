@@ -90,6 +90,70 @@ float random(const std::pair<float, float>& scope)
     return scope.first + static_cast<float>(r)* (scope.second - scope.first);
 }
 
+void VerifyResult2(const std::vector<uint16_t>& result_cuda,
+                   const std::vector<uint16_t>& result_glsl,
+                   int width, int height, int depth, int n,
+                   uint32_t channel_mask, char* function_name)
+{
+    assert(n == 2);
+
+    // Compute max |e| and avg |e|.
+    double max_error = 0.0;
+    double sum_error = 0.0;
+    double avg_error = 0.0;
+    int count = 0;
+    for (int i = 0; i < depth; i++) {
+        for (int j = 0; j < height; j++) {
+            for (int k = 0; k < width; k++) {
+                for (int l = 0; l < n; l += n) {
+                    int index =
+                        i * width * height * n + j * width * n + k * n + l;
+
+                    half h_cuda0; h_cuda0.setBits(result_cuda[index]);
+                    half h_glsl0; h_glsl0.setBits(result_glsl[index]);
+                    half h_cuda1; h_cuda1.setBits(result_cuda[index + 1]);
+                    half h_glsl1; h_glsl1.setBits(result_glsl[index + 1]);
+
+                    float v_cuda0 = h_cuda0.operator float();
+                    float v_glsl0 = h_glsl0.operator float();
+                    float v_cuda1 = h_cuda1.operator float();
+                    float v_glsl1 = h_glsl1.operator float();
+
+                    float error0 = abs(v_cuda0 - v_glsl0);
+                    float error1 = abs(v_cuda1 - v_glsl1);
+
+                    float error = std::max(error0, error1);
+
+                    max_error = std::max(static_cast<double>(error), max_error);
+                    if (max_error > kErrorThreshold)
+                        goto failure;
+
+                    float errors[] = {error0, error1};
+                    int t = 0;
+                    for (float e : errors) {
+                        if (channel_mask & (1 << (t++))) {
+                            sum_error += e;
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    avg_error = count ? sum_error / count : 0.0;
+    if (avg_error > 0.0008)
+        goto failure;
+
+    PrintDebugString("Test case \"%s\" passed. Max |e|: %.8f, avg |e|: %.8f\n",
+                     function_name, max_error, avg_error);
+    return;
+
+failure:
+    PrintDebugString("Test case \"%s\" failed. Max |e|: %.8f, avg |e|: %.8f\n",
+                     function_name, max_error, avg_error);
+}
+
 void VerifyResult4(const std::vector<uint16_t>& result_cuda,
                    const std::vector<uint16_t>& result_glsl,
                    int width, int height, int depth, int n,
@@ -182,13 +246,16 @@ void UnittestCommon::CollectAndVerifyResult(int width, int height, int depth,
     std::vector<uint16_t> result_glsl(size, 0);
     glsl_volume->gl_texture()->GetTexImage(&result_glsl[0]);
 
-    assert(n == 1 || n == 4);
+    assert(n == 1 || n == 2 || n == 4);
     if (n == 1)
         VerifyResult1(result_cuda, result_glsl, width, height, depth, n,
-        function_name);
+                      function_name);
+    else if (n == 2)
+        VerifyResult2(result_cuda, result_glsl, width, height, depth, n,
+                      channel_mask, function_name);
     else if (n == 4)
         VerifyResult4(result_cuda, result_glsl, width, height, depth, n,
-        channel_mask, function_name);
+                      channel_mask, function_name);
 }
 
 bool UnittestCommon::InitializeSimulators(FluidSimulator* sim_cuda,
@@ -219,6 +286,25 @@ void UnittestCommon::InitializeVolume1(GraphicsVolume* cuda_volume,
                                        GraphicsVolume* glsl_volume,
                                        int width, int height, int depth, int n,
                                        int pitch, int size,
+                                       const std::pair<float, float>& scope)
+{
+    std::vector<uint16_t> test_data(size / sizeof(uint16_t), 0);
+    for (auto& i : test_data)
+        i = half(random(scope)).bits();
+
+    vmath::Vector3 volume_size(static_cast<float>(width),
+                               static_cast<float>(height),
+                               static_cast<float>(depth));
+    CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
+                           &test_data[0], pitch, volume_size);
+
+    glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
+}
+
+void UnittestCommon::InitializeVolume2(GraphicsVolume* cuda_volume,
+                                       GraphicsVolume* glsl_volume, int width,
+                                       int height, int depth, int n, int pitch,
+                                       int size,
                                        const std::pair<float, float>& scope)
 {
     std::vector<uint16_t> test_data(size / sizeof(uint16_t), 0);

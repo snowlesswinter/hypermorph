@@ -16,9 +16,9 @@ public:
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
 
-    virtual void ComputeResidualPacked(const GraphicsVolume& packed,
-                                       float cell_size) override;
-
+    virtual void ComputeResidual(const GraphicsVolume& packed,
+                                 const GraphicsVolume& residual,
+                                 float cell_size) override;
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) override;
     virtual void RelaxPacked(const GraphicsVolume& u_and_b, float cell_size);

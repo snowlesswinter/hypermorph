@@ -19,7 +19,7 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed
 surface<void, cudaTextureType3D> jacobi;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 surface<void, cudaTextureType3D> diagnosis;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
+texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
 __global__ void AdvectPureKernel(float time_step, float dissipation,
                                  int3 volume_size)
@@ -176,14 +176,14 @@ __global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
 
     float3 coord = make_float3(x, y, z);
 
-    float near =    tex3D(diagnosis_source, coord.x, coord.y, coord.z - 1.0f).x;
-    float south =   tex3D(diagnosis_source, coord.x, coord.y - 1.0f, coord.z).x;
-    float west =    tex3D(diagnosis_source, coord.x - 1.0f, coord.y, coord.z).x;
-    float4 center = tex3D(diagnosis_source, coord.x, coord.y, coord.z);
-    float east =    tex3D(diagnosis_source, coord.x + 1.0f, coord.y, coord.z).x;
-    float north =   tex3D(diagnosis_source, coord.x, coord.y + 1.0f, coord.z).x;
-    float far =     tex3D(diagnosis_source, coord.x, coord.y, coord.z + 1.0f).x;
-    float b_center = center.y;
+    float  near =   tex3D(diagnosis_source, coord.x, coord.y, coord.z - 1.0f).x;
+    float  south =  tex3D(diagnosis_source, coord.x, coord.y - 1.0f, coord.z).x;
+    float  west =   tex3D(diagnosis_source, coord.x - 1.0f, coord.y, coord.z).x;
+    float2 center = tex3D(diagnosis_source, coord.x, coord.y, coord.z);
+    float  east =   tex3D(diagnosis_source, coord.x + 1.0f, coord.y, coord.z).x;
+    float  north =  tex3D(diagnosis_source, coord.x, coord.y + 1.0f, coord.z).x;
+    float  far =    tex3D(diagnosis_source, coord.x, coord.y, coord.z + 1.0f).x;
+    float  b_center = center.y;
 
     if (coord.y == volume_size.y - 1)
         north = center.x;
@@ -420,54 +420,96 @@ __global__ void DampedJacobiPureKernel_smem_assist_thread(
     surf3Dwrite(raw, jacobi, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void DampedJacobiPureKernel_smem_faces(float minus_square_cell_size,
-                                                  float omega_over_beta,
-                                                  int3 volume_size)
+__global__ void DampedJacobiPureKernel_smem_faces_assist_thread(
+    float minus_square_cell_size, float omega_over_beta, int3 volume_size)
 {
-    __shared__ float2 cached_block[512];
-    __shared__ float cached_face_xyz0[64];
-    __shared__ float cached_face_xyz1[64];
-    __shared__ float cached_face_xzy0[64];
-    __shared__ float cached_face_xzy1[64];
-    __shared__ float cached_face_yzx0[64];
-    __shared__ float cached_face_yzx1[64];
+    const int cache_size = 512;
+    const int bd = 8;
+    const int bh = 8;
+    const int slice_stride = cache_size / bd;
+    const int bw = slice_stride / bh;
+
+    __shared__ float2 cached_block[cache_size];
+    __shared__ float cached_face_xyz0[bw * bh];
+    __shared__ float cached_face_xyz1[bw * bh];
+    __shared__ float cached_face_xzy0[bw * bd];
+    __shared__ float cached_face_xzy1[bw * bd];
+    __shared__ float cached_face_yzx0[bh * bd];
+    __shared__ float cached_face_yzx1[bh * bd];
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    int index = threadIdx.z * blockDim.x * blockDim.y + threadIdx.y * blockDim.x +
-        threadIdx.x;
-
-    if (threadIdx.z == 0)
-        cached_face_xyz0[blockDim.x * threadIdx.y + threadIdx.x] = tex3D(jacobi_packed, x, y, z - 1).x;
-                                                                   
-    if (threadIdx.y == 0)                                          
-        cached_face_xzy0[blockDim.x * threadIdx.z + threadIdx.x] = tex3D(jacobi_packed, x, y - 1, z).x;
-                                                                   
-    if (threadIdx.x == 0)                                          
-        cached_face_yzx0[blockDim.y * threadIdx.z + threadIdx.y] = tex3D(jacobi_packed, x - 1, y, z).x;
+    int index = threadIdx.z * slice_stride + threadIdx.y * bw + threadIdx.x;
 
     cached_block[index] = tex3D(jacobi_packed, x, y, z);
 
-    if (threadIdx.x == blockDim.x - 1)
-        cached_face_yzx1[blockDim.y * threadIdx.z + threadIdx.y] = tex3D(jacobi_packed, x + 1, y, z).x;
-    
-    if (threadIdx.y == blockDim.y - 1)
-        cached_face_xzy1[blockDim.x * threadIdx.z + threadIdx.x] = tex3D(jacobi_packed, x, y + 1, z).x;
-    
-    if (threadIdx.z == blockDim.z - 1)
-        cached_face_xyz1[blockDim.x * threadIdx.y + threadIdx.x] = tex3D(jacobi_packed, x, y, z + 1).x;
-
+    int inner_x = 0;
+    int inner_y = 0;
+    int inner_z = 0;
+    switch (threadIdx.z) {
+        case 0: {
+            // near
+            inner_x = x;
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z - 1;
+            cached_face_xyz0[blockDim.x * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+        }
+        case 1: {
+            // south
+            inner_x = x;
+            inner_y = blockIdx.y * blockDim.y - 1;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.y;
+            cached_face_xzy0[blockDim.x * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+        }
+        case 2: {
+            // west
+            inner_x = blockIdx.x * blockDim.x - 1;
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.x;
+            cached_face_yzx0[blockDim.y * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+        }
+        case 5:
+            // east
+            inner_x = blockIdx.x * blockDim.x + blockDim.x;
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.x;
+            cached_face_yzx1[blockDim.y * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+        case 6:
+            // north
+            inner_x = x;
+            inner_y = blockIdx.y * blockDim.y + blockDim.y;
+            inner_z = blockIdx.z * blockDim.z + threadIdx.y;
+            cached_face_xzy1[blockDim.x * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+        case 7:
+            // far
+            inner_x = x;
+            inner_y = y;
+            inner_z = blockIdx.z * blockDim.z + blockDim.z;
+            cached_face_xyz1[blockDim.x * threadIdx.y + threadIdx.x] =
+                tex3D(jacobi_packed, inner_x, inner_y, inner_z).x;
+            break;
+    }
     __syncthreads();
 
     float2 center = cached_block[index];
-    float near =  threadIdx.z == 0 ?              cached_face_xyz0[blockDim.x * threadIdx.y + threadIdx.x] : cached_block[index - blockDim.x * blockDim.y].x;
-    float south = threadIdx.y == 0 ?              cached_face_xzy0[blockDim.x * threadIdx.z + threadIdx.x] : cached_block[index - blockDim.x].x;
-    float west =  threadIdx.x == 0 ?              cached_face_yzx0[blockDim.y * threadIdx.z + threadIdx.y] : cached_block[index - 1].x;
-    float east =  threadIdx.x == blockDim.x - 1 ? cached_face_yzx1[blockDim.y * threadIdx.z + threadIdx.y] : cached_block[index + 1].x;
-    float north = threadIdx.y == blockDim.y - 1 ? cached_face_xzy1[blockDim.x * threadIdx.z + threadIdx.x] : cached_block[index + blockDim.x].x;
-    float far =   threadIdx.z == blockDim.z - 1 ? cached_face_xyz1[blockDim.x * threadIdx.y + threadIdx.x] : cached_block[index + blockDim.x * blockDim.y].x;
+    float near =  threadIdx.z == 0 ?              cached_face_xyz0[blockDim.x * threadIdx.y + threadIdx.x] : cached_block[index - slice_stride].x;
+    float south = threadIdx.y == 0 ?              cached_face_xzy0[blockDim.x * threadIdx.z + threadIdx.x] : cached_block[index - bw].x;
+    float west =  threadIdx.x == 0 ?              cached_face_yzx0[blockDim.y * threadIdx.y + threadIdx.z] : cached_block[index - 1].x;
+    float east =  threadIdx.x == blockDim.x - 1 ? cached_face_yzx1[blockDim.y * threadIdx.y + threadIdx.z] : cached_block[index + 1].x;
+    float north = threadIdx.y == blockDim.y - 1 ? cached_face_xzy1[blockDim.x * threadIdx.z + threadIdx.x] : cached_block[index + bw].x;
+    float far =   threadIdx.z == blockDim.z - 1 ? cached_face_xyz1[blockDim.x * threadIdx.y + threadIdx.x] : cached_block[index + slice_stride].x;
 
     float u = omega_over_beta * 3.0f * center.x +
         (west + east + south + north + far + near + minus_square_cell_size *
@@ -861,7 +903,7 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
     if (result != cudaSuccess)
         return;
 
-    bool use_smem = true;
+    bool use_smem = false;
     if (use_smem) {
         dim3 block(8, 8, 8);
         dim3 grid((volume_size.x + block.x - 1) / block.x,
@@ -870,7 +912,11 @@ void LaunchDampedJacobiPure(cudaArray* dest_array, cudaArray* source_array,
         DampedJacobiPureKernel_smem_assist_thread<<<grid, block>>>(
             minus_square_cell_size, omega_over_beta, volume_size);
     } else {
-        dim3 block(128, 4, 1);
+        const int kMaxThreadsPerBlock = 512;
+        int bw = volume_size.x;
+        int bh = kMaxThreadsPerBlock / volume_size.x;
+        int bd = kMaxThreadsPerBlock / bw / bh;
+        dim3 block(bw, bh, bd);
         dim3 grid((volume_size.x + block.x - 1) / block.x,
                   (volume_size.x + block.y - 1) / block.y,
                   (volume_size.x + block.z - 1) / block.z);

@@ -9,10 +9,7 @@ public:
     static std::string ComputeResidual();
     static std::string Restrict();
     static std::string Prolongate();
-    static std::string RelaxWithZeroGuess();
 
-    // Optimization.
-    static std::string ComputeResidualPacked();
     static std::string RelaxAndComputeResidual();
     static std::string RelaxPacked();
     static std::string RelaxWithZeroGuessPacked();

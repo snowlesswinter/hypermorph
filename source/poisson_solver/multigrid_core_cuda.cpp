@@ -31,11 +31,12 @@ std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
-void MultigridCoreCuda::ComputeResidualPacked(const GraphicsVolume& packed,
-                                              float cell_size)
+void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& packed,
+                                        const GraphicsVolume& residual,
+                                        float cell_size)
 {
     float inverse_h_square = 1.0f / (cell_size * cell_size);
-    CudaMain::Instance()->ComputeResidualPackedPure(packed.cuda_volume(),
+    CudaMain::Instance()->ComputeResidualPackedPure(residual.cuda_volume(),
                                                     packed.cuda_volume(),
                                                     inverse_h_square);
 }

@@ -484,7 +484,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
     float inverse_h_square = 1.0f / (cell_size * cell_size);
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualPackedDiagnosis(
-            diagnosis_volume_->cuda_volume(), general4_->cuda_volume(),
+            diagnosis_volume_->cuda_volume(), packed_->cuda_volume(),
             inverse_h_square);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         glUseProgram(Programs.diagnose_);
@@ -494,7 +494,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
         diagnosis_volume_->gl_texture()->BindFrameBuffer();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, general4_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               diagnosis_volume_->gl_texture()->depth());
         ResetState();

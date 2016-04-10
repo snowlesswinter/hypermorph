@@ -350,10 +350,7 @@ void main()
     frag_color = vec3(0.0f, result, 0.0f);
 }
 )";
-    std::string restrict_core = kRestrictCore;
-    std::regex e("\\)\\.r;");
-    std::string core = std::regex_replace(restrict_core, e, ").b;");
-    return part1 + core + part2;
+    return part1 + kRestrictCore + part2;
 }
 
 std::string MultigridStaggeredShader::RestrictPacked()

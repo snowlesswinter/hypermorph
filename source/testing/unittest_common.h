@@ -24,6 +24,11 @@ public:
                                   int height, int depth, int n, int pitch,
                                   int size,
                                   const std::pair<float, float>& scope);
+    static void InitializeVolume2(GraphicsVolume* cuda_volume,
+                                  GraphicsVolume* glsl_volume, int width,
+                                  int height, int depth, int n, int pitch,
+                                  int size,
+                                  const std::pair<float, float>& scope);
     static void InitializeVolume4(GraphicsVolume* cuda_volume,
                                   GraphicsVolume* glsl_volume, int width,
                                   int height, int depth, int n, int pitch,

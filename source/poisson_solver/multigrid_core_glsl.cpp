@@ -40,19 +40,20 @@ std::shared_ptr<GraphicsVolume> MultigridCoreGlsl::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
-void MultigridCoreGlsl::ComputeResidualPacked(const GraphicsVolume& packed,
-                                              float cell_size)
+void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
+                                        const GraphicsVolume& residual,
+                                        float cell_size)
 {
     GetResidualPackedProgram()->Use();
 
     SetUniform("packed_tex", 0);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, residual.gl_texture()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, packed.gl_texture()->handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          packed.gl_texture()->depth());
+                          residual.gl_texture()->depth());
     ResetState();
 }
 
@@ -196,9 +197,9 @@ GLProgram* MultigridCoreGlsl::GetResidualPackedProgram()
     if (!residual_packed_program_)
     {
         residual_packed_program_.reset(new GLProgram());
-        residual_packed_program_->Load(
-            FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridShader::ComputeResidualPacked());
+        residual_packed_program_->Load(FluidShader::Vertex(),
+                                       FluidShader::PickLayer(),
+                                       MultigridShader::ComputeResidual());
     }
 
     return residual_packed_program_.get();

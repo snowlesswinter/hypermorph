@@ -15,8 +15,9 @@ public:
                                                          int num_of_components,
                                                          int byte_width) = 0;
 
-    virtual void ComputeResidualPacked(const GraphicsVolume& packed,
-                                       float cell_size) = 0;
+    virtual void ComputeResidual(const GraphicsVolume& packed,
+                                 const GraphicsVolume& residual,
+                                 float cell_size) = 0;
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) = 0;
     virtual void RelaxPacked(const GraphicsVolume& u_and_b,

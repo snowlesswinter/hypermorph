@@ -16,8 +16,9 @@ public:
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
 
-    virtual void ComputeResidualPacked(const GraphicsVolume& packed,
-                                       float cell_size) override;
+    virtual void ComputeResidual(const GraphicsVolume& packed,
+                                 const GraphicsVolume& residual,
+                                 float cell_size) override;
 
     // ProlongateAndRelax() is deprecated. Though it seems to be a bit useful
     // that saving one time texture fetch, it still need to read the texture in
