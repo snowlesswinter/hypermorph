@@ -35,7 +35,7 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
     float  b_center = center.y;
 
     float v = b_center -
-        (north + south + east + west + far + near - 6.0 * center.x) *
+        (north + south + east + west + far + near - 6.0f * center.x) *
         inverse_h_square;
     ushort raw = __float2half_rn(v);
     surf3Dwrite(raw, residual_dest, x * sizeof(ushort), y, z,
@@ -89,24 +89,6 @@ __global__ void RelaxWithZeroGuessPackedPureKernel(
     float  north =   tex3D(guess_source, coord.x, coord.y + 1.0f, coord.z).y;
     float  far =     tex3D(guess_source, coord.x, coord.y, coord.z + 1.0f).y;
     float  b_center = center.y;
-
-    if (coord.y == volume_size.y - 1)
-        north = b_center;
-
-    if (coord.y == 0)
-        south = b_center;
-
-    if (coord.x == volume_size.x - 1)
-        east = b_center;
-
-    if (coord.x == 0)
-        west = b_center;
-
-    if (coord.z == volume_size.z - 1)
-        far = b_center;
-
-    if (coord.z == 0)
-        near = b_center;
 
     float v = one_minus_omega * (alpha_omega_over_beta * b_center) +
         (alpha_omega_over_beta * (north + south + east + west + far + near) +
@@ -354,10 +336,9 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
     float south_center_far =     c2 * tex3D(restrict_residual_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f);
     float south_west_far =       c1 * tex3D(restrict_residual_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f);
 
-    float3 tex_size = make_float3(volume_size_fine) - 1.001f;
     float scale = 0.5f;
 
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         center_east_center = center_center_center;
     }
 
@@ -365,7 +346,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         center_west_center = scale * center_center_center;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         center_center_far = scale * center_center_center;
     }
 
@@ -373,7 +354,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         center_center_near = scale * center_center_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_center_center = scale * center_center_center;
     }
 
@@ -382,7 +363,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
     }
 
     // Pass 2: 1-center cells.
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         center_east_near = scale * center_center_near;
         north_east_center = scale * north_center_center;
         south_east_center = scale * south_center_center;
@@ -396,7 +377,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         center_west_far = scale * center_center_far;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         north_center_far = scale * north_center_center;
         center_east_far = scale * center_east_center;
         center_west_far = scale * center_west_center;
@@ -410,7 +391,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         south_center_near = scale * south_center_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_center_near = scale * center_center_near;
         north_east_center = scale * center_east_center;
         north_west_center = scale * center_west_center;
@@ -425,7 +406,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
     }
 
     // Pass 3: corner cells.
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         north_east_near = scale * north_center_near;
         south_east_near = scale * south_center_near;
         north_east_far = scale * north_center_far;
@@ -439,7 +420,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         south_west_far = scale * south_center_far;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         north_east_far = scale * north_east_center;
         north_west_far = scale * north_west_center;
         south_east_far = scale * south_east_center;
@@ -453,7 +434,7 @@ __global__ void RestrictResidualPackedPureKernel(int3 volume_size_fine)
         south_west_near = scale * south_west_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_east_near = scale * center_east_near;
         north_west_near = scale * center_west_near;
         north_east_far = scale * center_east_far;
