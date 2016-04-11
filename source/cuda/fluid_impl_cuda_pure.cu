@@ -97,12 +97,11 @@ __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
                                        int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = 1 + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
-    float original = tex3D(impulse_original, coord.x, coord.y, coord.z);
 
     if (coord.x > 1.0f && coord.y < 3.0f) {
         float2 diff = make_float2(coord.x, coord.z) -
@@ -112,15 +111,12 @@ __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
             diff = make_float2(coord.x, coord.z) -
                 make_float2(hotspot.x, hotspot.z);
             float scale = (radius - hypotf(diff.x, diff.y)) / radius;
-            scale = max(scale, 0.5f);
+            scale = fmaxf(scale, 0.5f);
             surf3Dwrite(__float2half_rn(scale * value), impulse_dest,
                         x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
             return;
         }
     }
-
-    surf3Dwrite(__float2half_rn(original), impulse_dest, x * sizeof(ushort), y,
-                z, cudaBoundaryModeTrap);
 }
 
 __global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
@@ -669,7 +665,7 @@ void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size.x / 8);
+    dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     AdvectPureKernel<<<grid, block>>>(time_step, dissipation, volume_size);
@@ -789,9 +785,8 @@ void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block(128, 2, 1);
+    dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
     ApplyImpulsePureKernel<<<grid, block>>>(center_point, hotspot, radius,
                                             value, volume_size);
 

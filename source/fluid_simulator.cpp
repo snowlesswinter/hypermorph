@@ -362,11 +362,10 @@ void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
                                   float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulsePure(general1_->cuda_volume(),
+        CudaMain::Instance()->ApplyImpulsePure((*dest)->cuda_volume(),
                                                (*dest)->cuda_volume(),
                                                position, hotspot, splat_radius,
                                                value);
-        std::swap(*dest, general1_);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
@@ -390,11 +389,9 @@ void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
                                          float splat_radius, float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensityPure(density2_->gl_texture(),
-                                                      density_->gl_texture(),
+        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_texture(),
                                                       position, hotspot,
                                                       splat_radius, value);
-        std::swap(density_, density2_);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 

@@ -39,7 +39,7 @@ public:
                       const Vectormath::Aos::Vector3& center_point,
                       const Vectormath::Aos::Vector3& hotspot, float radius,
                       float value, const Vectormath::Aos::Vector3& volume_size);
-    void ApplyImpulseDensity(GraphicsResource* dest, GraphicsResource* density,
+    void ApplyImpulseDensity(GraphicsResource* density,
                              const Vectormath::Aos::Vector3& center_point,
                              const Vectormath::Aos::Vector3& hotspot,
                              float radius, float value,

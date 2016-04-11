@@ -62,9 +62,7 @@ __global__ void ProlongatePackedPureKernel(int3 volume_size)
     float3 t_c = make_float3(c.x + t_x, c.y + t_y, c.z + t_z);
     float2 result_float = tex3D(prolongate_pure_coarse, t_c.x, t_c.y, t_c.z);
 
-    float3 f_coord = make_float3(x, y, z) + 0.5f;
-
-    float2 original = tex3D(prolongate_pure_fine, f_coord.x, f_coord.y, f_coord.z);
+    float2 original = tex3D(prolongate_pure_fine, x, y, z);
     float2 result = make_float2(original.x + result_float.x, original.y);
 
     ushort2 raw = make_ushort2(__float2half_rn(result.x),
@@ -127,10 +125,10 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
-    float c1 = 0.015625f;
-    float c2 = 0.03125f;
-    float c4 = 0.0625f;
-    float c8 = 0.125f;
+    const float c1 = 0.015625f;
+    const float c2 = 0.03125f;
+    const float c4 = 0.0625f;
+    const float c8 = 0.125f;
 
     // Changing the order of the following voxel-fetching code will NOT affect
     // the performance of this kernel.
@@ -164,10 +162,9 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
     float2 south_center_far =     c2 * tex3D(restrict_source, coord.x,        coord.y - 1.0f, coord.z + 1.0f);
     float2 south_west_far =       c1 * tex3D(restrict_source, coord.x - 1.0f, coord.y - 1.0f, coord.z + 1.0f);
 
-    float3 tex_size = make_float3(volume_size_fine) - 1.001f;
     float scale = 0.5f;
 
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         center_east_center = center_center_center;
     }
 
@@ -175,7 +172,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         center_west_center = scale * center_center_center;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         center_center_far = scale * center_center_center;
     }
 
@@ -183,7 +180,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         center_center_near = scale * center_center_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_center_center = scale * center_center_center;
     }
 
@@ -192,7 +189,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
     }
 
     // Pass 2: 1-center cells.
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         center_east_near = scale * center_center_near;
         north_east_center = scale * north_center_center;
         south_east_center = scale * south_center_center;
@@ -206,7 +203,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         center_west_far = scale * center_center_far;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         north_center_far = scale * north_center_center;
         center_east_far = scale * center_east_center;
         center_west_far = scale * center_west_center;
@@ -220,7 +217,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         south_center_near = scale * south_center_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_center_near = scale * center_center_near;
         north_east_center = scale * center_east_center;
         north_west_center = scale * center_west_center;
@@ -235,7 +232,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
     }
 
     // Pass 3: corner cells.
-    if (coord.x > tex_size.x) {
+    if (coord.x >= volume_size_fine.x - 1) {
         north_east_near = scale * north_center_near;
         south_east_near = scale * south_center_near;
         north_east_far = scale * north_center_far;
@@ -249,7 +246,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         south_west_far = scale * south_center_far;
     }
 
-    if (coord.z > tex_size.z) {
+    if (coord.z >= volume_size_fine.z - 1) {
         north_east_far = scale * north_east_center;
         north_west_far = scale * north_west_center;
         south_east_far = scale * south_east_center;
@@ -263,7 +260,7 @@ __global__ void RestrictPackedPureKernel(int3 volume_size_fine)
         south_west_near = scale * south_west_center;
     }
 
-    if (coord.y > tex_size.y) {
+    if (coord.y >= volume_size_fine.y - 1) {
         north_east_near = scale * center_east_near;
         north_west_near = scale * center_west_near;
         north_east_far = scale * center_east_far;
@@ -544,7 +541,8 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
 }
 
 void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
-                                cudaArray* fine_array, int3 volume_size_fine)
+                                cudaArray* fine_array, int3 volume_size_fine,
+                                BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -570,7 +568,7 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
 
     cudaGetChannelDesc(&desc, fine_array);
     prolongate_pure_fine.normalized = false;
-    prolongate_pure_fine.filterMode = cudaFilterModeLinear;
+    prolongate_pure_fine.filterMode = cudaFilterModePoint;
     prolongate_pure_fine.addressMode[0] = cudaAddressModeClamp;
     prolongate_pure_fine.addressMode[1] = cudaAddressModeClamp;
     prolongate_pure_fine.addressMode[2] = cudaAddressModeClamp;
@@ -581,10 +579,9 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size_fine.x / 8);
-    dim3 grid(volume_size_fine.x / block.x, volume_size_fine.y / block.y,
-              volume_size_fine.z / block.z);
-
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
     ProlongatePackedPureKernel<<<grid, block>>>(volume_size_fine);
 
     cudaUnbindTexture(&prolongate_pure_fine);
@@ -630,7 +627,7 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
 }
 
 void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
-                              int3 volume_size)
+                              int3 volume_size, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -654,7 +651,7 @@ void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
         return;
 
     int3 volume_size_fine = volume_size * 2;
-    dim3 block(8, 8, volume_size.x / 8);
+    dim3 block(8, 4, 1);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     RestrictPackedPureKernel<<<grid, block>>>(volume_size_fine);

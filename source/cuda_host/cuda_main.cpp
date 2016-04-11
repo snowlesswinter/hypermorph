@@ -124,23 +124,20 @@ void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
                                     v);
 }
 
-void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<GLTexture> dest,
-                                       std::shared_ptr<GLTexture> density,
+void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<GLTexture> density,
                                        const vmath::Vector3& center_point,
                                        const vmath::Vector3& hotspot,
                                        float radius, float value)
 {
-    auto i = registerd_textures_.find(dest);
-    auto j = registerd_textures_.find(density);
-    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
-    if (i == registerd_textures_.end() || j == registerd_textures_.end())
+    auto i = registerd_textures_.find(density);
+    assert(i != registerd_textures_.end());
+    if (i == registerd_textures_.end())
         return;
 
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->ApplyImpulseDensity(i->second.get(), j->second.get(),
-                                          center_point, hotspot, radius, value,
-                                          v);
+    vmath::Vector3 v = FromIntValues(density->width(), density->height(),
+                                     density->depth());
+    fluid_impl_pure_->ApplyImpulseDensity(i->second.get(), center_point,
+                                          hotspot, radius, value, v);
 }
 
 void CudaMain::ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,

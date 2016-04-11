@@ -147,15 +147,14 @@ void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
         radius, value, FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* dest,
-                                            GraphicsResource* density,
+void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* density,
                                             const vmath::Vector3& center_point,
                                             const vmath::Vector3& hotspot,
                                             float radius, float value,
                                             const vmath::Vector3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
-        dest->resource(), density->resource()
+        density->resource()
     };
     cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
                                                   res);
@@ -163,24 +162,15 @@ void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* dest,
     if (result != cudaSuccess)
         return;
 
-    // Destination texture.
     cudaArray* dest_array = nullptr;
     result = cudaGraphicsSubResourceGetMappedArray(&dest_array,
-                                                   dest->resource(), 0, 0);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    // Source texture.
-    cudaArray* source_array = nullptr;
-    result = cudaGraphicsSubResourceGetMappedArray(&source_array,
                                                    density->resource(), 0, 0);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
 
     LaunchApplyImpulsePure(
-        dest_array, source_array,
+        dest_array, dest_array,
         make_float3(center_point.getX(), center_point.getY(),
                     center_point.getZ()),
         make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),

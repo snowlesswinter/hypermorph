@@ -46,8 +46,7 @@ public:
                            std::shared_ptr<CudaVolume> temperature,
                            float time_step, float ambient_temperature,
                            float accel_factor, float gravity);
-    void ApplyImpulseDensityPure(std::shared_ptr<GLTexture> dest,
-                                 std::shared_ptr<GLTexture> density,
+    void ApplyImpulseDensityPure(std::shared_ptr<GLTexture> density,
                                  const Vectormath::Aos::Vector3& center_point,
                                  const Vectormath::Aos::Vector3& hotspot,
                                  float radius, float value);
