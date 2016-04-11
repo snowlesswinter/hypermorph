@@ -87,7 +87,8 @@ void main()
 
     vec3 coord = fragCoord - TimeStep * u;
 
-    FragColor = Dissipation * texture(SourceTexture, InverseSize * coord).xyz;
+    FragColor = (1.0f - Dissipation * TimeStep) *
+        texture(SourceTexture, InverseSize * coord).xyz;
 }
 )";
 }
