@@ -65,7 +65,7 @@ void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
     SetUniform("s", 1);
     SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_texture()));
     SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_texture()));
-    SetUniform("overlay", 1);
+    SetUniform("overlay", 1.0f);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_texture()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
@@ -86,7 +86,7 @@ void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
     SetUniform("s", 1);
     SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_texture()));
     SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_texture()));
-    SetUniform("overlay", 1);
+    SetUniform("overlay", 1.0f);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_texture()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);

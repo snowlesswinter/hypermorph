@@ -190,6 +190,7 @@ FluidConfig::FluidConfig()
     , density_dissipation_(0.036f, "density dissipation")
     , splat_radius_factor_(0.25f, "splat radius factor")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
+    , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
 {
 }
@@ -233,6 +234,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
 
     ConfigField<int>* int_fields[] = {
         &num_jacobi_iterations_,
+        &num_multigrid_iterations_,
         &num_full_multigrid_iterations_,
     };
 
@@ -266,6 +268,7 @@ void FluidConfig::Store(std::ostream& stream)
 
     ConfigField<int> int_fields[] = {
         num_jacobi_iterations_,
+        num_multigrid_iterations_,
         num_full_multigrid_iterations_,
     };
 

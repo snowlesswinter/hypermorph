@@ -339,7 +339,7 @@ void main()
 )";
     std::string part2 = R"(
     float v = b_center -
-        (north + south + east + west + far + near - 6.0 * center.r) *
+        (north + south + east + west + far + near - 6.0f * center.r) *
             inverse_h_square;
     frag_color = vec3(v, 0.0f, 0.0f);
 }
@@ -363,7 +363,7 @@ void main()
 )";
     std::string part2 = R"(
     float v = b_center -
-        (north + south + east + west + far + near - 6.0 * center.r) *
+        (north + south + east + west + far + near - 6.0f * center.r) *
             inverse_h_square;
     frag_color = vec3(abs(v), 0.0f, 0.0f);
 }

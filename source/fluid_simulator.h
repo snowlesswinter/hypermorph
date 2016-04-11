@@ -74,6 +74,7 @@ private:
     std::unique_ptr<PoissonSolver> solver_;
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
+    int volume_byte_width_;
     bool diagnosis_;
 
     std::shared_ptr<GraphicsVolume> velocity_;

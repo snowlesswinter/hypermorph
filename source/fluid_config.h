@@ -40,6 +40,9 @@ public:
     float density_dissipation() const { return density_dissipation_.value_; }
     float splat_radius_factor() const { return splat_radius_factor_.value_; }
     int num_jacobi_iterations() const { return num_jacobi_iterations_.value_; }
+    int num_multigrid_iterations() const {
+        return num_multigrid_iterations_.value_;
+    }
     int num_full_multigrid_iterations() const {
         return num_full_multigrid_iterations_.value_;
     }
@@ -64,6 +67,7 @@ private:
     ConfigField<float> density_dissipation_;
     ConfigField<float> splat_radius_factor_;
     ConfigField<int> num_jacobi_iterations_;
+    ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;
 };
 

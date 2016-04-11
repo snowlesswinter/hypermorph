@@ -24,9 +24,10 @@ FullMultigridPoissonSolver::~FullMultigridPoissonSolver()
 
 }
 
-bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
+bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
+                                            int byte_width)
 {
-    if (!solver_->Initialize(width, height, depth))
+    if (!solver_->Initialize(width, height, depth, byte_width))
         return false;
 
     // Placeholder for the solution buffer.
@@ -41,7 +42,8 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth)
         int h = height / scale;
         int d = depth / scale;
 
-        std::shared_ptr<GraphicsVolume> v = core_->CreateVolume(w, h, d, 2, 2);
+        std::shared_ptr<GraphicsVolume> v = core_->CreateVolume(w, h, d, 2,
+                                                                byte_width);
         if (!v)
             return false;
 

@@ -39,10 +39,11 @@ MultigridPoissonSolver::~MultigridPoissonSolver()
 
 }
 
-bool MultigridPoissonSolver::Initialize(int width, int height, int depth)
+bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
+                                        int byte_width)
 {
     volume_resource.clear();
-    residual_volume_ = core_->CreateVolume(width, height, depth, 1, 2);
+    residual_volume_ = core_->CreateVolume(width, height, depth, 1, byte_width);
 
     int min_width = std::min(std::min(width, height), depth);
     int scale = 2;
@@ -50,11 +51,13 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth)
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;
-        std::shared_ptr<GraphicsVolume> v0 = core_->CreateVolume(w, h, d, 2, 2);
+        std::shared_ptr<GraphicsVolume> v0 = core_->CreateVolume(w, h, d, 2,
+                                                                 byte_width);
         if (!v0)
             return false;
 
-        std::shared_ptr<GraphicsVolume> v1 = core_->CreateVolume(w, h, d, 1, 2);
+        std::shared_ptr<GraphicsVolume> v1 = core_->CreateVolume(w, h, d, 1,
+                                                                 byte_width);
         if (!v1)
             return false;
 

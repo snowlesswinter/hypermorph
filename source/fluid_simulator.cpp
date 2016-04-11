@@ -38,6 +38,7 @@ FluidSimulator::FluidSimulator()
     , solver_()
     , num_multigrid_iterations_(5)
     , num_full_multigrid_iterations_(2)
+    , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_()
     , density_()
@@ -106,7 +107,7 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = packed_->Create(GridWidth, GridHeight, GridDepth, 2, 2);
+    result = packed_->Create(GridWidth, GridHeight, GridDepth, 2, volume_byte_width_);
     assert(result);
     if (!result)
         return false;
@@ -590,7 +591,7 @@ void FluidSimulator::SolvePressure()
                 solver_.reset(
                     new MultigridPoissonSolver(multigrid_core_.get()));
                 solver_->Initialize(packed_->GetWidth(), packed_->GetHeight(),
-                                    packed_->GetDepth());
+                                    packed_->GetDepth(), volume_byte_width_);
             }
 
             // An iteration times lower than 4 will introduce significant
@@ -614,7 +615,7 @@ void FluidSimulator::SolvePressure()
                 solver_.reset(
                     new FullMultigridPoissonSolver(multigrid_core_.get()));
                 solver_->Initialize(packed_->GetWidth(), packed_->GetHeight(),
-                                    packed_->GetDepth());
+                                    packed_->GetDepth(), volume_byte_width_);
             }
 
             // Chaos occurs if the iteration times is set to a value above 2.

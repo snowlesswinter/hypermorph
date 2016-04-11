@@ -14,7 +14,8 @@ public:
     explicit MultigridPoissonSolver(MultigridCore* core);
     virtual ~MultigridPoissonSolver();
 
-    virtual bool Initialize(int width, int height, int depth) override;
+    virtual bool Initialize(int width, int height, int depth,
+                            int byte_width) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
                        bool as_precondition) override;
 
