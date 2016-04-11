@@ -20,6 +20,8 @@ public:
                                  float cell_size) = 0;
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) = 0;
+    virtual void ProlongateResidualPacked(const GraphicsVolume& coarse,
+                                          const GraphicsVolume& fine) = 0;
     virtual void RelaxPacked(const GraphicsVolume& u_and_b,
                              float cell_size) = 0;
     virtual void RelaxWithZeroGuessAndComputeResidual(

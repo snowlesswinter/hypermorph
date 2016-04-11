@@ -42,7 +42,7 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ProlongatePackedPureKernel(int3 volume_size)
+__global__ void ProlongatePackedPureKernel(float overlay, int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -60,10 +60,11 @@ __global__ void ProlongatePackedPureKernel(int3 volume_size)
     float t_z = -1.0f * (1 - odd_z) * 0.08333333f;
 
     float3 t_c = make_float3(c.x + t_x, c.y + t_y, c.z + t_z);
-    float2 result_float = tex3D(prolongate_pure_coarse, t_c.x, t_c.y, t_c.z);
+    float result_float = tex3D(prolongate_pure_coarse, t_c.x, t_c.y, t_c.z).x;
 
     float2 original = tex3D(prolongate_pure_fine, x, y, z);
-    float2 result = make_float2(original.x + result_float.x, original.y);
+    float2 result = make_float2(overlay * original.x + result_float,
+                                original.y);
 
     ushort2 raw = make_ushort2(__float2half_rn(result.x),
                                __float2half_rn(result.y));
@@ -522,8 +523,8 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
 }
 
 void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
-                                cudaArray* fine_array, int3 volume_size_fine,
-                                BlockArrangement* ba)
+                                cudaArray* fine_array, float overlay,
+                                int3 volume_size_fine, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -563,7 +564,7 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongatePackedPureKernel<<<grid, block>>>(volume_size_fine);
+    ProlongatePackedPureKernel<<<grid, block>>>(overlay, volume_size_fine);
 
     cudaUnbindTexture(&prolongate_pure_fine);
     cudaUnbindTexture(&prolongate_pure_coarse);

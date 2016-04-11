@@ -160,7 +160,7 @@ void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u_and_b,
         times_to_iterate /= 2;
         level_cell_size *= 1.0f;
 
-        core_->ProlongatePacked(*coarse_volume, *fine_volume);
+        core_->ProlongateResidualPacked(*coarse_volume, *fine_volume);
         RelaxPacked(fine_volume, level_cell_size, times_to_iterate/* - 1*/);
     }
 }

@@ -21,7 +21,7 @@ extern void LaunchComputeResidualPackedPure(cudaArray* dest_array,
                                             BlockArrangement* ba);
 extern void LaunchProlongatePackedPure(cudaArray* dest_array,
                                        cudaArray* coarse_array,
-                                       cudaArray* fine_array,
+                                       cudaArray* fine_array, float overlay,
                                        int3 volume_size_fine,
                                        BlockArrangement* ba);
 extern void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
@@ -65,10 +65,10 @@ void MultigridImplCuda::ComputeResidualPackedPure(
 }
 
 void MultigridImplCuda::ProlongatePackedPure(
-    cudaArray* dest, cudaArray* coarse, cudaArray* fine,
+    cudaArray* dest, cudaArray* coarse, cudaArray* fine, float overlay,
     const vmath::Vector3& volume_size)
 {
-    LaunchProlongatePackedPure(dest, coarse, fine,
+    LaunchProlongatePackedPure(dest, coarse, fine, overlay,
                                FromVmathVector(volume_size), ba_);
 }
 

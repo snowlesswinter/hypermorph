@@ -42,7 +42,14 @@ void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
                                          const GraphicsVolume& fine)
 {
     CudaMain::Instance()->ProlongatePackedPure(coarse.cuda_volume(),
-                                               fine.cuda_volume());
+                                               fine.cuda_volume(), 1.0f);
+}
+
+void MultigridCoreCuda::ProlongateResidualPacked(const GraphicsVolume& coarse,
+                                                 const GraphicsVolume& fine)
+{
+    CudaMain::Instance()->ProlongatePackedPure(coarse.cuda_volume(),
+                                               fine.cuda_volume(), 1.0f);
 }
 
 void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,

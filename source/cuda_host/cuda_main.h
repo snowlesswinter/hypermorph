@@ -73,7 +73,7 @@ public:
                                    std::shared_ptr<CudaVolume> packed,
                                    float inverse_h_square);
     void ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
-                              std::shared_ptr<CudaVolume> fine);
+                              std::shared_ptr<CudaVolume> fine, float overlay);
     void RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
                                       std::shared_ptr<CudaVolume> packed,
                                       float alpha_omega_over_beta,

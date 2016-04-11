@@ -290,23 +290,6 @@ const char* kProlongateCoreBackup = R"(
     interpolated *= d[odd_x + odd_y + odd_z];
 )";
 
-const char* kProlongateCore = R"(
-    vec3 f_coord =      vec3(gl_FragCoord.xy, gLayer);
-    ivec3 f_coord_int = ivec3(f_coord);
-    vec3 c =            vec3(f_coord_int) * 0.5f;
-
-    int odd_x = f_coord_int.x - ((f_coord_int.x >> 1) << 1);
-    int odd_y = f_coord_int.y - ((f_coord_int.y >> 1) << 1);
-    int odd_z = f_coord_int.z - ((f_coord_int.z >> 1) << 1);
-
-    float t_x = -1.0f * (1 - odd_x) * 0.08333333f;
-    float t_y = -1.0f * (1 - odd_y) * 0.08333333f;
-    float t_z = -1.0f * (1 - odd_z) * 0.08333333f;
-
-    vec3 t_c = c + vec3(t_x, t_y, t_z);
-    float result = texture(s, inverse_size_c * t_c, 0).r;
-)";
-
 const char* kResidualCore = R"(
     ivec3 coord = ivec3(gl_FragCoord.xy, gLayer);
 
@@ -390,25 +373,38 @@ void main()
 
 std::string MultigridShader::ProlongatePacked()
 {
-    std::string part1 = R"(
+    return R"(
 out vec3 frag_color;
 
 uniform sampler3D fine;
 uniform sampler3D s;
 uniform vec3 inverse_size_f;
 uniform vec3 inverse_size_c;
+uniform float overlay;
 
 in float gLayer;
 
 void main()
 {
-)";
-    std::string part2 = R"(
-    vec3 f = texture(fine, inverse_size_f * f_coord, 0).rgb;
-    frag_color = vec3(f.r + result, f.g, 0.0f);
+    vec3 f_coord =      vec3(gl_FragCoord.xy, gLayer);
+    ivec3 f_coord_int = ivec3(f_coord);
+    vec3 c =            vec3(f_coord_int) * 0.5f;
+
+    int odd_x = f_coord_int.x - ((f_coord_int.x >> 1) << 1);
+    int odd_y = f_coord_int.y - ((f_coord_int.y >> 1) << 1);
+    int odd_z = f_coord_int.z - ((f_coord_int.z >> 1) << 1);
+
+    float t_x = -1.0f * (1 - odd_x) * 0.08333333f;
+    float t_y = -1.0f * (1 - odd_y) * 0.08333333f;
+    float t_z = -1.0f * (1 - odd_z) * 0.08333333f;
+
+    vec3 t_c = c + vec3(t_x, t_y, t_z);
+    float result = texture(s, inverse_size_c * t_c, 0).r;
+
+    vec2 f = texture(fine, inverse_size_f * f_coord, 0).rg;
+    frag_color = vec3(overlay * f.r + result, f.g, 0.0f);
 }
 )";
-    return part1 + kProlongateCore + part2;
 }
 
 std::string MultigridShader::RelaxPacked()

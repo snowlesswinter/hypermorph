@@ -242,13 +242,14 @@ void CudaMain::ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
 }
 
 void CudaMain::ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
-                                    std::shared_ptr<CudaVolume> fine)
+                                    std::shared_ptr<CudaVolume> fine,
+                                    float overlay)
 {
     vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
                                      fine->depth());
     multigrid_impl_pure_->ProlongatePackedPure(fine->dev_array(),
                                                coarse->dev_array(),
-                                               fine->dev_array(), v);
+                                               fine->dev_array(), overlay, v);
 }
 
 void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,

@@ -25,7 +25,7 @@ public:
                                    float inverse_h_square,
                                    const Vectormath::Aos::Vector3& volume_size);
     void ProlongatePackedPure(cudaArray* dest, cudaArray* coarse,
-                              cudaArray* fine,
+                              cudaArray* fine, float overlay,
                               const Vectormath::Aos::Vector3& volume_size);
     void RelaxWithZeroGuessPackedPure(
         cudaArray* dest_array, cudaArray* source_array,
