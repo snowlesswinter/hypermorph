@@ -105,7 +105,6 @@
     <ClInclude Include="poisson_solver\poisson_solver.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
-    <ClInclude Include="shader\multigrid_staggered_shader.h" />
     <ClInclude Include="shader\overlay_shader.h" />
     <ClInclude Include="shader\raycast_shader.h" />
     <ClInclude Include="stdafx.h" />
@@ -131,7 +130,6 @@
     <ClCompile Include="poisson_solver\poisson_solver.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />
-    <ClCompile Include="shader\multigrid_staggered_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />
     <ClCompile Include="shader\raycast_shader.cpp" />
     <ClCompile Include="stdafx.cpp">

@@ -9,7 +9,6 @@
 #include "opengl/gl_texture.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
-#include "shader/multigrid_staggered_shader.h"
 #include "utility.h"
 
 MultigridCoreGlsl::MultigridCoreGlsl()
@@ -158,9 +157,9 @@ GLProgram* MultigridCoreGlsl::GetProlongatePackedProgram()
     if (!prolongate_packed_program_)
     {
         prolongate_packed_program_.reset(new GLProgram());
-        prolongate_packed_program_->Load(
-            FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridStaggeredShader::ProlongatePacked());
+        prolongate_packed_program_->Load(FluidShader::Vertex(),
+                                         FluidShader::PickLayer(),
+                                         MultigridShader::ProlongatePacked());
     }
 
     return prolongate_packed_program_.get();
@@ -210,9 +209,9 @@ GLProgram* MultigridCoreGlsl::GetRestrictPackedProgram()
     if (!restrict_packed_program_)
     {
         restrict_packed_program_.reset(new GLProgram());
-        restrict_packed_program_->Load(
-            FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridStaggeredShader::RestrictPacked());
+        restrict_packed_program_->Load(FluidShader::Vertex(),
+                                       FluidShader::PickLayer(),
+                                       MultigridShader::RestrictPacked());
     }
 
     return restrict_packed_program_.get();
@@ -225,7 +224,7 @@ GLProgram* MultigridCoreGlsl::GetRestrictResidualPackedProgram()
         restrict_residual_packed_program_.reset(new GLProgram());
         restrict_residual_packed_program_->Load(
             FluidShader::Vertex(), FluidShader::PickLayer(),
-            MultigridStaggeredShader::RestrictResidualPacked());
+            MultigridShader::RestrictResidualPacked());
     }
 
     return restrict_residual_packed_program_.get();

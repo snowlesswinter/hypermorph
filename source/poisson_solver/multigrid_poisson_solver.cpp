@@ -4,15 +4,9 @@
 #include <cassert>
 #include <tuple>
 
-#include "cuda_host/cuda_main.h"
 #include "graphics_volume.h"
 #include "metrics.h"
 #include "multigrid_core.h"
-#include "opengl/gl_program.h"
-#include "opengl/gl_texture.h"
-#include "shader/fluid_shader.h"
-#include "shader/multigrid_shader.h"
-#include "shader/multigrid_staggered_shader.h"
 #include "utility.h"
 
 // A summary for lately experiments:

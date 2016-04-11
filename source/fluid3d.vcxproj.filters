@@ -31,9 +31,6 @@
     <ClInclude Include="shader\multigrid_shader.h">
       <Filter>shader</Filter>
     </ClInclude>
-    <ClInclude Include="shader\multigrid_staggered_shader.h">
-      <Filter>shader</Filter>
-    </ClInclude>
     <ClInclude Include="fluid_simulator.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="graphics_volume.h" />
@@ -87,9 +84,6 @@
       <Filter>shader</Filter>
     </ClCompile>
     <ClCompile Include="shader\multigrid_shader.cpp">
-      <Filter>shader</Filter>
-    </ClCompile>
-    <ClCompile Include="shader\multigrid_staggered_shader.cpp">
       <Filter>shader</Filter>
     </ClCompile>
     <ClCompile Include="fluid_simulator.cpp" />

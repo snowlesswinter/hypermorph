@@ -7,14 +7,12 @@ class MultigridShader
 {
 public:
     static std::string ComputeResidual();
-    static std::string Restrict();
-    static std::string Prolongate();
-
-    static std::string RelaxAndComputeResidual();
+    static std::string ComputeResidualPackedDiagnosis();
+    static std::string ProlongatePacked();
     static std::string RelaxPacked();
     static std::string RelaxWithZeroGuessPacked();
-
-    static std::string ComputeResidualPackedDiagnosis();
+    static std::string RestrictPacked();
+    static std::string RestrictResidualPacked();
 };
 
 #endif // _MULTIGRID_SHADER_H_

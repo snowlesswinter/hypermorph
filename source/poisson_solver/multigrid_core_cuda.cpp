@@ -5,9 +5,6 @@
 
 #include "cuda_host/cuda_main.h"
 #include "graphics_volume.h"
-#include "shader/fluid_shader.h"
-#include "shader/multigrid_shader.h"
-#include "shader/multigrid_staggered_shader.h"
 #include "utility.h"
 
 MultigridCoreCuda::MultigridCoreCuda()
