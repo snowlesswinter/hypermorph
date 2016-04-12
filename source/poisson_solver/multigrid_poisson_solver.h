@@ -19,7 +19,9 @@ public:
     virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
                        bool as_precondition) override;
 
-    void SetBaseRelaxationTimes(int base_times);
+    void set_num_finest_level_iteration_per_pass(int n) {
+        num_finest_level_iteration_per_pass_ = n;
+    }
 
     // TODO
     void Diagnose(GraphicsVolume* packed);
@@ -37,7 +39,7 @@ private:
     MultigridCore* core_;
     std::vector<VolumePair> volume_resource;
     std::shared_ptr<GraphicsVolume> residual_volume_;
-    int times_to_iterate_;
+    int num_finest_level_iteration_per_pass_;
     bool diagnosis_;
 
     // For diagnosis.

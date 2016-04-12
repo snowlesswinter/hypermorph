@@ -6,21 +6,22 @@
 
 #include "block_arrangement.h"
 
-surface<void, cudaTextureType3D> advect_dest;
+surface<void, cudaSurfaceType3D> advect_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
-surface<void, cudaTextureType3D> buoyancy_dest;
+surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
-surface<void, cudaTextureType3D> impulse_dest;
+surface<void, cudaSurfaceType3D> impulse_dest;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> impulse_original;
-surface<void, cudaTextureType3D> divergence_dest;
+surface<void, cudaSurfaceType3D> divergence_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
-surface<void, cudaTextureType3D> gradient_velocity;
+surface<void, cudaSurfaceType3D> gradient_dest;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_velocity;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
-surface<void, cudaTextureType3D> jacobi;
+surface<void, cudaSurfaceType3D> jacobi;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
-surface<void, cudaTextureType3D> diagnosis;
+surface<void, cudaSurfaceType3D> diagnosis;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
 __global__ void AdvectPureKernel(float time_step, float dissipation,
@@ -66,7 +67,7 @@ __global__ void AdvectVelocityPureKernel(float time_step, float dissipation,
                 cudaBoundaryModeTrap);
 }
 
-__device__ float3 f42f3(float4 v)
+__device__ float3 Float4ToFloat3(float4 v)
 {
     return make_float3(v.x, v.y, v.z);
 }
@@ -137,7 +138,8 @@ __global__ void AdvectVelocityPureKernel_smem(float time_step,
     coord += 0.5f;
 
     int index = threadIdx.z * bw * bh + threadIdx.y * bw + threadIdx.x;
-    cached_block[index] = f42f3(tex3D(advect_velocity, coord.x, coord.y, coord.z));
+    cached_block[index] = Float4ToFloat3(
+        tex3D(advect_velocity, coord.x, coord.y, coord.z));
     float3 velocity = cached_block[index];
     __syncthreads();
 
@@ -152,7 +154,7 @@ __global__ void AdvectVelocityPureKernel_smem(float time_step,
             cached_block, back_traced - make_float3(base_x + 0.5f, base_y + 0.5f, base_z + 0.5f),
             bw * bh, bw);
     } else {
-        new_velocity = f42f3(
+        new_velocity = Float4ToFloat3(
             tex3D(advect_velocity, back_traced.x, back_traced.y,
                   back_traced.z));
     }
@@ -671,8 +673,8 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
     dest_array[0] = x * x - round * round;
 }
 
-__global__ void SubstractGradientPureKernel(float gradient_scale,
-                                            int3 volume_size)
+__global__ void SubtractGradientPureKernel(float gradient_scale,
+                                           int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -712,16 +714,16 @@ __global__ void SubstractGradientPureKernel(float gradient_scale,
     if (z <= 0)
         mask.z = 0;
 
-    ushort4 raw;
-    surf3Dread(&raw, gradient_velocity, x * sizeof(ushort4), y, z);
-    float3 old_v = make_float3(__half2float(raw.x), __half2float(raw.y),
-                               __half2float(raw.z));
+    float3 old_v = Float4ToFloat3(
+        tex3D(gradient_velocity, coord.x, coord.y, coord.z));
     float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * gradient_scale;
     float3 new_v = old_v - grad;
     float3 result = mask * new_v; // Velocity goes to 0 when hit ???
-    raw = make_ushort4(__float2half_rn(result.x), __float2half_rn(result.y),
-                       __float2half_rn(result.z), 0);
-    surf3Dwrite(raw, gradient_velocity, x * sizeof(ushort4), y, z,
+    ushort4 raw = make_ushort4(__float2half_rn(result.x),
+                               __float2half_rn(result.y),
+                               __float2half_rn(result.z),
+                               0);
+    surf3Dwrite(raw, gradient_dest, x * sizeof(ushort4), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -1011,13 +1013,29 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
-void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
-                                 float gradient_scale, int3 volume_size)
+void LaunchSubtractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
+                                float gradient_scale, int3 volume_size,
+                                BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&gradient_velocity, dest_array,
+    cudaError_t result = cudaBindSurfaceToArray(&gradient_dest, dest_array,
                                                 &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    cudaGetChannelDesc(&desc, dest_array);
+    gradient_velocity.normalized = false;
+    gradient_velocity.filterMode = cudaFilterModePoint;
+    gradient_velocity.addressMode[0] = cudaAddressModeClamp;
+    gradient_velocity.addressMode[1] = cudaAddressModeClamp;
+    gradient_velocity.addressMode[2] = cudaAddressModeClamp;
+    gradient_velocity.channelDesc = desc;
+
+    // Reading as texture would be more efficient. Hardware half-float
+    // conversion?
+    result = cudaBindTextureToArray(&gradient_velocity, dest_array, &desc);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -1035,10 +1053,11 @@ void LaunchSubstractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    SubstractGradientPureKernel<<<grid, block>>>(gradient_scale, volume_size);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    SubtractGradientPureKernel<<<grid, block>>>(gradient_scale, volume_size);
 
     cudaUnbindTexture(&gradient_packed);
+    cudaUnbindTexture(&gradient_velocity);
 }

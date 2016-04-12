@@ -220,13 +220,13 @@ void CudaMain::DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
                                    minus_square_cell_size, omega_over_beta, v);
 }
 
-void CudaMain::SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
-                                     std::shared_ptr<CudaVolume> packed,
-                                     float gradient_scale)
+void CudaMain::SubtractGradientPure(std::shared_ptr<CudaVolume> dest,
+                                    std::shared_ptr<CudaVolume> packed,
+                                    float gradient_scale)
 {
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    fluid_impl_pure_->SubstractGradient(dest->dev_array(), packed->dev_array(),
+    fluid_impl_pure_->SubtractGradient(dest->dev_array(), packed->dev_array(),
                                         gradient_scale, v);
 }
 

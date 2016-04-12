@@ -6,16 +6,16 @@
 
 #include "block_arrangement.h"
 
-surface<void, cudaTextureType3D> residual_dest;
+surface<void, cudaSurfaceType3D> residual_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> residual_source;
-surface<void, cudaTextureType3D> prolongate_pure_dest;
+surface<void, cudaSurfaceType3D> prolongate_pure_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure_coarse;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> prolongate_pure_fine;
-surface<void, cudaTextureType3D> guess_dest;
+surface<void, cudaSurfaceType3D> guess_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> guess_source;
-surface<void, cudaTextureType3D> restrict_residual_dest;
+surface<void, cudaSurfaceType3D> restrict_residual_dest;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residual_source;
-surface<void, cudaTextureType3D> restrict_dest;
+surface<void, cudaSurfaceType3D> restrict_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
 
 __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,

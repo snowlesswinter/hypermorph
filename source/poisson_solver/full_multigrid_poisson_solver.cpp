@@ -71,7 +71,7 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
     // With less iterations in each level but more iterating in every V-Cycle
     // will out perform the case visa versa(less time cost, lower avg/max |r|),
     // especially in high divergence cases.
-    solver_->SetBaseRelaxationTimes(5);
+    solver_->set_num_finest_level_iteration_per_pass(5);
     packed_textures_[0] = u_and_b;
 
     const int num_of_levels = static_cast<int>(packed_textures_.size());

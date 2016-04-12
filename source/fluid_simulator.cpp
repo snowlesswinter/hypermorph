@@ -635,9 +635,9 @@ void FluidSimulator::SolvePressure()
 void FluidSimulator::SubtractGradient()
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->SubstractGradientPure(velocity_->cuda_volume(),
-                                                    packed_->cuda_volume(),
-                                                    GradientScale);
+        CudaMain::Instance()->SubtractGradientPure(velocity_->cuda_volume(),
+                                                   packed_->cuda_volume(),
+                                                   GradientScale);
     } else {
         glUseProgram(Programs.SubtractGradient);
 

@@ -28,7 +28,7 @@ MultigridPoissonSolver::MultigridPoissonSolver(MultigridCore* core)
     : core_(core)
     , volume_resource()
     , residual_volume_()
-    , times_to_iterate_(2)
+    , num_finest_level_iteration_per_pass_(2)
     , diagnosis_(false)
     , diagnosis_volume_()
 {
@@ -81,11 +81,6 @@ void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
     //Diagnose(u_and_b);
 }
 
-void MultigridPoissonSolver::SetBaseRelaxationTimes(int base_times)
-{
-    times_to_iterate_ = base_times;
-}
-
 bool MultigridPoissonSolver::ValidateVolume(
     std::shared_ptr<GraphicsVolume> u_and_b)
 {
@@ -128,7 +123,7 @@ void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u_and_b,
     std::vector<VolumePair> surfs(1, std::make_pair(u_and_b, residual_volume));
     surfs.insert(surfs.end(), i, volume_resource.end());
 
-    int times_to_iterate = times_to_iterate_;
+    int times_to_iterate = num_finest_level_iteration_per_pass_;
 
     const int num_of_levels = static_cast<int>(surfs.size());
     float level_cell_size = cell_size;

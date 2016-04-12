@@ -64,9 +64,9 @@ public:
     void DampedJacobiPure(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> source,
                           float minus_square_cell_size, float omega_over_beta);
-    void SubstractGradientPure(std::shared_ptr<CudaVolume> dest,
-                               std::shared_ptr<CudaVolume> packed,
-                               float gradient_scale);
+    void SubtractGradientPure(std::shared_ptr<CudaVolume> dest,
+                              std::shared_ptr<CudaVolume> packed,
+                              float gradient_scale);
 
     // Multigrid.
     void ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
