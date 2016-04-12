@@ -170,16 +170,6 @@ void FluidSimulator::Reset()
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
-    float splat_radius =
-        GridWidth * FluidConfig::Instance()->splat_radius_factor();
-    float sin_factor = static_cast<float>(sin(seconds_elapsed / 4 * 3.1415926f));
-    float cos_factor = static_cast<float>(cos(seconds_elapsed / 4 * 3.1415926f));
-    float hotspot_x =
-        cos_factor * splat_radius * 0.8f + kImpulsePosition.getX();
-    float hotspot_z =
-        sin_factor * splat_radius * 0.8f + kImpulsePosition.getZ();
-    vmath::Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
-
     Metrics::Instance()->OnFrameUpdateBegins();
 
     float proper_delta_time = std::min(delta_time, kMaxTimeStep);
@@ -200,20 +190,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnBuoyancyApplied();
 
     // Splat new smoke
-    ApplyImpulseDensity(kImpulsePosition, hotspot, splat_radius,
-                        FluidConfig::Instance()->impulse_density());
-
-    std::array<float, 3> temperature = {
-        FluidConfig::Instance()->impulse_temperature(), 0.0f, 0.0f
-    };
-    ApplyImpulse(temperature_, kImpulsePosition, hotspot, splat_radius,
-                 temperature, 1);
-
-    std::array<float, 3> initial_velocity = {
-        0.0f, FluidConfig::Instance()->impulse_velocity(), 0.0f
-    };
-    ApplyImpulse(velocity_, kImpulsePosition, hotspot, splat_radius,
-                 initial_velocity, 7);
+    ApplyImpulse(seconds_elapsed, proper_delta_time);
     Metrics::Instance()->OnImpulseApplied();
 
     // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
@@ -364,57 +341,36 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
     std::swap(velocity_, general4_);
 }
 
-void FluidSimulator::ApplyImpulse(std::shared_ptr<GraphicsVolume> dest,
-                                  vmath::Vector3 position,
-                                  vmath::Vector3 hotspot, float splat_radius,
-                                  const std::array<float, 3>& value, uint32_t mask)
+void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
 {
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulsePure(dest->cuda_volume(),
-                                               dest->cuda_volume(),
-                                               position, hotspot, splat_radius,
-                                               value, mask);
-    } else {
-        glUseProgram(Programs.ApplyImpulse);
+    double ¦Ð = 3.1415926;
+    float splat_radius =
+        GridWidth * FluidConfig::Instance()->splat_radius_factor();
+    float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
+    float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
+    float hotspot_x =
+        cos_factor * splat_radius * 0.8f + kImpulsePosition.getX();
+    float hotspot_z =
+        sin_factor * splat_radius * 0.8f + kImpulsePosition.getZ();
+    vmath::Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
-        SetUniform("center_point", position);
-        SetUniform("hotspot", hotspot);
-        SetUniform("radius", splat_radius);
-        SetUniform("fill_color_r", value[0]);
-        SetUniform("fill_color_g", value[1]);
+    ImpulseDensity(kImpulsePosition, hotspot, splat_radius,
+                   FluidConfig::Instance()->impulse_density());
 
-        glBindFramebuffer(GL_FRAMEBUFFER, dest->gl_texture()->frame_buffer());
-        glEnable(GL_BLEND);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              dest->gl_texture()->depth());
-        ResetState();
-    }
-}
+    std::array<float, 3> temperature = {
+        FluidConfig::Instance()->impulse_temperature(), 0.0f, 0.0f
+    };
+    Impulse(temperature_, kImpulsePosition, hotspot, splat_radius, temperature,
+            1);
 
-void FluidSimulator::ApplyImpulseDensity(vmath::Vector3 position,
-                                         vmath::Vector3 hotspot,
-                                         float splat_radius, float value)
-{
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_texture(),
-                                                      position, hotspot,
-                                                      splat_radius, value);
-    } else {
-        glUseProgram(Programs.ApplyImpulse);
-
-        SetUniform("center_point", position);
-        SetUniform("hotspot", hotspot);
-        SetUniform("radius", splat_radius);
-        SetUniform("fill_color_r", value);
-        SetUniform("fill_color_g", value);
-
-        glBindFramebuffer(GL_FRAMEBUFFER,
-                          density_->gl_texture()->frame_buffer());
-        glEnable(GL_BLEND);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              density_->gl_texture()->depth());
-        ResetState();
-    }
+    float v_coef = static_cast<float>(sin(seconds_elapsed * 3.0 * 2.0 * ¦Ð));
+    std::array<float, 3> initial_velocity = {
+        -100.0f * cos_factor,
+        1.0f + v_coef * FluidConfig::Instance()->impulse_velocity(),
+        -100.0f * sin_factor,
+    };
+    Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
+            initial_velocity, 7);
 }
 
 void FluidSimulator::ComputeDivergence()
@@ -540,6 +496,59 @@ void FluidSimulator::DampedJacobi(float cell_size)
         glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               packed_->gl_texture()->depth());
+        ResetState();
+    }
+}
+
+void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
+                             vmath::Vector3 position, vmath::Vector3 hotspot,
+                             float splat_radius,
+                             const std::array<float, 3>& value, uint32_t mask)
+{
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyImpulsePure(dest->cuda_volume(),
+                                               dest->cuda_volume(),
+                                               position, hotspot, splat_radius,
+                                               value, mask);
+    } else {
+        glUseProgram(Programs.ApplyImpulse);
+
+        SetUniform("center_point", position);
+        SetUniform("hotspot", hotspot);
+        SetUniform("radius", splat_radius);
+        SetUniform("fill_color_r", value[0]);
+        SetUniform("fill_color_g", value[1]);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, dest->gl_texture()->frame_buffer());
+        glEnable(GL_BLEND);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
+                              dest->gl_texture()->depth());
+        ResetState();
+    }
+}
+
+void FluidSimulator::ImpulseDensity(vmath::Vector3 position,
+                                    vmath::Vector3 hotspot,
+                                    float splat_radius, float value)
+{
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_texture(),
+                                                      position, hotspot,
+                                                      splat_radius, value);
+    } else {
+        glUseProgram(Programs.ApplyImpulse);
+
+        SetUniform("center_point", position);
+        SetUniform("hotspot", hotspot);
+        SetUniform("radius", splat_radius);
+        SetUniform("fill_color_r", value);
+        SetUniform("fill_color_g", value);
+
+        glBindFramebuffer(GL_FRAMEBUFFER,
+                          density_->gl_texture()->frame_buffer());
+        glEnable(GL_BLEND);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
+                              density_->gl_texture()->depth());
         ResetState();
     }
 }

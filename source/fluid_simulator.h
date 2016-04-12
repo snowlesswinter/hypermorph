@@ -56,16 +56,17 @@ private:
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
-    void ApplyImpulse(std::shared_ptr<GraphicsVolume> dest,
-                      Vectormath::Aos::Vector3 position,
-                      Vectormath::Aos::Vector3 hotspot, float splat_radius,
-                      const std::array<float, 3>& value, uint32_t mask);
-    void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
-                             Vectormath::Aos::Vector3 hotspot,
-                             float splat_radius, float value);
+    void ApplyImpulse(double seconds_elapsed, float delta_time);
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size);
+    void Impulse(std::shared_ptr<GraphicsVolume> dest,
+                 Vectormath::Aos::Vector3 position,
+                 Vectormath::Aos::Vector3 hotspot, float splat_radius,
+                 const std::array<float, 3>& value, uint32_t mask);
+    void ImpulseDensity(Vectormath::Aos::Vector3 position,
+                        Vectormath::Aos::Vector3 hotspot, float splat_radius,
+                        float value);
     void Jacobi(float cell_size);
     void SolvePressure();
     void SubtractGradient();
