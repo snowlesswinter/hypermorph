@@ -252,7 +252,6 @@ void FluidSimulator::AdvectDensity(float delta_time)
 void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
                                 float delta_time, float dissipation)
 {
-    general1_->Clear();
     glUseProgram(Programs.Advect);
 
     SetUniform("InverseSize", CalculateInverseSize(*source->gl_texture()));

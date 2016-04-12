@@ -398,7 +398,7 @@ void main()
         float d = distance(center_point.xz, vec2(gl_FragCoord.x, gLayer));
         if (d < radius) {
             float scale = (radius - distance(hotspot.xz, vec2(gl_FragCoord.x, gLayer))) / radius;
-            scale = max(scale, 0.5f);
+            scale = max(scale, 0.01f);
             frag_color = vec4(scale * fill_color_r, scale * fill_color_g, 0.0f,
                               1.0f);
             return;

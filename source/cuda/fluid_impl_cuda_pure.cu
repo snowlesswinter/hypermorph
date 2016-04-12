@@ -205,19 +205,17 @@ __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
     float3 coord = make_float3(x, y, z);
     coord += 0.5f;
 
-    if (coord.x > 1.0f && coord.y < 3.0f) {
-        float2 diff = make_float2(coord.x, coord.z) -
-            make_float2(center_point.x, center_point.z);
-        float d = hypotf(diff.x, diff.y);
-        if (d < radius) {
-            diff = make_float2(coord.x, coord.z) -
-                make_float2(hotspot.x, hotspot.z);
-            float scale = (radius - hypotf(diff.x, diff.y)) / radius;
-            scale = fmaxf(scale, 0.5f);
-            surf3Dwrite(__float2half_rn(scale * value), impulse_dest,
-                        x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
-            return;
-        }
+    float2 diff = make_float2(coord.x, coord.z) -
+        make_float2(center_point.x, center_point.z);
+    float d = hypotf(diff.x, diff.y);
+    if (d < radius) {
+        diff = make_float2(coord.x, coord.z) -
+            make_float2(hotspot.x, hotspot.z);
+        float scale = (radius - hypotf(diff.x, diff.y)) / radius;
+        scale = fmaxf(scale, 0.01f);
+        surf3Dwrite(__float2half_rn(scale * value), impulse_dest,
+                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+        return;
     }
 }
 
