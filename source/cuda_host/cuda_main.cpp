@@ -144,12 +144,14 @@ void CudaMain::ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> source,
                                 const vmath::Vector3& center_point,
                                 const vmath::Vector3& hotspot,
-                                float radius, float value)
+                                float radius, const std::array<float, 3>& value,
+                                uint32_t mask)
 {
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
     fluid_impl_pure_->ApplyImpulse(dest->dev_array(), source->dev_array(),
-                                   center_point, hotspot, radius, value, v);
+                                   center_point, hotspot, radius, value, mask,
+                                   v);
 }
 
 void CudaMain::ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,

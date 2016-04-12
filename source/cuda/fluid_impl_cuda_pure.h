@@ -1,6 +1,7 @@
 #ifndef _FLUID_IMPL_CUDA_PURE_H_
 #define _FLUID_IMPL_CUDA_PURE_H_
 
+#include <array>
 #include <memory>
 
 struct cudaArray;
@@ -38,7 +39,8 @@ public:
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const Vectormath::Aos::Vector3& center_point,
                       const Vectormath::Aos::Vector3& hotspot, float radius,
-                      float value, const Vectormath::Aos::Vector3& volume_size);
+                      const std::array<float, 3>& value, uint32_t mask,
+                      const Vectormath::Aos::Vector3& volume_size);
     void ApplyImpulseDensity(GraphicsResource* density,
                              const Vectormath::Aos::Vector3& center_point,
                              const Vectormath::Aos::Vector3& hotspot,

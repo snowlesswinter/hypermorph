@@ -1,6 +1,7 @@
 #ifndef _CUDA_MAIN_H_
 #define _CUDA_MAIN_H_
 
+#include <array>
 #include <map>
 #include <memory>
 
@@ -54,7 +55,7 @@ public:
                           std::shared_ptr<CudaVolume> source,
                           const Vectormath::Aos::Vector3& center_point,
                           const Vectormath::Aos::Vector3& hotspot, float radius,
-                          float value);
+                          const std::array<float, 3>& value, uint32_t mask);
     void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> velocity,
                                float half_inverse_cell_size);

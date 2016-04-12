@@ -30,7 +30,8 @@ extern void LaunchApplyBuoyancyPure(cudaArray* dest_array,
 extern void LaunchApplyImpulsePure(cudaArray* dest_array,
                                    cudaArray* original_array,
                                    float3 center_point, float3 hotspot,
-                                   float radius, float value, int3 volume_size);
+                                   float radius, float3 value, uint32_t mask,
+                                   int3 volume_size);
 extern void LaunchComputeDivergencePure(cudaArray* dest_array,
                                         cudaArray* velocity_array,
                                         float half_inverse_cell_size,
@@ -137,7 +138,9 @@ void FluidImplCudaPure::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
 void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
                                      const vmath::Vector3& center_point,
                                      const vmath::Vector3& hotspot,
-                                     float radius, float value,
+                                     float radius,
+                                     const std::array<float, 3>& value,
+                                     uint32_t mask,
                                      const vmath::Vector3& volume_size)
 {
     LaunchApplyImpulsePure(
@@ -145,7 +148,8 @@ void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
         make_float3(center_point.getX(), center_point.getY(),
                     center_point.getZ()),
         make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
-        radius, value, FromVmathVector(volume_size));
+        radius, make_float3(value[0], value[1], value[2]), mask,
+        FromVmathVector(volume_size));
 }
 
 void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* density,
@@ -175,7 +179,7 @@ void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* density,
         make_float3(center_point.getX(), center_point.getY(),
                     center_point.getZ()),
         make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
-        radius, value, FromVmathVector(volume_size));
+        radius, make_float3(value, 0, 0), 1, FromVmathVector(volume_size));
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

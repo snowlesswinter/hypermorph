@@ -1,6 +1,7 @@
 #ifndef _FLUID_SIMULATOR_H_
 #define _FLUID_SIMULATOR_H_
 
+#include <array>
 #include <memory>
 
 #include "graphics_lib_enum.h"
@@ -55,10 +56,10 @@ private:
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
-    void ApplyImpulse(std::shared_ptr<GraphicsVolume>* dest,
+    void ApplyImpulse(std::shared_ptr<GraphicsVolume> dest,
                       Vectormath::Aos::Vector3 position,
                       Vectormath::Aos::Vector3 hotspot, float splat_radius,
-                      float value);
+                      const std::array<float, 3>& value, uint32_t mask);
     void ApplyImpulseDensity(Vectormath::Aos::Vector3 position,
                              Vectormath::Aos::Vector3 hotspot,
                              float splat_radius, float value);

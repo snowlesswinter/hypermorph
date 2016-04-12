@@ -31,6 +31,7 @@ public:
     float ambient_temperature() const { return ambient_temperature_.value_; }
     float impulse_temperature() const { return impulse_temperature_.value_; }
     float impulse_density() const { return impulse_density_.value_; }
+    float impulse_velocity() const { return impulse_velocity_.value_; }
     float smoke_buoyancy() const { return smoke_buoyancy_.value_; }
     float smoke_weight() const { return smoke_weight_.value_; }
     float temperature_dissipation() const {
@@ -60,6 +61,7 @@ private:
     ConfigField<float> ambient_temperature_;
     ConfigField<float> impulse_temperature_;
     ConfigField<float> impulse_density_;
+    ConfigField<float> impulse_velocity_;
     ConfigField<float> smoke_buoyancy_;
     ConfigField<float> smoke_weight_;
     ConfigField<float> temperature_dissipation_;

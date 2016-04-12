@@ -12,8 +12,8 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
 surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
-surface<void, cudaSurfaceType3D> impulse_dest;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> impulse_original;
+surface<void, cudaSurfaceType3D> impulse_dest1;
+surface<void, cudaSurfaceType3D> impulse_dest4;
 surface<void, cudaSurfaceType3D> divergence_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
 surface<void, cudaSurfaceType3D> gradient_dest;
@@ -194,17 +194,37 @@ __global__ void ApplyBuoyancyPureKernel(float time_step,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
-                                       float radius, float value,
-                                       int3 volume_size)
+__global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
+                                    float radius, float value, int3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = 1 + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    float3 coord = make_float3(x, y, z);
-    coord += 0.5f;
+    float3 coord = make_float3(x, y, z) + 0.5f;
+    float2 diff = make_float2(coord.x, coord.z) -
+        make_float2(center_point.x, center_point.z);
+    float d = hypotf(diff.x, diff.y);
+    if (d < radius) {
+        diff = make_float2(coord.x, coord.z) -
+            make_float2(hotspot.x, hotspot.z);
+        float scale = (radius - hypotf(diff.x, diff.y)) / radius;
+        scale = 1.0f;
+        surf3Dwrite(__float2half_rn(scale * value), impulse_dest1,
+                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+        return;
+    }
+}
 
+__global__ void ApplyImpulse3Kernel(float3 center_point, float3 hotspot,
+                                    float radius, float3 value,
+                                    int3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = 1 + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
     float2 diff = make_float2(coord.x, coord.z) -
         make_float2(center_point.x, center_point.z);
     float d = hypotf(diff.x, diff.y);
@@ -213,8 +233,12 @@ __global__ void ApplyImpulsePureKernel(float3 center_point, float3 hotspot,
             make_float2(hotspot.x, hotspot.z);
         float scale = (radius - hypotf(diff.x, diff.y)) / radius;
         scale = fmaxf(scale, 0.01f);
-        surf3Dwrite(__float2half_rn(scale * value), impulse_dest,
-                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+        ushort4 result = make_ushort4(__float2half_rn(scale * value.x),
+                                      __float2half_rn(scale * value.y),
+                                      __float2half_rn(scale * value.z),
+                                      0);
+        surf3Dwrite(result, impulse_dest4, x * sizeof(ushort4), y, z,
+                    cudaBoundaryModeTrap);
         return;
     }
 }
@@ -862,35 +886,35 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
 
 void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
                             float3 center_point, float3 hotspot, float radius,
-                            float value, int3 volume_size)
+                            float3 value, uint32_t mask, int3 volume_size)
 {
+    assert(mask == 1 || mask == 7);
+    if (mask != 1 && mask != 7)
+        return;
+
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&impulse_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, original_array);
-    impulse_original.normalized = false;
-    impulse_original.filterMode = cudaFilterModeLinear;
-    impulse_original.addressMode[0] = cudaAddressModeClamp;
-    impulse_original.addressMode[1] = cudaAddressModeClamp;
-    impulse_original.addressMode[2] = cudaAddressModeClamp;
-    impulse_original.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&impulse_original, original_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
     dim3 block(128, 2, 1);
     dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
-    ApplyImpulsePureKernel<<<grid, block>>>(center_point, hotspot, radius,
-                                            value, volume_size);
+    if (mask == 1) {
+        cudaError_t result = cudaBindSurfaceToArray(&impulse_dest1, dest_array,
+                                                    &desc);
+        assert(result == cudaSuccess);
+        if (result != cudaSuccess)
+            return;
 
-    cudaUnbindTexture(&impulse_original);
+        ApplyImpulse1Kernel<<<grid, block>>>(center_point, hotspot, radius,
+                                             value.x, volume_size);
+    } else if (mask == 7) {
+        cudaError_t result = cudaBindSurfaceToArray(&impulse_dest4, dest_array,
+                                                    &desc);
+        assert(result == cudaSuccess);
+        if (result != cudaSuccess)
+            return;
+
+        ApplyImpulse3Kernel<<<grid, block>>>(center_point, hotspot, radius,
+                                             value, volume_size);
+    }
 }
 
 void LaunchComputeDivergencePure(cudaArray* dest_array,

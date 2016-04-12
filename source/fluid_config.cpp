@@ -182,12 +182,13 @@ FluidConfig::FluidConfig()
                       "poisson method")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
-    , impulse_density_(3.0f, "impulse density")
+    , impulse_density_(0.5f, "impulse density")
+    , impulse_velocity_(10.0f, "impulse velocity")
     , smoke_buoyancy_(1.0f, "smoke buoyancy")
     , smoke_weight_(0.0001f, "smoke weight")
     , temperature_dissipation_(0.15f, "temperature dissipation")
-    , velocity_dissipation_(0.003f, "velocity dissipation")
-    , density_dissipation_(0.036f, "density dissipation")
+    , velocity_dissipation_(0.001f, "velocity dissipation")
+    , density_dissipation_(0.2f, "density dissipation")
     , splat_radius_factor_(0.25f, "splat radius factor")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
@@ -217,6 +218,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &ambient_temperature_,
         &impulse_temperature_,
         &impulse_density_,
+        &impulse_velocity_,
         &smoke_buoyancy_,
         &smoke_weight_,
         &temperature_dissipation_,
@@ -255,6 +257,7 @@ void FluidConfig::Store(std::ostream& stream)
         ambient_temperature_,
         impulse_temperature_,
         impulse_density_,
+        impulse_velocity_,
         smoke_buoyancy_,
         smoke_weight_,
         temperature_dissipation_,

@@ -69,11 +69,10 @@ bool InitGraphics(int* argc, char** argv)
     glewInit();
 
     if (!glewIsSupported(
-        "GL_VERSION_2_0 "
-        "GL_ARB_pixel_buffer_object "
-        "GL_EXT_framebuffer_object "
-        ))
-    {
+            "GL_VERSION_2_0 "
+            "GL_ARB_pixel_buffer_object "
+            "GL_EXT_framebuffer_object "
+            )) {
         PrintDebugString("ERROR: Support for necessary OpenGL extensions missing.");
         return false;
     }
@@ -91,7 +90,7 @@ bool InitGraphics(int* argc, char** argv)
 
 void UpdateFrame(unsigned int microseconds)
 {
-    float dt = microseconds * 0.000001f;
+    float delta_time = microseconds * 0.000001f;
     track_ball->Update(microseconds);
     EyePosition = vmath::Point3(0, 0, 3.5f + track_ball->GetZoom());
     vmath::Vector3 up(0, 1, 0); vmath::Point3 target(0);
@@ -108,20 +107,12 @@ void UpdateFrame(unsigned int microseconds)
 
     Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
     static double time_elapsed = 0;
-    time_elapsed += dt;
+    time_elapsed += delta_time;
 
-    // Use constant time step. The reason is explained in the fluid shader.
-    //
-    // Note: The behaviors of fluid are visually equivalent for 
-    //       constant/non-constant time steps(need to modify the coefficient
-    //       of buoyancy formula to keep a high acceleration to voxel).
-
-    float delta_time = kMaxTimeStep;
     static int frame_count = 0;
     frame_count++;
 
-    if (SimulateFluid)
-    {
+    if (SimulateFluid) {
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
@@ -147,8 +138,7 @@ void DisplayMetrics()
         "Raycast",
         "Prolongate",
     };
-    for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++)
-    {
+    for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
         float cost = Metrics::Instance()->GetOperationTimeCost(
             static_cast<Metrics::Operations>(i));
         if (cost > 0.01f)
@@ -224,8 +214,7 @@ bool ResetSimulator()
 
 void Keyboard(unsigned char key, int x, int y)
 {
-    switch (key)
-    {
+    switch (key) {
         case VK_ESCAPE:
             Cleanup(EXIT_SUCCESS);
             break;
@@ -233,14 +222,17 @@ void Keyboard(unsigned char key, int x, int y)
             SimulateFluid = !SimulateFluid;
             break;
         case 'd':
+        case 'D':
             Metrics::Instance()->set_diagnosis_mode(
                 !Metrics::Instance()->diagnosis_mode());
             break;
         case 'g':
+        case 'G':
             g_diagnosis = 1 - g_diagnosis;
             sim_->set_diagnosis(!!g_diagnosis);
             break;
         case 'r':
+        case 'R':
             FluidConfig::Instance()->Reload();
             ResetSimulator();
             Metrics::Instance()->Reset();
