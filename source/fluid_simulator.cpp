@@ -238,7 +238,6 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        density2_->Clear();
         CudaMain::Instance()->AdvectDensityPure(density2_->gl_texture(),
                                                 velocity_->cuda_volume(),
                                                 density_->gl_texture(),
@@ -278,7 +277,6 @@ void FluidSimulator::AdvectTemperature(float delta_time)
     float temperature_dissipation =
         FluidConfig::Instance()->temperature_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        general1_->Clear(); // TODO: Clearing CUDA texture could be slow.
         CudaMain::Instance()->AdvectPure(general1_->cuda_volume(),
                                          velocity_->cuda_volume(),
                                          temperature_->cuda_volume(),
