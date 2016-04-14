@@ -1,0 +1,7 @@
+impulse temperature = 200
+impulse density = 2
+temperature dissipation = 0.8
+velocity dissipation = 0.3
+density dissipation = 0.7
+splat radius factor = 0.47
+fixed time step = -1.0

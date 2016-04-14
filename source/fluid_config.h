@@ -15,13 +15,13 @@ public:
         T value_;
         const char* desc_;
 
-        ConfigField(T v, const char* d) : value_(v), desc_(d) {}
+        ConfigField(const T& v, const char* d) : value_(v), desc_(d) {}
     };
 
     static FluidConfig* Instance();
 
     void CreateIfNeeded(const std::string& path);
-    void Load(const std::string& path);
+    void Load(const std::string& path, const std::string& preset_path);
     void Reload();
 
     GraphicsLib graphics_lib() const { return graphics_lib_.value_; }
@@ -53,10 +53,13 @@ private:
     FluidConfig();
     ~FluidConfig();
 
+    void Load(const std::string& file_path);
     void Parse(const std::string& key, const std::string& value);
     void Store(std::ostream& stream);
 
     std::string file_path_;
+    std::string preset_path_;
+    ConfigField<std::string> preset_file_;
     ConfigField<GraphicsLib> graphics_lib_;
     ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
     ConfigField<float> ambient_temperature_;

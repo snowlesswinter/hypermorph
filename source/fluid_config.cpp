@@ -150,21 +150,16 @@ void FluidConfig::CreateIfNeeded(const std::string& path)
     }
 }
 
-void FluidConfig::Load(const std::string& path)
+void FluidConfig::Load(const std::string& path, const std::string& preset_path)
 {
     file_path_ = path;
+    preset_path_ = preset_path;
 
-    std::ifstream file_stream(path);
-    std::string line;
-    while (std::getline(file_stream, line)) {
-        std::stringstream line_stream(line);
-        std::string key;
-        if (std::getline(line_stream, key, '=')) {
-            std::string value;
-            std::getline(line_stream, value);
-            Parse(key, value);
-        }
-    }
+    preset_file_.value_.clear();
+    Load(file_path_);
+
+    if (!preset_file_.value_.empty())
+        Load(preset_path_ + "\\" + preset_file_.value_);
 }
 
 void FluidConfig::Reload()
@@ -172,11 +167,13 @@ void FluidConfig::Reload()
     if (file_path_.empty())
         return;
 
-    Load(file_path_);
+    Load(file_path_, preset_path_);
 }
 
 FluidConfig::FluidConfig()
     : file_path_()
+    , preset_path_()
+    , preset_file_("", "preset")
     , graphics_lib_(GRAPHICS_LIB_CUDA, "graphics library")
     , poisson_method_(FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID,
                       "poisson method")
@@ -201,6 +198,23 @@ FluidConfig::~FluidConfig()
 {
 }
 
+void FluidConfig::Load(const std::string& file_path)
+{
+    std::ifstream file_stream(file_path);
+    std::string line;
+    while (std::getline(file_stream, line))
+    {
+        std::stringstream line_stream(line);
+        std::string key;
+        if (std::getline(line_stream, key, '='))
+        {
+            std::string value;
+            std::getline(line_stream, value);
+            Parse(key, value);
+        }
+    }
+}
+
 void FluidConfig::Parse(const std::string& key, const std::string& value)
 {
     std::string lower_trimmed = to_lower(trimmed(key));
@@ -213,6 +227,17 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
     if (lower_trimmed == poisson_method_.desc_) {
         value_stream >> poisson_method_;
         return;
+    }
+
+    ConfigField<std::string>* string_fields[] = {
+        &preset_file_,
+    };
+
+    for (auto& f : string_fields) {
+        if (lower_trimmed == f->desc_) {
+            value_stream >> *f;
+            return;
+        }
     }
 
     ConfigField<float>* float_fields[] = {
@@ -254,6 +279,13 @@ void FluidConfig::Store(std::ostream& stream)
 {
     stream << graphics_lib_ << std::endl;
     stream << poisson_method_ << std::endl;
+
+    ConfigField<std::string> string_fields[] = {
+        preset_file_,
+    };
+
+    for (auto& f : string_fields)
+        stream << f << std::endl;
 
     ConfigField<float> float_fields[] = {
         ambient_temperature_,

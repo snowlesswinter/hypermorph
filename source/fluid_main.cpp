@@ -303,7 +303,22 @@ void LoadConfig()
     cur_path.replace(std::find(cur_path.rbegin(), cur_path.rend(), '\\').base(),
                      cur_path.end(), "fluid_config.txt");
     FluidConfig::Instance()->CreateIfNeeded(cur_path);
-    FluidConfig::Instance()->Load(cur_path);
+
+    std::string preset_path(cur_path);
+    preset_path.erase(preset_path.find_last_of('\\'));
+    preset_path.erase(preset_path.find_last_of('\\'));
+    preset_path.erase(preset_path.find_last_of('\\'));
+    preset_path += "\\config";
+    DWORD attrib = GetFileAttributesA(preset_path.c_str());
+
+    if ((attrib != INVALID_FILE_ATTRIBUTES) &&
+        (attrib & FILE_ATTRIBUTE_DIRECTORY)) {
+        FluidConfig::Instance()->Load(cur_path, preset_path);
+    } else {
+        preset_path = cur_path;
+        preset_path.erase(preset_path.find_last_of('\\'));
+        FluidConfig::Instance()->Load(cur_path, preset_path);
+    }
 }
 
 int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
