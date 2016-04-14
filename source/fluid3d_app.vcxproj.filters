@@ -21,5 +21,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fluid_main.cpp" />
+    <ClCompile Include="config_file_watcher.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="config_file_watcher.h" />
   </ItemGroup>
 </Project>

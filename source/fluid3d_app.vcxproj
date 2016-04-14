@@ -95,6 +95,7 @@
     <ResourceCompile Include="fluid3d.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config_file_watcher.cpp" />
     <ClCompile Include="fluid_main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -104,6 +105,9 @@
     <ProjectReference Include="fluid3d.vcxproj">
       <Project>{ea215366-78f3-4abe-bf75-dc095b5cfe50}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="config_file_watcher.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

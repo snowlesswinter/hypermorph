@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include "config_file_watcher.h"
 #include "cuda_host/cuda_main.h"
 #include "fluid_config.h"
 #include "fluid_simulator.h"
@@ -30,6 +31,7 @@ LARGE_INTEGER time_freq;
 LARGE_INTEGER prev_time;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
+ConfigFileWatcher* watcher_ = nullptr;
 
 struct
 {
@@ -47,6 +49,11 @@ struct
 
 void Cleanup(int exit_code)
 {
+    if (watcher_) {
+        delete watcher_;
+        watcher_ = nullptr;
+    }
+
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);
 
@@ -191,7 +198,12 @@ void Display()
     deltaTime = elapsed * 1000000.0 / time_freq.QuadPart;
     prev_time = currentTime;
 
-    UpdateFrame((unsigned int)deltaTime);
+    if (watcher_->file_modified()) {
+        FluidConfig::Instance()->Reload();
+        watcher_->ResetState();
+    }
+
+    UpdateFrame(static_cast<unsigned int>(deltaTime));
     RenderFrame();
     glutSwapBuffers();
 }
@@ -297,33 +309,37 @@ bool Initialize()
 
 void LoadConfig()
 {
-    char cur_path_buf[MAX_PATH] = {0};
-    DWORD cur_path_len = GetModuleFileNameA(nullptr, cur_path_buf, MAX_PATH);
-    std::string cur_path = cur_path_buf;
-    cur_path.replace(std::find(cur_path.rbegin(), cur_path.rend(), '\\').base(),
-                     cur_path.end(), "fluid_config.txt");
-    FluidConfig::Instance()->CreateIfNeeded(cur_path);
+    char file_path_buf[MAX_PATH] = {0};
+    DWORD file_path_len = GetModuleFileNameA(nullptr, file_path_buf, MAX_PATH);
+    std::string file_path = file_path_buf;
+    file_path.replace(
+        std::find(file_path.rbegin(), file_path.rend(), '\\').base(),
+        file_path.end(), "fluid_config.txt");
+    FluidConfig::Instance()->CreateIfNeeded(file_path);
 
+    std::string cur_path(file_path);
+    cur_path.erase(cur_path.find_last_of('\\'));
     std::string preset_path(cur_path);
-    preset_path.erase(preset_path.find_last_of('\\'));
     preset_path.erase(preset_path.find_last_of('\\'));
     preset_path.erase(preset_path.find_last_of('\\'));
     preset_path += "\\config";
     DWORD attrib = GetFileAttributesA(preset_path.c_str());
 
     if ((attrib != INVALID_FILE_ATTRIBUTES) &&
-        (attrib & FILE_ATTRIBUTE_DIRECTORY)) {
-        FluidConfig::Instance()->Load(cur_path, preset_path);
+            (attrib & FILE_ATTRIBUTE_DIRECTORY)) {
+        FluidConfig::Instance()->Load(file_path, preset_path);
     } else {
-        preset_path = cur_path;
-        preset_path.erase(preset_path.find_last_of('\\'));
-        FluidConfig::Instance()->Load(cur_path, preset_path);
+        FluidConfig::Instance()->Load(file_path, cur_path);
     }
+
+    watcher_->StartWatching(cur_path);
 }
 
 int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
                       int ignore_me2)
 {
+    watcher_ = new ConfigFileWatcher();
+
     LoadConfig();
 
     char* command_line = GetCommandLineA();
