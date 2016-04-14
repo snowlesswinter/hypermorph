@@ -172,7 +172,9 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
 {
     Metrics::Instance()->OnFrameUpdateBegins();
 
-    float proper_delta_time = std::min(delta_time, kMaxTimeStep);
+    float fixed_time_step = FluidConfig::Instance()->fixed_time_step();
+    float proper_delta_time = fixed_time_step > 0.0f ?
+        fixed_time_step : std::min(delta_time, kMaxTimeStep);
 
     // Advect velocity
     AdvectVelocity(proper_delta_time);
@@ -363,11 +365,12 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     Impulse(temperature_, kImpulsePosition, hotspot, splat_radius, temperature,
             1);
 
+    return; // Not necessary for this scene.
     float v_coef = static_cast<float>(sin(seconds_elapsed * 3.0 * 2.0 * ¦Ð));
     std::array<float, 3> initial_velocity = {
-        -100.0f * cos_factor,
-        1.0f + v_coef * FluidConfig::Instance()->impulse_velocity(),
-        -100.0f * sin_factor,
+        0.0f,
+        (1.0f + v_coef) * FluidConfig::Instance()->impulse_velocity(),
+        0.0f,
     };
     Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
             initial_velocity, 7);
@@ -649,14 +652,19 @@ void FluidSimulator::SolvePressure()
 
 void FluidSimulator::SubtractGradient()
 {
+    // In the original implementation, this coefficient was set to 1.125, which
+    // I guess is a trick to compensate the inaccuracy of the solution of
+    // Poisson equation. As the solution now becomes more and more precise,
+    // I changed the number to 1.0 to keep the system stable.
+    const float gradient_scale = 1.0f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->SubtractGradientPure(velocity_->cuda_volume(),
                                                    packed_->cuda_volume(),
-                                                   GradientScale);
+                                                   gradient_scale);
     } else {
         glUseProgram(Programs.SubtractGradient);
 
-        SetUniform("GradientScale", GradientScale);
+        SetUniform("GradientScale", gradient_scale);
         SetUniform("HalfInverseCellSize", 0.5f / CellSize);
         SetUniform("velocity", 0);
         SetUniform("packed_tex", 1);

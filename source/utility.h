@@ -75,5 +75,4 @@ extern const int GridHeight;
 extern const int GridDepth;
 extern const float kMaxTimeStep;
 extern const float kBuoyancyCoef;
-extern const float GradientScale;
 extern const vmath::Vector3 kImpulsePosition;

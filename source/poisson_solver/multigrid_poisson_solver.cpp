@@ -70,8 +70,7 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
 }
 
 void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
-                                   float cell_size,
-                                   bool as_precondition)
+                                   float cell_size, bool as_precondition)
 {
     if (!ValidateVolume(u_and_b))
         return;

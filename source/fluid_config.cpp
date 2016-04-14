@@ -190,6 +190,7 @@ FluidConfig::FluidConfig()
     , velocity_dissipation_(0.001f, "velocity dissipation")
     , density_dissipation_(0.2f, "density dissipation")
     , splat_radius_factor_(0.25f, "splat radius factor")
+    , fixed_time_step_(0.33f, "fixed time step")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
@@ -225,6 +226,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &velocity_dissipation_,
         &density_dissipation_,
         &splat_radius_factor_,
+        &fixed_time_step_,
     };
 
     for (auto& f : float_fields) {
@@ -264,6 +266,7 @@ void FluidConfig::Store(std::ostream& stream)
         velocity_dissipation_,
         density_dissipation_,
         splat_radius_factor_,
+        fixed_time_step_,
     };
 
     for (auto& f : float_fields)

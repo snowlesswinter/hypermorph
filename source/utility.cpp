@@ -26,7 +26,6 @@ const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
 const float kMaxTimeStep = 0.33f;
-const float GradientScale = 1.125f / CellSize;
 const Vector3 kImpulsePosition(GridWidth / 2.0f, 0, GridDepth / 2.0f);
 const float kBuoyancyCoef = 10.0f;
 

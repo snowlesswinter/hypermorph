@@ -56,8 +56,7 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
 }
 
 void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
-                                       float cell_size,
-                                       bool as_precondition)
+                                       float cell_size, bool as_precondition)
 {
     if (u_and_b->GetWidth() < 32) {
         solver_->Solve(u_and_b, cell_size, true);

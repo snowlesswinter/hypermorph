@@ -209,7 +209,7 @@ __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
         diff = make_float2(coord.x, coord.z) -
             make_float2(hotspot.x, hotspot.z);
         float scale = (radius - hypotf(diff.x, diff.y)) / radius;
-        scale = 1.0f;
+        scale = fmaxf(scale, 0.1f);
         surf3Dwrite(__float2half_rn(scale * value), impulse_dest1,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
         return;
@@ -232,7 +232,7 @@ __global__ void ApplyImpulse3Kernel(float3 center_point, float3 hotspot,
         diff = make_float2(coord.x, coord.z) -
             make_float2(hotspot.x, hotspot.z);
         float scale = (radius - hypotf(diff.x, diff.y)) / radius;
-        scale = fmaxf(scale, 0.01f);
+        scale = fmaxf(scale, 0.1f);
         ushort4 result = make_ushort4(__float2half_rn(scale * value.x),
                                       __float2half_rn(scale * value.y),
                                       __float2half_rn(scale * value.z),
