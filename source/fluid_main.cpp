@@ -9,13 +9,14 @@
 #include "graphics_volume.h"
 #include "metrics.h"
 #include "opengl/gl_program.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "overlay_content.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
 #include "third_party/opengl/freeglut.h"
 #include "third_party/opengl/glew.h"
 #include "utility.h"
+#include "volume_renderer.h"
 
 int timer_interval = 10; // ms
 int main_frame_handle = 0;
@@ -31,6 +32,7 @@ LARGE_INTEGER time_freq;
 LARGE_INTEGER prev_time;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
+VolumeRenderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 
 struct
@@ -49,6 +51,11 @@ struct
 
 void Cleanup(int exit_code)
 {
+    if (renderer_) {
+        delete renderer_;
+        renderer_ = nullptr;
+    }
+
     if (watcher_) {
         delete watcher_;
         watcher_ = nullptr;
@@ -159,6 +166,8 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
+    renderer_->Render(sim_->GetDensityTexture());
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, ViewportWidth, ViewportHeight);
     glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
@@ -168,7 +177,7 @@ void RenderFrame()
     glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
     glBindTexture(GL_TEXTURE_3D,
-                  sim_->GetDensityTexture().gl_texture()->handle());
+                  sim_->GetDensityTexture()->gl_volume()->texture_handle());
     glUseProgram(RaycastProgram);
     SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
     SetUniform("Modelview", Matrices.Modelview);
@@ -286,6 +295,10 @@ bool Initialize()
     if (!ResetSimulator())
         return false;
 
+    renderer_ = new VolumeRenderer();
+    if (!renderer_->Init(ViewportWidth, ViewportHeight))
+        return false;
+
     track_ball = CreateTrackball(ViewportWidth * 1.0f, ViewportHeight * 1.0f,
                                  ViewportWidth * 0.5f);
     RaycastProgram = LoadProgram(RaycastShader::Vertex(),
@@ -339,7 +352,6 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
                       int ignore_me2)
 {
     watcher_ = new ConfigFileWatcher();
-
     LoadConfig();
 
     char* command_line = GetCommandLineA();

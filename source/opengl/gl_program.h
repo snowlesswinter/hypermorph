@@ -13,6 +13,10 @@ public:
 
     bool Load(const std::string& vs_source, const std::string& gs_source,
               const std::string& fs_source);
+    void SetUniform(const char* name, int value);
+    void SetUniform(const char* name, float value);
+    void SetUniform(const char* name, float value0, float value1);
+    void Unuse();
     void Use();
 
     GLuint program_handle() const { return program_handle_; }

@@ -9,7 +9,8 @@
 #include "cuda/graphics_resource.h"
 #include "cuda/multigrid_impl_cuda.h"
 #include "cuda_volume.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_surface.h"
+#include "opengl/gl_volume.h"
 #include "vmath.hpp"
 #include "utility.h"
 
@@ -63,7 +64,7 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
         return 0;
 
     std::unique_ptr<GraphicsResource> g(new GraphicsResource(core_.get()));
-    int r = core_->RegisterGLImage(texture->handle(), texture->target(),
+    int r = core_->RegisterGLImage(texture->texture_handle(), texture->target(),
                                    g.get());
     if (r)
         return r;
@@ -72,9 +73,9 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
     return 0;
 }
 
-void CudaMain::AdvectDensityPure(std::shared_ptr<GLTexture> dest,
+void CudaMain::AdvectDensityPure(std::shared_ptr<GLVolume> dest,
                                  std::shared_ptr<CudaVolume> velocity,
-                                 std::shared_ptr<GLTexture> density,
+                                 std::shared_ptr<GLVolume> density,
                                  float time_step, float dissipation)
 {
     auto i = registerd_textures_.find(dest);
@@ -124,7 +125,7 @@ void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
                                     v);
 }
 
-void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<GLTexture> density,
+void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<GLVolume> density,
                                        const vmath::Vector3& center_point,
                                        const vmath::Vector3& hotspot,
                                        float radius, float value)
@@ -288,6 +289,18 @@ void CudaMain::RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
                                      coarse->depth());
     multigrid_impl_pure_->RestrictResidualPackedPure(coarse->dev_array(),
                                                      fine->dev_array(), v);
+}
+
+void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
+                       std::shared_ptr<CudaVolume> density)
+{
+    auto i = registerd_textures_.find(dest);
+    assert(i != registerd_textures_.end());
+    if (i == registerd_textures_.end())
+        return;
+
+    std::array<int, 2> surface_size = {dest->width(), dest->height()};
+    core_->Raycast(i->second.get(), nullptr/*density->dev_array()*/, surface_size);
 }
 
 void CudaMain::RoundPassed(int round)

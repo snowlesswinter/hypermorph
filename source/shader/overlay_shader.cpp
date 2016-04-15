@@ -34,8 +34,7 @@ void main()
     ivec2 coord = ivec2(v_coord.x * viewport_size.x,
                         v_coord.y * viewport_size.y);
     if (coord.x >= tex_size.x || coord.y >= tex_size.y) {
-        frag_color = vec4(0);
-        return;
+        discard;
     }
 
     vec4 c = texelFetch(sampler, coord, 0);

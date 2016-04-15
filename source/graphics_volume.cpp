@@ -5,12 +5,12 @@
 
 #include "cuda_host/cuda_main.h"
 #include "cuda_host/cuda_volume.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "utility.h"
 
 GraphicsVolume::GraphicsVolume(GraphicsLib lib)
     : graphics_lib_(lib)
-    , gl_texture_()
+    , gl_volume_()
     , cuda_volume_()
 {
 }
@@ -22,8 +22,8 @@ GraphicsVolume::~GraphicsVolume()
 
 void GraphicsVolume::Clear()
 {
-    if (gl_texture_)
-        ClearSurface(gl_texture_.get(), 0.0f);
+    if (gl_volume_)
+        ClearSurface(gl_volume_.get(), 0.0f);
 
     if (cuda_volume_)
         cuda_volume_->Clear();
@@ -62,7 +62,7 @@ bool GraphicsVolume::Create(int width, int height, int depth,
                 return false;
         }
 
-        std::shared_ptr<GLTexture> r(new GLTexture());
+        std::shared_ptr<GLVolume> r(new GLVolume());
         bool result = r->Create(width, height, depth, internal_format, format,
                                 byte_width);
         if (result) {
@@ -76,7 +76,7 @@ bool GraphicsVolume::Create(int width, int height, int depth,
                 CudaMain::Instance()->RegisterGLImage(r);
             }
 
-            gl_texture_ = r;
+            gl_volume_ = r;
         }
 
         return result;
@@ -85,10 +85,10 @@ bool GraphicsVolume::Create(int width, int height, int depth,
     return false;
 }
 
-std::shared_ptr<GLTexture> GraphicsVolume::gl_texture() const
+std::shared_ptr<GLVolume> GraphicsVolume::gl_volume() const
 {
-    assert(gl_texture_);
-    return gl_texture_;
+    assert(gl_volume_);
+    return gl_volume_;
 }
 
 std::shared_ptr<CudaVolume> GraphicsVolume::cuda_volume() const
@@ -99,36 +99,36 @@ std::shared_ptr<CudaVolume> GraphicsVolume::cuda_volume() const
 
 int GraphicsVolume::GetWidth() const
 {
-    assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && !cuda_volume_)
+    assert(gl_volume_ || cuda_volume_);
+    if (!gl_volume_ && !cuda_volume_)
         return 0;
 
-    if (gl_texture_)
-        return gl_texture_->width();
+    if (gl_volume_)
+        return gl_volume_->width();
     else
         return cuda_volume_->width();
 }
 
 int GraphicsVolume::GetHeight() const
 {
-    assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && !cuda_volume_)
+    assert(gl_volume_ || cuda_volume_);
+    if (!gl_volume_ && !cuda_volume_)
         return 0;
 
-    if (gl_texture_)
-        return gl_texture_->height();
+    if (gl_volume_)
+        return gl_volume_->height();
     else
         return cuda_volume_->height();
 }
 
 int GraphicsVolume::GetDepth() const
 {
-    assert(gl_texture_ || cuda_volume_);
-    if (!gl_texture_ && !cuda_volume_)
+    assert(gl_volume_ || cuda_volume_);
+    if (!gl_volume_ && !cuda_volume_)
         return 0;
 
-    if (gl_texture_)
-        return gl_texture_->depth();
+    if (gl_volume_)
+        return gl_volume_->depth();
     else
         return cuda_volume_->depth();
 }

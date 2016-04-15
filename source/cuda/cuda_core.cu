@@ -7,7 +7,8 @@
 #include <helper_math.h>
 
 texture<float1, cudaTextureType3D, cudaReadModeElementType> in_tex;
-surface<void, cudaTextureType3D> clear_volume;
+surface<void, cudaSurfaceType3D> clear_volume;
+surface<void, cudaSurfaceType2D> raycast_dest;
 
 __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
 {
@@ -91,6 +92,11 @@ __global__ void ClearVolumeHalf1Kernel(float4 value)
                 cudaBoundaryModeTrap);
 }
 
+__global__ void RaycastKernel()
+{
+
+}
+
 // =============================================================================
 
 bool IsHalf1Or2Or4(const cudaChannelFormatDesc& desc)
@@ -157,4 +163,23 @@ void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
     else if (desc.x == 32 && desc.y == 32 && desc.z == 32 && desc.w == 32 &&
              desc.f == cudaChannelFormatKindFloat)
         ClearVolume4Kernel<<<grid, block>>>(value);
+}
+
+void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
+                         int2 surface_size)
+{
+    cudaChannelFormatDesc desc;
+    cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    result = cudaBindSurfaceToArray(&raycast_dest, dest_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 1);
+    dim3 grid(surface_size.x / block.x, surface_size.y / block.y, 1);
+    RaycastKernel<<<grid, block>>>();
 }

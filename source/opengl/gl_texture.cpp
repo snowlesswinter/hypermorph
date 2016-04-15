@@ -8,11 +8,10 @@
 GLTexture::GLTexture()
     : frame_buffer_(0)
     , buffer_(0)
-    , handle_(0)
+    , texture_handle_(0)
     , target_(0)
     , width_(0)
     , height_(0)
-    , depth_(0)
     , byte_width_(0)
     , internal_format_(0)
     , format_(0)
@@ -22,9 +21,9 @@ GLTexture::GLTexture()
 
 GLTexture::~GLTexture()
 {
-    if (handle_) {
-        glDeleteTextures(1, &handle_);
-        handle_ = 0;
+    if (texture_handle_) {
+        glDeleteTextures(1, &texture_handle_);
+        texture_handle_ = 0;
     }
 
     if (frame_buffer_) {
@@ -37,7 +36,7 @@ void GLTexture::Bind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
     glBindRenderbuffer(GL_RENDERBUFFER, buffer_);
-    glBindTexture(GL_TEXTURE_3D, handle_);
+    glBindTexture(GL_TEXTURE_3D, texture_handle_);
 }
 
 void GLTexture::BindFrameBuffer() const
@@ -45,8 +44,48 @@ void GLTexture::BindFrameBuffer() const
     glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
 }
 
-bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
-                       GLenum format, int byte_width)
+bool GLTexture::Create2dTexture(int width, int height, GLint internal_format,
+                                GLenum format, int byte_width)
+{
+    assert(byte_width == 2 || byte_width == 4);
+    if (byte_width != 2 && byte_width != 4)
+        return false;
+
+    GLuint texture_handle = 0;
+    do {
+        glGenTextures(1, &texture_handle);
+        glBindTexture(GL_TEXTURE_2D, texture_handle);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
+                     format, GL_HALF_FLOAT, 0);
+        if (glGetError() != GL_NO_ERROR)
+            break;
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        texture_handle_ = texture_handle;
+        target_ = GL_TEXTURE_2D;
+        width_ = width;
+        height_ = height;
+        byte_width_ = byte_width;
+        internal_format_ = internal_format;
+        format_ = format;
+        return true;
+    } while (0);
+
+    if (texture_handle)
+        glDeleteTextures(1, &texture_handle);
+
+    return false;
+}
+
+bool GLTexture::Create3dTexture(int width, int height, int depth,
+                                GLint internal_format, GLenum format,
+                                int byte_width)
 {
     assert(byte_width == 2 || byte_width == 4);
     if (byte_width != 2 && byte_width != 4)
@@ -75,7 +114,8 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
         GLuint color_buffer;
         glGenRenderbuffers(1, &color_buffer);
         glBindRenderbuffer(GL_RENDERBUFFER, color_buffer);
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_handle, 0);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                             texture_handle, 0);
         if (glGetError() != GL_NO_ERROR)
             break;
 
@@ -92,11 +132,10 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
 
         frame_buffer_ = frame_buffer;
         buffer_ = color_buffer;
-        handle_ = texture_handle;
+        texture_handle_ = texture_handle;
         target_ = GL_TEXTURE_3D;
         width_ = width;
         height_ = height;
-        depth_ = depth;
         byte_width_ = byte_width;
         internal_format_ = internal_format;
         format_ = format;
@@ -113,27 +152,6 @@ bool GLTexture::Create(int width, int height, int depth, GLint internal_format,
         glDeleteFramebuffers(1, &frame_buffer);
 
     return false;
-}
-
-void GLTexture::GetTexImage(void* buffer)
-{
-    Bind();
-    glGetTexImage(GL_TEXTURE_3D, 0, format_,
-                  byte_width_ == 2 ? GL_HALF_FLOAT : GL_FLOAT, buffer);
-    GLenum e = glGetError();
-    assert(e == GL_NO_ERROR);
-    Unbind();
-}
-
-void GLTexture::TexImage3D(void* buffer)
-{
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    Bind();
-    glTexImage3D(GL_TEXTURE_3D, 0, internal_format_, width_, height_, depth_, 0,
-                 format_, byte_width_ == 2 ? GL_HALF_FLOAT : GL_FLOAT, buffer);
-    GLenum e = glGetError();
-    assert(e == GL_NO_ERROR);
-    Unbind();
 }
 
 void GLTexture::Unbind() const

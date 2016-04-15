@@ -1,6 +1,8 @@
 #ifndef _CUDA_CORE_H_
 #define _CUDA_CORE_H_
 
+#include <array>
+
 #include "block_arrangement.h"
 
 namespace Vectormath
@@ -40,6 +42,8 @@ public:
                                const Vectormath::Aos::Vector3& volume_size);
     static void CopyToVolume(cudaArray* dest, void* source, size_t pitch,
                              const Vectormath::Aos::Vector3& volume_size);
+    static void Raycast(GraphicsResource* dest, cudaArray* density,
+                        const std::array<int, 2>& volume_size);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);

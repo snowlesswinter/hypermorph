@@ -94,8 +94,10 @@
     <ClInclude Include="graphics_volume.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="opengl\gl_program.h" />
+    <ClInclude Include="opengl\gl_surface.h" />
     <ClInclude Include="opengl\gl_texture.h" />
     <ClInclude Include="opengl\gl_utility.h" />
+    <ClInclude Include="opengl\gl_volume.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="poisson_solver\full_multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\multigrid_core.h" />
@@ -110,6 +112,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="vmath.hpp" />
+    <ClInclude Include="volume_renderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fluid_config.cpp" />
@@ -119,8 +122,10 @@
     <ClCompile Include="graphics_volume.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="opengl\gl_program.cpp" />
+    <ClCompile Include="opengl\gl_surface.cpp" />
     <ClCompile Include="opengl\gl_texture.cpp" />
     <ClCompile Include="opengl\gl_utility.cpp" />
+    <ClCompile Include="opengl\gl_volume.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="poisson_solver\full_multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\multigrid_core.cpp" />
@@ -138,6 +143,7 @@
     </ClCompile>
     <ClCompile Include="trackball.cpp" />
     <ClCompile Include="utility.cpp" />
+    <ClCompile Include="volume_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="cuda\cuda.vcxproj">

@@ -10,7 +10,7 @@
 #include "fluid_simulator.h"
 #include "graphics_volume.h"
 #include "half_float/half.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "opengl/gl_utility.h"
 #include "utility.h"
 #include "vmath.hpp"
@@ -244,7 +244,7 @@ void UnittestCommon::CollectAndVerifyResult(int width, int height, int depth,
 
     // Copy the result back to CPU.
     std::vector<uint16_t> result_glsl(size, 0);
-    glsl_volume->gl_texture()->GetTexImage(&result_glsl[0]);
+    glsl_volume->gl_volume()->GetTexImage(&result_glsl[0]);
 
     assert(n == 1 || n == 2 || n == 4);
     if (n == 1)
@@ -298,7 +298,7 @@ void UnittestCommon::InitializeVolume1(GraphicsVolume* cuda_volume,
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
                            &test_data[0], pitch, volume_size);
 
-    glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
+    glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
 
 void UnittestCommon::InitializeVolume2(GraphicsVolume* cuda_volume,
@@ -317,7 +317,7 @@ void UnittestCommon::InitializeVolume2(GraphicsVolume* cuda_volume,
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
                            &test_data[0], pitch, volume_size);
 
-    glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
+    glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
 
 void UnittestCommon::InitializeVolume4(GraphicsVolume* cuda_volume,
@@ -337,7 +337,7 @@ void UnittestCommon::InitializeVolume4(GraphicsVolume* cuda_volume,
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
                            &test_data[0], pitch, volume_size);
 
-    glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
+    glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
 
 float UnittestCommon::RandomFloat(const std::pair<float, float>& scope)

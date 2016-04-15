@@ -11,11 +11,18 @@ OverlayContent::OverlayContent()
     , height_(200)
     , program_(0)
     , quad_mesh_(nullptr)
+    , bitmap_buf_()
 {
 }
 
 OverlayContent::~OverlayContent()
 {
+    if (bitmap_buf_.hbitmap_) {
+        DeleteObject(bitmap_buf_.hbitmap_);
+        bitmap_buf_.hbitmap_ = nullptr;
+        bitmap_buf_.bits_ = nullptr;
+    }
+
     if (quad_mesh_) {
         delete quad_mesh_;
         quad_mesh_ = nullptr;
@@ -27,33 +34,16 @@ void OverlayContent::RenderText(const std::string& text)
     if (last_text_ == text)
         return;
 
-    //last_text_ = text;
-
-    // Draw text into a GDI DC.
     HDC hdc = ::CreateCompatibleDC(nullptr);
     if (!hdc)
         return;
+    
+    BitmapBuf bitmap_buf = GetBitmapBuf();
+    if (!bitmap_buf.hbitmap_)
+        return;
 
     RECT bounds = {0, 0, width_, height_};
-
-    BITMAPINFOHEADER bitmap_header = {};
-    bitmap_header.biSize = sizeof(bitmap_header);
-    bitmap_header.biBitCount = 16;
-    bitmap_header.biCompression = BI_RGB;
-    bitmap_header.biPlanes = 1;
-    bitmap_header.biWidth = bounds.right - bounds.left;
-    bitmap_header.biHeight = -bounds.top - bounds.bottom;
-
-    char* bits = nullptr;
-    HBITMAP hbitmap = ::CreateDIBSection(
-        hdc, reinterpret_cast<BITMAPINFO*>(&bitmap_header), DIB_RGB_COLORS,
-        reinterpret_cast<void**>(&bits), nullptr, 0);
-    if (!hbitmap) {
-        DeleteDC(hdc);
-        return;
-    }
-
-    HGDIOBJ old_bitmap = ::SelectObject(hdc, hbitmap);
+    HGDIOBJ old_bitmap = ::SelectObject(hdc, bitmap_buf.hbitmap_);
     ::SetBkMode(hdc, TRANSPARENT);
     ::SetTextColor(hdc, RGB(255, 255, 255));
     ::DrawTextA(hdc, text.c_str(), text.length(), &bounds, DT_LEFT);
@@ -67,19 +57,19 @@ void OverlayContent::RenderText(const std::string& text)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width_, height_, 0, GL_RG,
-                 GL_UNSIGNED_BYTE, bits);
-
-    DeleteObject(hbitmap);
+                 GL_UNSIGNED_BYTE, bitmap_buf.bits_);
 
     glEnable(GL_BLEND);
+
     glUseProgram(GetProgram());
     SetUniform("depth", 1.0f);
     SetUniform("sampler", 0);
     SetUniform("viewport_size", static_cast<float>(ViewportWidth),
                static_cast<float>(ViewportWidth));
-    glActiveTexture(GL_TEXTURE0);
+
     glBindTexture(GL_TEXTURE_2D, GetTexture());
     RenderMesh(*GetQuadMesh());
+
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
     glUseProgram(0);
@@ -111,4 +101,28 @@ MeshPod* OverlayContent::GetQuadMesh()
     }
 
     return quad_mesh_;
+}
+
+OverlayContent::BitmapBuf OverlayContent::GetBitmapBuf()
+{
+    HDC hdc = ::CreateCompatibleDC(nullptr);
+    if (!hdc)
+        return BitmapBuf();
+
+    RECT bounds = {0, 0, width_, height_};
+
+    BITMAPINFOHEADER bitmap_header = {};
+    bitmap_header.biSize = sizeof(bitmap_header);
+    bitmap_header.biBitCount = 16;
+    bitmap_header.biCompression = BI_RGB;
+    bitmap_header.biPlanes = 1;
+    bitmap_header.biWidth = bounds.right - bounds.left;
+    bitmap_header.biHeight = -bounds.top - bounds.bottom;
+
+    bitmap_buf_.hbitmap_ = ::CreateDIBSection(
+        hdc, reinterpret_cast<BITMAPINFO*>(&bitmap_header), DIB_RGB_COLORS,
+        reinterpret_cast<void**>(&bitmap_buf_.bits_), nullptr, 0);
+
+    DeleteDC(hdc);
+    return bitmap_buf_;
 }

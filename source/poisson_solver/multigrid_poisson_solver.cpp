@@ -192,7 +192,7 @@ void MultigridPoissonSolver::Diagnose(GraphicsVolume* packed)
 //             v = new char[w * h * d * element_size * n];
 // 
 //         memset(v, 0, w * h * d * element_size * n);
-//         p->gl_texture()->GetTexImage(format, GL_FLOAT, v);
+//         p->gl_volume()->GetTexImage(format, GL_FLOAT, v);
 //         
 //         float* f = (float*)v;
 //         double sum = 0.0;

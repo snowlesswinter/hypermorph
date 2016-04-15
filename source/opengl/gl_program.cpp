@@ -21,8 +21,27 @@ bool GLProgram::Load(const std::string& vs_source, const std::string& gs_source,
     return !!program_handle_;
 }
 
+void GLProgram::SetUniform(const char* name, int value)
+{
+    ::SetUniform(name, value);
+}
+
+void GLProgram::SetUniform(const char* name, float value)
+{
+    ::SetUniform(name, value);
+}
+
+void GLProgram::SetUniform(const char* name, float value0, float value1)
+{
+    ::SetUniform(name, value0, value1);
+}
+
+void GLProgram::Unuse()
+{
+    glUseProgram(0);
+}
+
 void GLProgram::Use()
 {
     glUseProgram(program_handle_);
 }
-

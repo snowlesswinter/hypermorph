@@ -45,7 +45,7 @@ public:
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
     // TODO
-    const GraphicsVolume& GetDensityTexture() const;
+    std::shared_ptr<GraphicsVolume> GetDensityTexture() const;
 
 private:
     friend class FluidUnittest;

@@ -5,8 +5,8 @@
 
 #include "graphics_lib_enum.h"
 
-class GLTexture;
 class CudaVolume;
+class GLVolume;
 class GraphicsVolume
 {
 public:
@@ -22,12 +22,12 @@ public:
     int GetHeight() const;
     int GetDepth() const;
 
-    std::shared_ptr<GLTexture> gl_texture() const;
+    std::shared_ptr<GLVolume> gl_volume() const;
     std::shared_ptr<CudaVolume> cuda_volume() const;
 
 private:
     GraphicsLib graphics_lib_;
-    std::shared_ptr<GLTexture> gl_texture_;
+    std::shared_ptr<GLVolume> gl_volume_;
     std::shared_ptr<CudaVolume> cuda_volume_;
 };
 

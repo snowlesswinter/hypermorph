@@ -6,7 +6,7 @@
 #include "cuda_host/cuda_main.h"
 #include "graphics_volume.h"
 #include "opengl/gl_program.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "utility.h"
@@ -48,11 +48,11 @@ void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
     SetUniform("packed_tex", 0);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, residual.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, residual.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, packed.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          residual.gl_texture()->depth());
+                          residual.gl_volume()->depth());
     ResetState();
 }
 
@@ -63,17 +63,17 @@ void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
 
     SetUniform("fine", 0);
     SetUniform("s", 1);
-    SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_texture()));
-    SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_texture()));
+    SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_volume()));
+    SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_volume()));
     SetUniform("overlay", 1.0f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, fine.gl_volume()->texture_handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, coarse.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, coarse.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          fine.gl_texture()->depth());
+                          fine.gl_volume()->depth());
     ResetState();
 }
 
@@ -84,17 +84,17 @@ void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
 
     SetUniform("fine", 0);
     SetUniform("s", 1);
-    SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_texture()));
-    SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_texture()));
+    SetUniform("inverse_size_f", CalculateInverseSize(*fine.gl_volume()));
+    SetUniform("inverse_size_c", CalculateInverseSize(*coarse.gl_volume()));
     SetUniform("overlay", 1.0f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, fine.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, fine.gl_volume()->texture_handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, coarse.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, coarse.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          fine.gl_texture()->depth());
+                          fine.gl_volume()->depth());
     ResetState();
 }
 
@@ -108,11 +108,11 @@ void MultigridCoreGlsl::RelaxPacked(const GraphicsVolume& u_and_b,
     SetUniform("minus_h_square", -(cell_size * cell_size));
     SetUniform("omega_over_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, u_and_b.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, u_and_b.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          u_and_b.gl_texture()->depth());
+                          u_and_b.gl_volume()->depth());
     ResetState();
 }
 
@@ -134,11 +134,11 @@ void MultigridCoreGlsl::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
     SetUniform("minus_h_square", -(cell_size * cell_size));
     SetUniform("omega_times_inverse_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, packed.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, packed.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          packed.gl_texture()->depth());
+                          packed.gl_volume()->depth());
     ResetState();
 }
 
@@ -148,13 +148,13 @@ void MultigridCoreGlsl::RestrictPacked(const GraphicsVolume& fine,
     GetRestrictPackedProgram()->Use();
 
     SetUniform("s", 0);
-    SetUniform("inverse_size", CalculateInverseSize(*fine.gl_texture()));
+    SetUniform("inverse_size", CalculateInverseSize(*fine.gl_volume()));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, coarse.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, coarse.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, fine.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          coarse.gl_texture()->depth());
+                          coarse.gl_volume()->depth());
     ResetState();
 }
 
@@ -164,13 +164,13 @@ void MultigridCoreGlsl::RestrictResidualPacked(const GraphicsVolume& fine,
     GetRestrictResidualPackedProgram()->Use();
 
     SetUniform("s", 0);
-    SetUniform("inverse_size", CalculateInverseSize(*fine.gl_texture()));
+    SetUniform("inverse_size", CalculateInverseSize(*fine.gl_volume()));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, coarse.gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, coarse.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, fine.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          coarse.gl_texture()->depth());
+                          coarse.gl_volume()->depth());
     ResetState();
 }
 

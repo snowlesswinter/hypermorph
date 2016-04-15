@@ -8,7 +8,7 @@
 #include "fluid_config.h"
 #include "graphics_volume.h"
 #include "metrics.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "poisson_solver/full_multigrid_poisson_solver.h"
 #include "poisson_solver/multigrid_core_cuda.h"
 #include "poisson_solver/multigrid_core_glsl.h"
@@ -227,9 +227,9 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectDensityPure(density2_->gl_texture(),
+        CudaMain::Instance()->AdvectDensityPure(density2_->gl_volume(),
                                                 velocity_->cuda_volume(),
-                                                density_->gl_texture(),
+                                                density_->gl_volume(),
                                                 delta_time, density_dissipation);
         std::swap(density_, density2_);
     } else {
@@ -243,20 +243,20 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
 {
     glUseProgram(Programs.Advect);
 
-    SetUniform("InverseSize", CalculateInverseSize(*source->gl_texture()));
+    SetUniform("InverseSize", CalculateInverseSize(*source->gl_volume()));
     SetUniform("TimeStep", delta_time);
     SetUniform("Dissipation", dissipation);
     SetUniform("SourceTexture", 1);
     SetUniform("Obstacles", 2);
 
     glBindFramebuffer(GL_FRAMEBUFFER,
-                      general1_->gl_texture()->frame_buffer());
+                      general1_->gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, source->gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, source->gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          general1_->gl_texture()->depth());
+                          general1_->gl_volume()->depth());
     ResetState();
 }
 
@@ -289,20 +289,20 @@ void FluidSimulator::AdvectVelocity(float delta_time)
         glUseProgram(Programs.Advect);
 
         SetUniform("InverseSize",
-                   CalculateInverseSize(*velocity_->gl_texture()));
+                   CalculateInverseSize(*velocity_->gl_volume()));
         SetUniform("TimeStep", delta_time);
         SetUniform("Dissipation", velocity_dissipation);
         SetUniform("SourceTexture", 1);
         SetUniform("Obstacles", 2);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4_->gl_texture()->frame_buffer());
+                          general4_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4_->gl_texture()->depth());
+                              general4_->gl_volume()->depth());
         ResetState();
     }
 
@@ -330,13 +330,13 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
         SetUniform("Kappa", smoke_weight);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4_->gl_texture()->frame_buffer());
+                          general4_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, temperature_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, temperature_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4_->gl_texture()->depth());
+                              general4_->gl_volume()->depth());
         ResetState();
     }
 
@@ -391,11 +391,11 @@ void FluidSimulator::ComputeDivergence()
         SetUniform("velocity", 0);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          packed_->gl_texture()->frame_buffer());
+                          packed_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              packed_->gl_texture()->depth());
+                              packed_->gl_volume()->depth());
         ResetState();
     }
 }
@@ -426,11 +426,11 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
         SetUniform("packed_tex", 0);
         SetUniform("inverse_h_square", inverse_h_square);
 
-        diagnosis_volume_->gl_texture()->BindFrameBuffer();
+        diagnosis_volume_->gl_volume()->BindFrameBuffer();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              diagnosis_volume_->gl_texture()->depth());
+                              diagnosis_volume_->gl_volume()->depth());
         ResetState();
 
         // =====================================================================
@@ -449,7 +449,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
             v = new char[w * h * d * element_size * n];
 
         memset(v, 0, w * h * d * element_size * n);
-        p->gl_texture()->GetTexImage(v);
+        p->gl_volume()->GetTexImage(v);
 
         float* f = (float*)v;
         double sum = 0.0;
@@ -494,11 +494,11 @@ void FluidSimulator::DampedJacobi(float cell_size)
         SetUniform("packed_tex", 0);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          packed_->gl_texture()->frame_buffer());
+                          packed_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              packed_->gl_texture()->depth());
+                              packed_->gl_volume()->depth());
         ResetState();
     }
 }
@@ -522,10 +522,10 @@ void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
         SetUniform("fill_color_r", value[0]);
         SetUniform("fill_color_g", value[1]);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, dest->gl_texture()->frame_buffer());
+        glBindFramebuffer(GL_FRAMEBUFFER, dest->gl_volume()->frame_buffer());
         glEnable(GL_BLEND);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              dest->gl_texture()->depth());
+                              dest->gl_volume()->depth());
         ResetState();
     }
 }
@@ -535,7 +535,7 @@ void FluidSimulator::ImpulseDensity(vmath::Vector3 position,
                                     float splat_radius, float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_texture(),
+        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_volume(),
                                                       position, hotspot,
                                                       splat_radius, value);
     } else {
@@ -548,10 +548,10 @@ void FluidSimulator::ImpulseDensity(vmath::Vector3 position,
         SetUniform("fill_color_g", value);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          density_->gl_texture()->frame_buffer());
+                          density_->gl_volume()->frame_buffer());
         glEnable(GL_BLEND);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              density_->gl_texture()->depth());
+                              density_->gl_volume()->depth());
         ResetState();
     }
 }
@@ -565,11 +565,11 @@ void FluidSimulator::Jacobi(float cell_size)
     SetUniform("Divergence", 1);
     SetUniform("Obstacles", 2);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed_->gl_texture()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, packed_->gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
+    glBindTexture(GL_TEXTURE_3D, packed_->gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          packed_->gl_texture()->depth());
+                          packed_->gl_volume()->depth());
     ResetState();
 }
 
@@ -670,18 +670,18 @@ void FluidSimulator::SubtractGradient()
         SetUniform("packed_tex", 1);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          velocity_->gl_texture()->frame_buffer());
+                          velocity_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, packed_->gl_texture()->handle());
+        glBindTexture(GL_TEXTURE_3D, packed_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              velocity_->gl_texture()->depth());
+                              velocity_->gl_volume()->depth());
         ResetState();
     }
 }
 
-const GraphicsVolume& FluidSimulator::GetDensityTexture() const
+std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityTexture() const
 {
-    return *density_;
+    return density_;
 }

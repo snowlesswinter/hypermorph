@@ -69,6 +69,13 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="fluid_config.h" />
+    <ClInclude Include="volume_renderer.h" />
+    <ClInclude Include="opengl\gl_surface.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="opengl\gl_volume.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -124,5 +131,12 @@
       <Filter>poisson_solver</Filter>
     </ClCompile>
     <ClCompile Include="fluid_config.cpp" />
+    <ClCompile Include="volume_renderer.cpp" />
+    <ClCompile Include="opengl\gl_surface.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="opengl\gl_volume.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

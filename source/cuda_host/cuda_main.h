@@ -15,7 +15,9 @@ class Vector3;
 class CudaCore;
 class CudaVolume;
 class FluidImplCudaPure;
+class GLSurface;
 class GLTexture;
+class GLVolume;
 class GraphicsResource;
 class MultigridImplCuda;
 class CudaMain
@@ -31,9 +33,9 @@ public:
 
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
 
-    void AdvectDensityPure(std::shared_ptr<GLTexture> dest,
+    void AdvectDensityPure(std::shared_ptr<GLVolume> dest,
                           std::shared_ptr<CudaVolume> velocity,
-                          std::shared_ptr<GLTexture> density, float time_step,
+                          std::shared_ptr<GLVolume> density, float time_step,
                           float dissipation);
     void AdvectPure(std::shared_ptr<CudaVolume> dest,
                     std::shared_ptr<CudaVolume> velocity,
@@ -47,7 +49,7 @@ public:
                            std::shared_ptr<CudaVolume> temperature,
                            float time_step, float ambient_temperature,
                            float accel_factor, float gravity);
-    void ApplyImpulseDensityPure(std::shared_ptr<GLTexture> density,
+    void ApplyImpulseDensityPure(std::shared_ptr<GLVolume> density,
                                  const Vectormath::Aos::Vector3& center_point,
                                  const Vectormath::Aos::Vector3& hotspot,
                                  float radius, float value);
@@ -85,6 +87,10 @@ public:
                             std::shared_ptr<CudaVolume> fine);
     void RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
                                     std::shared_ptr<CudaVolume> fine);
+
+    // Rendering
+    void Raycast(std::shared_ptr<GLSurface> dest,
+                 std::shared_ptr<CudaVolume> density);
 
     // For diagnosis
     void RoundPassed(int round);

@@ -5,7 +5,7 @@
 #include "fluid_simulator.h"
 #include "graphics_volume.h"
 #include "half_float/half.h"
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "unittest_common.h"
 #include "utility.h"
 
@@ -22,8 +22,8 @@ void InitializeDensityVolume(GraphicsVolume* cuda_volume,
         i = half(UnittestCommon::RandomFloat(scope)).bits();
 
     // Volumes that registered to CUDA can not be fed??
-    cuda_volume->gl_texture()->TexImage3D(&test_data[0]);
-    glsl_volume->gl_texture()->TexImage3D(&test_data[0]);
+    cuda_volume->gl_volume()->SetTexImage(&test_data[0]);
+    glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
 } // Anonymous namespace.
 
@@ -132,11 +132,11 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
                                static_cast<float>(height),
                                static_cast<float>(depth));
     std::vector<uint16_t> result_cuda(size_d, 0);
-    sim_cuda.density_->gl_texture()->GetTexImage(&result_cuda[0]);
+    sim_cuda.density_->gl_volume()->GetTexImage(&result_cuda[0]);
 
     // Copy the result back to CPU.
     std::vector<uint16_t> result_glsl(size_d, 0);
-    sim_glsl.density_->gl_texture()->GetTexImage(&result_glsl[0]);
+    sim_glsl.density_->gl_volume()->GetTexImage(&result_glsl[0]);
 
     UnittestCommon::VerifyResult1(result_cuda, result_glsl, width, height,
                                   depth, n_d, __FUNCTION__);

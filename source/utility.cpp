@@ -6,7 +6,7 @@
 
 #include <windows.h>
 
-#include "opengl/gl_texture.h"
+#include "opengl/gl_volume.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "cuda_host/cuda_volume.h"
@@ -275,7 +275,7 @@ double GetCurrentTimeInSeconds()
     return static_cast<double>(currentTime.QuadPart) / freqTime.QuadPart;
 }
 
-vmath::Vector3 CalculateInverseSize(const GLTexture& volume)
+vmath::Vector3 CalculateInverseSize(const GLVolume& volume)
 {
     return recipPerElem(
         vmath::Vector3(static_cast<float>(volume.width()),

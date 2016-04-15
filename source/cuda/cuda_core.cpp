@@ -16,6 +16,9 @@
 extern void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
                                     int3 volume_size);
 
+extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
+                                int2 surface_size);
+
 namespace
 {
 int3 FromVmathVector(const vmath::Vector3& v)
@@ -295,4 +298,30 @@ void CudaCore::FlushProfilingData()
 void CudaCore::Sync()
 {
     cudaDeviceSynchronize();
+}
+
+void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
+                       const std::array<int, 2>& surface_size)
+{
+    cudaGraphicsResource_t res[] = {
+        dest->resource()
+    };
+    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                                  res);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    // Destination texture.
+    cudaArray* dest_array = nullptr;
+    result = cudaGraphicsSubResourceGetMappedArray(&dest_array,
+                                                   dest->resource(), 0, 0);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    LaunchRaycastKernel(dest_array, density,
+                        make_int2(surface_size[0], surface_size[1]));
+
+    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
