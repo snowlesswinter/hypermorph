@@ -14,8 +14,8 @@ namespace
 const float kTimeStep = 0.33f;
 
 void InitializeDensityVolume(GraphicsVolume* cuda_volume,
-                                GraphicsVolume* glsl_volume, int size,
-                                const std::pair<float, float>& scope)
+                             GraphicsVolume* glsl_volume, int size,
+                             const std::pair<float, float>& scope)
 {
     std::vector<uint16_t> test_data(size / sizeof(uint16_t), 0);
     for (auto& i : test_data)
@@ -75,16 +75,16 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.general4_->GetWidth();
-    int height = sim_cuda.general4_->GetHeight();
-    int depth = sim_cuda.general4_->GetDepth();
-    int n = 4;
+    int width = sim_cuda.packed_->GetWidth();
+    int height = sim_cuda.packed_->GetHeight();
+    int depth = sim_cuda.packed_->GetDepth();
+    int n = 2;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.general4_.get(),
-                                      sim_glsl.general4_.get(), width, height,
+    UnittestCommon::InitializeVolume2(sim_cuda.packed_.get(),
+                                      sim_glsl.packed_.get(), width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
@@ -92,8 +92,8 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
     sim_glsl.DampedJacobi(CellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           1, sim_cuda.general4_.get(),
-                                           sim_glsl.general4_.get(),
+                                           1, sim_cuda.packed_.get(),
+                                           sim_glsl.packed_.get(),
                                            __FUNCTION__);
 }
 

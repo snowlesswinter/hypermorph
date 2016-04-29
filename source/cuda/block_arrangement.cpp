@@ -18,7 +18,8 @@ void BlockArrangement::Init(int dev_id)
     cudaGetDeviceProperties(dev_prop_.get(), dev_id);
 }
 
-void BlockArrangement::Arrange(dim3* block, dim3* grid, const int3& volume_size)
+void BlockArrangement::Arrange(dim3* block, dim3* grid,
+                               const uint3& volume_size)
 {
     if (!block || !grid || !volume_size.x)
         return;
@@ -36,7 +37,7 @@ void BlockArrangement::Arrange(dim3* block, dim3* grid, const int3& volume_size)
 }
 
 void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
-                                               const int3& volume_size)
+                                               const uint3& volume_size)
 {
     if (!block || !grid)
         return;

@@ -16,47 +16,46 @@
 
 extern void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
                              cudaArray_t source_array, float time_step,
-                             float dissipation, int3 volume_size);
+                             float dissipation, uint3 volume_size);
 extern void LaunchAdvectVelocityPure(cudaArray_t dest_array,
                                      cudaArray_t velocity_array,
                                      float time_step, float dissipation,
-                                     int3 volume_size);
+                                     uint3 volume_size);
 extern void LaunchApplyBuoyancyPure(cudaArray* dest_array,
                                     cudaArray* velocity_array,
                                     cudaArray* temperature_array,
                                     float time_step, float ambient_temperature,
                                     float accel_factor, float gravity,
-                                    int3 volume_size);
+                                    uint3 volume_size);
 extern void LaunchApplyImpulsePure(cudaArray* dest_array,
                                    cudaArray* original_array,
                                    float3 center_point, float3 hotspot,
                                    float radius, float3 value, uint32_t mask,
-                                   int3 volume_size);
+                                   uint3 volume_size);
 extern void LaunchComputeDivergencePure(cudaArray* dest_array,
                                         cudaArray* velocity_array,
                                         float half_inverse_cell_size,
-                                        int3 volume_size);
+                                        uint3 volume_size);
 extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                                  cudaArray* source_array,
                                                  float inverse_h_square,
-                                                 int3 volume_size);
-extern void LaunchDampedJacobiPure(cudaArray* dest_array,
-                                   cudaArray* source_array,
-                                   float minus_square_cell_size,
-                                   float omega_over_beta, int3 volume_size,
-                                   BlockArrangement* ba);
+                                                 uint3 volume_size);
+extern void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
+                               float minus_square_cell_size,
+                               float omega_over_beta, uint3 volume_size,
+                               BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradientPure(cudaArray* dest_array,
                                        cudaArray* packed_array,
-                                       float gradient_scale, int3 volume_size,
+                                       float gradient_scale, uint3 volume_size,
                                        BlockArrangement* ba);
 
 namespace
 {
-int3 FromVmathVector(const vmath::Vector3& v)
+uint3 FromVmathVector(const vmath::Vector3& v)
 {
-    return make_int3(static_cast<int>(v.getX()), static_cast<int>(v.getY()),
-                     static_cast<int>(v.getZ()));
+    return make_uint3(static_cast<uint>(v.getX()), static_cast<uint>(v.getY()),
+                      static_cast<uint>(v.getZ()));
 }
 } // Anonymous namespace.
 
@@ -205,8 +204,8 @@ void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* source,
                                      float omega_over_beta,
                                      const vmath::Vector3& volume_size)
 {
-    LaunchDampedJacobiPure(dest, source, minus_square_cell_size,
-                           omega_over_beta, FromVmathVector(volume_size), ba_);
+    LaunchDampedJacobi(dest, source, minus_square_cell_size, omega_over_beta,
+                       FromVmathVector(volume_size), ba_);
 }
 
 void FluidImplCudaPure::SubtractGradient(cudaArray* dest, cudaArray* packed,
