@@ -88,8 +88,8 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
-    sim_cuda.DampedJacobi(CellSize);
-    sim_glsl.DampedJacobi(CellSize);
+    sim_cuda.DampedJacobi(CellSize, 1);
+    sim_glsl.DampedJacobi(CellSize, 1);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, sim_cuda.packed_.get(),

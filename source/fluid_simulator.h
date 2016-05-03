@@ -59,7 +59,7 @@ private:
     void ApplyImpulse(double seconds_elapsed, float delta_time);
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
-    void DampedJacobi(float cell_size);
+    void DampedJacobi(float cell_size, int num_of_iterations);
     void Impulse(std::shared_ptr<GraphicsVolume> dest,
                  Vectormath::Aos::Vector3 position,
                  Vectormath::Aos::Vector3 hotspot, float splat_radius,

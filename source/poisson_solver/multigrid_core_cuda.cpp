@@ -53,13 +53,14 @@ void MultigridCoreCuda::ProlongateResidualPacked(const GraphicsVolume& coarse,
 }
 
 void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
-                                    float cell_size)
+                                    float cell_size, int num_of_iterations)
 {
     float minus_h_square = -(cell_size * cell_size);
     float omega_over_beta = 0.11111111f;
-    CudaMain::Instance()->DampedJacobiPure(u_and_b.cuda_volume(),
-                                           u_and_b.cuda_volume(),
-                                           minus_h_square, omega_over_beta);
+    CudaMain::Instance()->DampedJacobi(u_and_b.cuda_volume(),
+                                       u_and_b.cuda_volume(),
+                                       minus_h_square, omega_over_beta,
+                                       num_of_iterations);
 }
 
 void MultigridCoreCuda::RelaxWithZeroGuessAndComputeResidual(

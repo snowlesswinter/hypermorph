@@ -54,6 +54,7 @@ public:
         const Vectormath::Aos::Vector3& volume_size);
     void DampedJacobi(cudaArray* dest, cudaArray* source,
                       float minus_square_cell_size, float omega_over_beta,
+                      int num_of_iterations,
                       const Vectormath::Aos::Vector3& volume_size);
     void SubtractGradient(cudaArray* dest, cudaArray* packed,
                           float gradient_scale,

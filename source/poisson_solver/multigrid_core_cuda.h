@@ -23,7 +23,8 @@ public:
                                   const GraphicsVolume& fine) override;
     virtual void ProlongateResidualPacked(const GraphicsVolume& coarse,
                                           const GraphicsVolume& fine) override;
-    virtual void RelaxPacked(const GraphicsVolume& u_and_b, float cell_size);
+    virtual void RelaxPacked(const GraphicsVolume& u_and_b, float cell_size,
+                             int num_of_iterations) override;
     virtual void RelaxWithZeroGuessAndComputeResidual(
         const GraphicsVolume& packed_volumes, float cell_size,
         int times) override;

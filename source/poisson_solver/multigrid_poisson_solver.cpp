@@ -97,8 +97,7 @@ bool MultigridPoissonSolver::ValidateVolume(
 void MultigridPoissonSolver::RelaxPacked(
     std::shared_ptr<GraphicsVolume> u_and_b, float cell_size, int times)
 {
-    for (int i = 0; i < times; i++)
-        core_->RelaxPacked(*u_and_b, cell_size);
+    core_->RelaxPacked(*u_and_b, cell_size, times);
 }
 
 void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u_and_b,

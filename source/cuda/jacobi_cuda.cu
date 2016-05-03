@@ -66,7 +66,8 @@ __device__ void SaveToRegisters(float2* smem, uint si, uint bw, float* south,
 
 __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
                                                  float omega_over_beta,
-                                                 uint3 volume_size)
+                                                 int z0, int zi,
+                                                 int zn, uint3 volume_size)
 {
     __shared__ float2 smem[384];
 
@@ -85,10 +86,11 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     float  east;
     float  north;
 
-    ReadBlockAndHalo_32x6(0, tx, ty, smem);
+    ReadBlockAndHalo_32x6(z0, tx, ty, smem);
     SaveToRegisters(smem, si, bw, &south, &west, &center, &east, &north);
 
-    ReadBlockAndHalo_32x6(1, tx, ty, smem);
+    int z = z0 + zi;
+    ReadBlockAndHalo_32x6(z, tx, ty, smem);
 
     float t1 = omega_over_beta * 4.0f * center.x +
         (west + east + south + north + minus_square_cell_size * center.y) *
@@ -99,16 +101,16 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     ushort2 raw;
     float far;
 
-    for (uint i = 2; i < volume_size.z; i++) {
+    for (z += zi; z != zn; z += zi) {
         SaveToRegisters(smem, si, bw, &south, &west, &center, &east, &north);
-        ReadBlockAndHalo_32x6(i, tx, ty, smem);
+        ReadBlockAndHalo_32x6(z, tx, ty, smem);
 
         far = center.x * omega_over_beta;
         near = t1 + far;
         raw = make_ushort2(__float2half_rn(near), __float2half_rn(b));
         if (oy < volume_size.y)
-            surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, i - 2,
-                        cudaBoundaryModeTrap);
+            surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, z - zi - zi,
+            cudaBoundaryModeTrap);
 
         // t1 is now pointing to plane |i - 1|.
         t1 = omega_over_beta * 3.0f * center.x +
@@ -124,14 +126,14 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     near = center.x * omega_over_beta + t1;
     raw = make_ushort2(__float2half_rn(near),
                        __float2half_rn(b));
-    surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, volume_size.z - 2,
+    surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, zn - zi - zi,
                 cudaBoundaryModeTrap);
 
     t1 = omega_over_beta * 4.0f * center.x +
         (west + east + south + north + near + minus_square_cell_size *
         center.y) * omega_over_beta;
     raw = make_ushort2(__float2half_rn(t1), __float2half_rn(center.y));
-    surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, volume_size.z - 1,
+    surf3Dwrite(raw, jacobi, ox * sizeof(ushort2), oy, zn - zi,
                 cudaBoundaryModeTrap);
 }
 
@@ -474,7 +476,8 @@ __global__ void DampedJacobiKernel_smem_no_halo_storage(
 
 void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
                         float minus_square_cell_size, float omega_over_beta,
-                        uint3 volume_size, BlockArrangement* ba)
+                        int num_of_iterations, uint3 volume_size,
+                        BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -496,30 +499,36 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
     if (result != cudaSuccess)
         return;
 
-    bool smem = false;
-    bool smem_25d = true;
-    if (smem_25d) {
-        dim3 block(32, 6, 1);
-        dim3 grid((volume_size.x + block.x - 1) / block.x,
-                  (volume_size.y + block.y - 1) / block.y,
-                  1);
-        DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
-            minus_square_cell_size, omega_over_beta, volume_size);
-    } else if (smem) {
-        dim3 block(8, 8, 8);
-        dim3 grid((volume_size.x + block.x - 1) / block.x,
-                  (volume_size.y + block.y - 1) / block.y,
-                  (volume_size.z + block.z - 1) / block.z);
-        DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
-            minus_square_cell_size, omega_over_beta, volume_size);
-    } else {
-        dim3 block;
-        dim3 grid;
-        ba->Arrange(&block, &grid, volume_size);
-        DampedJacobiKernel<<<grid, block>>>(minus_square_cell_size,
-                                            omega_over_beta, volume_size);
+    for (int i = 0; i < num_of_iterations; i++) {
+        bool smem = false;
+        bool smem_25d = false;
+        if (smem_25d) {
+            dim3 block(32, 6, 1);
+            dim3 grid((volume_size.x + block.x - 1) / block.x,
+                      (volume_size.y + block.y - 1) / block.y,
+                      1);
+            int z0 = i >= num_of_iterations / 2 ? volume_size.z - 1 : 0;
+            int zi = i >= num_of_iterations / 2 ? -1 : 1;
+            int zn = i >= num_of_iterations / 2 ?
+                -1 : static_cast<int>(volume_size.z);
+            DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
+                minus_square_cell_size, omega_over_beta, z0, zi, zn,
+                volume_size);
+        } else if (smem) {
+            dim3 block(8, 8, 8);
+            dim3 grid((volume_size.x + block.x - 1) / block.x,
+                      (volume_size.y + block.y - 1) / block.y,
+                      (volume_size.z + block.z - 1) / block.z);
+            DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
+                minus_square_cell_size, omega_over_beta, volume_size);
+        } else {
+            dim3 block;
+            dim3 grid;
+            ba->Arrange(&block, &grid, volume_size);
+            DampedJacobiKernel<<<grid, block>>>(minus_square_cell_size,
+                                                omega_over_beta, volume_size);
+        }
     }
-    
 
     cudaUnbindTexture(&jacobi_packed);
 }

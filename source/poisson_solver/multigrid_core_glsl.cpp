@@ -99,21 +99,23 @@ void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
 }
 
 void MultigridCoreGlsl::RelaxPacked(const GraphicsVolume& u_and_b,
-                                    float cell_size)
+                                    float cell_size, int num_of_iterations)
 {
-    GetRelaxPackedProgram()->Use();
+    for (int i = 0; i < num_of_iterations; i++) {
+        GetRelaxPackedProgram()->Use();
 
-    SetUniform("packed_tex", 0);
-    SetUniform("one_minus_omega", 0.33333333f);
-    SetUniform("minus_h_square", -(cell_size * cell_size));
-    SetUniform("omega_over_beta", 0.11111111f);
+        SetUniform("packed_tex", 0);
+        SetUniform("one_minus_omega", 0.33333333f);
+        SetUniform("minus_h_square", -(cell_size * cell_size));
+        SetUniform("omega_over_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.gl_volume()->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, u_and_b.gl_volume()->texture_handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          u_and_b.gl_volume()->depth());
-    ResetState();
+        glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.gl_volume()->frame_buffer());
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, u_and_b.gl_volume()->texture_handle());
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
+                              u_and_b.gl_volume()->depth());
+        ResetState();
+    }
 }
 
 void MultigridCoreGlsl::RelaxWithZeroGuessAndComputeResidual(

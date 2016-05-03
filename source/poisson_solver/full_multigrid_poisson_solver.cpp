@@ -89,7 +89,7 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
     if (as_precondition)
         core_->RelaxWithZeroGuessPacked(*coarsest, level_cell_size);
 
-    RelaxPacked(coarsest, level_cell_size, 15);
+    RelaxPacked(coarsest, level_cell_size, 16);
 
     int times_to_iterate = 1;
     for (int j = num_of_levels - 2; j >= 0; j--) {
@@ -123,6 +123,5 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
 void FullMultigridPoissonSolver::RelaxPacked(
     std::shared_ptr<GraphicsVolume> u_and_b, float cell_size, int times)
 {
-    for (int i = 0; i < times; i++)
-        core_->RelaxPacked(*u_and_b, cell_size);
+    core_->RelaxPacked(*u_and_b, cell_size, times);
 }
