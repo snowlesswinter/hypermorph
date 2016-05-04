@@ -66,7 +66,7 @@ __device__ void SaveToRegisters(float2* smem, uint si, uint bw, float* south,
 
 __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
                                                  float omega_over_beta,
-                                                 int z0, int zi,
+                                                 int z0, int z2, int zi,
                                                  int zn, uint3 volume_size)
 {
     __shared__ float2 smem[384];
@@ -89,8 +89,7 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     ReadBlockAndHalo_32x6(z0, tx, ty, smem);
     SaveToRegisters(smem, si, bw, &south, &west, &center, &east, &north);
 
-    int z = z0 + zi;
-    ReadBlockAndHalo_32x6(z, tx, ty, smem);
+    ReadBlockAndHalo_32x6(z0 + zi, tx, ty, smem);
 
     float t1 = omega_over_beta * 4.0f * center.x +
         (west + east + south + north + minus_square_cell_size * center.y) *
@@ -101,7 +100,11 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     ushort2 raw;
     float far;
 
-    for (z += zi; z != zn; z += zi) {
+    // If we replace the initial value of |z| to "z0 + zi + zi", the compiler
+    // of CUDA 7.5 will generate some weird code that affects the mechanism of
+    // updating the memory in-place, which slows down the speed of converge
+    // a lot. A new variable "z2" is added to be a workaround.
+    for (int z = z2; z != zn; z += zi) {
         SaveToRegisters(smem, si, bw, &south, &west, &center, &east, &north);
         ReadBlockAndHalo_32x6(z, tx, ty, smem);
 
@@ -503,17 +506,25 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
         bool smem = false;
         bool smem_25d = false;
         if (smem_25d) {
+            // In our tests, this kernel sometimes generated results that
+            // noticably worse than the others. It probably connects to the
+            // undetermined behavior of updating memory while reading.
+            // But we haven't encountered any "obviously-worse" case in the
+            // non-shared-memory version, so far, in our experiments.
             dim3 block(32, 6, 1);
             dim3 grid((volume_size.x + block.x - 1) / block.x,
                       (volume_size.y + block.y - 1) / block.y,
                       1);
-            int z0 = i >= num_of_iterations / 2 ? volume_size.z - 1 : 0;
-            int zi = i >= num_of_iterations / 2 ? -1 : 1;
-            int zn = i >= num_of_iterations / 2 ?
-                -1 : static_cast<int>(volume_size.z);
-            DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
-                minus_square_cell_size, omega_over_beta, z0, zi, zn,
-                volume_size);
+
+            if (i >= num_of_iterations / 2)
+                DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
+                    minus_square_cell_size, omega_over_beta, volume_size.z - 1,
+                    volume_size.z - 3, -1, -1, volume_size);
+            else
+                DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
+                    minus_square_cell_size, omega_over_beta, 0, 2, 1,
+                    volume_size.z, volume_size);
+            
         } else if (smem) {
             dim3 block(8, 8, 8);
             dim3 grid((volume_size.x + block.x - 1) / block.x,
