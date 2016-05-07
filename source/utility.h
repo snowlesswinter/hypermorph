@@ -15,18 +15,6 @@ enum AttributeSlot
     SlotNormal
 };
 
-struct ITrackball
-{
-    virtual void MouseDown(int x, int y) = 0;
-    virtual void MouseUp(int x, int y) = 0;
-    virtual void MouseMove(int x, int y) = 0;
-    virtual void MouseWheel(int x, int y, float delta) = 0;
-    virtual void ReturnHome() = 0;
-    virtual vmath::Matrix3 GetRotation() const = 0;
-    virtual float GetZoom() const = 0;
-    virtual void Update(unsigned int microseconds) = 0;
-};
-
 struct TexturePod
 {
     GLuint Handle;
@@ -44,7 +32,6 @@ public:
     GLsizei vertex_count_;
 };
 
-ITrackball* CreateTrackball(float width, float height, float radius);
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source, const std::string& fs_source);
 void SetUniform(const char* name, int value);
 void SetUniform(const char* name, float value);

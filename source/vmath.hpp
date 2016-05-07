@@ -3481,9 +3481,9 @@ inline Matrix3::Matrix3( const Quat & unitQuat )
     qyqw2 = ( qw * qy2 );
     qzqz2 = ( qz * qz2 );
     qzqw2 = ( qw * qz2 );
-    mCol0 = Vector3( ( ( 1.0f - qyqy2 ) - qzqz2 ), ( qxqy2 + qzqw2 ), ( qxqz2 - qyqw2 ) );
-    mCol1 = Vector3( ( qxqy2 - qzqw2 ), ( ( 1.0f - qxqx2 ) - qzqz2 ), ( qyqz2 + qxqw2 ) );
-    mCol2 = Vector3( ( qxqz2 + qyqw2 ), ( qyqz2 - qxqw2 ), ( ( 1.0f - qxqx2 ) - qyqy2 ) );
+    mCol0 = Vector3(((1.0f - qyqy2) - qzqz2), (qxqy2 + qzqw2),          (qxqz2 - qyqw2));
+    mCol1 = Vector3((qxqy2 - qzqw2),          ((1.0f - qxqx2) - qzqz2), (qyqz2 + qxqw2));
+    mCol2 = Vector3((qxqz2 + qyqw2),          (qyqz2 - qxqw2),          ((1.0f - qxqx2) - qyqy2));
 }
 
 inline Matrix3::Matrix3( const Vector3 & _col0, const Vector3 & _col1, const Vector3 & _col2 )

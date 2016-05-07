@@ -1,221 +1,242 @@
 #include "stdafx.h"
-#include "utility.h"
+#include "trackball.h"
+
+#include <vmath.hpp>
 
 using namespace vmath;
 
-class Trackball : public ITrackball {
-    public:
-        Trackball(float width, float height, float radius);
-        void MouseDown(int x, int y);
-        void MouseUp(int x, int y);
-        void MouseMove(int x, int y);
-        void MouseWheel(int x, int y, float delta);
-        void ReturnHome();
-        vmath::Matrix3 GetRotation() const;
-        void Update(unsigned int microseconds);
-        float GetZoom() const;
-    private:
-        vmath::Vector3 MapToSphere(int x, int y);
-        vmath::Vector3 m_startPos;
-        vmath::Vector3 m_currentPos;
-        vmath::Vector3 m_previousPos;
-        vmath::Vector3 m_axis;
-        vmath::Quat m_quat;
-        bool m_active;
-        float m_radius;
-        float m_radiansPerSecond;
-        float m_distancePerSecond;
-        float m_width;
-        float m_height;
-        float m_zoom;
-        float m_startZoom;
-        int m_startY;
-        unsigned int m_currentTime;
-        unsigned int m_previousTime;
+class TrackballImpl : public Trackball
+{
+public:
+    TrackballImpl(float width, float height, float radius);
 
-        struct VoyageHome {
-            bool Active;
-            vmath::Quat DepartureQuat;
-            float DepartureZoom;
-            unsigned int microseconds;
-        } m_voyageHome;
+    void MouseDown(int x, int y);
+    void MouseUp(int x, int y);
+    void MouseMove(int x, int y);
+    void MouseWheel(int x, int y, float delta);
+    void ReturnHome();
+    vmath::Matrix3 GetRotation() const;
+    void Update(uint32_t microseconds);
+    float GetZoom() const;
 
-        struct Inertia {
-            bool Active;
-            vmath::Vector3 Axis;
-            float RadiansPerSecond;
-            float DistancePerSecond;
-        } m_inertia;
+private:
+    vmath::Vector3 MapToSphere(int x, int y);
+    vmath::Vector3 anchor_pos_;
+    vmath::Vector3 current_pos_;
+    vmath::Vector3 previous_pos_;
+    vmath::Vector3 axis_;
+    vmath::Quat anchor_quat_;
+    bool active_;
+    float radius_;
+    float radians_per_second_;
+    float distance_per_second_;
+    float width_;
+    float height_;
+    float zoom_;
+    float start_zoom_;
+    int start_y_;
+    uint32_t current_time_;
+    uint32_t previous_time_;
+
+    struct VoyageHome
+    {
+        bool active_;
+        vmath::Quat departure_quat_;
+        float departure_zoom_;
+        uint32_t microseconds_;
+    } voyage_home_;
+
+    struct Inertia
+    {
+        bool active_;
+        vmath::Vector3 axis_;
+        float radians_per_second_;
+        float distance_per_second_;
+    } inertia_;
 };
 
-Trackball::Trackball(float width, float height, float radius)
+TrackballImpl::TrackballImpl(float width, float height, float radius)
 {
-    m_currentTime = 0;
-    m_inertia.Active = false;
-    m_voyageHome.Active = false;
-    m_active = false;
-    m_quat = vmath::Quat::identity();
-    m_radius = radius;
-    m_startPos = m_currentPos = m_previousPos = Vector3(0);
-    m_width = width;
-    m_height = height;
-    m_startZoom = m_zoom = 0;
+    current_time_ = 0;
+    inertia_.active_ = false;
+    voyage_home_.active_ = false;
+    active_ = false;
+    anchor_quat_ = vmath::Quat::identity();
+    radius_ = radius;
+    anchor_pos_ = current_pos_ = previous_pos_ = Vector3(0);
+    width_ = width;
+    height_ = height;
+    start_zoom_ = zoom_ = 0;
 }
 
-void Trackball::MouseDown(int x, int y)
+void TrackballImpl::MouseDown(int x, int y)
 {
-    m_radiansPerSecond = 0;
-    m_distancePerSecond = 0;
-    m_previousPos = m_currentPos = m_startPos = MapToSphere(x, y);
-    m_active = true;
-    m_startZoom = m_zoom;
-    m_startY = y;
+    radians_per_second_ = 0;
+    distance_per_second_ = 0;
+    previous_pos_ = current_pos_ = anchor_pos_ = MapToSphere(x, y);
+    active_ = true;
+    start_zoom_ = zoom_;
+    start_y_ = y;
 }
 
-void Trackball::MouseUp(int x, int y)
+void TrackballImpl::MouseUp(int x, int y)
 {
-    if (m_active) {
-        float deltaDistance = (y - m_startY) * 0.01f;
-        m_zoom = m_startZoom + deltaDistance;
-        m_startZoom = m_zoom;
-        m_startY = y;
-        m_active = false;
+    if (active_) {
+        float deltaDistance = (y - start_y_) * 0.01f;
+        zoom_ = start_zoom_ + deltaDistance;
+        start_zoom_ = zoom_;
+        start_y_ = y;
+        active_ = false;
     }
 
-    Quat q = Quat::rotation(m_startPos, m_currentPos);
-    m_quat = rotate(q, m_quat);
+    // Calculate via definition:
+    // 
+    // Vector3 axis = cross(anchor_pos_, current_pos_);
+    // Vector3 n_axis = normalize(axis);
+    // float radians = atan2f(length(axis), dot(anchor_pos_, current_pos_));
+    // Quat q(n_axis * sinf(radians / 2), cosf(radians / 2));
 
-    if (m_radiansPerSecond > 0 || m_distancePerSecond != 0) {
-        m_inertia.Active = true;
-        m_inertia.RadiansPerSecond = m_radiansPerSecond;
-        m_inertia.DistancePerSecond = m_distancePerSecond;
-        m_inertia.Axis = m_axis;
+    Quat q = Quat::rotation(anchor_pos_, current_pos_);
+    anchor_quat_ = rotate(q, anchor_quat_);
+
+    if (radians_per_second_ > 0 || distance_per_second_ != 0) {
+        inertia_.active_ = true;
+        inertia_.radians_per_second_ = radians_per_second_;
+        inertia_.distance_per_second_ = distance_per_second_;
+        inertia_.axis_ = axis_;
     }
 }
 
-void Trackball::MouseMove(int x, int y)
+void TrackballImpl::MouseMove(int x, int y)
 {
-    m_currentPos = MapToSphere(x, y);
+    current_pos_ = MapToSphere(x, y);
 
-    float radians = acos(dot(m_previousPos, m_currentPos));
-    unsigned int microseconds = m_currentTime - m_previousTime;
+    float radians = acos(dot(previous_pos_, current_pos_));
+    uint32_t microseconds = current_time_ - previous_time_;
     
     if (radians > 0.01f && microseconds > 0) {
-        m_radiansPerSecond = 1000000.0f * radians / microseconds;
-        m_axis = normalize(cross(m_previousPos, m_currentPos));
+        radians_per_second_ = 1000000.0f * radians / microseconds;
+        axis_ = normalize(cross(previous_pos_, current_pos_));
     } else {
-        m_radiansPerSecond = 0;
+        radians_per_second_ = 0;
     }
-/*
-    if (m_active) {
-        float deltaDistance = (y - m_startY) * 0.01f;
-        if (std::abs(deltaDistance) > 0.03f && microseconds > 0) {
-            m_distancePerSecond = 1000000.0f * deltaDistance / microseconds;
-        } else {
-            m_distancePerSecond = 0;
+
+    start_zoom_ = zoom_;
+    start_y_ = y;
+
+    previous_pos_ = current_pos_;
+    previous_time_ = current_time_;
+}
+
+Matrix3 TrackballImpl::GetRotation() const
+{
+    if (!active_) {
+        return Matrix3(anchor_quat_);
+    }
+
+    Quat q = Quat::rotation(anchor_pos_, current_pos_);
+    return Matrix3(rotate(q, anchor_quat_));
+}
+
+Vector3 TrackballImpl::MapToSphere(int x, int y)
+{
+    y = static_cast<int>(height_) - y; // Note that the y-coordinate of the
+                                       // window is towards down.
+    const float safe_radius = radius_ * 0.9999999f;
+    float tx = x - width_ / 2.0f;
+    float ty = y - height_ / 2.0f;
+
+    float d_square = tx * tx + ty * ty;
+
+    bool use_holroyd_method = true;
+    if (use_holroyd_method) {
+        if (d_square <= safe_radius * safe_radius / 2.0f) {
+            float z = sqrt(radius_ * radius_ - d_square);
+            return normalize(Vector3(tx, ty, z));
         }
 
-        m_zoom = m_startZoom + deltaDistance;
+        float z = radius_ * radius_ / (2.0f * sqrtf(d_square));
+        return normalize(Vector3(tx, ty, z));
+    } else {
+        // Shoemake's method.
+        if (d_square > safe_radius * safe_radius) {
+            float theta = atan2(ty, tx);
+            tx = safe_radius * cos(theta);
+            ty = safe_radius * sin(theta);
+
+            d_square = tx * tx + ty * ty;
+        }
+
+        float z = sqrt(radius_ * radius_ - d_square);
+        return Vector3(tx, ty, z) / radius_;
     }
-*/
-    m_startZoom = m_zoom;
-    m_startY = y;
-
-    m_previousPos = m_currentPos;
-    m_previousTime = m_currentTime;
 }
 
-Matrix3 Trackball::GetRotation() const
+void TrackballImpl::Update(uint32_t microseconds)
 {
-    if (!m_active)
-        return Matrix3(m_quat);
+    current_time_ += microseconds;
 
-    Quat q = Quat::rotation(m_startPos, m_currentPos);
-    return Matrix3(rotate(q, m_quat));
-}
-
-Vector3 Trackball::MapToSphere(int x, int y)
-{
-    x = int(m_width) - x;
-    const float SafeRadius = m_radius * 0.99f;
-    float fx = x - m_width / 2.0f;
-    float fy = y - m_height / 2.0f;
-
-    float lenSqr = fx*fx+fy*fy;
-    
-    if (lenSqr > SafeRadius*SafeRadius) {
-        float theta = atan2(fy, fx);
-        fx = SafeRadius * cos(theta);
-        fy = SafeRadius * sin(theta);
-    }
-    
-    lenSqr = fx*fx+fy*fy;
-    float z = sqrt(m_radius*m_radius - lenSqr);
-    return Vector3(fx, fy, z) / m_radius;
-}
-
-void Trackball::Update(unsigned int microseconds)
-{
-    m_currentTime += microseconds;
-
-    if (m_voyageHome.Active) {
-        m_voyageHome.microseconds += microseconds;
-        float t = m_voyageHome.microseconds / 200000.0f;
+    if (voyage_home_.active_) {
+        voyage_home_.microseconds_ += microseconds;
+        float t = voyage_home_.microseconds_ / 200000.0f;
         
         if (t > 1) {
-            m_quat = Quat::identity();
-            m_startZoom = m_zoom = 0;
-            m_voyageHome.Active = false;
+            anchor_quat_ = Quat::identity();
+            start_zoom_ = zoom_ = 0;
+            voyage_home_.active_ = false;
             return;
         }
 
-        m_quat = slerp(t, m_voyageHome.DepartureQuat, Quat::identity());
-        m_startZoom = m_zoom = m_voyageHome.DepartureZoom * (1-t);
-        m_inertia.Active = false;
+        anchor_quat_ = slerp(t, voyage_home_.departure_quat_, Quat::identity());
+        start_zoom_ = zoom_ = voyage_home_.departure_zoom_ * (1-t);
+        inertia_.active_ = false;
     }
 
-    if (m_inertia.Active) {
-        m_inertia.RadiansPerSecond -= 0.00001f * microseconds;
+    if (inertia_.active_) {
+        inertia_.radians_per_second_ -= 0.00001f * microseconds;
 
-        if (m_inertia.RadiansPerSecond < 0) {
-            m_radiansPerSecond = 0;
+        if (inertia_.radians_per_second_ < 0) {
+            radians_per_second_ = 0;
         } else {
-            Quat q = Quat::rotation(m_inertia.RadiansPerSecond * microseconds * 0.000001f, m_inertia.Axis);
-            m_quat = rotate(q, m_quat);
+            Quat q = Quat::rotation(
+                inertia_.radians_per_second_ * microseconds * 0.000001f,
+                inertia_.axis_);
+            anchor_quat_ = rotate(q, anchor_quat_);
         }
 
-        m_inertia.DistancePerSecond *= 0.75f;
+        inertia_.distance_per_second_ *= 0.75f;
 
-        if (fabs(m_inertia.DistancePerSecond) < 0.0001f) {
-            m_distancePerSecond = 0.0f;
+        if (fabs(inertia_.distance_per_second_) < 0.0001f) {
+            distance_per_second_ = 0.0f;
         } else {
-            m_zoom += m_distancePerSecond * 0.001f;
+            zoom_ += distance_per_second_ * 0.001f;
         }
 
-        if (fabs(m_inertia.DistancePerSecond) < 0.0001f && m_inertia.RadiansPerSecond < 0.0f)
-            m_inertia.Active = false;
+        if (fabs(inertia_.distance_per_second_) < 0.0001f &&
+                inertia_.radians_per_second_ < 0.0f)
+            inertia_.active_ = false;
     }
 }
 
-void Trackball::ReturnHome()
+void TrackballImpl::ReturnHome()
 {
-    m_voyageHome.Active = true;
-    m_voyageHome.DepartureQuat = m_quat;
-    m_voyageHome.DepartureZoom = m_zoom;
-    m_voyageHome.microseconds = 0;
+    voyage_home_.active_ = true;
+    voyage_home_.departure_quat_ = anchor_quat_;
+    voyage_home_.departure_zoom_ = zoom_;
+    voyage_home_.microseconds_ = 0;
 }
 
-float Trackball::GetZoom() const
+float TrackballImpl::GetZoom() const
 {
-    return m_zoom;
+    return zoom_;
 }
 
-ITrackball* CreateTrackball(float width, float height, float radius)
+Trackball* Trackball::CreateTrackball(float width, float height, float radius)
 {
-    return new Trackball(width, height, radius);
+    return new TrackballImpl(width, height, radius);
 }
 
-void Trackball::MouseWheel(int x, int y, float delta)
+void TrackballImpl::MouseWheel(int x, int y, float delta)
 {
-    m_zoom += delta;
+    zoom_ += delta;
 }

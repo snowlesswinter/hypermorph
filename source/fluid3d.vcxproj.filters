@@ -76,6 +76,7 @@
     <ClInclude Include="opengl\gl_volume.h">
       <Filter>opengl</Filter>
     </ClInclude>
+    <ClInclude Include="trackball.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />

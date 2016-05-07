@@ -17,10 +17,11 @@
 #include "third_party/opengl/glew.h"
 #include "utility.h"
 #include "volume_renderer.h"
+#include "trackball.h"
 
 int timer_interval = 10; // ms
 int main_frame_handle = 0;
-ITrackball* track_ball;
+Trackball* trackball = nullptr;
 vmath::Point3 EyePosition;
 GLuint RaycastProgram;
 float FieldOfView = 0.7f;
@@ -64,6 +65,11 @@ void Cleanup(int exit_code)
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);
 
+    if (trackball) {
+        delete trackball;
+        trackball = nullptr;
+    }
+
     CudaMain::DestroyInstance();
     exit(EXIT_SUCCESS);
 }
@@ -105,12 +111,12 @@ bool InitGraphics(int* argc, char** argv)
 void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
-    track_ball->Update(microseconds);
-    EyePosition = vmath::Point3(0, 0, 3.5f + track_ball->GetZoom());
-    vmath::Vector3 up(0, 1, 0); vmath::Point3 target(0);
+    trackball->Update(microseconds);
+    EyePosition = vmath::Point3(0, 0, 3.8f + trackball->GetZoom());
+    vmath::Vector3 up(0, 1, 0);
+    vmath::Point3 target(0);
     Matrices.View = vmath::Matrix4::lookAt(EyePosition, target, up);
-    vmath::Matrix4 modelMatrix(transpose(track_ball->GetRotation()), vmath::Vector3(0));
-    modelMatrix *= vmath::Matrix4::rotationY(0.5f);
+    vmath::Matrix4 modelMatrix(trackball->GetRotation(), vmath::Vector3(0));
     Matrices.Modelview = Matrices.View * modelMatrix;
 
     Matrices.Projection = vmath::Matrix4::perspective(
@@ -259,7 +265,7 @@ void Keyboard(unsigned char key, int x, int y)
             Metrics::Instance()->Reset();
             break;
         case '`':
-            track_ball->ReturnHome();
+            trackball->ReturnHome();
             break;
     }
 }
@@ -267,21 +273,21 @@ void Keyboard(unsigned char key, int x, int y)
 void Mouse(int button, int state, int x, int y)
 {
     if (state == GLUT_DOWN)
-        track_ball->MouseDown(x, y);
+        trackball->MouseDown(x, y);
     else if (state == GLUT_UP)
-        track_ball->MouseUp(x, y);
+        trackball->MouseUp(x, y);
 }
 
 void Wheel(int button, int state, int x, int y)
 {
     float d = float(state * 60) / 1000 *
-        std::max(abs(track_ball->GetZoom()), 1.0f);
-    track_ball->MouseWheel(x, y, -d);
+        std::max(abs(trackball->GetZoom()), 1.0f);
+    trackball->MouseWheel(x, y, -d);
 }
 
 void Motion(int x, int y)
 {
-    track_ball->MouseMove(x, y);
+    trackball->MouseMove(x, y);
 }
 
 void TimerProc(int value)
@@ -299,8 +305,9 @@ bool Initialize()
     if (!renderer_->Init(ViewportWidth, ViewportHeight))
         return false;
 
-    track_ball = CreateTrackball(ViewportWidth * 1.0f, ViewportHeight * 1.0f,
-                                 ViewportWidth * 0.5f);
+    trackball = Trackball::CreateTrackball(ViewportWidth * 1.0f,
+                                            ViewportHeight * 1.0f,
+                                            ViewportWidth * 0.5f);
     RaycastProgram = LoadProgram(RaycastShader::Vertex(),
                                  RaycastShader::Geometry(),
                                  RaycastShader::Fragment());
