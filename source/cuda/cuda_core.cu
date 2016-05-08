@@ -6,8 +6,15 @@
 
 #include <helper_math.h>
 
+#include "third_party/glm/common.hpp"
+#include "third_party/glm/glm.hpp"
+#include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/vec2.hpp"
+#include "third_party/glm/vec3.hpp"
+
 texture<float1, cudaTextureType3D, cudaReadModeElementType> in_tex;
 surface<void, cudaSurfaceType3D> clear_volume;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> raycast_density;
 surface<void, cudaSurfaceType2D> raycast_dest;
 
 __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
@@ -92,9 +99,102 @@ __global__ void ClearVolumeHalf1Kernel(float4 value)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void RaycastKernel()
+__device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
+                              glm::vec3 min_pos, glm::vec3 max_pos, float* near,
+                              float* far)
 {
+    glm::vec3 inverse_ray_dir = 1.0f / ray_dir;
+    glm::vec3 bottom = inverse_ray_dir * (min_pos - eye_pos);
+    glm::vec3 top = inverse_ray_dir * (max_pos - eye_pos);
+    glm::vec3 min_hit = glm::min(top, bottom);
+    glm::vec3 max_hit = glm::max(top, bottom);
+    glm::vec2 t = glm::max(glm::vec2(min_hit.x),
+                           glm::vec2(max_hit.y, max_hit.z));
+    *near = glm::max(t.x, t.y);
+    t = glm::min(glm::vec2(max_hit.x), glm::vec2(max_hit.y, max_hit.z));
+    *far = glm::min(t.x, t.y);
+    return near <= far;
+}
 
+__global__ void RaycastKernel(glm::mat4 model_view, glm::vec2 viewport_size,
+                              glm::vec3 eye_pos, float focal_length)
+{
+    const float kMaxDistance = sqrt(2.0f);
+    const int kNumSamples = 128;
+    const float kStepSize = kMaxDistance / static_cast<float>(kNumSamples);
+    const int kNumLightSamples = 128;
+    const float kLightScale =
+        kMaxDistance / static_cast<float>(kNumLightSamples);
+    const float kAbsorption = 10.0f;
+    const glm::vec3 light_pos(1.0f, 1.0f, 2.0f);
+    const glm::vec3 light_intensity(10.0f);
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    glm::vec3 ray_dir;
+
+    // Normalized ray direction vector in world space.
+    ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
+    ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
+    ray_dir.z = -focal_length;
+
+    // Transform the ray direction vector to model space?
+    glm::vec4 ss(ray_dir.x, ray_dir.y, ray_dir.z, 0);
+    ray_dir = glm::vec3(ss * model_view);
+
+    // Ray origin is already in model space.
+    float near;
+    float far;
+    IntersectAABB(glm::normalize(ray_dir), eye_pos, glm::vec3(-1.0f),
+                  glm::vec3(1.0f), &near, &far);
+    if (near < 0.0f)
+        near = 0.0f;
+
+    glm::vec3 ray_start = eye_pos + ray_dir * near;
+    glm::vec3 ray_stop = eye_pos + ray_dir * far;
+
+    ray_start = 0.5f * (ray_start + 1.0f);
+    ray_stop = 0.5f * (ray_stop + 1.0f);
+
+    glm::vec3 pos = ray_start;
+    glm::vec3 step = glm::normalize(ray_stop - ray_start) * kStepSize;
+    float travel = glm::distance(ray_stop, ray_start);
+    float step_weight = 1.0f;
+    glm::vec3 accumulated(0.0f);
+
+    for (int i = 0; i < kNumSamples && travel > 0.0f;
+            ++i, pos += step, travel -= kStepSize) {
+        float density = tex3D(raycast_density, pos.x, pos.y, pos.z);
+        if (density <= 0.0f)
+            continue;
+
+        step_weight *= 1.0f - density * kStepSize * kAbsorption;
+        if (step_weight <= 0.01f)
+            break;
+
+        glm::vec3 light_dir = glm::normalize(light_pos - pos) * kLightScale;
+        float light_weight = 1.0f;
+        glm::vec3 light_pos = pos + light_dir;
+
+        for (int j = 0; j < kNumLightSamples; j++) {
+            float alpha = tex3D(raycast_density, light_pos.x, light_pos.y,
+                                light_pos.z);
+            light_weight *= 1.0f - kAbsorption * kStepSize * alpha;
+            if (light_weight <= 0.01f)
+                light_pos += light_dir;
+        }
+
+        accumulated +=
+            light_intensity * light_weight * step_weight * density * kStepSize;
+    }
+
+    ushort4 raw = make_ushort4(__float2half_rn(accumulated.x),
+                               __float2half_rn(accumulated.y),
+                               __float2half_rn(accumulated.z),
+                               __float2half_rn(1.0f - step_weight));
+    surf2Dwrite(raw, raycast_dest, x * sizeof(ushort4), y,
+                cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -166,7 +266,9 @@ void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
 }
 
 void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
-                         int2 surface_size)
+                         const glm::mat4& model_view,
+                         const glm::ivec2& surface_size,
+                         const glm::vec3& eye_pos, float focal_length)
 {
     cudaChannelFormatDesc desc;
     cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
@@ -181,5 +283,8 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
     dim3 block(8, 8, 1);
     dim3 grid(surface_size.x / block.x, surface_size.y / block.y, 1);
-    RaycastKernel<<<grid, block>>>();
+
+    glm::vec2 viewport_size(surface_size);
+    RaycastKernel<<<grid, block>>>(model_view, viewport_size, eye_pos,
+                                   focal_length);
 }

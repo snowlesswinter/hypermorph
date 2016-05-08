@@ -1,9 +1,10 @@
 #ifndef _CUDA_MAIN_H_
 #define _CUDA_MAIN_H_
 
-#include <array>
 #include <map>
 #include <memory>
+
+#include "third_party/glm/mat4x4.hpp"
 
 namespace Vectormath
 {
@@ -58,7 +59,7 @@ public:
                           std::shared_ptr<CudaVolume> source,
                           const Vectormath::Aos::Vector3& center_point,
                           const Vectormath::Aos::Vector3& hotspot, float radius,
-                          const std::array<float, 3>& value, uint32_t mask);
+                          const glm::vec3& value, uint32_t mask);
     void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> velocity,
                                float half_inverse_cell_size);
@@ -92,7 +93,9 @@ public:
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,
-                 std::shared_ptr<CudaVolume> density);
+                 std::shared_ptr<CudaVolume> density,
+                 const glm::mat4& model_view, const glm::vec3& eye_pos,
+                 float focal_length);
 
     // For diagnosis
     void RoundPassed(int round);

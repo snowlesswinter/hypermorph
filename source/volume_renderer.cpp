@@ -58,9 +58,12 @@ void VolumeRenderer::OnViewportSized(int viewport_width, int viewport_height)
     surf_ = s;
 }
 
-void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume)
+void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
+                            const glm::mat4& model_view,
+                            const glm::vec3& eye_pos, float focal_length)
 {
-    CudaMain::Instance()->Raycast(surf_, std::shared_ptr<CudaVolume>());
+    //CudaMain::Instance()->Raycast(surf_, std::shared_ptr<CudaVolume>(),
+    //                              model_view, eye_pos, focal_length);
     RenderSurface();
 }
 

@@ -13,6 +13,7 @@
 #include "opengl/gl_volume.h"
 #include "vmath.hpp"
 #include "utility.h"
+#include "third_party/glm/vec2.hpp"
 
 namespace
 {
@@ -156,7 +157,7 @@ void CudaMain::ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> source,
                                 const vmath::Vector3& center_point,
                                 const vmath::Vector3& hotspot,
-                                float radius, const std::array<float, 3>& value,
+                                float radius, const glm::vec3& value,
                                 uint32_t mask)
 {
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
@@ -304,15 +305,18 @@ void CudaMain::RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
-                       std::shared_ptr<CudaVolume> density)
+                       std::shared_ptr<CudaVolume> density,
+                       const glm::mat4& model_view, const glm::vec3& eye_pos,
+                       float focal_length)
 {
     auto i = registerd_textures_.find(dest);
     assert(i != registerd_textures_.end());
     if (i == registerd_textures_.end())
         return;
 
-    std::array<int, 2> surface_size = {dest->width(), dest->height()};
-    core_->Raycast(i->second.get(), nullptr/*density->dev_array()*/, surface_size);
+    glm::ivec2 surface_size(dest->width(), dest->height());
+    core_->Raycast(i->second.get(), density->dev_array(), model_view,
+                   surface_size, eye_pos, focal_length);
 }
 
 void CudaMain::RoundPassed(int round)

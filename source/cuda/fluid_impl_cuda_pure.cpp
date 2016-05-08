@@ -138,7 +138,7 @@ void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
                                      const vmath::Vector3& center_point,
                                      const vmath::Vector3& hotspot,
                                      float radius,
-                                     const std::array<float, 3>& value,
+                                     const glm::vec3& value,
                                      uint32_t mask,
                                      const vmath::Vector3& volume_size)
 {
@@ -147,7 +147,7 @@ void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
         make_float3(center_point.getX(), center_point.getY(),
                     center_point.getZ()),
         make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
-        radius, make_float3(value[0], value[1], value[2]), mask,
+        radius, make_float3(value.x, value.y, value.z), mask,
         FromVmathVector(volume_size));
 }
 

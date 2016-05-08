@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "third_party/glm/mat4x4.hpp"
+
 class GLProgram;
 class GLSurface;
 class GraphicsVolume;
@@ -15,7 +17,9 @@ public:
 
     bool Init(int viewport_width, int viewport_height);
     void OnViewportSized(int viewport_width, int viewport_height);
-    void Render(std::shared_ptr<GraphicsVolume> density_volume);
+    void Render(std::shared_ptr<GraphicsVolume> density_volume,
+                const glm::mat4& model_view, const glm::vec3& eye_pos,
+                float focal_length);
 
 private:
     MeshPod* GetQuadMesh();

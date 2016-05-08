@@ -1,9 +1,8 @@
 #ifndef _CUDA_CORE_H_
 #define _CUDA_CORE_H_
 
-#include <array>
-
 #include "block_arrangement.h"
+#include "third_party/glm/mat4x4.hpp"
 
 namespace Vectormath
 {
@@ -43,7 +42,9 @@ public:
     static void CopyToVolume(cudaArray* dest, void* source, size_t pitch,
                              const Vectormath::Aos::Vector3& volume_size);
     static void Raycast(GraphicsResource* dest, cudaArray* density,
-                        const std::array<int, 2>& volume_size);
+                        const glm::mat4& model_view,
+                        const glm::ivec2& surface_size,
+                        const glm::vec3& eye_pos, float focal_length);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);

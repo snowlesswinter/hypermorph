@@ -359,19 +359,18 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     ImpulseDensity(kImpulsePosition, hotspot, splat_radius,
                    FluidConfig::Instance()->impulse_density());
 
-    std::array<float, 3> temperature = {
-        FluidConfig::Instance()->impulse_temperature(), 0.0f, 0.0f
-    };
+    glm::vec3 temperature(FluidConfig::Instance()->impulse_temperature(), 0.0f,
+                          0.0f);
     Impulse(temperature_, kImpulsePosition, hotspot, splat_radius, temperature,
             1);
 
     return; // Not necessary for this scene.
     float v_coef = static_cast<float>(sin(seconds_elapsed * 3.0 * 2.0 * ¦Ð));
-    std::array<float, 3> initial_velocity = {
+    glm::vec3 initial_velocity(
         0.0f,
         (1.0f + v_coef) * FluidConfig::Instance()->impulse_velocity(),
-        0.0f,
-    };
+        0.0f
+    );
     Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
             initial_velocity, 7);
 }
@@ -509,7 +508,7 @@ void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
 void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
                              vmath::Vector3 position, vmath::Vector3 hotspot,
                              float splat_radius,
-                             const std::array<float, 3>& value, uint32_t mask)
+                             const glm::vec3& value, uint32_t mask)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulsePure(dest->cuda_volume(),

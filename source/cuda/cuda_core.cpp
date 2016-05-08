@@ -12,12 +12,15 @@
 
 #include "graphics_resource.h"
 #include "../vmath.hpp"
+#include "third_party/glm/mat4x4.hpp"
 
 extern void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
                                     int3 volume_size);
 
 extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
-                                int2 surface_size);
+                                const glm::mat4& model_view,
+                                const glm::ivec2& surface_size,
+                                const glm::vec3& eye_pos, float focal_length);
 
 namespace
 {
@@ -301,7 +304,9 @@ void CudaCore::Sync()
 }
 
 void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
-                       const std::array<int, 2>& surface_size)
+                       const glm::mat4& model_view,
+                       const glm::ivec2& surface_size,
+                       const glm::vec3& eye_pos, float focal_length)
 {
     cudaGraphicsResource_t res[] = {
         dest->resource()
@@ -320,8 +325,8 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
     if (result != cudaSuccess)
         return;
 
-    LaunchRaycastKernel(dest_array, density,
-                        make_int2(surface_size[0], surface_size[1]));
+    LaunchRaycastKernel(dest_array, density, model_view, surface_size, eye_pos,
+                        focal_length);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

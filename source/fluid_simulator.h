@@ -1,10 +1,10 @@
 #ifndef _FLUID_SIMULATOR_H_
 #define _FLUID_SIMULATOR_H_
 
-#include <array>
 #include <memory>
 
 #include "graphics_lib_enum.h"
+#include "third_party/glm/vec3.hpp"
 
 namespace Vectormath
 {
@@ -63,7 +63,7 @@ private:
     void Impulse(std::shared_ptr<GraphicsVolume> dest,
                  Vectormath::Aos::Vector3 position,
                  Vectormath::Aos::Vector3 hotspot, float splat_radius,
-                 const std::array<float, 3>& value, uint32_t mask);
+                 const glm::vec3& value, uint32_t mask);
     void ImpulseDensity(Vectormath::Aos::Vector3 position,
                         Vectormath::Aos::Vector3 hotspot, float splat_radius,
                         float value);
