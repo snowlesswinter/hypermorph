@@ -8,19 +8,21 @@ using namespace vmath;
 class TrackballImpl : public Trackball
 {
 public:
-    TrackballImpl(float width, float height, float radius);
+    TrackballImpl(int width, int height, float radius);
 
-    void MouseDown(int x, int y);
-    void MouseUp(int x, int y);
-    void MouseMove(int x, int y);
-    void MouseWheel(int x, int y, float delta);
-    void ReturnHome();
-    vmath::Matrix3 GetRotation() const;
-    void Update(uint32_t microseconds);
-    float GetZoom() const;
+    virtual void MouseDown(int x, int y) override;
+    virtual void MouseUp(int x, int y) override;
+    virtual void MouseMove(int x, int y) override;
+    virtual void MouseWheel(int x, int y, float delta) override;
+    virtual void ReturnHome() override;
+    virtual vmath::Matrix3 GetRotation() const override;
+    virtual float GetZoom() const override;
+    virtual void Update(uint32_t microseconds) override;
+    virtual void OnViewportSized(int width, int height) override;
 
 private:
     vmath::Vector3 MapToSphere(int x, int y);
+
     vmath::Vector3 anchor_pos_;
     vmath::Vector3 current_pos_;
     vmath::Vector3 previous_pos_;
@@ -30,8 +32,8 @@ private:
     float radius_;
     float radians_per_second_;
     float distance_per_second_;
-    float width_;
-    float height_;
+    int width_;
+    int height_;
     float zoom_;
     float start_zoom_;
     int start_y_;
@@ -44,6 +46,14 @@ private:
         vmath::Quat departure_quat_;
         float departure_zoom_;
         uint32_t microseconds_;
+
+        VoyageHome()
+            : active_(false)
+            , departure_quat_()
+            , departure_zoom_(0.0f)
+            , microseconds_(0)
+        {
+        }
     } voyage_home_;
 
     struct Inertia
@@ -52,21 +62,37 @@ private:
         vmath::Vector3 axis_;
         float radians_per_second_;
         float distance_per_second_;
+
+        Inertia()
+            : active_(false)
+            , axis_()
+            , radians_per_second_(0.0f)
+            , distance_per_second_(0.0f)
+        {
+        }
     } inertia_;
 };
 
-TrackballImpl::TrackballImpl(float width, float height, float radius)
+TrackballImpl::TrackballImpl(int width, int height, float radius)
+    : anchor_pos_(Vector3(0))
+    , current_pos_(Vector3(0))
+    , previous_pos_(Vector3(0))
+    , axis_(Vector3(1))
+    , anchor_quat_(vmath::Quat::identity())
+    , active_(false)
+    , radius_(radius)
+    , radians_per_second_(0.0f)
+    , distance_per_second_(0.0f)
+    , width_(width)
+    , height_(height)
+    , zoom_(0)
+    , start_zoom_(0)
+    , start_y_(0)
+    , current_time_(0)
+    , previous_time_(0)
+    , voyage_home_()
+    , inertia_()
 {
-    current_time_ = 0;
-    inertia_.active_ = false;
-    voyage_home_.active_ = false;
-    active_ = false;
-    anchor_quat_ = vmath::Quat::identity();
-    radius_ = radius;
-    anchor_pos_ = current_pos_ = previous_pos_ = Vector3(0);
-    width_ = width;
-    height_ = height;
-    start_zoom_ = zoom_ = 0;
 }
 
 void TrackballImpl::MouseDown(int x, int y)
@@ -143,8 +169,8 @@ Vector3 TrackballImpl::MapToSphere(int x, int y)
     y = static_cast<int>(height_) - y; // Note that the y-coordinate of the
                                        // window is towards down.
     const float safe_radius = radius_ * 0.9999999f;
-    float tx = x - width_ / 2.0f;
-    float ty = y - height_ / 2.0f;
+    float tx = x - static_cast<float>(width_) / 2.0f;
+    float ty = y - static_cast<float>(height_) / 2.0f;
 
     float d_square = tx * tx + ty * ty;
 
@@ -218,6 +244,12 @@ void TrackballImpl::Update(uint32_t microseconds)
     }
 }
 
+void TrackballImpl::OnViewportSized(int width, int height)
+{
+    width_ = width;
+    height_ = height;
+}
+
 void TrackballImpl::ReturnHome()
 {
     voyage_home_.active_ = true;
@@ -231,7 +263,7 @@ float TrackballImpl::GetZoom() const
     return zoom_;
 }
 
-Trackball* Trackball::CreateTrackball(float width, float height, float radius)
+Trackball* Trackball::CreateTrackball(int width, int height, float radius)
 {
     return new TrackballImpl(width, height, radius);
 }

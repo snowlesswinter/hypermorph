@@ -191,6 +191,8 @@ FluidConfig::FluidConfig()
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
+    , initial_viewport_width_(512)
+    , initial_viewport_height_(512)
 {
 }
 

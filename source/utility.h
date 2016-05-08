@@ -56,8 +56,6 @@ void SetFatalError(const char* content, ...);
 void CheckCondition(int condition, ...);
 
 extern const float CellSize;
-extern const int ViewportWidth;
-extern const int ViewportHeight;
 extern const int GridWidth;
 extern const int GridHeight;
 extern const int GridDepth;

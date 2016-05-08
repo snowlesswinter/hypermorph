@@ -14,6 +14,7 @@ public:
     ~VolumeRenderer();
 
     bool Init(int viewport_width, int viewport_height);
+    void OnViewportSized(int viewport_width, int viewport_height);
     void Render(std::shared_ptr<GraphicsVolume> density_volume);
 
 private:

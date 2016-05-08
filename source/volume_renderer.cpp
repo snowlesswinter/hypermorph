@@ -33,15 +33,29 @@ bool VolumeRenderer::Init(int viewport_width, int viewport_height)
     if (!result)
         return false;
 
-    CudaMain::Instance()->RegisterGLImage(s);
-
     std::shared_ptr<GLProgram> p(new GLProgram());
-    if (!p->Load(OverlayShader::Vertex(), "",  OverlayShader::Fragment()))
+    if (!p->Load(OverlayShader::Vertex(), "", OverlayShader::Fragment()))
         return false;
 
+    CudaMain::Instance()->RegisterGLImage(s);
     surf_ = s;
     program_ = p;
     return true;
+}
+
+void VolumeRenderer::OnViewportSized(int viewport_width, int viewport_height)
+{
+    CudaMain::Instance()->UnregisterGLImage(surf_);
+    surf_.reset();
+
+    std::shared_ptr<GLSurface> s(new GLSurface());
+    bool result = s->Create(viewport_width, viewport_height, GL_RGBA16F,
+                            GL_RGBA, 2);
+    if (!result)
+        return;
+
+    CudaMain::Instance()->RegisterGLImage(s);
+    surf_ = s;
 }
 
 void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume)
@@ -52,13 +66,16 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume)
 
 void VolumeRenderer::RenderSurface()
 {
+    if (!surf_)
+        return;
+
     glEnable(GL_BLEND);
 
     program_->Use();
     program_->SetUniform("depth", 1.0f);
     program_->SetUniform("sampler", 0);
-    program_->SetUniform("viewport_size", static_cast<float>(ViewportWidth),
-                         static_cast<float>(ViewportWidth));
+    program_->SetUniform("viewport_size", static_cast<float>(surf_->width()),
+                         static_cast<float>(surf_->height()));
 
     glBindTexture(GL_TEXTURE_2D, surf_->texture_handle());
     RenderMesh(*GetQuadMesh());

@@ -21,20 +21,20 @@
 
 int timer_interval = 10; // ms
 int main_frame_handle = 0;
-Trackball* trackball = nullptr;
+Trackball* trackball_ = nullptr;
 vmath::Point3 EyePosition;
 GLuint RaycastProgram;
 float FieldOfView = 0.7f;
 bool SimulateFluid = true;
 OverlayContent overlay_;
-int kMainWindowWidth = ViewportWidth;
-int kMainWindowHeight = ViewportWidth;
 LARGE_INTEGER time_freq;
 LARGE_INTEGER prev_time;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
 VolumeRenderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
+int viewport_width_ = 0;
+int viewport_height_ = 0;
 
 struct
 {
@@ -65,9 +65,9 @@ void Cleanup(int exit_code)
     if (main_frame_handle)
         glutDestroyWindow(main_frame_handle);
 
-    if (trackball) {
-        delete trackball;
-        trackball = nullptr;
+    if (trackball_) {
+        delete trackball_;
+        trackball_ = nullptr;
     }
 
     CudaMain::DestroyInstance();
@@ -79,10 +79,10 @@ bool InitGraphics(int* argc, char** argv)
     // Create GL context
     glutInit(argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE | GLUT_DEPTH);
-    glutInitWindowSize(kMainWindowWidth, kMainWindowHeight);
+    glutInitWindowSize(viewport_width_, viewport_height_);
     glutInitWindowPosition(
-        (glutGet(GLUT_SCREEN_WIDTH) - kMainWindowWidth) / 2,
-        (glutGet(GLUT_SCREEN_HEIGHT) - kMainWindowHeight) / 2);
+        (glutGet(GLUT_SCREEN_WIDTH) - viewport_width_) / 2,
+        (glutGet(GLUT_SCREEN_HEIGHT) - viewport_height_) / 2);
     main_frame_handle = glutCreateWindow("Fluid Simulation");
 
     // initialize necessary OpenGL extensions
@@ -101,7 +101,7 @@ bool InitGraphics(int* argc, char** argv)
     glDisable(GL_DEPTH_TEST);
 
     // viewport
-    glViewport(0, 0, kMainWindowWidth, kMainWindowHeight);
+    glViewport(0, 0, viewport_width_, viewport_height_);
     PrintDebugString("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     CudaMain::Instance();
@@ -111,17 +111,17 @@ bool InitGraphics(int* argc, char** argv)
 void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
-    trackball->Update(microseconds);
-    EyePosition = vmath::Point3(0, 0, 3.8f + trackball->GetZoom());
+    trackball_->Update(microseconds);
+    EyePosition = vmath::Point3(0, 0, 3.8f + trackball_->GetZoom());
     vmath::Vector3 up(0, 1, 0);
     vmath::Point3 target(0);
     Matrices.View = vmath::Matrix4::lookAt(EyePosition, target, up);
-    vmath::Matrix4 modelMatrix(trackball->GetRotation(), vmath::Vector3(0));
+    vmath::Matrix4 modelMatrix(trackball_->GetRotation(), vmath::Vector3(0));
     Matrices.Modelview = Matrices.View * modelMatrix;
 
     Matrices.Projection = vmath::Matrix4::perspective(
         FieldOfView,
-        float(ViewportWidth) / ViewportHeight, // Aspect Ratio
+        float(viewport_width_) / viewport_height_, // Aspect Ratio
         0.0f,   // Near Plane
         1.0f);  // Far Plane
 
@@ -165,7 +165,7 @@ void DisplayMetrics()
             text << o[i] << ": " << cost << std::endl;
     }
 
-    overlay_.RenderText(text.str());
+    overlay_.RenderText(text.str(), viewport_width_, viewport_height_);
 }
 
 void RenderFrame()
@@ -175,7 +175,7 @@ void RenderFrame()
     renderer_->Render(sim_->GetDensityTexture());
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, ViewportWidth, ViewportHeight);
+    glViewport(0, 0, viewport_width_, viewport_height_);
     glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
     //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -194,12 +194,28 @@ void RenderFrame()
     SetUniform("EyePosition", EyePosition);
     SetUniform("RayOrigin", vmath::Vector4(transpose(Matrices.Modelview) * EyePosition).getXYZ());
     SetUniform("FocalLength", 1.0f / std::tan(FieldOfView / 2));
-    SetUniform("WindowSize", float(kMainWindowWidth), float(kMainWindowHeight));
+    SetUniform("WindowSize", float(viewport_width_), float(viewport_height_));
     glDrawArrays(GL_POINTS, 0, 1);
 
     Metrics::Instance()->OnFrameRendered();
 
     DisplayMetrics();
+}
+
+bool ResetSimulator()
+{
+    if (sim_)
+        delete sim_;
+
+    sim_ = new FluidSimulator();
+    sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
+    sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
+    sim_->set_num_multigrid_iterations(
+        FluidConfig::Instance()->num_multigrid_iterations());
+    sim_->set_num_full_multigrid_iterations(
+        FluidConfig::Instance()->num_full_multigrid_iterations());
+    sim_->set_diagnosis(!!g_diagnosis);
+    return sim_->Init();
 }
 
 void Display()
@@ -223,20 +239,13 @@ void Display()
     glutSwapBuffers();
 }
 
-bool ResetSimulator()
+void Reshape(int w, int h)
 {
-    if (sim_)
-        delete sim_;
+    viewport_width_ = w;
+    viewport_height_ = h;
 
-    sim_ = new FluidSimulator();
-    sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
-    sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
-    sim_->set_num_multigrid_iterations(
-        FluidConfig::Instance()->num_multigrid_iterations());
-    sim_->set_num_full_multigrid_iterations(
-        FluidConfig::Instance()->num_full_multigrid_iterations());
-    sim_->set_diagnosis(!!g_diagnosis);
-    return sim_->Init();
+    renderer_->OnViewportSized(w, h);
+    trackball_->OnViewportSized(w, h);
 }
 
 void Keyboard(unsigned char key, int x, int y)
@@ -265,7 +274,7 @@ void Keyboard(unsigned char key, int x, int y)
             Metrics::Instance()->Reset();
             break;
         case '`':
-            trackball->ReturnHome();
+            trackball_->ReturnHome();
             break;
     }
 }
@@ -273,21 +282,21 @@ void Keyboard(unsigned char key, int x, int y)
 void Mouse(int button, int state, int x, int y)
 {
     if (state == GLUT_DOWN)
-        trackball->MouseDown(x, y);
+        trackball_->MouseDown(x, y);
     else if (state == GLUT_UP)
-        trackball->MouseUp(x, y);
+        trackball_->MouseUp(x, y);
 }
 
 void Wheel(int button, int state, int x, int y)
 {
     float d = float(state * 60) / 1000 *
-        std::max(abs(trackball->GetZoom()), 1.0f);
-    trackball->MouseWheel(x, y, -d);
+        std::max(abs(trackball_->GetZoom()), 1.0f);
+    trackball_->MouseWheel(x, y, -d);
 }
 
 void Motion(int x, int y)
 {
-    trackball->MouseMove(x, y);
+    trackball_->MouseMove(x, y);
 }
 
 void TimerProc(int value)
@@ -302,12 +311,12 @@ bool Initialize()
         return false;
 
     renderer_ = new VolumeRenderer();
-    if (!renderer_->Init(ViewportWidth, ViewportHeight))
+    if (!renderer_->Init(viewport_width_, viewport_height_))
         return false;
 
-    trackball = Trackball::CreateTrackball(ViewportWidth * 1.0f,
-                                            ViewportHeight * 1.0f,
-                                            ViewportWidth * 0.5f);
+    int radius = std::min(viewport_width_, viewport_height_);
+    trackball_ = Trackball::CreateTrackball(viewport_width_, viewport_height_,
+                                            radius * 0.5f);
     RaycastProgram = LoadProgram(RaycastShader::Vertex(),
                                  RaycastShader::Geometry(),
                                  RaycastShader::Fragment());
@@ -363,6 +372,9 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
 
     char* command_line = GetCommandLineA();
     int argc = 1;
+    viewport_width_ = FluidConfig::Instance()->initial_viewport_width();
+    viewport_height_ = FluidConfig::Instance()->initial_viewport_height();
+
     if (!InitGraphics(&argc, &command_line))
         return -1;
 
@@ -371,6 +383,7 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
 
     // register callbacks
     glutDisplayFunc(Display);
+    glutReshapeFunc(Reshape);
     glutKeyboardFunc(Keyboard);
     glutMouseFunc(Mouse);
     glutMotionFunc(Motion);

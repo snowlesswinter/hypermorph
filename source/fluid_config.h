@@ -48,6 +48,8 @@ public:
     int num_full_multigrid_iterations() const {
         return num_full_multigrid_iterations_.value_;
     }
+    int initial_viewport_width() const { return initial_viewport_width_; }
+    int initial_viewport_height() const { return initial_viewport_height_; }
 
 private:
     FluidConfig();
@@ -76,6 +78,8 @@ private:
     ConfigField<int> num_jacobi_iterations_;
     ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;
+    int initial_viewport_width_;
+    int initial_viewport_height_;
 };
 
 #endif // _FLUID_CONFIG_H_

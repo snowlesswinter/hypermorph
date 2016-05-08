@@ -12,7 +12,8 @@ public:
     OverlayContent();
     ~OverlayContent();
 
-    void RenderText(const std::string& text);
+    void RenderText(const std::string& text, int viewport_width,
+                    int viewport_height);
 
 private:
     struct BitmapBuf

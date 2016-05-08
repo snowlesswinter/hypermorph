@@ -29,7 +29,8 @@ OverlayContent::~OverlayContent()
     }
 }
 
-void OverlayContent::RenderText(const std::string& text)
+void OverlayContent::RenderText(const std::string& text, int viewport_width,
+                                int viewport_height)
 {
     if (last_text_ == text)
         return;
@@ -64,8 +65,8 @@ void OverlayContent::RenderText(const std::string& text)
     glUseProgram(GetProgram());
     SetUniform("depth", 1.0f);
     SetUniform("sampler", 0);
-    SetUniform("viewport_size", static_cast<float>(ViewportWidth),
-               static_cast<float>(ViewportWidth));
+    SetUniform("viewport_size", static_cast<float>(viewport_width),
+               static_cast<float>(viewport_height));
 
     glBindTexture(GL_TEXTURE_2D, GetTexture());
     RenderMesh(*GetQuadMesh());

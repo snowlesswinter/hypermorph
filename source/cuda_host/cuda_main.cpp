@@ -73,6 +73,17 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
     return 0;
 }
 
+void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
+{
+    auto i = registerd_textures_.find(texture);
+    assert(i != registerd_textures_.end());
+    if (i == registerd_textures_.end())
+        return;
+
+    core_->UnregisterGLResource(i->second.get());
+    registerd_textures_.erase(i);
+}
+
 void CudaMain::AdvectDensityPure(std::shared_ptr<GLVolume> dest,
                                  std::shared_ptr<CudaVolume> velocity,
                                  std::shared_ptr<GLVolume> density,

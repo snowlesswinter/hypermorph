@@ -32,6 +32,7 @@ public:
     bool Init();
 
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
+    void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
 
     void AdvectDensityPure(std::shared_ptr<GLVolume> dest,
                           std::shared_ptr<CudaVolume> velocity,

@@ -20,9 +20,7 @@ const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
                              // set it to 1.0f. It seems that a huge
                              // improvement in quality, but actually it's just
                              // a change on |r|'s scale.
-const int ViewportWidth = 512;
 const int GridWidth = 128;
-const int ViewportHeight = ViewportWidth;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
 const float kMaxTimeStep = 0.33f;
