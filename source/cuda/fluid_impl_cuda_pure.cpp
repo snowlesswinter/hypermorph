@@ -57,6 +57,11 @@ uint3 FromVmathVector(const vmath::Vector3& v)
     return make_uint3(static_cast<uint>(v.getX()), static_cast<uint>(v.getY()),
                       static_cast<uint>(v.getZ()));
 }
+uint3 FromVmathVector(const glm::ivec3& v)
+{
+    return make_uint3(static_cast<uint>(v.x), static_cast<uint>(v.y),
+                      static_cast<uint>(v.z));
+}
 } // Anonymous namespace.
 
 FluidImplCudaPure::FluidImplCudaPure(BlockArrangement* ba)
@@ -78,41 +83,13 @@ void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
                      FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::AdvectDensity(GraphicsResource* dest,
-                                      cudaArray* velocity,
-                                      GraphicsResource* density,
-                                      float time_step, float dissipation,
+void FluidImplCudaPure::AdvectDensity(cudaArray* dest, cudaArray* velocity,
+                                      cudaArray* density, float time_step,
+                                      float dissipation,
                                       const vmath::Vector3& volume_size)
 {
-    cudaGraphicsResource_t res[] = {
-        dest->resource(), density->resource()
-    };
-    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
-                                                  res);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    // Destination texture.
-    cudaArray* dest_array = nullptr;
-    result = cudaGraphicsSubResourceGetMappedArray(&dest_array,
-                                                   dest->resource(), 0, 0);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    // Source texture.
-    cudaArray* source_array = nullptr;
-    result = cudaGraphicsSubResourceGetMappedArray(&source_array,
-                                                   density->resource(), 0, 0);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    LaunchAdvectPure(dest_array, velocity, source_array, time_step, dissipation,
+    LaunchAdvectPure(dest, velocity, density, time_step, dissipation,
                      FromVmathVector(volume_size));
-
-    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
@@ -135,52 +112,31 @@ void FluidImplCudaPure::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
 }
 
 void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
-                                     const vmath::Vector3& center_point,
-                                     const vmath::Vector3& hotspot,
-                                     float radius,
+                                     const glm::vec3& center_point,
+                                     const glm::vec3& hotspot, float radius,
                                      const glm::vec3& value,
                                      uint32_t mask,
-                                     const vmath::Vector3& volume_size)
+                                     const glm::ivec3& volume_size)
 {
     LaunchApplyImpulsePure(
         dest, source,
-        make_float3(center_point.getX(), center_point.getY(),
-                    center_point.getZ()),
-        make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
+        make_float3(center_point.x, center_point.y, center_point.z),
+        make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, make_float3(value.x, value.y, value.z), mask,
         FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ApplyImpulseDensity(GraphicsResource* density,
-                                            const vmath::Vector3& center_point,
-                                            const vmath::Vector3& hotspot,
+void FluidImplCudaPure::ApplyImpulseDensity(cudaArray* density,
+                                            const glm::vec3& center_point,
+                                            const glm::vec3& hotspot,
                                             float radius, float value,
-                                            const vmath::Vector3& volume_size)
+                                            const glm::ivec3& volume_size)
 {
-    cudaGraphicsResource_t res[] = {
-        density->resource()
-    };
-    cudaError_t result = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
-                                                  res);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaArray* dest_array = nullptr;
-    result = cudaGraphicsSubResourceGetMappedArray(&dest_array,
-                                                   density->resource(), 0, 0);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
     LaunchApplyImpulsePure(
-        dest_array, dest_array,
-        make_float3(center_point.getX(), center_point.getY(),
-                    center_point.getZ()),
-        make_float3(hotspot.getX(), hotspot.getY(), hotspot.getZ()),
+        density, density,
+        make_float3(center_point.x, center_point.y, center_point.z),
+        make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, make_float3(value, 0, 0), 1, FromVmathVector(volume_size));
-
-    cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }
 
 void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,

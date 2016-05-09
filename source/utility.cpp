@@ -10,8 +10,8 @@
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "cuda_host/cuda_volume.h"
-
-using namespace vmath;
+#include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/vec3.hpp"
 
 const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
                              // should be transformed between levels in
@@ -24,7 +24,7 @@ const int GridWidth = 128;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
 const float kMaxTimeStep = 0.33f;
-const Vector3 kImpulsePosition(GridWidth / 2.0f, 0, GridDepth / 2.0f);
+const glm::vec3 kImpulsePosition(GridWidth / 2.0f, 0, GridDepth / 2.0f);
 const float kBuoyancyCoef = 10.0f;
 
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
@@ -106,25 +106,6 @@ void ClearSurface(GLTexture* s, float v)
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
-void RenderMesh(const MeshPod& mesh)
-{
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.positions_buffer_);
-    glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
-                          3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(SlotPosition);
-
-    if (mesh.coords_buffer_)
-    {
-        glBindBuffer(GL_ARRAY_BUFFER, mesh.coords_buffer_);
-        glVertexAttribPointer(SlotTexCoord, 2, GL_FLOAT, GL_FALSE,
-                              2 * sizeof(float), nullptr);
-        glEnableVertexAttribArray(SlotTexCoord);
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.index_buffer_);
-    glDrawElements(GL_TRIANGLES, mesh.index_count_, GL_UNSIGNED_INT, nullptr);
-}
-
 GLuint CreatePointVbo(float x, float y, float z)
 {
     float p[] = {x, y, z};
@@ -151,7 +132,7 @@ void SetUniform(const char* name, float value)
     glUniform1f(location, value);
 }
 
-void SetUniform(const char* name, Matrix4 value)
+void SetUniform(const char* name, glm::mat4 value)
 {
     GLuint program;
     glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
@@ -159,24 +140,12 @@ void SetUniform(const char* name, Matrix4 value)
     glUniformMatrix4fv(location, 1, 0, (float*) &value);
 }
 
-void SetUniform(const char* name, Matrix3 nm)
+void SetUniform(const char* name, glm::vec3 value)
 {
     GLuint program;
-    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
+    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*)&program);
     GLint location = glGetUniformLocation(program, name);
-    float packed[9] = {
-        nm.getRow(0).getX(), nm.getRow(1).getX(), nm.getRow(2).getX(),
-        nm.getRow(0).getY(), nm.getRow(1).getY(), nm.getRow(2).getY(),
-        nm.getRow(0).getZ(), nm.getRow(1).getZ(), nm.getRow(2).getZ() };
-    glUniformMatrix3fv(location, 1, 0, &packed[0]);
-}
-
-void SetUniform(const char* name, Vector3 value)
-{
-    GLuint program;
-    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
-    GLint location = glGetUniformLocation(program, name);
-    glUniform3f(location, value.getX(), value.getY(), value.getZ());
+    glUniform3f(location, value[0], value[1], value[2]);
 }
 
 void SetUniform(const char* name, float x, float y)
@@ -185,22 +154,6 @@ void SetUniform(const char* name, float x, float y)
     glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
     GLint location = glGetUniformLocation(program, name);
     glUniform2f(location, x, y);
-}
-
-void SetUniform(const char* name, Vector4 value)
-{
-    GLuint program;
-    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
-    GLint location = glGetUniformLocation(program, name);
-    glUniform4f(location, value.getX(), value.getY(), value.getZ(), value.getW());
-}
-
-void SetUniform(const char* name, Point3 value)
-{
-    GLuint program;
-    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
-    GLint location = glGetUniformLocation(program, name);
-    glUniform3f(location, value.getX(), value.getY(), value.getZ());
 }
 
 GLuint CreateQuadVbo()
@@ -262,6 +215,25 @@ MeshPod CreateQuadMesh(float left, float top, float right, float bottom)
     return pod;
 }
 
+void RenderMesh(const MeshPod& mesh)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.positions_buffer_);
+    glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
+                          3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(SlotPosition);
+
+    if (mesh.coords_buffer_)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.coords_buffer_);
+        glVertexAttribPointer(SlotTexCoord, 2, GL_FLOAT, GL_FALSE,
+                              2 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(SlotTexCoord);
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.index_buffer_);
+    glDrawElements(GL_TRIANGLES, mesh.index_count_, GL_UNSIGNED_INT, nullptr);
+}
+
 double GetCurrentTimeInSeconds()
 {
     static LARGE_INTEGER freqTime = {};
@@ -273,20 +245,20 @@ double GetCurrentTimeInSeconds()
     return static_cast<double>(currentTime.QuadPart) / freqTime.QuadPart;
 }
 
-vmath::Vector3 CalculateInverseSize(const GLVolume& volume)
+glm::vec3 CalculateInverseSize(const GLVolume& volume)
 {
-    return recipPerElem(
-        vmath::Vector3(static_cast<float>(volume.width()),
-                       static_cast<float>(volume.height()),
-                       static_cast<float>(volume.depth())));
+    return 1.0f / 
+        glm::vec3(static_cast<float>(volume.width()),
+        static_cast<float>(volume.height()),
+        static_cast<float>(volume.depth()));
 }
 
-vmath::Vector3 CalculateInverseSize(const CudaVolume& volume)
+glm::vec3 CalculateInverseSize(const CudaVolume& volume)
 {
-    return recipPerElem(
-        vmath::Vector3(static_cast<float>(volume.width()),
-                       static_cast<float>(volume.height()),
-                       static_cast<float>(volume.depth())));
+    return 1.0f / 
+        glm::vec3(static_cast<float>(volume.width()),
+                  static_cast<float>(volume.height()),
+                  static_cast<float>(volume.depth()));
 }
 
 void PrintDebugString(const char* content, ...)

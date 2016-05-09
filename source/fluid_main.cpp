@@ -19,13 +19,14 @@
 #include "volume_renderer.h"
 #include "trackball.h"
 #include "third_party/glm/glm.hpp"
+#include "third_party/glm/gtc/matrix_transform.hpp"
 #include "third_party/glm/vec3.hpp"
 #include "third_party/glm/vec4.hpp"
 
 int timer_interval = 10; // ms
 int main_frame_handle = 0;
 Trackball* trackball_ = nullptr;
-vmath::Point3 eye_position_;
+glm::vec3 eye_position_;
 GLuint RaycastProgram;
 float field_of_view_ = 0.7f;
 bool SimulateFluid = true;
@@ -41,10 +42,10 @@ int viewport_height_ = 0;
 
 struct
 {
-    vmath::Matrix4 Projection;
-    vmath::Matrix4 Modelview;
-    vmath::Matrix4 View;
-    vmath::Matrix4 ModelviewProjection;
+    glm::mat4 Projection;
+    glm::mat4 Modelview;
+    glm::mat4 View;
+    glm::mat4 ModelviewProjection;
 } Matrices;
 
 struct
@@ -115,14 +116,14 @@ void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
-    eye_position_ = vmath::Point3(0, 0, 3.8f + trackball_->GetZoom());
-    vmath::Vector3 up(0, 1, 0);
-    vmath::Point3 target(0);
-    Matrices.View = vmath::Matrix4::lookAt(eye_position_, target, up);
-    vmath::Matrix4 modelMatrix(trackball_->GetRotation(), vmath::Vector3(0));
-    Matrices.Modelview = Matrices.View * modelMatrix;
+    eye_position_ = glm::vec3(0, 0, 3.8f + trackball_->GetZoom());
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    glm::vec3 target(0.0f);
+    Matrices.View = glm::lookAt(eye_position_, target, up);
+    glm::mat4 model_matrix(trackball_->GetRotation());
+    Matrices.Modelview = Matrices.View * model_matrix;
 
-    Matrices.Projection = vmath::Matrix4::perspective(
+    Matrices.Projection = glm::perspective(
         field_of_view_,
         float(viewport_width_) / viewport_height_, // Aspect Ratio
         0.0f,   // Near Plane
@@ -159,6 +160,7 @@ void DisplayMetrics()
         "Pressure",
         "Gradient",
         "Raycast",
+        "Render",
         "Prolongate",
     };
     for (int i = 0; i < sizeof(o) / sizeof(o[0]); i++) {
@@ -175,52 +177,39 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
-    glm::mat4 model_view;
-    model_view[0][0] = Matrices.Modelview[0][0];
-    model_view[0][1] = Matrices.Modelview[0][1];
-    model_view[0][2] = Matrices.Modelview[0][2];
-    model_view[0][3] = Matrices.Modelview[0][3];
-    model_view[1][0] = Matrices.Modelview[1][0];
-    model_view[1][1] = Matrices.Modelview[1][1];
-    model_view[1][2] = Matrices.Modelview[1][2];
-    model_view[1][3] = Matrices.Modelview[1][3];
-    model_view[2][0] = Matrices.Modelview[2][0];
-    model_view[2][1] = Matrices.Modelview[2][1];
-    model_view[2][2] = Matrices.Modelview[2][2];
-    model_view[2][3] = Matrices.Modelview[2][3];
-    model_view[3][0] = Matrices.Modelview[3][0];
-    model_view[3][1] = Matrices.Modelview[3][1];
-    model_view[3][2] = Matrices.Modelview[3][2];
-    model_view[3][3] = Matrices.Modelview[3][3];
-
-    glm::vec3 eye(eye_position_.getX(), eye_position_.getY(),
-                  eye_position_.getZ());
-    eye = (glm::transpose(model_view) * glm::vec4(eye, 1.0f)).xyz();
-    float focal_length = 1.0f / std::tan(field_of_view_ / 2);
-    renderer_->Render(sim_->GetDensityTexture(), model_view, eye, focal_length);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glViewport(0, 0, viewport_width_, viewport_height_);
     glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
     //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_BLEND);
-    glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
-    glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
-                          3 * sizeof(float), 0);
-    glBindTexture(GL_TEXTURE_3D,
-                  sim_->GetDensityTexture()->gl_volume()->texture_handle());
-    glUseProgram(RaycastProgram);
-    SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
-    SetUniform("Modelview", Matrices.Modelview);
-    SetUniform("ViewMatrix", Matrices.View);
-    SetUniform("ProjectionMatrix", Matrices.Projection);
-    SetUniform(
-        "RayOrigin",
-        vmath::Vector4(transpose(Matrices.Modelview) * eye_position_).getXYZ());
-    SetUniform("FocalLength", focal_length);
-    SetUniform("WindowSize", float(viewport_width_), float(viewport_height_));
-    glDrawArrays(GL_POINTS, 0, 1);
+
+    glm::vec3 eye(eye_position_);
+    eye = (glm::transpose(Matrices.Modelview) * glm::vec4(eye, 1.0f)).xyz();
+    float focal_length = 1.0f / std::tan(field_of_view_ / 2);
+
+    if (FluidConfig::Instance()->graphics_lib() == GRAPHICS_LIB_CUDA) {
+        renderer_->Raycast(sim_->GetDensityTexture(), Matrices.Modelview, eye,
+                           focal_length);
+        Metrics::Instance()->OnRaycastPerformed();
+        renderer_->Render();
+    } else {
+        glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
+        glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
+                              3 * sizeof(float), 0);
+        glBindTexture(GL_TEXTURE_3D,
+                      sim_->GetDensityTexture()->gl_volume()->texture_handle());
+        glUseProgram(RaycastProgram);
+        SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
+        SetUniform("Modelview", Matrices.Modelview);
+        SetUniform("ViewMatrix", Matrices.View);
+        SetUniform("ProjectionMatrix", Matrices.Projection);
+        SetUniform("RayOrigin", eye);
+        SetUniform("FocalLength", focal_length);
+        SetUniform("WindowSize", float(viewport_width_), float(viewport_height_));
+        glDrawArrays(GL_POINTS, 0, 1);
+    }
 
     Metrics::Instance()->OnFrameRendered();
 

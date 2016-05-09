@@ -56,7 +56,7 @@ void Metrics::OnFrameRendered()
     while (time_stamps_.size() > kMaxNumOfTimeStamps)
         time_stamps_.pop_back();
 
-    OnOperationProceeded(PERFORM_RAYCAST);
+    OnOperationProceeded(RENDER_DENSITY);
 }
 
 float Metrics::GetFrameRate() const
@@ -128,6 +128,11 @@ void Metrics::OnPressureSolved()
 void Metrics::OnVelocityRectified()
 {
     OnOperationProceeded(RECTIFY_VELOCITY);
+}
+
+void Metrics::OnRaycastPerformed()
+{
+    OnOperationProceeded(PERFORM_RAYCAST);
 }
 
 void Metrics::OnProlongated()

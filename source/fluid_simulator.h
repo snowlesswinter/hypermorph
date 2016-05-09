@@ -61,11 +61,10 @@ private:
     void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size, int num_of_iterations);
     void Impulse(std::shared_ptr<GraphicsVolume> dest,
-                 Vectormath::Aos::Vector3 position,
-                 Vectormath::Aos::Vector3 hotspot, float splat_radius,
-                 const glm::vec3& value, uint32_t mask);
-    void ImpulseDensity(Vectormath::Aos::Vector3 position,
-                        Vectormath::Aos::Vector3 hotspot, float splat_radius,
+                 const glm::vec3& position, const glm::vec3& hotspot,
+                 float splat_radius, const glm::vec3& value, uint32_t mask);
+    void ImpulseDensity(const glm::vec3& position, const glm::vec3& hotspot,
+                        float splat_radius,
                         float value);
     void Jacobi(float cell_size);
     void SolvePressure();

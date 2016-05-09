@@ -326,7 +326,7 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
         return;
 
     LaunchRaycastKernel(dest_array, density, model_view, surface_size, eye_pos,
-                        focal_length);
+                         focal_length);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

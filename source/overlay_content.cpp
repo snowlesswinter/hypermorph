@@ -118,7 +118,7 @@ OverlayContent::BitmapBuf OverlayContent::GetBitmapBuf()
     bitmap_header.biCompression = BI_RGB;
     bitmap_header.biPlanes = 1;
     bitmap_header.biWidth = bounds.right - bounds.left;
-    bitmap_header.biHeight = -bounds.top - bounds.bottom;
+    bitmap_header.biHeight = bounds.top - bounds.bottom;
 
     bitmap_buf_.hbitmap_ = ::CreateDIBSection(
         hdc, reinterpret_cast<BITMAPINFO*>(&bitmap_header), DIB_RGB_COLORS,

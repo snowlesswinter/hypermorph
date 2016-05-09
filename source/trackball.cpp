@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "trackball.h"
 
-#include <vmath.hpp>
-
-using namespace vmath;
+#include "third_party/glm/mat3x3.hpp"
+#include "third_party/glm/vec3.hpp"
+#include "third_party/glm/gtc/quaternion.hpp"
 
 class TrackballImpl : public Trackball
 {
@@ -15,19 +15,19 @@ public:
     virtual void MouseMove(int x, int y) override;
     virtual void MouseWheel(int x, int y, float delta) override;
     virtual void ReturnHome() override;
-    virtual vmath::Matrix3 GetRotation() const override;
+    virtual glm::mat3 GetRotation() const override;
     virtual float GetZoom() const override;
     virtual void Update(uint32_t microseconds) override;
     virtual void OnViewportSized(int width, int height) override;
 
 private:
-    vmath::Vector3 MapToSphere(int x, int y);
+    glm::vec3 MapToSphere(int x, int y);
 
-    vmath::Vector3 anchor_pos_;
-    vmath::Vector3 current_pos_;
-    vmath::Vector3 previous_pos_;
-    vmath::Vector3 axis_;
-    vmath::Quat anchor_quat_;
+    glm::vec3 anchor_pos_;
+    glm::vec3 current_pos_;
+    glm::vec3 previous_pos_;
+    glm::vec3 axis_;
+    glm::quat anchor_quat_;
     bool active_;
     float radius_;
     float radians_per_second_;
@@ -43,7 +43,7 @@ private:
     struct VoyageHome
     {
         bool active_;
-        vmath::Quat departure_quat_;
+        glm::quat departure_quat_;
         float departure_zoom_;
         uint32_t microseconds_;
 
@@ -59,7 +59,7 @@ private:
     struct Inertia
     {
         bool active_;
-        vmath::Vector3 axis_;
+        glm::vec3 axis_;
         float radians_per_second_;
         float distance_per_second_;
 
@@ -74,11 +74,11 @@ private:
 };
 
 TrackballImpl::TrackballImpl(int width, int height, float radius)
-    : anchor_pos_(Vector3(0))
-    , current_pos_(Vector3(0))
-    , previous_pos_(Vector3(0))
-    , axis_(Vector3(1))
-    , anchor_quat_(vmath::Quat::identity())
+    : anchor_pos_(0.0f)
+    , current_pos_(0.0f)
+    , previous_pos_(0.0f)
+    , axis_(1.0f)
+    , anchor_quat_() // Identity.
     , active_(false)
     , radius_(radius)
     , radians_per_second_(0.0f)
@@ -117,13 +117,12 @@ void TrackballImpl::MouseUp(int x, int y)
 
     // Calculate via definition:
     // 
-    // Vector3 axis = cross(anchor_pos_, current_pos_);
-    // Vector3 n_axis = normalize(axis);
+    // glm::vec3 axis = cross(anchor_pos_, current_pos_);
+    // glm::vec3 n_axis = normalize(axis);
     // float radians = atan2f(length(axis), dot(anchor_pos_, current_pos_));
-    // Quat q(n_axis * sinf(radians / 2), cosf(radians / 2));
+    // glm::quat q = glm::angleAxis(radians, n_axis);
 
-    Quat q = Quat::rotation(anchor_pos_, current_pos_);
-    anchor_quat_ = rotate(q, anchor_quat_);
+    anchor_quat_ = glm::quat(anchor_pos_, current_pos_) * anchor_quat_;
 
     if (radians_per_second_ > 0 || distance_per_second_ != 0) {
         inertia_.active_ = true;
@@ -154,17 +153,16 @@ void TrackballImpl::MouseMove(int x, int y)
     previous_time_ = current_time_;
 }
 
-Matrix3 TrackballImpl::GetRotation() const
+glm::mat3 TrackballImpl::GetRotation() const
 {
     if (!active_) {
-        return Matrix3(anchor_quat_);
+        return glm::mat3_cast(anchor_quat_);
     }
 
-    Quat q = Quat::rotation(anchor_pos_, current_pos_);
-    return Matrix3(rotate(q, anchor_quat_));
+    return glm::mat3_cast(glm::quat(anchor_pos_, current_pos_) * anchor_quat_);
 }
 
-Vector3 TrackballImpl::MapToSphere(int x, int y)
+glm::vec3 TrackballImpl::MapToSphere(int x, int y)
 {
     y = static_cast<int>(height_) - y; // Note that the y-coordinate of the
                                        // window is towards down.
@@ -178,11 +176,11 @@ Vector3 TrackballImpl::MapToSphere(int x, int y)
     if (use_holroyd_method) {
         if (d_square <= safe_radius * safe_radius / 2.0f) {
             float z = sqrt(radius_ * radius_ - d_square);
-            return normalize(Vector3(tx, ty, z));
+            return glm::normalize(glm::vec3(tx, ty, z));
         }
 
         float z = radius_ * radius_ / (2.0f * sqrtf(d_square));
-        return normalize(Vector3(tx, ty, z));
+        return glm::normalize(glm::vec3(tx, ty, z));
     } else {
         // Shoemake's method.
         if (d_square > safe_radius * safe_radius) {
@@ -194,7 +192,7 @@ Vector3 TrackballImpl::MapToSphere(int x, int y)
         }
 
         float z = sqrt(radius_ * radius_ - d_square);
-        return Vector3(tx, ty, z) / radius_;
+        return glm::vec3(tx, ty, z) / radius_;
     }
 }
 
@@ -207,13 +205,13 @@ void TrackballImpl::Update(uint32_t microseconds)
         float t = voyage_home_.microseconds_ / 200000.0f;
         
         if (t > 1) {
-            anchor_quat_ = Quat::identity();
+            anchor_quat_ = glm::quat();
             start_zoom_ = zoom_ = 0;
             voyage_home_.active_ = false;
             return;
         }
 
-        anchor_quat_ = slerp(t, voyage_home_.departure_quat_, Quat::identity());
+        anchor_quat_ = glm::slerp(voyage_home_.departure_quat_, glm::quat(), t);
         start_zoom_ = zoom_ = voyage_home_.departure_zoom_ * (1-t);
         inertia_.active_ = false;
     }
@@ -224,10 +222,10 @@ void TrackballImpl::Update(uint32_t microseconds)
         if (inertia_.radians_per_second_ < 0) {
             radians_per_second_ = 0;
         } else {
-            Quat q = Quat::rotation(
+            glm::quat q = glm::angleAxis(
                 inertia_.radians_per_second_ * microseconds * 0.000001f,
                 inertia_.axis_);
-            anchor_quat_ = rotate(q, anchor_quat_);
+            anchor_quat_ = q * anchor_quat_;
         }
 
         inertia_.distance_per_second_ *= 0.75f;

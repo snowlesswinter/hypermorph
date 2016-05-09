@@ -9,6 +9,7 @@
 #include "opengl/gl_volume.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "third_party/glm/vec3.hpp"
 #include "utility.h"
 
 MultigridCoreGlsl::MultigridCoreGlsl()

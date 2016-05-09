@@ -19,6 +19,7 @@ public:
         SOLVE_PRESSURE,
         RECTIFY_VELOCITY,
         PERFORM_RAYCAST,
+        RENDER_DENSITY,
 
         POISSON_PROLONGATE,
 
@@ -48,6 +49,7 @@ public:
     void OnDivergenceComputed();
     void OnPressureSolved();
     void OnVelocityRectified();
+    void OnRaycastPerformed();
 
     void OnProlongated();
 

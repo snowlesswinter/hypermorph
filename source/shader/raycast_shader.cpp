@@ -195,3 +195,40 @@ void main()
 }
 )";
 }
+
+std::string RaycastShader::ApplyTextureVert()
+{
+    return R"(
+in vec4 position;
+in vec2 tex_coord;
+out vec2 v_coord;
+
+uniform float depth;
+
+void main()
+{
+    gl_Position = position;
+    gl_Position.z = depth;
+    v_coord = tex_coord;
+}
+)";
+}
+
+std::string RaycastShader::ApplyTextureFrag()
+{
+    return R"(
+in vec2 v_coord;
+out vec4 frag_color;
+
+uniform sampler2D sampler;
+uniform vec2 viewport_size;
+
+void main()
+{
+    ivec2 coord = ivec2(v_coord.x * viewport_size.x,
+                        (1.0f - v_coord.y) * viewport_size.y);
+
+    frag_color = texelFetch(sampler, coord, 0);
+}
+)";
+}

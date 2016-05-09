@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 
-namespace Vectormath
-{
-namespace Aos
-{
-class Matrix3;
-}
-}
+#include "third_party/glm/fwd.hpp"
 
 class Trackball
 {
@@ -21,7 +15,7 @@ public:
     virtual void MouseMove(int x, int y) = 0;
     virtual void MouseWheel(int x, int y, float delta) = 0;
     virtual void ReturnHome() = 0;
-    virtual Vectormath::Aos::Matrix3 GetRotation() const = 0;
+    virtual glm::mat3 GetRotation() const = 0;
     virtual float GetZoom() const = 0;
     virtual void Update(uint32_t microseconds) = 0;
     virtual void OnViewportSized(int width, int height) = 0;

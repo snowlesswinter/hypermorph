@@ -17,13 +17,13 @@ public:
 
     bool Init(int viewport_width, int viewport_height);
     void OnViewportSized(int viewport_width, int viewport_height);
-    void Render(std::shared_ptr<GraphicsVolume> density_volume,
-                const glm::mat4& model_view, const glm::vec3& eye_pos,
-                float focal_length);
+    void Raycast(std::shared_ptr<GraphicsVolume> density_volume,
+                 const glm::mat4& model_view, const glm::vec3& eye_pos,
+                 float focal_length);
+    void Render();
 
 private:
     MeshPod* GetQuadMesh();
-    void RenderSurface();
 
     std::shared_ptr<GLSurface> surf_;
     std::shared_ptr<GLProgram> program_;

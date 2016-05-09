@@ -30,12 +30,8 @@ uniform vec2 viewport_size;
 
 void main()
 {
-    ivec2 tex_size = textureSize(sampler, 0);
     ivec2 coord = ivec2(v_coord.x * viewport_size.x,
                         v_coord.y * viewport_size.y);
-    if (coord.x >= tex_size.x || coord.y >= tex_size.y) {
-        discard;
-    }
 
     vec4 c = texelFetch(sampler, coord, 0);
     frag_color = vec4(c.r, c.r, 0, c.r);

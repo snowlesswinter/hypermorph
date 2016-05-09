@@ -25,9 +25,8 @@ public:
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
                 float time_step, float dissipation,
                 const Vectormath::Aos::Vector3& volume_size);
-    void AdvectDensity(GraphicsResource* dest, cudaArray* velocity,
-                       GraphicsResource* density, float time_step,
-                       float dissipation,
+    void AdvectDensity(cudaArray* dest, cudaArray* velocity, cudaArray* density,
+                       float time_step, float dissipation,
                        const Vectormath::Aos::Vector3& volume_size);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         float time_step, float dissipation,
@@ -38,15 +37,13 @@ public:
                        float gravity,
                        const Vectormath::Aos::Vector3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
-                      const Vectormath::Aos::Vector3& center_point,
-                      const Vectormath::Aos::Vector3& hotspot, float radius,
+                      const glm::vec3& center_point,
+                      const glm::vec3& hotspot, float radius,
                       const glm::vec3& value, uint32_t mask,
-                      const Vectormath::Aos::Vector3& volume_size);
-    void ApplyImpulseDensity(GraphicsResource* density,
-                             const Vectormath::Aos::Vector3& center_point,
-                             const Vectormath::Aos::Vector3& hotspot,
-                             float radius, float value,
-                             const Vectormath::Aos::Vector3& volume_size);
+                      const glm::ivec3& volume_size);
+    void ApplyImpulseDensity(cudaArray* density, const glm::vec3& center_point,
+                             const glm::vec3& hotspot, float radius,
+                             float value, const glm::ivec3& volume_size);
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
                            const Vectormath::Aos::Vector3& volume_size);

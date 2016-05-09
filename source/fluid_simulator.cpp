@@ -59,14 +59,8 @@ FluidSimulator::~FluidSimulator()
 bool FluidSimulator::Init()
 {
     velocity_.reset(new GraphicsVolume(graphics_lib_));
-    density_.reset(
-        new GraphicsVolume(
-            graphics_lib_ == GRAPHICS_LIB_CUDA ?
-                GRAPHICS_LIB_CUDA_DIAGNOSIS : GRAPHICS_LIB_GLSL));
-    density2_.reset(
-        new GraphicsVolume(
-            graphics_lib_ == GRAPHICS_LIB_CUDA ?
-                GRAPHICS_LIB_CUDA_DIAGNOSIS : GRAPHICS_LIB_GLSL));
+    density_.reset(new GraphicsVolume(graphics_lib_));
+    density2_.reset(new GraphicsVolume(graphics_lib_));
     temperature_.reset(new GraphicsVolume(graphics_lib_));
     packed_.reset(new GraphicsVolume(graphics_lib_));
     general1_.reset(new GraphicsVolume(graphics_lib_));
@@ -227,10 +221,10 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectDensityPure(density2_->gl_volume(),
-                                                velocity_->cuda_volume(),
-                                                density_->gl_volume(),
-                                                delta_time, density_dissipation);
+        CudaMain::Instance()->AdvectDensity(density2_->cuda_volume(),
+                                            velocity_->cuda_volume(),
+                                            density_->cuda_volume(),
+                                            delta_time, density_dissipation);
         std::swap(density_, density2_);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
@@ -350,11 +344,9 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         GridWidth * FluidConfig::Instance()->splat_radius_factor();
     float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
-    float hotspot_x =
-        cos_factor * splat_radius * 0.8f + kImpulsePosition.getX();
-    float hotspot_z =
-        sin_factor * splat_radius * 0.8f + kImpulsePosition.getZ();
-    vmath::Vector3 hotspot(hotspot_x, 0.0f, hotspot_z);
+    float hotspot_x = cos_factor * splat_radius * 0.8f + kImpulsePosition.x;
+    float hotspot_z = sin_factor * splat_radius * 0.8f + kImpulsePosition.x;
+    glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     ImpulseDensity(kImpulsePosition, hotspot, splat_radius,
                    FluidConfig::Instance()->impulse_density());
@@ -506,8 +498,8 @@ void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
 }
 
 void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
-                             vmath::Vector3 position, vmath::Vector3 hotspot,
-                             float splat_radius,
+                             const glm::vec3& position,
+                             const glm::vec3& hotspot, float splat_radius,
                              const glm::vec3& value, uint32_t mask)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
@@ -532,12 +524,12 @@ void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
     }
 }
 
-void FluidSimulator::ImpulseDensity(vmath::Vector3 position,
-                                    vmath::Vector3 hotspot,
+void FluidSimulator::ImpulseDensity(const glm::vec3& position,
+                                    const glm::vec3& hotspot,
                                     float splat_radius, float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensityPure(density_->gl_volume(),
+        CudaMain::Instance()->ApplyImpulseDensityPure(density_->cuda_volume(),
                                                       position, hotspot,
                                                       splat_radius, value);
     } else {

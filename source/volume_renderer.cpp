@@ -5,9 +5,8 @@
 #include "graphics_volume.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_surface.h"
+#include "shader/raycast_shader.h"
 #include "utility.h"
-
-#include "shader/overlay_shader.h" // TODO
 
 VolumeRenderer::VolumeRenderer()
     : surf_()
@@ -34,7 +33,8 @@ bool VolumeRenderer::Init(int viewport_width, int viewport_height)
         return false;
 
     std::shared_ptr<GLProgram> p(new GLProgram());
-    if (!p->Load(OverlayShader::Vertex(), "", OverlayShader::Fragment()))
+    if (!p->Load(RaycastShader::ApplyTextureVert(), "",
+                 RaycastShader::ApplyTextureFrag()))
         return false;
 
     CudaMain::Instance()->RegisterGLImage(s);
@@ -45,8 +45,11 @@ bool VolumeRenderer::Init(int viewport_width, int viewport_height)
 
 void VolumeRenderer::OnViewportSized(int viewport_width, int viewport_height)
 {
-    CudaMain::Instance()->UnregisterGLImage(surf_);
-    surf_.reset();
+    if (surf_ && surf_->width() != viewport_width &&
+            surf_->height() != viewport_height) {
+        CudaMain::Instance()->UnregisterGLImage(surf_);
+        surf_.reset();
+    }
 
     std::shared_ptr<GLSurface> s(new GLSurface());
     bool result = s->Create(viewport_width, viewport_height, GL_RGBA16F,
@@ -58,16 +61,15 @@ void VolumeRenderer::OnViewportSized(int viewport_width, int viewport_height)
     surf_ = s;
 }
 
-void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
-                            const glm::mat4& model_view,
-                            const glm::vec3& eye_pos, float focal_length)
+void VolumeRenderer::Raycast(std::shared_ptr<GraphicsVolume> density_volume,
+                             const glm::mat4& model_view,
+                             const glm::vec3& eye_pos, float focal_length)
 {
-    //CudaMain::Instance()->Raycast(surf_, std::shared_ptr<CudaVolume>(),
-    //                              model_view, eye_pos, focal_length);
-    RenderSurface();
+    CudaMain::Instance()->Raycast(surf_, density_volume->cuda_volume(),
+                                  model_view, eye_pos, focal_length);
 }
 
-void VolumeRenderer::RenderSurface()
+void VolumeRenderer::Render()
 {
     if (!surf_)
         return;

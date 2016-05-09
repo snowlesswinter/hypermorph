@@ -85,21 +85,16 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
     registerd_textures_.erase(i);
 }
 
-void CudaMain::AdvectDensityPure(std::shared_ptr<GLVolume> dest,
-                                 std::shared_ptr<CudaVolume> velocity,
-                                 std::shared_ptr<GLVolume> density,
-                                 float time_step, float dissipation)
+void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
+                             std::shared_ptr<CudaVolume> velocity,
+                             std::shared_ptr<CudaVolume> density,
+                             float time_step, float dissipation)
 {
-    auto i = registerd_textures_.find(dest);
-    auto j = registerd_textures_.find(density);
-    assert(i != registerd_textures_.end() && j != registerd_textures_.end());
-    if (i == registerd_textures_.end() || j == registerd_textures_.end())
-        return;
-
     vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
                                      dest->depth());
-    fluid_impl_pure_->AdvectDensity(i->second.get(), velocity->dev_array(),
-                                    j->second.get(), time_step, dissipation, v);
+    fluid_impl_pure_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
+                                    density->dev_array(), time_step,
+                                    dissipation, v);
 }
 
 void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
@@ -137,31 +132,23 @@ void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
                                     v);
 }
 
-void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<GLVolume> density,
-                                       const vmath::Vector3& center_point,
-                                       const vmath::Vector3& hotspot,
-                                       float radius, float value)
+void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<CudaVolume> density,
+                                       const glm::vec3& center_point,
+                                       const glm::vec3& hotspot, float radius,
+                                       float value)
 {
-    auto i = registerd_textures_.find(density);
-    assert(i != registerd_textures_.end());
-    if (i == registerd_textures_.end())
-        return;
-
-    vmath::Vector3 v = FromIntValues(density->width(), density->height(),
-                                     density->depth());
-    fluid_impl_pure_->ApplyImpulseDensity(i->second.get(), center_point,
+    glm::ivec3 v(density->width(), density->height(), density->depth());
+    fluid_impl_pure_->ApplyImpulseDensity(density->dev_array(), center_point,
                                           hotspot, radius, value, v);
 }
 
 void CudaMain::ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> source,
-                                const vmath::Vector3& center_point,
-                                const vmath::Vector3& hotspot,
-                                float radius, const glm::vec3& value,
-                                uint32_t mask)
+                                const glm::vec3& center_point,
+                                const glm::vec3& hotspot, float radius,
+                                const glm::vec3& value, uint32_t mask)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
+    glm::ivec3 v(dest->width(), dest->height(), dest->depth());
     fluid_impl_pure_->ApplyImpulse(dest->dev_array(), source->dev_array(),
                                    center_point, hotspot, radius, value, mask,
                                    v);
