@@ -26,7 +26,7 @@ private:
     MeshPod* GetQuadMesh();
 
     std::shared_ptr<GLSurface> surf_;
-    std::shared_ptr<GLProgram> program_;
+    std::shared_ptr<GLProgram> render_texture_;
     MeshPod* quad_mesh_;
 };
 

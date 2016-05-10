@@ -119,7 +119,8 @@ __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
 }
 
 __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
-                              glm::vec3 eye_pos, float focal_length)
+                              glm::vec3 eye_pos, float focal_length,
+                              glm::vec2 offset)
 {
     const float kMaxDistance = sqrt(2.0f);
     const int kNumSamples = 128;
@@ -200,8 +201,8 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                                __float2half_rn(accumulated.y),
                                __float2half_rn(accumulated.z),
                                __float2half_rn(1.0f - transparency));
-    surf2Dwrite(raw, raycast_dest, x * sizeof(ushort4), y,
-                cudaBoundaryModeTrap);
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+                (y + offset.y), cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -301,12 +302,13 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
     if (result != cudaSuccess)
         return;
 
-    dim3 block(16, 8, 1);
-    dim3 grid((surface_size.x + block.x - 1) / block.x,
-              (surface_size.y + block.y - 1) / block.y,
-              1);
-
-    glm::vec2 viewport_size(surface_size);
+    int t = min(surface_size.x, surface_size.y);
+    glm::vec2 viewport_size(static_cast<float>(t));
+    glm::ivec2 offset((surface_size.x - t) / 2, (surface_size.y - t) / 2);
     glm::mat3 m(model_view);
-    RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length);
+
+    dim3 block(32, 8, 1);
+    dim3 grid((t + block.x - 1) / block.x, (t + block.y - 1) / block.y, 1);
+    RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
+                                   offset);
 }

@@ -10,7 +10,7 @@
 
 VolumeRenderer::VolumeRenderer()
     : surf_()
-    , program_(new GLProgram())
+    , render_texture_(new GLProgram())
     , quad_mesh_(nullptr)
 {
 
@@ -39,7 +39,7 @@ bool VolumeRenderer::Init(int viewport_width, int viewport_height)
 
     CudaMain::Instance()->RegisterGLImage(s);
     surf_ = s;
-    program_ = p;
+    render_texture_ = p;
     return true;
 }
 
@@ -47,6 +47,12 @@ void VolumeRenderer::OnViewportSized(int viewport_width, int viewport_height)
 {
     if (surf_ && surf_->width() != viewport_width &&
             surf_->height() != viewport_height) {
+
+        // A shitty bug in CUDA 7.5 that make the program go crash if I
+        // unregister any opengl resources during debug/profiling.
+        //
+        // Be sure to check all the places that opengl-CUDA inter-operate.
+
         CudaMain::Instance()->UnregisterGLImage(surf_);
         surf_.reset();
     }
@@ -76,10 +82,10 @@ void VolumeRenderer::Render()
 
     glEnable(GL_BLEND);
 
-    program_->Use();
-    program_->SetUniform("depth", 1.0f);
-    program_->SetUniform("sampler", 0);
-    program_->SetUniform("viewport_size", static_cast<float>(surf_->width()),
+    render_texture_->Use();
+    render_texture_->SetUniform("depth", 1.0f);
+    render_texture_->SetUniform("sampler", 0);
+    render_texture_->SetUniform("viewport_size", static_cast<float>(surf_->width()),
                          static_cast<float>(surf_->height()));
 
     glBindTexture(GL_TEXTURE_2D, surf_->texture_handle());
@@ -88,7 +94,7 @@ void VolumeRenderer::Render()
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
 
-    program_->Unuse();
+    render_texture_->Unuse();
 }
 
 MeshPod* VolumeRenderer::GetQuadMesh()

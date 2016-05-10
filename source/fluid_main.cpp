@@ -23,16 +23,16 @@
 #include "third_party/glm/vec3.hpp"
 #include "third_party/glm/vec4.hpp"
 
-int timer_interval = 10; // ms
-int main_frame_handle = 0;
+int timer_interval_ = 10; // ms
+int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
 glm::vec3 eye_position_;
 GLuint RaycastProgram;
 float field_of_view_ = 0.7f;
-bool SimulateFluid = true;
+bool simulate_fluid_ = true;
 OverlayContent overlay_;
-LARGE_INTEGER time_freq;
-LARGE_INTEGER prev_time;
+LARGE_INTEGER time_freq_;
+LARGE_INTEGER prev_time_;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
 VolumeRenderer* renderer_ = nullptr;
@@ -42,11 +42,11 @@ int viewport_height_ = 0;
 
 struct
 {
-    glm::mat4 Projection;
-    glm::mat4 Modelview;
-    glm::mat4 View;
-    glm::mat4 ModelviewProjection;
-} Matrices;
+    glm::mat4 projection_;
+    glm::mat4 model_view_;
+    glm::mat4 view_;
+    glm::mat4 model_view_projection_;
+} matrices_;
 
 struct
 {
@@ -66,8 +66,8 @@ void Cleanup(int exit_code)
         watcher_ = nullptr;
     }
 
-    if (main_frame_handle)
-        glutDestroyWindow(main_frame_handle);
+    if (main_frame_handle_)
+        glutDestroyWindow(main_frame_handle_);
 
     if (trackball_) {
         delete trackball_;
@@ -87,7 +87,7 @@ bool InitGraphics(int* argc, char** argv)
     glutInitWindowPosition(
         (glutGet(GLUT_SCREEN_WIDTH) - viewport_width_) / 2,
         (glutGet(GLUT_SCREEN_HEIGHT) - viewport_height_) / 2);
-    main_frame_handle = glutCreateWindow("Fluid Simulation");
+    main_frame_handle_ = glutCreateWindow("Fluid Simulation");
 
     // initialize necessary OpenGL extensions
     glewInit();
@@ -119,24 +119,26 @@ void UpdateFrame(unsigned int microseconds)
     eye_position_ = glm::vec3(0, 0, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
-    Matrices.View = glm::lookAt(eye_position_, target, up);
+    matrices_.view_ = glm::lookAt(eye_position_, target, up);
     glm::mat4 model_matrix(trackball_->GetRotation());
-    Matrices.Modelview = Matrices.View * model_matrix;
+    matrices_.model_view_ = matrices_.view_ * model_matrix;
 
-    Matrices.Projection = glm::perspective(
+    matrices_.projection_ = glm::perspective(
         field_of_view_,
-        float(viewport_width_) / viewport_height_, // Aspect Ratio
+        1.0f,   // Aspect Ratio
         0.0f,   // Near Plane
         1.0f);  // Far Plane
 
-    Matrices.ModelviewProjection = Matrices.Projection * Matrices.Modelview;
+    matrices_.model_view_projection_ =
+        matrices_.projection_ * matrices_.model_view_;
+
     static double time_elapsed = 0;
     time_elapsed += delta_time;
 
     static int frame_count = 0;
     frame_count++;
 
-    if (SimulateFluid) {
+    if (simulate_fluid_) {
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
         glViewport(0, 0, GridWidth, GridHeight);
@@ -186,12 +188,12 @@ void RenderFrame()
     glEnable(GL_BLEND);
 
     glm::vec3 eye(eye_position_);
-    eye = (glm::transpose(Matrices.Modelview) * glm::vec4(eye, 1.0f)).xyz();
+    eye = (glm::transpose(matrices_.model_view_) * glm::vec4(eye, 1.0f)).xyz();
     float focal_length = 1.0f / std::tan(field_of_view_ / 2);
 
     if (sim_->graphics_lib() == GRAPHICS_LIB_CUDA) {
-        renderer_->Raycast(sim_->GetDensityTexture(), Matrices.Modelview, eye,
-                           focal_length);
+        renderer_->Raycast(sim_->GetDensityTexture(), matrices_.model_view_,
+                           eye, focal_length);
         Metrics::Instance()->OnRaycastPerformed();
         renderer_->Render();
     } else {
@@ -201,13 +203,14 @@ void RenderFrame()
         glBindTexture(GL_TEXTURE_3D,
                       sim_->GetDensityTexture()->gl_volume()->texture_handle());
         glUseProgram(RaycastProgram);
-        SetUniform("ModelviewProjection", Matrices.ModelviewProjection);
-        SetUniform("Modelview", Matrices.Modelview);
-        SetUniform("ViewMatrix", Matrices.View);
-        SetUniform("ProjectionMatrix", Matrices.Projection);
+        SetUniform("ModelviewProjection", matrices_.model_view_projection_);
+        SetUniform("Modelview", matrices_.model_view_);
+        SetUniform("ViewMatrix", matrices_.view_);
+        SetUniform("ProjectionMatrix", matrices_.projection_);
         SetUniform("RayOrigin", eye);
         SetUniform("FocalLength", focal_length);
-        SetUniform("WindowSize", float(viewport_width_), float(viewport_height_));
+        SetUniform("WindowSize", float(viewport_width_),
+                   float(viewport_height_));
         glDrawArrays(GL_POINTS, 0, 1);
     }
 
@@ -239,9 +242,9 @@ void Display()
     double deltaTime;
 
     QueryPerformanceCounter(&currentTime);
-    elapsed = currentTime.QuadPart - prev_time.QuadPart;
-    deltaTime = elapsed * 1000000.0 / time_freq.QuadPart;
-    prev_time = currentTime;
+    elapsed = currentTime.QuadPart - prev_time_.QuadPart;
+    deltaTime = elapsed * 1000000.0 / time_freq_.QuadPart;
+    prev_time_ = currentTime;
 
     if (watcher_->file_modified()) {
         FluidConfig::Instance()->Reload();
@@ -269,7 +272,7 @@ void Keyboard(unsigned char key, int x, int y)
             Cleanup(EXIT_SUCCESS);
             break;
         case VK_SPACE:
-            SimulateFluid = !SimulateFluid;
+            simulate_fluid_ = !simulate_fluid_;
             break;
         case 'd':
         case 'D':
@@ -316,7 +319,7 @@ void Motion(int x, int y)
 void TimerProc(int value)
 {
     glutPostRedisplay();
-    glutTimerFunc(timer_interval, TimerProc, 0);
+    glutTimerFunc(timer_interval_, TimerProc, 0);
 }
 
 bool Initialize()
@@ -402,10 +405,10 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
     glutMouseFunc(Mouse);
     glutMotionFunc(Motion);
     glutMouseWheelFunc(Wheel);
-    glutTimerFunc(timer_interval, TimerProc, 0);
+    glutTimerFunc(timer_interval_, TimerProc, 0);
 
-    QueryPerformanceFrequency(&time_freq);
-    QueryPerformanceCounter(&prev_time);
+    QueryPerformanceFrequency(&time_freq_);
+    QueryPerformanceCounter(&prev_time_);
 
     glutMainLoop();
 
