@@ -33,17 +33,17 @@ __global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
     out_data[index] = cc.x;
 }
 
-__global__ void ClearVolume4Kernel(float4 value)
+__global__ void ClearVolume4Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    surf3Dwrite(value, clear_volume, x * sizeof(float4), y, z,
-                cudaBoundaryModeTrap);
+    surf3Dwrite(make_float4(value.x, value.y, value.z, value.w), clear_volume,
+                x * sizeof(float4), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolume2Kernel(float4 value)
+__global__ void ClearVolume2Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -53,17 +53,17 @@ __global__ void ClearVolume2Kernel(float4 value)
                 y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolume1Kernel(float4 value)
+__global__ void ClearVolume1Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    surf3Dwrite(value.x, clear_volume, x * sizeof(float1), y, z,
+    surf3Dwrite(value.x, clear_volume, x * sizeof(float), y, z,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolumeHalf4Kernel(float4 value)
+__global__ void ClearVolumeHalf4Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -77,7 +77,7 @@ __global__ void ClearVolumeHalf4Kernel(float4 value)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolumeHalf2Kernel(float4 value)
+__global__ void ClearVolumeHalf2Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -89,7 +89,7 @@ __global__ void ClearVolumeHalf2Kernel(float4 value)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ClearVolumeHalf1Kernel(float4 value)
+__global__ void ClearVolumeHalf1Kernel(glm::vec4 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -233,8 +233,8 @@ bool IsCompliant(const cudaChannelFormatDesc& desc)
     return IsHalf1Or2Or4(desc) || IsFloat1Or2Or4(desc);
 }
 
-void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
-                             int3 volume_size)
+void LaunchClearVolumeKernel(cudaArray* dest_array, const glm::vec4& value,
+                             const glm::ivec3& volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaError_t result = cudaGetChannelDesc(&desc, dest_array);

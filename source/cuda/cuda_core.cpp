@@ -14,8 +14,9 @@
 #include "third_party/glm/mat4x4.hpp"
 #include "third_party/glm/vec3.hpp"
 
-extern void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
-                                    int3 volume_size);
+extern void LaunchClearVolumeKernel(cudaArray* dest_array,
+                                    const glm::vec4& value,
+                                    const glm::ivec3& volume_size);
 
 extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                 const glm::mat4& model_view,
@@ -231,10 +232,7 @@ void CudaCore::FreeVolumeMemory(cudaArray* mem)
 void CudaCore::ClearVolume(cudaArray* dest, const glm::vec4& value,
                            const glm::ivec3& volume_size)
 {
-    LaunchClearVolumeKernel(
-        dest,
-        make_float4(value.x, value.y, value.z, value.w),
-        make_int3(volume_size.x, volume_size.y, volume_size.z));
+    LaunchClearVolumeKernel(dest, value, volume_size);
 
 }
 

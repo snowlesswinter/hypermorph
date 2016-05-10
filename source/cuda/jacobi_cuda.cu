@@ -10,7 +10,7 @@ surface<void, cudaSurfaceType3D> jacobi;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 
 __global__ void DampedJacobiKernel(float minus_square_cell_size,
-                                   float omega_over_beta, uint3 volume_size)
+                                   float omega_over_beta)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -66,8 +66,8 @@ __device__ void SaveToRegisters(float2* smem, uint si, uint bw, float* south,
 
 __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
                                                  float omega_over_beta,
-                                                 int z0, int z2, int zi,
-                                                 int zn, uint3 volume_size)
+                                                 int z0, int z2, int zi, int zn,
+                                                 uint3 volume_size)
 {
     __shared__ float2 smem[384];
 
@@ -193,7 +193,7 @@ __global__ void DampedJacobiKernel_smem_branch(float minus_square_cell_size,
 }
 
 __global__ void DampedJacobiKernel_smem_assist_thread(
-    float minus_square_cell_size, float omega_over_beta, uint3 volume_size)
+    float minus_square_cell_size, float omega_over_beta)
 {
     // Shared memory solution with halo handled by assistant threads still
     // runs a bit slower than the texture-only way(less than 3ms on my GTX
@@ -309,7 +309,7 @@ __global__ void DampedJacobiKernel_smem_assist_thread(
 }
 
 __global__ void DampedJacobiKernel_smem_faces_assist_thread(
-    float minus_square_cell_size, float omega_over_beta, uint3 volume_size)
+    float minus_square_cell_size, float omega_over_beta)
 {
     const int cache_size = 512;
     const int bd = 8;
@@ -407,7 +407,7 @@ __global__ void DampedJacobiKernel_smem_faces_assist_thread(
 }
 
 __global__ void DampedJacobiKernel_smem_dedicated_assist_thread(
-    float minus_square_cell_size, float omega_over_beta, uint3 volume_size)
+    float minus_square_cell_size, float omega_over_beta)
 {
     __shared__ float2 cached_block[1000];
 
@@ -531,13 +531,13 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
                       (volume_size.y + block.y - 1) / block.y,
                       (volume_size.z + block.z - 1) / block.z);
             DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
-                minus_square_cell_size, omega_over_beta, volume_size);
+                minus_square_cell_size, omega_over_beta);
         } else {
             dim3 block;
             dim3 grid;
             ba->Arrange(&block, &grid, volume_size);
             DampedJacobiKernel<<<grid, block>>>(minus_square_cell_size,
-                                                omega_over_beta, volume_size);
+                                                omega_over_beta);
         }
     }
 

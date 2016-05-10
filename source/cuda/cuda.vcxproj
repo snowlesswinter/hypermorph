@@ -175,10 +175,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
-    <CudaCompile Include="fluid_impl_cuda_pure.cu">
-      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
-      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
-    </CudaCompile>
+    <CudaCompile Include="fluid_impl_cuda.cu" />
     <CudaCompile Include="jacobi_cuda.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
@@ -192,14 +189,14 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="block_arrangement.h" />
     <ClInclude Include="cuda_core.h" />
-    <ClInclude Include="fluid_impl_cuda_pure.h" />
+    <ClInclude Include="fluid_impl_cuda.h" />
     <ClInclude Include="graphics_resource.h" />
     <ClInclude Include="multigrid_impl_cuda.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="block_arrangement.cpp" />
     <ClCompile Include="cuda_core.cpp" />
-    <ClCompile Include="fluid_impl_cuda_pure.cpp" />
+    <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
     <ClCompile Include="multigrid_impl_cuda.cpp" />
   </ItemGroup>

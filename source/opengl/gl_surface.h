@@ -2,6 +2,7 @@
 #define _GL_SURFACE_H_
 
 #include "gl_texture.h"
+#include "third_party/glm/fwd.hpp"
 
 class GLSurface : public GLTexture
 {
@@ -14,6 +15,8 @@ public:
 
     bool Create(int width, int height, GLint internal_format, GLenum format,
                 int byte_width);
+
+    glm::ivec2 size() const;
 };
 
 #endif // _GL_SURFACE_H_

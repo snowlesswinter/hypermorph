@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include "third_party/glm/vec2.hpp"
+
 GLSurface::GLSurface()
     : GLTexture()
 {
@@ -29,4 +31,9 @@ void GLSurface::GetTexImage(void* buffer)
 void GLSurface::SetTexImage(const void* buffer)
 {
 
+}
+
+glm::ivec2 GLSurface::size() const
+{
+    return glm::ivec2(width(), height());
 }

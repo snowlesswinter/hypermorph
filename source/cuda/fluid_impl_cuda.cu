@@ -22,8 +22,7 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed
 surface<void, cudaSurfaceType3D> diagnosis;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
-__global__ void AdvectPureKernel(float time_step, float dissipation,
-                                 uint3 volume_size)
+__global__ void AdvectKernel(float time_step, float dissipation)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -41,8 +40,7 @@ __global__ void AdvectPureKernel(float time_step, float dissipation,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void AdvectVelocityPureKernel(float time_step, float dissipation,
-                                         uint3 volume_size)
+__global__ void AdvectVelocityKernel(float time_step, float dissipation)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -115,9 +113,7 @@ __device__ float3 TrilinearInterpolation(float3* cache, float3 coord,
 }
 
 // Only ~45% hit rate, serious block effect, deprecated.
-__global__ void AdvectVelocityPureKernel_smem(float time_step,
-                                              float dissipation,
-                                              uint3 volume_size)
+__global__ void AdvectVelocityKernel_smem(float time_step, float dissipation)
 {
     __shared__ float3 cached_block[600];
 
@@ -165,10 +161,8 @@ __global__ void AdvectVelocityPureKernel_smem(float time_step,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ApplyBuoyancyPureKernel(float time_step,
-                                        float ambient_temperature,
-                                        float accel_factor, float gravity,
-                                        uint3 volume_size)
+__global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
+                                    float accel_factor, float gravity)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -193,8 +187,7 @@ __global__ void ApplyBuoyancyPureKernel(float time_step,
 }
 
 __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
-                                    float radius, float value,
-                                    uint3 volume_size)
+                                    float radius, float value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = 1 + threadIdx.y;
@@ -216,8 +209,7 @@ __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
 }
 
 __global__ void ApplyImpulse3Kernel(float3 center_point, float3 hotspot,
-                                    float radius, float3 value,
-                                    uint3 volume_size)
+                                    float radius, float3 value)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = 1 + threadIdx.y;
@@ -242,8 +234,8 @@ __global__ void ApplyImpulse3Kernel(float3 center_point, float3 hotspot,
     }
 }
 
-__global__ void ComputeDivergencePureKernel(float half_inverse_cell_size,
-                                            uint3 volume_size)
+__global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
+                                        uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -336,8 +328,7 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
     dest_array[0] = x * x - round * round;
 }
 
-__global__ void SubtractGradientPureKernel(float gradient_scale,
-                                           uint3 volume_size)
+__global__ void SubtractGradientKernel(float gradient_scale, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -392,9 +383,9 @@ __global__ void SubtractGradientPureKernel(float gradient_scale,
 
 // =============================================================================
 
-void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
-                      cudaArray_t source_array, float time_step,
-                      float dissipation, uint3 volume_size)
+void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
+                  cudaArray_t source_array, float time_step, float dissipation,
+                  uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -433,16 +424,14 @@ void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    AdvectPureKernel<<<grid, block>>>(time_step, dissipation, volume_size);
+    AdvectKernel<<<grid, block>>>(time_step, dissipation);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
 }
 
-void LaunchAdvectVelocityPure(cudaArray_t dest_array,
-                              cudaArray_t velocity_array,
-                              float time_step, float dissipation,
-                              uint3 volume_size)
+void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
+                          float time_step, float dissipation, uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -468,16 +457,15 @@ void LaunchAdvectVelocityPure(cudaArray_t dest_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    AdvectVelocityPureKernel<<<grid, block>>>(time_step, dissipation,
-                                              volume_size);
+    AdvectVelocityKernel<<<grid, block>>>(time_step, dissipation);
 
     cudaUnbindTexture(&advect_velocity);
 }
 
-void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
-                             cudaArray* temperature_array, float time_step,
-                             float ambient_temperature, float accel_factor,
-                             float gravity, uint3 volume_size)
+void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
+                         cudaArray* temperature_array, float time_step,
+                         float ambient_temperature, float accel_factor,
+                         float gravity, uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -517,17 +505,16 @@ void LaunchApplyBuoyancyPure(cudaArray* dest_array, cudaArray* velocity_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    ApplyBuoyancyPureKernel<<<grid, block>>>(time_step, ambient_temperature,
-                                             accel_factor, gravity,
-                                             volume_size);
+    ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
+                                         accel_factor, gravity);
 
     cudaUnbindTexture(&buoyancy_temperature);
     cudaUnbindTexture(&buoyancy_velocity);
 }
 
-void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
-                            float3 center_point, float3 hotspot, float radius,
-                            float3 value, uint32_t mask, uint3 volume_size)
+void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
+                        float3 center_point, float3 hotspot, float radius,
+                        float3 value, uint32_t mask, uint3 volume_size)
 {
     assert(mask == 1 || mask == 7);
     if (mask != 1 && mask != 7)
@@ -545,7 +532,7 @@ void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
             return;
 
         ApplyImpulse1Kernel<<<grid, block>>>(center_point, hotspot, radius,
-                                             value.x, volume_size);
+                                             value.x);
     } else if (mask == 7) {
         cudaError_t result = cudaBindSurfaceToArray(&impulse_dest4, dest_array,
                                                     &desc);
@@ -554,14 +541,12 @@ void LaunchApplyImpulsePure(cudaArray* dest_array, cudaArray* original_array,
             return;
 
         ApplyImpulse3Kernel<<<grid, block>>>(center_point, hotspot, radius,
-                                             value, volume_size);
+                                             value);
     }
 }
 
-void LaunchComputeDivergencePure(cudaArray* dest_array,
-                                 cudaArray* velocity_array,
-                                 float half_inverse_cell_size,
-                                 uint3 volume_size)
+void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
+                             float half_inverse_cell_size, uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -588,8 +573,8 @@ void LaunchComputeDivergencePure(cudaArray* dest_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    ComputeDivergencePureKernel<<<grid, block>>>(half_inverse_cell_size,
-                                                 volume_size);
+    ComputeDivergenceKernel<<<grid, block>>>(half_inverse_cell_size,
+                                             volume_size);
 
     cudaUnbindTexture(&divergence_velocity);
 }
@@ -633,9 +618,9 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
-void LaunchSubtractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
-                                float gradient_scale, uint3 volume_size,
-                                BlockArrangement* ba)
+void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
+                            float gradient_scale, uint3 volume_size,
+                            BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -676,7 +661,7 @@ void LaunchSubtractGradientPure(cudaArray* dest_array, cudaArray* packed_array,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientPureKernel<<<grid, block>>>(gradient_scale, volume_size);
+    SubtractGradientKernel<<<grid, block>>>(gradient_scale, volume_size);
 
     cudaUnbindTexture(&gradient_packed);
     cudaUnbindTexture(&gradient_velocity);

@@ -18,8 +18,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residua
 surface<void, cudaSurfaceType3D> restrict_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
 
-__global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
-                                                uint3 volume_size)
+__global__ void ComputeResidualPackedPureKernel(float inverse_h_square)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -42,8 +41,7 @@ __global__ void ComputeResidualPackedPureKernel(float inverse_h_square,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ProlongateLinearInterpolationKernel(float overlay,
-                                                    uint3 volume_size)
+__global__ void ProlongateLinearInterpolationKernel(float overlay)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -63,8 +61,7 @@ __global__ void ProlongateLinearInterpolationKernel(float overlay,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ProlongateLinearInterpolation2Kernel(float overlay,
-                                                     uint3 volume_size)
+__global__ void ProlongateLinearInterpolation2Kernel(float overlay)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -292,7 +289,7 @@ __global__ void ProlongateFullWeightedKernel(float overlay, uint3 volume_size)
 
 __global__ void RelaxWithZeroGuessPackedPureKernel(
     float alpha_omega_over_beta, float one_minus_omega, float minus_h_square,
-    float omega_times_inverse_beta, uint3 volume_size)
+    float omega_times_inverse_beta)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -718,8 +715,7 @@ __global__ void RestrictResidualFullWeightedKernel(uint3 volume_size_fine)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void RestrictResidualLinearInterpolationKernel(
-    uint3 volume_size_fine)
+__global__ void RestrictResidualLinearInterpolationKernel()
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -764,8 +760,7 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
     dim3 block;
     dim3 grid;
     ba->Arrange(&block, &grid, volume_size);
-    ComputeResidualPackedPureKernel<<<grid, block>>>(inverse_h_square,
-                                                     volume_size);
+    ComputeResidualPackedPureKernel<<<grid, block>>>(inverse_h_square);
 
     cudaUnbindTexture(&residual_source);
 }
@@ -811,8 +806,7 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateLinearInterpolationKernel<<<grid, block>>>(overlay,
-                                                         volume_size_fine);
+    ProlongateLinearInterpolationKernel<<<grid, block>>>(overlay);
 
     cudaUnbindTexture(&prolongate_fine);
     cudaUnbindTexture(&prolongate_coarse);
@@ -851,7 +845,7 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
               volume_size.z / block.z);
     RelaxWithZeroGuessPackedPureKernel<<<grid, block>>>(
         alpha_omega_over_beta, one_minus_omega, minus_h_square,
-        omega_times_inverse_beta, volume_size);
+        omega_times_inverse_beta);
 
     cudaUnbindTexture(&guess_source);
 }
@@ -919,7 +913,7 @@ void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    RestrictResidualLinearInterpolationKernel<<<grid, block>>>(volume_size_fine);
+    RestrictResidualLinearInterpolationKernel<<<grid, block>>>();
 
     cudaUnbindTexture(&restrict_residual_source);
 }

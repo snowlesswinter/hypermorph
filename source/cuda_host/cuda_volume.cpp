@@ -79,3 +79,8 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
     }
     return result;
 }
+
+glm::ivec3 CudaVolume::size() const
+{
+    return glm::ivec3(width_, height_, depth_);
+}

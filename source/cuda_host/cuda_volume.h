@@ -4,6 +4,8 @@
 #include <map>
 #include <memory>
 
+#include "third_party/glm/fwd.hpp"
+
 struct cudaArray;
 struct cudaPitchedPtr;
 class CudaVolume
@@ -23,6 +25,7 @@ public:
     int width() const { return width_; }
     int height() const { return height_; }
     int depth() const { return depth_; }
+    glm::ivec3 size() const;
 
 private:
     cudaArray* dev_array_;
