@@ -1,5 +1,5 @@
-#ifndef _FLUID_IMPL_CUDA_PURE_H_
-#define _FLUID_IMPL_CUDA_PURE_H_
+#ifndef _FLUID_IMPL_CUDA_H_
+#define _FLUID_IMPL_CUDA_H_
 
 #include <memory>
 
@@ -9,11 +9,11 @@ struct cudaArray;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
-class FluidImplCudaPure
+class FluidImplCuda
 {
 public:
-    explicit FluidImplCudaPure(BlockArrangement* ba);
-    ~FluidImplCudaPure();
+    explicit FluidImplCuda(BlockArrangement* ba);
+    ~FluidImplCuda();
 
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
                 float time_step, float dissipation,
@@ -57,4 +57,4 @@ private:
     BlockArrangement* ba_;
 };
 
-#endif // _FLUID_IMPL_CUDA_PURE_H_
+#endif // _FLUID_IMPL_CUDA_H_

@@ -14,29 +14,28 @@
 #include "graphics_resource.h"
 #include "third_party/glm/vec3.hpp"
 
-extern void LaunchComputeResidualPackedPure(cudaArray* dest_array,
-                                            cudaArray* source_array,
-                                            float inverse_h_square,
-                                            uint3 volume_size,
-                                            BlockArrangement* ba);
-extern void LaunchProlongatePackedPure(cudaArray* dest_array,
-                                       cudaArray* coarse_array,
-                                       cudaArray* fine_array, float overlay,
-                                       uint3 volume_size_fine,
-                                       BlockArrangement* ba);
-extern void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
-                                               cudaArray* source_array,
-                                               float alpha_omega_over_beta,
-                                               float one_minus_omega,
-                                               float minus_h_square,
-                                               float omega_times_inverse_beta,
-                                               uint3 volume_size);
-extern void LaunchRestrictPackedPure(cudaArray* dest_array,
-                                     cudaArray* source_array, uint3 volume_size,
-                                     BlockArrangement* ba);
-extern void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
-                                             cudaArray* source_array,
-                                             uint3 volume_size);
+extern void LaunchComputeResidualPacked(cudaArray* dest_array,
+                                        cudaArray* source_array,
+                                        float inverse_h_square,
+                                        uint3 volume_size,
+                                        BlockArrangement* ba);
+extern void LaunchProlongatePacked(cudaArray* dest_array,
+                                   cudaArray* coarse_array,
+                                   cudaArray* fine_array, float overlay,
+                                   uint3 volume_size_fine,
+                                   BlockArrangement* ba);
+extern void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
+                                           cudaArray* source_array,
+                                           float alpha_omega_over_beta,
+                                           float one_minus_omega,
+                                           float minus_h_square,
+                                           float omega_times_inverse_beta,
+                                           uint3 volume_size);
+extern void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
+                                 uint3 volume_size, BlockArrangement* ba);
+extern void LaunchRestrictResidualPacked(cudaArray* dest_array,
+                                         cudaArray* source_array,
+                                         uint3 volume_size);
 
 namespace
 {
@@ -55,46 +54,49 @@ MultigridImplCuda::~MultigridImplCuda()
 {
 }
 
-void MultigridImplCuda::ComputeResidualPackedPure(cudaArray* dest_array,
-                                                  cudaArray* source_array,
-                                                  float inverse_h_square,
-                                                  const glm::ivec3& volume_size)
+void MultigridImplCuda::ComputeResidualPacked(cudaArray* dest_array,
+                                              cudaArray* source_array,
+                                              float inverse_h_square,
+                                              const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualPackedPure(dest_array, source_array, inverse_h_square,
-                                    FromVmathVector(volume_size), ba_);
+    LaunchComputeResidualPacked(dest_array, source_array, inverse_h_square,
+                                FromVmathVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::ProlongatePackedPure(cudaArray* dest, cudaArray* coarse,
-                                             cudaArray* fine, float overlay,
-                                             const glm::ivec3& volume_size)
+void MultigridImplCuda::ProlongatePacked(cudaArray* dest, cudaArray* coarse,
+                                         cudaArray* fine, float overlay,
+                                         const glm::ivec3& volume_size)
 {
-    LaunchProlongatePackedPure(dest, coarse, fine, overlay,
-                               FromVmathVector(volume_size), ba_);
+    LaunchProlongatePacked(dest, coarse, fine, overlay,
+                           FromVmathVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::RelaxWithZeroGuessPackedPure(
-    cudaArray* dest_array, cudaArray* source_array, float alpha_omega_over_beta,
-    float one_minus_omega, float minus_h_square, float omega_times_inverse_beta,
-    const glm::ivec3& volume_size)
+void MultigridImplCuda::RelaxWithZeroGuessPacked(cudaArray* dest_array,
+                                                 cudaArray* source_array,
+                                                 float alpha_omega_over_beta,
+                                                 float one_minus_omega,
+                                                 float minus_h_square,
+                                                 float omega_times_inverse_beta,
+                                                 const glm::ivec3& volume_size)
 {
-    LaunchRelaxWithZeroGuessPackedPure(dest_array, source_array,
-                                       alpha_omega_over_beta, one_minus_omega,
-                                       minus_h_square, omega_times_inverse_beta,
-                                       FromVmathVector(volume_size));
+    LaunchRelaxWithZeroGuessPacked(dest_array, source_array,
+                                   alpha_omega_over_beta, one_minus_omega,
+                                   minus_h_square, omega_times_inverse_beta,
+                                   FromVmathVector(volume_size));
 }
 
-void MultigridImplCuda::RestrictPackedPure(cudaArray* dest_array,
-                                           cudaArray* source_array,
-                                           const glm::ivec3& volume_size)
+void MultigridImplCuda::RestrictPacked(cudaArray* dest_array,
+                                       cudaArray* source_array,
+                                       const glm::ivec3& volume_size)
 {
-    LaunchRestrictPackedPure(dest_array, source_array,
-                             FromVmathVector(volume_size), ba_);
+    LaunchRestrictPacked(dest_array, source_array,
+                         FromVmathVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::RestrictResidualPackedPure(
-    cudaArray* dest_array, cudaArray* source_array,
-    const glm::ivec3& volume_size)
+void MultigridImplCuda::RestrictResidualPacked(cudaArray* dest_array,
+                                               cudaArray* source_array,
+                                               const glm::ivec3& volume_size)
 {
-    LaunchRestrictResidualPackedPure(dest_array, source_array,
-                                     FromVmathVector(volume_size));
+    LaunchRestrictResidualPacked(dest_array, source_array,
+                                 FromVmathVector(volume_size));
 }

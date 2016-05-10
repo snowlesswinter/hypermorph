@@ -15,7 +15,7 @@ class Vector3;
 }
 class CudaCore;
 class CudaVolume;
-class FluidImplCudaPure;
+class FluidImplCuda;
 class GLSurface;
 class GLTexture;
 class GraphicsResource;
@@ -38,30 +38,30 @@ public:
                        std::shared_ptr<CudaVolume> velocity,
                        std::shared_ptr<CudaVolume> density, float time_step,
                        float dissipation);
-    void AdvectPure(std::shared_ptr<CudaVolume> dest,
-                    std::shared_ptr<CudaVolume> velocity,
-                    std::shared_ptr<CudaVolume> source, float time_step,
-                    float dissipation);
-    void AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> velocity,
-                            float time_step, float dissipation);
-    void ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
+    void Advect(std::shared_ptr<CudaVolume> dest,
+                std::shared_ptr<CudaVolume> velocity,
+                std::shared_ptr<CudaVolume> source, float time_step,
+                float dissipation);
+    void AdvectVelocity(std::shared_ptr<CudaVolume> dest,
+                        std::shared_ptr<CudaVolume> velocity,
+                        float time_step, float dissipation);
+    void ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
+                       std::shared_ptr<CudaVolume> velocity,
+                       std::shared_ptr<CudaVolume> temperature,
+                       float time_step, float ambient_temperature,
+                       float accel_factor, float gravity);
+    void ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
+                             const glm::vec3& center_point,
+                             const glm::vec3& hotspot, float radius,
+                             float value);
+    void ApplyImpulse(std::shared_ptr<CudaVolume> dest,
+                      std::shared_ptr<CudaVolume> source,
+                      const glm::vec3& center_point,
+                      const glm::vec3& hotspot, float radius,
+                      const glm::vec3& value, uint32_t mask);
+    void ComputeDivergence(std::shared_ptr<CudaVolume> dest,
                            std::shared_ptr<CudaVolume> velocity,
-                           std::shared_ptr<CudaVolume> temperature,
-                           float time_step, float ambient_temperature,
-                           float accel_factor, float gravity);
-    void ApplyImpulseDensityPure(std::shared_ptr<CudaVolume> density,
-                                 const glm::vec3& center_point,
-                                 const glm::vec3& hotspot, float radius,
-                                 float value);
-    void ApplyImpulsePure(std::shared_ptr<CudaVolume> dest,
-                          std::shared_ptr<CudaVolume> source,
-                          const glm::vec3& center_point,
-                          const glm::vec3& hotspot, float radius,
-                          const glm::vec3& value, uint32_t mask);
-    void ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
-                               std::shared_ptr<CudaVolume> velocity,
-                               float half_inverse_cell_size);
+                           float half_inverse_cell_size);
     void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> dest,
                                         std::shared_ptr<CudaVolume> velocity,
                                         float inverse_h_square);
@@ -69,26 +69,26 @@ public:
                       std::shared_ptr<CudaVolume> source,
                       float minus_square_cell_size, float omega_over_beta,
                       int num_of_iterations);
-    void SubtractGradientPure(std::shared_ptr<CudaVolume> dest,
-                              std::shared_ptr<CudaVolume> packed,
-                              float gradient_scale);
+    void SubtractGradient(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> packed,
+                          float gradient_scale);
 
     // Multigrid.
-    void ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
-                                   std::shared_ptr<CudaVolume> packed,
-                                   float inverse_h_square);
-    void ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
-                              std::shared_ptr<CudaVolume> fine, float overlay);
-    void RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
-                                      std::shared_ptr<CudaVolume> packed,
-                                      float alpha_omega_over_beta,
-                                      float one_minus_omega,
-                                      float minus_h_square,
-                                      float omega_times_inverse_beta);
-    void RestrictPackedPure(std::shared_ptr<CudaVolume> coarse,
-                            std::shared_ptr<CudaVolume> fine);
-    void RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
-                                    std::shared_ptr<CudaVolume> fine);
+    void ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,
+                               std::shared_ptr<CudaVolume> packed,
+                               float inverse_h_square);
+    void ProlongatePacked(std::shared_ptr<CudaVolume> coarse,
+                          std::shared_ptr<CudaVolume> fine, float overlay);
+    void RelaxWithZeroGuessPacked(std::shared_ptr<CudaVolume> dest,
+                                  std::shared_ptr<CudaVolume> packed,
+                                  float alpha_omega_over_beta,
+                                  float one_minus_omega,
+                                  float minus_h_square,
+                                  float omega_times_inverse_beta);
+    void RestrictPacked(std::shared_ptr<CudaVolume> coarse,
+                        std::shared_ptr<CudaVolume> fine);
+    void RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
+                                std::shared_ptr<CudaVolume> fine);
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,
@@ -102,8 +102,8 @@ public:
 
 private:
     std::unique_ptr<CudaCore> core_;
-    std::unique_ptr<FluidImplCudaPure> fluid_impl_pure_;
-    std::unique_ptr<MultigridImplCuda> multigrid_impl_pure_;
+    std::unique_ptr<FluidImplCuda> fluid_impl_;
+    std::unique_ptr<MultigridImplCuda> multigrid_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
 };

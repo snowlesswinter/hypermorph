@@ -15,23 +15,21 @@ public:
     explicit MultigridImplCuda(BlockArrangement* ba);
     ~MultigridImplCuda();
 
-    void ComputeResidualPackedPure(cudaArray* dest_array,
-                                   cudaArray* source_array,
-                                   float inverse_h_square,
-                                   const glm::ivec3& volume_size);
-    void ProlongatePackedPure(cudaArray* dest, cudaArray* coarse,
-                              cudaArray* fine, float overlay,
-                              const glm::ivec3& volume_size);
-    void RelaxWithZeroGuessPackedPure(
-        cudaArray* dest_array, cudaArray* source_array,
-        float alpha_omega_over_beta, float one_minus_omega,
-        float minus_h_square, float omega_times_inverse_beta,
-        const glm::ivec3& volume_size);
-    void RestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
-                            const glm::ivec3& volume_size);
-    void RestrictResidualPackedPure(cudaArray* dest_array,
-                                    cudaArray* source_array,
-                                    const glm::ivec3& volume_size);
+    void ComputeResidualPacked(cudaArray* dest_array, cudaArray* source_array,
+                               float inverse_h_square,
+                               const glm::ivec3& volume_size);
+    void ProlongatePacked(cudaArray* dest, cudaArray* coarse, cudaArray* fine,
+                          float overlay, const glm::ivec3& volume_size);
+    void RelaxWithZeroGuessPacked(cudaArray* dest_array,
+                                  cudaArray* source_array,
+                                  float alpha_omega_over_beta,
+                                  float one_minus_omega, float minus_h_square,
+                                  float omega_times_inverse_beta,
+                                  const glm::ivec3& volume_size);
+    void RestrictPacked(cudaArray* dest_array, cudaArray* source_array,
+                        const glm::ivec3& volume_size);
+    void RestrictResidualPacked(cudaArray* dest_array, cudaArray* source_array,
+                                const glm::ivec3& volume_size);
 
 private:
     BlockArrangement* ba_;

@@ -57,59 +57,57 @@ uint3 FromVmathVector(const glm::ivec3& v)
 }
 } // Anonymous namespace.
 
-FluidImplCudaPure::FluidImplCudaPure(BlockArrangement* ba)
+FluidImplCuda::FluidImplCuda(BlockArrangement* ba)
     : ba_(ba)
 {
 
 }
 
-FluidImplCudaPure::~FluidImplCudaPure()
+FluidImplCuda::~FluidImplCuda()
 {
 }
 
-void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
-                               cudaArray* source, float time_step,
-                               float dissipation,
-                               const glm::ivec3& volume_size)
+void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
+                           cudaArray* source, float time_step,
+                           float dissipation, const glm::ivec3& volume_size)
 {
     LaunchAdvect(dest, velocity, source, time_step, dissipation,
                  FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::AdvectDensity(cudaArray* dest, cudaArray* velocity,
-                                      cudaArray* density, float time_step,
-                                      float dissipation,
-                                      const glm::ivec3& volume_size)
+void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
+                                  cudaArray* density, float time_step,
+                                  float dissipation,
+                                  const glm::ivec3& volume_size)
 {
     LaunchAdvect(dest, velocity, density, time_step, dissipation,
                  FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
-                                       float time_step, float dissipation,
-                                       const glm::ivec3& volume_size)
+void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
+                                   float time_step, float dissipation,
+                                   const glm::ivec3& volume_size)
 {
     LaunchAdvectVelocity(dest, velocity, time_step, dissipation,
                          FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
-                                      cudaArray* temperature, float time_step,
-                                      float ambient_temperature,
-                                      float accel_factor, float gravity,
-                                      const glm::ivec3& volume_size)
+void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
+                                  cudaArray* temperature, float time_step,
+                                  float ambient_temperature,
+                                  float accel_factor, float gravity,
+                                  const glm::ivec3& volume_size)
 {
     LaunchApplyBuoyancy(dest, velocity, temperature, time_step,
                         ambient_temperature, accel_factor, gravity,
                         FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
-                                     const glm::vec3& center_point,
-                                     const glm::vec3& hotspot, float radius,
-                                     const glm::vec3& value,
-                                     uint32_t mask,
-                                     const glm::ivec3& volume_size)
+void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
+                                 const glm::vec3& center_point,
+                                 const glm::vec3& hotspot, float radius,
+                                 const glm::vec3& value, uint32_t mask,
+                                 const glm::ivec3& volume_size)
 {
     LaunchApplyImpulse(
         dest, source,
@@ -119,11 +117,11 @@ void FluidImplCudaPure::ApplyImpulse(cudaArray* dest, cudaArray* source,
         FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ApplyImpulseDensity(cudaArray* density,
-                                            const glm::vec3& center_point,
-                                            const glm::vec3& hotspot,
-                                            float radius, float value,
-                                            const glm::ivec3& volume_size)
+void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
+                                        const glm::vec3& center_point,
+                                        const glm::vec3& hotspot,
+                                        float radius, float value,
+                                        const glm::ivec3& volume_size)
 {
     LaunchApplyImpulse(
         density, density,
@@ -132,15 +130,15 @@ void FluidImplCudaPure::ApplyImpulseDensity(cudaArray* density,
         radius, make_float3(value, 0, 0), 1, FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
-                                          float half_inverse_cell_size,
-                                          const glm::ivec3& volume_size)
+void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
+                                      float half_inverse_cell_size,
+                                      const glm::ivec3& volume_size)
 {
     LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
                             FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::ComputeResidualPackedDiagnosis(
+void FluidImplCuda::ComputeResidualPackedDiagnosis(
     cudaArray* dest, cudaArray* source, float inverse_h_square,
     const glm::ivec3& volume_size)
 {
@@ -148,25 +146,24 @@ void FluidImplCudaPure::ComputeResidualPackedDiagnosis(
                                          FromVmathVector(volume_size));
 }
 
-void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* source,
-                                     float minus_square_cell_size,
-                                     float omega_over_beta,
-                                     int num_of_iterations,
-                                     const glm::ivec3& volume_size)
+void FluidImplCuda::DampedJacobi(cudaArray* dest, cudaArray* source,
+                                 float minus_square_cell_size,
+                                 float omega_over_beta, int num_of_iterations,
+                                 const glm::ivec3& volume_size)
 {
     LaunchDampedJacobi(dest, source, minus_square_cell_size, omega_over_beta,
                        num_of_iterations, FromVmathVector(volume_size), ba_);
 }
 
-void FluidImplCudaPure::SubtractGradient(cudaArray* dest, cudaArray* packed,
-                                         float gradient_scale,
-                                         const glm::ivec3& volume_size)
+void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
+                                     float gradient_scale,
+                                     const glm::ivec3& volume_size)
 {
     LaunchSubtractGradient(dest, packed, gradient_scale,
                            FromVmathVector(volume_size), ba_);
 }
 
-void FluidImplCudaPure::RoundPassed(int round)
+void FluidImplCuda::RoundPassed(int round)
 {
     int* dest_array = nullptr;
     cudaError_t result = cudaMalloc(&dest_array, 4);

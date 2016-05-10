@@ -18,7 +18,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_residua
 surface<void, cudaSurfaceType3D> restrict_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> restrict_source;
 
-__global__ void ComputeResidualPackedPureKernel(float inverse_h_square)
+__global__ void ComputeResidualPackedKernel(float inverse_h_square)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -287,9 +287,10 @@ __global__ void ProlongateFullWeightedKernel(float overlay, uint3 volume_size)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void RelaxWithZeroGuessPackedPureKernel(
-    float alpha_omega_over_beta, float one_minus_omega, float minus_h_square,
-    float omega_times_inverse_beta)
+__global__ void RelaxWithZeroGuessPackedKernel(float alpha_omega_over_beta,
+                                               float one_minus_omega,
+                                               float minus_h_square,
+                                               float omega_times_inverse_beta)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -731,10 +732,9 @@ __global__ void RestrictResidualLinearInterpolationKernel()
 
 // =============================================================================
 
-void LaunchComputeResidualPackedPure(cudaArray* dest_array,
-                                     cudaArray* source_array,
-                                     float inverse_h_square,
-                                     uint3 volume_size, BlockArrangement* ba)
+void LaunchComputeResidualPacked(cudaArray* dest_array, cudaArray* source_array,
+                                 float inverse_h_square, uint3 volume_size,
+                                 BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -760,14 +760,14 @@ void LaunchComputeResidualPackedPure(cudaArray* dest_array,
     dim3 block;
     dim3 grid;
     ba->Arrange(&block, &grid, volume_size);
-    ComputeResidualPackedPureKernel<<<grid, block>>>(inverse_h_square);
+    ComputeResidualPackedKernel<<<grid, block>>>(inverse_h_square);
 
     cudaUnbindTexture(&residual_source);
 }
 
-void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
-                                cudaArray* fine_array, float overlay,
-                                uint3 volume_size_fine, BlockArrangement* ba)
+void LaunchProlongatePacked(cudaArray* dest_array, cudaArray* coarse_array,
+                            cudaArray* fine_array, float overlay,
+                            uint3 volume_size_fine, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -812,13 +812,12 @@ void LaunchProlongatePackedPure(cudaArray* dest_array, cudaArray* coarse_array,
     cudaUnbindTexture(&prolongate_coarse);
 }
 
-void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
-                                        cudaArray* source_array,
-                                        float alpha_omega_over_beta,
-                                        float one_minus_omega,
-                                        float minus_h_square,
-                                        float omega_times_inverse_beta,
-                                        uint3 volume_size)
+void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
+                                    cudaArray* source_array,
+                                    float alpha_omega_over_beta,
+                                    float one_minus_omega, float minus_h_square,
+                                    float omega_times_inverse_beta,
+                                    uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
@@ -843,14 +842,15 @@ void LaunchRelaxWithZeroGuessPackedPure(cudaArray* dest_array,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    RelaxWithZeroGuessPackedPureKernel<<<grid, block>>>(
-        alpha_omega_over_beta, one_minus_omega, minus_h_square,
-        omega_times_inverse_beta);
+    RelaxWithZeroGuessPackedKernel<<<grid, block>>>(alpha_omega_over_beta,
+                                                    one_minus_omega,
+                                                    minus_h_square,
+                                                    omega_times_inverse_beta);
 
     cudaUnbindTexture(&guess_source);
 }
 
-void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
+void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
                               uint3 volume_size, BlockArrangement* ba)
 {
     cudaChannelFormatDesc desc;
@@ -883,9 +883,8 @@ void LaunchRestrictPackedPure(cudaArray* dest_array, cudaArray* source_array,
     cudaUnbindTexture(&restrict_source);
 }
 
-void LaunchRestrictResidualPackedPure(cudaArray* dest_array,
-                                      cudaArray* source_array,
-                                      uint3 volume_size)
+void LaunchRestrictResidualPacked(cudaArray* dest_array,
+                                  cudaArray* source_array, uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);

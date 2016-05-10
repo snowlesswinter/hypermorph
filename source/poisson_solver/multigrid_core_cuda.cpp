@@ -33,23 +33,23 @@ void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& packed,
                                         float cell_size)
 {
     float inverse_h_square = 1.0f / (cell_size * cell_size);
-    CudaMain::Instance()->ComputeResidualPackedPure(residual.cuda_volume(),
-                                                    packed.cuda_volume(),
-                                                    inverse_h_square);
+    CudaMain::Instance()->ComputeResidualPacked(residual.cuda_volume(),
+                                                packed.cuda_volume(),
+                                                inverse_h_square);
 }
 
 void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
                                          const GraphicsVolume& fine)
 {
-    CudaMain::Instance()->ProlongatePackedPure(coarse.cuda_volume(),
-                                               fine.cuda_volume(), 1.0f);
+    CudaMain::Instance()->ProlongatePacked(coarse.cuda_volume(),
+                                           fine.cuda_volume(), 1.0f);
 }
 
 void MultigridCoreCuda::ProlongateResidualPacked(const GraphicsVolume& coarse,
                                                  const GraphicsVolume& fine)
 {
-    CudaMain::Instance()->ProlongatePackedPure(coarse.cuda_volume(),
-                                               fine.cuda_volume(), 1.0f);
+    CudaMain::Instance()->ProlongatePacked(coarse.cuda_volume(),
+                                           fine.cuda_volume(), 1.0f);
 }
 
 void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
@@ -76,21 +76,24 @@ void MultigridCoreCuda::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
     float one_minus_omega = 0.33333333f;
     float minus_h_square = -(cell_size * cell_size);
     float omega_times_inverse_beta = 0.11111111f;
-    CudaMain::Instance()->RelaxWithZeroGuessPackedPure(
-        packed.cuda_volume(), packed.cuda_volume(), alpha_omega_over_beta,
-        one_minus_omega, minus_h_square, omega_times_inverse_beta);
+    CudaMain::Instance()->RelaxWithZeroGuessPacked(packed.cuda_volume(),
+                                                   packed.cuda_volume(),
+                                                   alpha_omega_over_beta,
+                                                   one_minus_omega,
+                                                   minus_h_square,
+                                                   omega_times_inverse_beta);
 }
 
 void MultigridCoreCuda::RestrictPacked(const GraphicsVolume& fine,
                                        const GraphicsVolume& coarse)
 {
-    CudaMain::Instance()->RestrictPackedPure(coarse.cuda_volume(),
-                                             fine.cuda_volume());
+    CudaMain::Instance()->RestrictPacked(coarse.cuda_volume(),
+                                         fine.cuda_volume());
 }
 
 void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,
                                                const GraphicsVolume& coarse)
 {
-    CudaMain::Instance()->RestrictResidualPackedPure(coarse.cuda_volume(),
-                                                     fine.cuda_volume());
+    CudaMain::Instance()->RestrictResidualPacked(coarse.cuda_volume(),
+                                                 fine.cuda_volume());
 }
