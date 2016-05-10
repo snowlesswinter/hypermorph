@@ -17,10 +17,10 @@ GLSurface::~GLSurface()
 {
 }
 
-bool GLSurface::Create(int width, int height, GLint internal_format,
+bool GLSurface::Create(const glm::ivec2& size, GLint internal_format,
                        GLenum format, int byte_width)
 {
-    return Create2dTexture(width, height, internal_format, format, byte_width);
+    return Create2dTexture(size.x, size.y, internal_format, format, byte_width);
 }
 
 void GLSurface::GetTexImage(void* buffer)

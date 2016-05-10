@@ -18,7 +18,7 @@ public:
     virtual glm::mat3 GetRotation() const = 0;
     virtual float GetZoom() const = 0;
     virtual void Update(uint32_t microseconds) = 0;
-    virtual void OnViewportSized(int width, int height) = 0;
+    virtual void OnViewportSized(const glm::ivec2& viewport_size) = 0;
 };
 
 #endif // _TRACKBALL_H_

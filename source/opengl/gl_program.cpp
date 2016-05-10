@@ -2,6 +2,8 @@
 #include "gl_program.h"
 
 #include "utility.h"
+#include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/vec3.hpp"
 
 GLProgram::GLProgram()
     : program_handle_(0)
@@ -34,6 +36,16 @@ void GLProgram::SetUniform(const char* name, float value)
 void GLProgram::SetUniform(const char* name, float value0, float value1)
 {
     ::SetUniform(name, value0, value1);
+}
+
+void GLProgram::SetUniform(const char* name, glm::mat4 value)
+{
+    ::SetUniform(name, value);
+}
+
+void GLProgram::SetUniform(const char* name, glm::vec3 value)
+{
+    ::SetUniform(name, value);
 }
 
 void GLProgram::Unuse()

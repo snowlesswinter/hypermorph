@@ -13,7 +13,7 @@ public:
     virtual void GetTexImage(void* buffer) override;
     virtual void SetTexImage(const void* buffer) override;
 
-    bool Create(int width, int height, GLint internal_format, GLenum format,
+    bool Create(const glm::ivec2& size, GLint internal_format, GLenum format,
                 int byte_width);
 
     glm::ivec2 size() const;

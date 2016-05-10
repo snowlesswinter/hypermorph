@@ -13,22 +13,17 @@
 #include "overlay_content.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
+#include "third_party/glm/gtc/matrix_transform.hpp"
 #include "third_party/opengl/freeglut.h"
 #include "third_party/opengl/glew.h"
+#include "trackball.h"
 #include "utility.h"
 #include "volume_renderer.h"
-#include "trackball.h"
-#include "third_party/glm/glm.hpp"
-#include "third_party/glm/gtc/matrix_transform.hpp"
-#include "third_party/glm/vec3.hpp"
-#include "third_party/glm/vec4.hpp"
 
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
-glm::vec3 eye_position_;
-GLuint RaycastProgram;
-float field_of_view_ = 0.7f;
+float kFieldOfView_ = 0.7f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
@@ -37,20 +32,10 @@ int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
 VolumeRenderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
-int viewport_width_ = 0;
-int viewport_height_ = 0;
+glm::ivec2 viewport_size_(0);
 
 struct
 {
-    glm::mat4 projection_;
-    glm::mat4 model_view_;
-    glm::mat4 view_;
-    glm::mat4 model_view_projection_;
-} matrices_;
-
-struct
-{
-    GLuint CubeCenter;
     GLuint FullscreenQuad;
 } Vbos;
 
@@ -83,10 +68,10 @@ bool InitGraphics(int* argc, char** argv)
     // Create GL context
     glutInit(argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE | GLUT_DEPTH);
-    glutInitWindowSize(viewport_width_, viewport_height_);
+    glutInitWindowSize(viewport_size_.x, viewport_size_.y);
     glutInitWindowPosition(
-        (glutGet(GLUT_SCREEN_WIDTH) - viewport_width_) / 2,
-        (glutGet(GLUT_SCREEN_HEIGHT) - viewport_height_) / 2);
+        (glutGet(GLUT_SCREEN_WIDTH) - viewport_size_.x) / 2,
+        (glutGet(GLUT_SCREEN_HEIGHT) - viewport_size_.y) / 2);
     main_frame_handle_ = glutCreateWindow("Fluid Simulation");
 
     // initialize necessary OpenGL extensions
@@ -105,7 +90,7 @@ bool InitGraphics(int* argc, char** argv)
     glDisable(GL_DEPTH_TEST);
 
     // viewport
-    glViewport(0, 0, viewport_width_, viewport_height_);
+    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
     PrintDebugString("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     CudaMain::Instance();
@@ -116,21 +101,13 @@ void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
-    eye_position_ = glm::vec3(0, 0, 3.8f + trackball_->GetZoom());
+
+    glm::vec3 eye(0, 0, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
-    matrices_.view_ = glm::lookAt(eye_position_, target, up);
-    glm::mat4 model_matrix(trackball_->GetRotation());
-    matrices_.model_view_ = matrices_.view_ * model_matrix;
-
-    matrices_.projection_ = glm::perspective(
-        field_of_view_,
-        1.0f,   // Aspect Ratio
-        0.0f,   // Near Plane
-        1.0f);  // Far Plane
-
-    matrices_.model_view_projection_ =
-        matrices_.projection_ * matrices_.model_view_;
+    renderer_->Update(eye, glm::lookAt(eye, target, up),
+                      glm::mat4(trackball_->GetRotation()),
+                      glm::perspective(kFieldOfView_, 1.0f, 0.0f, 1.0f));
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -172,51 +149,29 @@ void DisplayMetrics()
             text << o[i] << ": " << cost << std::endl;
     }
 
-    overlay_.RenderText(text.str(), viewport_width_, viewport_height_);
+    overlay_.RenderText(text.str(), viewport_size_.x, viewport_size_.y);
 }
 
 void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    glViewport(0, 0, viewport_width_, viewport_height_);
-    glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
-    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_BLEND);
-
-    glm::vec3 eye(eye_position_);
-    eye = (glm::transpose(matrices_.model_view_) * glm::vec4(eye, 1.0f)).xyz();
-    float focal_length = 1.0f / std::tan(field_of_view_ / 2);
-
-    if (sim_->graphics_lib() == GRAPHICS_LIB_CUDA) {
-        renderer_->Raycast(sim_->GetDensityTexture(), matrices_.model_view_,
-                           eye, focal_length);
-        Metrics::Instance()->OnRaycastPerformed();
-        renderer_->Render();
-    } else {
-        glBindBuffer(GL_ARRAY_BUFFER, Vbos.CubeCenter);
-        glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
-                              3 * sizeof(float), 0);
-        glBindTexture(GL_TEXTURE_3D,
-                      sim_->GetDensityTexture()->gl_volume()->texture_handle());
-        glUseProgram(RaycastProgram);
-        SetUniform("ModelviewProjection", matrices_.model_view_projection_);
-        SetUniform("Modelview", matrices_.model_view_);
-        SetUniform("ViewMatrix", matrices_.view_);
-        SetUniform("ProjectionMatrix", matrices_.projection_);
-        SetUniform("RayOrigin", eye);
-        SetUniform("FocalLength", focal_length);
-        SetUniform("WindowSize", float(viewport_width_),
-                   float(viewport_height_));
-        glDrawArrays(GL_POINTS, 0, 1);
-    }
-
+    
+    float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
+    renderer_->Render(sim_->GetDensityTexture(), focal_length);
+    Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
 
     DisplayMetrics();
+}
+
+bool ResetRenderer()
+{
+    if (renderer_)
+        delete renderer_;
+
+    renderer_ = new VolumeRenderer();
+    renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
+    return renderer_->Init(viewport_size_);
 }
 
 bool ResetSimulator()
@@ -258,11 +213,10 @@ void Display()
 
 void Reshape(int w, int h)
 {
-    viewport_width_ = w;
-    viewport_height_ = h;
+    viewport_size_ = glm::ivec2(w, h);
 
-    renderer_->OnViewportSized(w, h);
-    trackball_->OnViewportSized(w, h);
+    renderer_->OnViewportSized(viewport_size_);
+    trackball_->OnViewportSized(viewport_size_);
 }
 
 void Keyboard(unsigned char key, int x, int y)
@@ -288,6 +242,7 @@ void Keyboard(unsigned char key, int x, int y)
         case 'R':
             FluidConfig::Instance()->Reload();
             ResetSimulator();
+            ResetRenderer();
             Metrics::Instance()->Reset();
             break;
         case '`':
@@ -327,17 +282,13 @@ bool Initialize()
     if (!ResetSimulator())
         return false;
 
-    renderer_ = new VolumeRenderer();
-    if (!renderer_->Init(viewport_width_, viewport_height_))
+    if (!ResetRenderer())
         return false;
 
-    int radius = std::min(viewport_width_, viewport_height_);
-    trackball_ = Trackball::CreateTrackball(viewport_width_, viewport_height_,
+    int radius = std::min(viewport_size_.x, viewport_size_.y);
+    trackball_ = Trackball::CreateTrackball(viewport_size_.x, viewport_size_.y,
                                             radius * 0.5f);
-    RaycastProgram = LoadProgram(RaycastShader::Vertex(),
-                                 RaycastShader::Geometry(),
-                                 RaycastShader::Fragment());
-    Vbos.CubeCenter = CreatePointVbo(0, 0, 0);
+
     Vbos.FullscreenQuad = CreateQuadVbo();
 
     glDisable(GL_DEPTH_TEST);
@@ -389,8 +340,8 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
 
     char* command_line = GetCommandLineA();
     int argc = 1;
-    viewport_width_ = FluidConfig::Instance()->initial_viewport_width();
-    viewport_height_ = FluidConfig::Instance()->initial_viewport_height();
+    viewport_size_.x = FluidConfig::Instance()->initial_viewport_width();
+    viewport_size_.y = FluidConfig::Instance()->initial_viewport_height();
 
     if (!InitGraphics(&argc, &command_line))
         return -1;

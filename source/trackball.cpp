@@ -18,7 +18,7 @@ public:
     virtual glm::mat3 GetRotation() const override;
     virtual float GetZoom() const override;
     virtual void Update(uint32_t microseconds) override;
-    virtual void OnViewportSized(int width, int height) override;
+    virtual void OnViewportSized(const glm::ivec2& viewport_size) override;
 
 private:
     glm::vec3 MapToSphere(int x, int y);
@@ -32,8 +32,7 @@ private:
     float radius_;
     float radians_per_second_;
     float distance_per_second_;
-    int width_;
-    int height_;
+    glm::ivec2 viewport_size_;
     float zoom_;
     float start_zoom_;
     int start_y_;
@@ -83,8 +82,7 @@ TrackballImpl::TrackballImpl(int width, int height, float radius)
     , radius_(radius)
     , radians_per_second_(0.0f)
     , distance_per_second_(0.0f)
-    , width_(width)
-    , height_(height)
+    , viewport_size_(width, height)
     , zoom_(0)
     , start_zoom_(0)
     , start_y_(0)
@@ -164,11 +162,12 @@ glm::mat3 TrackballImpl::GetRotation() const
 
 glm::vec3 TrackballImpl::MapToSphere(int x, int y)
 {
-    y = static_cast<int>(height_) - y; // Note that the y-coordinate of the
-                                       // window is towards down.
+    y = static_cast<int>(viewport_size_.y) - y; // Note that the y-coordinate
+                                                // of the  window is towards
+                                                // down.
     const float safe_radius = radius_ * 0.9999999f;
-    float tx = x - static_cast<float>(width_) / 2.0f;
-    float ty = y - static_cast<float>(height_) / 2.0f;
+    float tx = x - static_cast<float>(viewport_size_.x) / 2.0f;
+    float ty = y - static_cast<float>(viewport_size_.y) / 2.0f;
 
     float d_square = tx * tx + ty * ty;
 
@@ -242,10 +241,9 @@ void TrackballImpl::Update(uint32_t microseconds)
     }
 }
 
-void TrackballImpl::OnViewportSized(int width, int height)
+void TrackballImpl::OnViewportSized(const glm::ivec2& viewport_size)
 {
-    width_ = width;
-    height_ = height;
+    viewport_size_ = viewport_size;
 }
 
 void TrackballImpl::ReturnHome()
