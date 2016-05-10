@@ -12,7 +12,7 @@
 #include <driver_types.h>
 
 #include "graphics_resource.h"
-#include "../vmath.hpp"
+#include "third_party/glm/vec3.hpp"
 
 extern void LaunchAdvectPure(cudaArray_t dest_array, cudaArray_t velocity_array,
                              cudaArray_t source_array, float time_step,
@@ -52,11 +52,6 @@ extern void LaunchSubtractGradientPure(cudaArray* dest_array,
 
 namespace
 {
-uint3 FromVmathVector(const vmath::Vector3& v)
-{
-    return make_uint3(static_cast<uint>(v.getX()), static_cast<uint>(v.getY()),
-                      static_cast<uint>(v.getZ()));
-}
 uint3 FromVmathVector(const glm::ivec3& v)
 {
     return make_uint3(static_cast<uint>(v.x), static_cast<uint>(v.y),
@@ -77,7 +72,7 @@ FluidImplCudaPure::~FluidImplCudaPure()
 void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
                                cudaArray* source, float time_step,
                                float dissipation,
-                               const Vectormath::Aos::Vector3& volume_size)
+                               const glm::ivec3& volume_size)
 {
     LaunchAdvectPure(dest, velocity, source, time_step, dissipation,
                      FromVmathVector(volume_size));
@@ -86,7 +81,7 @@ void FluidImplCudaPure::Advect(cudaArray* dest, cudaArray* velocity,
 void FluidImplCudaPure::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                       cudaArray* density, float time_step,
                                       float dissipation,
-                                      const vmath::Vector3& volume_size)
+                                      const glm::ivec3& volume_size)
 {
     LaunchAdvectPure(dest, velocity, density, time_step, dissipation,
                      FromVmathVector(volume_size));
@@ -94,7 +89,7 @@ void FluidImplCudaPure::AdvectDensity(cudaArray* dest, cudaArray* velocity,
 
 void FluidImplCudaPure::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                        float time_step, float dissipation,
-                                       const vmath::Vector3& volume_size)
+                                       const glm::ivec3& volume_size)
 {
     LaunchAdvectVelocityPure(dest, velocity, time_step, dissipation,
                              FromVmathVector(volume_size));
@@ -104,7 +99,7 @@ void FluidImplCudaPure::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                                       cudaArray* temperature, float time_step,
                                       float ambient_temperature,
                                       float accel_factor, float gravity,
-                                      const vmath::Vector3& volume_size)
+                                      const glm::ivec3& volume_size)
 {
     LaunchApplyBuoyancyPure(dest, velocity, temperature, time_step,
                             ambient_temperature, accel_factor, gravity,
@@ -141,7 +136,7 @@ void FluidImplCudaPure::ApplyImpulseDensity(cudaArray* density,
 
 void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                                           float half_inverse_cell_size,
-                                          const vmath::Vector3& volume_size)
+                                          const glm::ivec3& volume_size)
 {
     LaunchComputeDivergencePure(dest, velocity, half_inverse_cell_size,
                                 FromVmathVector(volume_size));
@@ -149,7 +144,7 @@ void FluidImplCudaPure::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
 
 void FluidImplCudaPure::ComputeResidualPackedDiagnosis(
     cudaArray* dest, cudaArray* source, float inverse_h_square,
-    const vmath::Vector3& volume_size)
+    const glm::ivec3& volume_size)
 {
     LaunchComputeResidualPackedDiagnosis(dest, source, inverse_h_square,
                                          FromVmathVector(volume_size));
@@ -159,7 +154,7 @@ void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* source,
                                      float minus_square_cell_size,
                                      float omega_over_beta,
                                      int num_of_iterations,
-                                     const vmath::Vector3& volume_size)
+                                     const glm::ivec3& volume_size)
 {
     LaunchDampedJacobi(dest, source, minus_square_cell_size, omega_over_beta,
                        num_of_iterations, FromVmathVector(volume_size), ba_);
@@ -167,7 +162,7 @@ void FluidImplCudaPure::DampedJacobi(cudaArray* dest, cudaArray* source,
 
 void FluidImplCudaPure::SubtractGradient(cudaArray* dest, cudaArray* packed,
                                          float gradient_scale,
-                                         const vmath::Vector3& volume_size)
+                                         const glm::ivec3& volume_size)
 {
     LaunchSubtractGradientPure(dest, packed, gradient_scale,
                                FromVmathVector(volume_size), ba_);

@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "graphics_lib_enum.h"
-#include "third_party/glm/vec3.hpp"
+#include "third_party/glm/fwd.hpp"
 
 namespace Vectormath
 {
@@ -42,6 +42,7 @@ public:
         num_full_multigrid_iterations_ = n;
     }
     void set_diagnosis(bool diagnosis) { diagnosis_ = diagnosis; }
+    GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
     // TODO

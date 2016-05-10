@@ -11,8 +11,8 @@
 #include <helper_cuda_gl.h>
 
 #include "graphics_resource.h"
-#include "../vmath.hpp"
 #include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/vec3.hpp"
 
 extern void LaunchClearVolumeKernel(cudaArray* dest_array, float4 value,
                                     int3 volume_size);
@@ -21,15 +21,6 @@ extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                 const glm::mat4& model_view,
                                 const glm::ivec2& surface_size,
                                 const glm::vec3& eye_pos, float focal_length);
-
-namespace
-{
-int3 FromVmathVector(const vmath::Vector3& v)
-{
-    return make_int3(static_cast<int>(v.getX()), static_cast<int>(v.getY()),
-                     static_cast<int>(v.getZ()));
-}
-} // Anonymous namespace.
 
 CudaCore::CudaCore()
     : block_arrangement_()
@@ -87,7 +78,7 @@ void CudaCore::UnregisterGLResource(GraphicsResource* graphics_res)
 }
 
 bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
-                                        const vmath::Vector3& extent,
+                                        const glm::ivec3& extent,
                                         int num_of_components, int byte_width)
 {
     // I vacillated quite a while deciding which kind of device memory is my
@@ -130,8 +121,7 @@ bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
     // get even as GLSL, theoretically).
 
     cudaExtent cuda_ext = make_cudaExtent(
-        num_of_components * byte_width * static_cast<int>(extent.getX()),
-        static_cast<int>(extent.getY()), static_cast<int>(extent.getZ()));
+        num_of_components * byte_width * extent.x, extent.y, extent.z);
 
     cudaPitchedPtr mem;
     cudaError_t e = cudaMalloc3D(&mem, cuda_ext);
@@ -179,8 +169,7 @@ bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
 // | linear mem                   |    N    |     Y     |   Y   |
 // +------------------------------+---------+-----------+-------+
 
-bool CudaCore::AllocVolumeMemory(cudaArray** result,
-                                 const vmath::Vector3& extent,
+bool CudaCore::AllocVolumeMemory(cudaArray** result, const glm::ivec3& extent,
                                  int num_of_components, int byte_width)
 {
     if (byte_width != 2 && byte_width != 4)
@@ -204,10 +193,7 @@ bool CudaCore::AllocVolumeMemory(cudaArray** result,
             return false;
     }
 
-    cudaExtent cuda_ext = make_cudaExtent(static_cast<int>(extent.getX()),
-                                          static_cast<int>(extent.getY()),
-                                          static_cast<int>(extent.getZ()));
-
+    cudaExtent cuda_ext = make_cudaExtent(extent.x, extent.y, extent.z);
     cudaArray* mem;
 
     // Maybe there is no magic at all: the memory reordering will have gone
@@ -242,47 +228,47 @@ void CudaCore::FreeVolumeMemory(cudaArray* mem)
     cudaFreeArray(mem);
 }
 
-void CudaCore::ClearVolume(cudaArray* dest, const vmath::Vector4& value,
-                           const vmath::Vector3& volume_size)
+void CudaCore::ClearVolume(cudaArray* dest, const glm::vec4& value,
+                           const glm::ivec3& volume_size)
 {
     LaunchClearVolumeKernel(
         dest,
-        make_float4(value.getX(), value.getY(), value.getZ(), value.getW()),
-        FromVmathVector(volume_size));
+        make_float4(value.x, value.y, value.z, value.w),
+        make_int3(volume_size.x, volume_size.y, volume_size.z));
 
 }
 
 void CudaCore::CopyFromVolume(void* dest, size_t pitch, cudaArray* source, 
-                              const vmath::Vector3& volume_size)
+                              const glm::ivec3& volume_size)
 {
     cudaDeviceSynchronize();
 
     cudaMemcpy3DParms cpy_parms = {};
     cpy_parms.dstPtr.ptr = dest;
     cpy_parms.dstPtr.pitch = pitch;
-    cpy_parms.dstPtr.xsize = static_cast<size_t>(volume_size.getX());
-    cpy_parms.dstPtr.ysize = static_cast<size_t>(volume_size.getY());
+    cpy_parms.dstPtr.xsize = volume_size.x;
+    cpy_parms.dstPtr.ysize = volume_size.y;
     cpy_parms.srcArray = source;
-    cpy_parms.extent.width = static_cast<size_t>(volume_size.getX());
-    cpy_parms.extent.height = static_cast<size_t>(volume_size.getY());
-    cpy_parms.extent.depth = static_cast<size_t>(volume_size.getX());
+    cpy_parms.extent.width = volume_size.x;
+    cpy_parms.extent.height = volume_size.y;
+    cpy_parms.extent.depth = volume_size.z;
     cpy_parms.kind = cudaMemcpyDeviceToHost;
     cudaError_t e = cudaMemcpy3D(&cpy_parms);
     assert(e == cudaSuccess);
 }
 
 void CudaCore::CopyToVolume(cudaArray* dest, void* source, size_t pitch,
-                            const vmath::Vector3& volume_size)
+                            const glm::ivec3& volume_size)
 {
     cudaMemcpy3DParms cpy_parms = {};
     cpy_parms.srcPtr.ptr = source;
     cpy_parms.srcPtr.pitch = pitch;
-    cpy_parms.srcPtr.xsize = static_cast<size_t>(volume_size.getX());
-    cpy_parms.srcPtr.ysize = static_cast<size_t>(volume_size.getY());
+    cpy_parms.srcPtr.xsize = volume_size.x;
+    cpy_parms.srcPtr.ysize = volume_size.y;
     cpy_parms.dstArray = dest;
-    cpy_parms.extent.width = static_cast<size_t>(volume_size.getX());
-    cpy_parms.extent.height = static_cast<size_t>(volume_size.getY());
-    cpy_parms.extent.depth = static_cast<size_t>(volume_size.getX());
+    cpy_parms.extent.width = volume_size.x;
+    cpy_parms.extent.height = volume_size.y;
+    cpy_parms.extent.depth = volume_size.z;
     cpy_parms.kind = cudaMemcpyHostToDevice;
     cudaError_t e = cudaMemcpy3D(&cpy_parms);
     assert(e == cudaSuccess);
@@ -326,7 +312,7 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
         return;
 
     LaunchRaycastKernel(dest_array, density, model_view, surface_size, eye_pos,
-                         focal_length);
+                        focal_length);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

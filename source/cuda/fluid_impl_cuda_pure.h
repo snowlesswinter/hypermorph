@@ -3,16 +3,9 @@
 
 #include <memory>
 
-#include "third_party/glm/vec3.hpp"
+#include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
-namespace Vectormath
-{
-namespace Aos
-{
-class Vector3;
-}
-}
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
@@ -24,18 +17,17 @@ public:
 
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
                 float time_step, float dissipation,
-                const Vectormath::Aos::Vector3& volume_size);
+                const glm::ivec3& volume_size);
     void AdvectDensity(cudaArray* dest, cudaArray* velocity, cudaArray* density,
                        float time_step, float dissipation,
-                       const Vectormath::Aos::Vector3& volume_size);
+                       const glm::ivec3& volume_size);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         float time_step, float dissipation,
-                        const Vectormath::Aos::Vector3& volume_size);
+                        const glm::ivec3& volume_size);
     void ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                        cudaArray* temperature, float time_step,
                        float ambient_temperature, float accel_factor,
-                       float gravity,
-                       const Vectormath::Aos::Vector3& volume_size);
+                       float gravity, const glm::ivec3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
@@ -46,17 +38,17 @@ public:
                              float value, const glm::ivec3& volume_size);
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
-                           const Vectormath::Aos::Vector3& volume_size);
-    void ComputeResidualPackedDiagnosis(
-        cudaArray* dest, cudaArray* source, float inverse_h_square,
-        const Vectormath::Aos::Vector3& volume_size);
+                           const glm::ivec3& volume_size);
+    void ComputeResidualPackedDiagnosis(cudaArray* dest, cudaArray* source,
+                                        float inverse_h_square,
+                                        const glm::ivec3& volume_size);
     void DampedJacobi(cudaArray* dest, cudaArray* source,
                       float minus_square_cell_size, float omega_over_beta,
                       int num_of_iterations,
-                      const Vectormath::Aos::Vector3& volume_size);
+                      const glm::ivec3& volume_size);
     void SubtractGradient(cudaArray* dest, cudaArray* packed,
                           float gradient_scale,
-                          const Vectormath::Aos::Vector3& volume_size);
+                          const glm::ivec3& volume_size);
 
     // For debugging.
     void RoundPassed(int round);

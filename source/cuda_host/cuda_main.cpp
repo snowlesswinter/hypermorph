@@ -11,18 +11,9 @@
 #include "cuda_volume.h"
 #include "opengl/gl_surface.h"
 #include "opengl/gl_volume.h"
-#include "vmath.hpp"
 #include "utility.h"
 #include "third_party/glm/vec2.hpp"
-
-namespace
-{
-vmath::Vector3 FromIntValues(int x, int y, int z)
-{
-    return vmath::Vector3(static_cast<float>(x), static_cast<float>(y),
-                          static_cast<float>(z));
-}
-} // Anonymous namespace
+#include "third_party/glm/vec3.hpp"
 
 CudaMain* CudaMain::Instance()
 {
@@ -90,11 +81,10 @@ void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
                              std::shared_ptr<CudaVolume> density,
                              float time_step, float dissipation)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
-                                    density->dev_array(), time_step,
-                                    dissipation, v);
+    fluid_impl_pure_->AdvectDensity(
+        dest->dev_array(), velocity->dev_array(), density->dev_array(),
+        time_step, dissipation,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
@@ -102,20 +92,19 @@ void CudaMain::AdvectPure(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> source, float time_step,
                           float dissipation)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->Advect(dest->dev_array(), velocity->dev_array(),
-                             source->dev_array(), time_step, dissipation, v);
+    fluid_impl_pure_->Advect(
+        dest->dev_array(), velocity->dev_array(), source->dev_array(),
+        time_step, dissipation,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::AdvectVelocityPure(std::shared_ptr<CudaVolume> dest,
                                   std::shared_ptr<CudaVolume> velocity,
                                   float time_step, float dissipation)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
-                                     time_step, dissipation, v);
+    fluid_impl_pure_->AdvectVelocity(
+        dest->dev_array(), velocity->dev_array(), time_step, dissipation,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
@@ -124,12 +113,10 @@ void CudaMain::ApplyBuoyancyPure(std::shared_ptr<CudaVolume> dest,
                                  float time_step, float ambient_temperature,
                                  float accel_factor, float gravity)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->ApplyBuoyancy(dest->dev_array(), velocity->dev_array(),
-                                    temperature->dev_array(), time_step,
-                                    ambient_temperature, accel_factor, gravity,
-                                    v);
+    fluid_impl_pure_->ApplyBuoyancy(
+        dest->dev_array(), velocity->dev_array(), temperature->dev_array(),
+        time_step, ambient_temperature, accel_factor, gravity,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::ApplyImpulseDensityPure(std::shared_ptr<CudaVolume> density,
@@ -158,19 +145,16 @@ void CudaMain::ComputeDivergencePure(std::shared_ptr<CudaVolume> dest,
                                      std::shared_ptr<CudaVolume> velocity,
                                      float half_inverse_cell_size)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->ComputeDivergence(dest->dev_array(),
-                                        velocity->dev_array(),
-                                        half_inverse_cell_size, v);
+    fluid_impl_pure_->ComputeDivergence(
+        dest->dev_array(), velocity->dev_array(), half_inverse_cell_size,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::ComputeResidualPackedDiagnosis(
     std::shared_ptr<CudaVolume> dest, std::shared_ptr<CudaVolume> source,
     float inverse_h_square)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
+    glm::ivec3 v(dest->width(), dest->height(), dest->depth());
     fluid_impl_pure_->ComputeResidualPackedDiagnosis(dest->dev_array(),
                                                      source->dev_array(),
                                                      inverse_h_square, v);
@@ -216,43 +200,37 @@ void CudaMain::DampedJacobi(std::shared_ptr<CudaVolume> dest,
                             float minus_square_cell_size,
                             float omega_over_beta, int num_of_iterations)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->DampedJacobi(dest->dev_array(), source->dev_array(),
-                                   minus_square_cell_size, omega_over_beta,
-                                   num_of_iterations, v);
+    fluid_impl_pure_->DampedJacobi(
+        dest->dev_array(), source->dev_array(), minus_square_cell_size,
+        omega_over_beta, num_of_iterations,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::SubtractGradientPure(std::shared_ptr<CudaVolume> dest,
                                     std::shared_ptr<CudaVolume> packed,
                                     float gradient_scale)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    fluid_impl_pure_->SubtractGradient(dest->dev_array(), packed->dev_array(),
-                                        gradient_scale, v);
+    fluid_impl_pure_->SubtractGradient(
+        dest->dev_array(), packed->dev_array(), gradient_scale,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::ComputeResidualPackedPure(std::shared_ptr<CudaVolume> dest,
                                          std::shared_ptr<CudaVolume> packed,
                                          float inverse_h_square)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    multigrid_impl_pure_->ComputeResidualPackedPure(dest->dev_array(),
-                                                    packed->dev_array(),
-                                                    inverse_h_square, v);
+    multigrid_impl_pure_->ComputeResidualPackedPure(
+        dest->dev_array(), packed->dev_array(), inverse_h_square,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::ProlongatePackedPure(std::shared_ptr<CudaVolume> coarse,
                                     std::shared_ptr<CudaVolume> fine,
                                     float overlay)
 {
-    vmath::Vector3 v = FromIntValues(fine->width(), fine->height(),
-                                     fine->depth());
-    multigrid_impl_pure_->ProlongatePackedPure(fine->dev_array(),
-                                               coarse->dev_array(),
-                                               fine->dev_array(), overlay, v);
+    multigrid_impl_pure_->ProlongatePackedPure(
+        fine->dev_array(), coarse->dev_array(), fine->dev_array(), overlay,
+        glm::ivec3(fine->width(), fine->height(), fine->depth()));
 }
 
 void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
@@ -262,33 +240,26 @@ void CudaMain::RelaxWithZeroGuessPackedPure(std::shared_ptr<CudaVolume> dest,
                                             float minus_h_square,
                                             float omega_times_inverse_beta)
 {
-    vmath::Vector3 v = FromIntValues(dest->width(), dest->height(),
-                                     dest->depth());
-    multigrid_impl_pure_->RelaxWithZeroGuessPackedPure(dest->dev_array(),
-                                                       packed->dev_array(),
-                                                       alpha_omega_over_beta,
-                                                       one_minus_omega,
-                                                       minus_h_square,
-                                                       omega_times_inverse_beta,
-                                                       v);
+    multigrid_impl_pure_->RelaxWithZeroGuessPackedPure(
+        dest->dev_array(), packed->dev_array(), alpha_omega_over_beta,
+        one_minus_omega, minus_h_square, omega_times_inverse_beta,
+        glm::ivec3(dest->width(), dest->height(), dest->depth()));
 }
 
 void CudaMain::RestrictPackedPure(std::shared_ptr<CudaVolume> coarse,
                                   std::shared_ptr<CudaVolume> fine)
 {
-    vmath::Vector3 v = FromIntValues(coarse->width(), coarse->height(),
-                                     coarse->depth());
-    multigrid_impl_pure_->RestrictPackedPure(coarse->dev_array(),
-                                             fine->dev_array(), v);
+    multigrid_impl_pure_->RestrictPackedPure(
+        coarse->dev_array(), fine->dev_array(),
+        glm::ivec3(coarse->width(), coarse->height(), coarse->depth()));
 }
 
 void CudaMain::RestrictResidualPackedPure(std::shared_ptr<CudaVolume> coarse,
                                           std::shared_ptr<CudaVolume> fine)
 {
-    vmath::Vector3 v = FromIntValues(coarse->width(), coarse->height(),
-                                     coarse->depth());
-    multigrid_impl_pure_->RestrictResidualPackedPure(coarse->dev_array(),
-                                                     fine->dev_array(), v);
+    multigrid_impl_pure_->RestrictResidualPackedPure(
+        coarse->dev_array(), fine->dev_array(),
+        glm::ivec3(coarse->width(), coarse->height(), coarse->depth()));
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,

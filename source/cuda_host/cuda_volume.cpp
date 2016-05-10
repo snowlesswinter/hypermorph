@@ -4,16 +4,8 @@
 #include <cassert>
 
 #include "cuda/cuda_core.h"
-#include "vmath.hpp"
-
-namespace
-{
-vmath::Vector3 FromIntValues(int x, int y, int z)
-{
-    return vmath::Vector3(static_cast<float>(x), static_cast<float>(y),
-                          static_cast<float>(z));
-}
-} // Anonymous namespace.
+#include "third_party/glm/vec3.hpp"
+#include "third_party/glm/vec4.hpp"
 
 CudaVolume::CudaVolume()
     : dev_array_(nullptr)
@@ -43,11 +35,8 @@ CudaVolume::~CudaVolume()
 void CudaVolume::Clear()
 {
     if (dev_array_) {
-        CudaCore::ClearVolume(
-            dev_array_, vmath::Vector4(0.0f),
-            vmath::Vector3(static_cast<float>(width_),
-                           static_cast<float>(height_),
-                           static_cast<float>(depth_)));
+        CudaCore::ClearVolume(dev_array_, glm::vec4(0.0f),
+                              glm::ivec3(width_, height_, depth_));
     }
 }
 
@@ -59,7 +48,7 @@ bool CudaVolume::Create(int width, int height, int depth, int num_of_components,
         return false;
 
     bool result = CudaCore::AllocVolumeMemory(
-        &dev_array_, FromIntValues(width, height, depth), num_of_components,
+        &dev_array_, glm::ivec3(width, height, depth), num_of_components,
         byte_width);
     if (result) {
         width_ = width;
@@ -79,7 +68,7 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
         return false;
 
     bool result = CudaCore::AllocVolumeInPlaceMemory(
-        &dev_mem_, FromIntValues(width, height, depth), num_of_components,
+        &dev_mem_, glm::ivec3(width, height, depth), num_of_components,
         byte_width);
     if (result) {
         width_ = width;

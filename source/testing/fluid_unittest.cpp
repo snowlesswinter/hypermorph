@@ -6,6 +6,7 @@
 #include "graphics_volume.h"
 #include "half_float/half.h"
 #include "opengl/gl_volume.h"
+#include "third_party/glm/vec3.hpp"
 #include "unittest_common.h"
 #include "utility.h"
 
@@ -128,9 +129,7 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
     sim_glsl.AdvectDensity(kTimeStep);
 
     // Copy the result back to CPU.
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
+    glm::ivec3 volume_size(width, height, depth);
     std::vector<uint16_t> result_cuda(size_d, 0);
     sim_cuda.density_->gl_volume()->GetTexImage(&result_cuda[0]);
 

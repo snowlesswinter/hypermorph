@@ -12,8 +12,8 @@
 #include "half_float/half.h"
 #include "opengl/gl_volume.h"
 #include "opengl/gl_utility.h"
+#include "third_party/glm/vec3.hpp"
 #include "utility.h"
-#include "vmath.hpp"
 
 namespace
 {
@@ -234,13 +234,10 @@ void UnittestCommon::CollectAndVerifyResult(int width, int height, int depth,
                                             char* function_name)
 {
     // Copy the result back to CPU.
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
     std::vector<uint16_t> result_cuda(size, 0);
     CudaCore::CopyFromVolume(&result_cuda[0], pitch,
                              cuda_volume->cuda_volume()->dev_array(),
-                             volume_size);
+                             glm::ivec3(width, height, depth));
 
     // Copy the result back to CPU.
     std::vector<uint16_t> result_glsl(size, 0);
@@ -292,11 +289,9 @@ void UnittestCommon::InitializeVolume1(GraphicsVolume* cuda_volume,
     for (auto& i : test_data)
         i = half(random(scope)).bits();
 
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
-                           &test_data[0], pitch, volume_size);
+                           &test_data[0], pitch,
+                           glm::ivec3(width, height, depth));
 
     glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
@@ -311,11 +306,9 @@ void UnittestCommon::InitializeVolume2(GraphicsVolume* cuda_volume,
     for (auto& i : test_data)
         i = half(random(scope)).bits();
 
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
-                           &test_data[0], pitch, volume_size);
+                           &test_data[0], pitch,
+                           glm::ivec3(width, height, depth));
 
     glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }
@@ -331,11 +324,9 @@ void UnittestCommon::InitializeVolume4(GraphicsVolume* cuda_volume,
     for (auto& i : test_data)
         i = (pos++ % n) == 3 ? 0 : half(random(scope)).bits();
 
-    vmath::Vector3 volume_size(static_cast<float>(width),
-                               static_cast<float>(height),
-                               static_cast<float>(depth));
     CudaCore::CopyToVolume(cuda_volume->cuda_volume()->dev_array(),
-                           &test_data[0], pitch, volume_size);
+                           &test_data[0], pitch,
+                           glm::ivec3(width, height, depth));
 
     glsl_volume->gl_volume()->SetTexImage(&test_data[0]);
 }

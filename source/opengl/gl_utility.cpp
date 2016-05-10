@@ -4,4 +4,3 @@
 #include <cassert>
 
 #include "opengl/gl_texture.h"
-#include "vmath.hpp"

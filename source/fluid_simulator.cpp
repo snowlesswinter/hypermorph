@@ -15,9 +15,9 @@
 #include "poisson_solver/multigrid_poisson_solver.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "third_party/glm/vec3.hpp"
 #include "third_party/opengl/glew.h"
 #include "utility.h"
-#include "vmath.hpp"
 
 static struct
 {

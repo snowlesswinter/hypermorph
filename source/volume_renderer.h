@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/fwd.hpp"
 
 class GLProgram;
 class GLSurface;

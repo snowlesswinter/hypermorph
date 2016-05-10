@@ -4,7 +4,7 @@
 #include <map>
 #include <memory>
 
-#include "third_party/glm/mat4x4.hpp"
+#include "third_party/glm/fwd.hpp"
 
 namespace Vectormath
 {

@@ -189,7 +189,7 @@ void RenderFrame()
     eye = (glm::transpose(Matrices.Modelview) * glm::vec4(eye, 1.0f)).xyz();
     float focal_length = 1.0f / std::tan(field_of_view_ / 2);
 
-    if (FluidConfig::Instance()->graphics_lib() == GRAPHICS_LIB_CUDA) {
+    if (sim_->graphics_lib() == GRAPHICS_LIB_CUDA) {
         renderer_->Raycast(sim_->GetDensityTexture(), Matrices.Modelview, eye,
                            focal_length);
         Metrics::Instance()->OnRaycastPerformed();
