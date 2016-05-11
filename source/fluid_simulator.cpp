@@ -15,6 +15,7 @@
 #include "poisson_solver/multigrid_poisson_solver.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
+#include "third_party/glm/vec2.hpp"
 #include "third_party/glm/vec3.hpp"
 #include "third_party/opengl/glew.h"
 #include "utility.h"
@@ -33,7 +34,8 @@ static struct
 } Programs;
 
 FluidSimulator::FluidSimulator()
-    : solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
+    : graphics_lib_(GRAPHICS_LIB_GLSL)
+    , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
     , solver_()
     , num_multigrid_iterations_(5)
@@ -48,7 +50,7 @@ FluidSimulator::FluidSimulator()
     , general1_()
     , general4_()
     , diagnosis_volume_()
-    , graphics_lib_(GRAPHICS_LIB_GLSL)
+    , manual_impulse_()
 {
 }
 
@@ -161,6 +163,21 @@ void FluidSimulator::Reset()
     Metrics::Instance()->Reset();
 }
 
+std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
+{
+    return density_;
+}
+
+void FluidSimulator::StartImpulsing(float x, float y)
+{
+    manual_impulse_.reset(new glm::vec2(x, y));
+}
+
+void FluidSimulator::StopImpulsing()
+{
+    manual_impulse_.reset();
+}
+
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
@@ -217,6 +234,13 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     // I may find some time to explore into it.
 
     CudaMain::Instance()->RoundPassed(frame_count);
+}
+
+void FluidSimulator::UpdateImpulsing(float x, float y)
+{
+    if (manual_impulse_) {
+        *manual_impulse_ = glm::vec2(x, y);
+    }
 }
 
 void FluidSimulator::AdvectDensity(float delta_time)
@@ -346,8 +370,15 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
     float hotspot_x = cos_factor * splat_radius * 0.5f + kImpulsePosition.x;
-    float hotspot_z = sin_factor * splat_radius * 0.5f + kImpulsePosition.x;
+    float hotspot_z = sin_factor * splat_radius * 0.5f + kImpulsePosition.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
+
+    if (manual_impulse_)
+        hotspot = glm::vec3(0.5f * GridWidth * (manual_impulse_->x + 1.0f),
+                            0.0f,
+                            0.5f * GridDepth * (manual_impulse_->y + 1.0f));
+    else
+        return;
 
     ImpulseDensity(kImpulsePosition, hotspot, splat_radius,
                    FluidConfig::Instance()->impulse_density());
@@ -684,9 +715,4 @@ void FluidSimulator::SubtractGradient()
                               velocity_->gl_volume()->depth());
         ResetState();
     }
-}
-
-std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityTexture() const
-{
-    return density_;
 }

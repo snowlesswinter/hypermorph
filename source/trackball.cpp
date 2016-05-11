@@ -111,16 +111,16 @@ void TrackballImpl::MouseUp(int x, int y)
         start_zoom_ = zoom_;
         start_y_ = y;
         active_ = false;
+
+        // Calculate via definition:
+        // 
+        // glm::vec3 axis = cross(anchor_pos_, current_pos_);
+        // glm::vec3 n_axis = normalize(axis);
+        // float radians = atan2f(length(axis), dot(anchor_pos_, current_pos_));
+        // glm::quat q = glm::angleAxis(radians, n_axis);
+
+        anchor_quat_ = glm::quat(anchor_pos_, current_pos_) * anchor_quat_;
     }
-
-    // Calculate via definition:
-    // 
-    // glm::vec3 axis = cross(anchor_pos_, current_pos_);
-    // glm::vec3 n_axis = normalize(axis);
-    // float radians = atan2f(length(axis), dot(anchor_pos_, current_pos_));
-    // glm::quat q = glm::angleAxis(radians, n_axis);
-
-    anchor_quat_ = glm::quat(anchor_pos_, current_pos_) * anchor_quat_;
 
     if (radians_per_second_ > 0 || distance_per_second_ != 0) {
         inertia_.active_ = true;

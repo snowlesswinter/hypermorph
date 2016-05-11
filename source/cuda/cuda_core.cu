@@ -147,7 +147,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
     ray_dir.z = -focal_length;
 
-    // Transform the ray direction vector to model space.
+    // Transform the ray direction vector to model-view space.
     ray_dir = glm::normalize(ray_dir * model_view);
 
     // Ray origin is already in model space.
@@ -161,6 +161,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 ray_start = eye_pos + ray_dir * near;
     glm::vec3 ray_stop = eye_pos + ray_dir * far;
 
+    // Transfrom to [0, 1) model space.
     ray_start = 0.5f * (ray_start + 1.0f);
     ray_stop = 0.5f * (ray_stop + 1.0f);
 

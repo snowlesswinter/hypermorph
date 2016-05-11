@@ -34,7 +34,11 @@ public:
 
     bool Init();
     void Reset();
+    std::shared_ptr<GraphicsVolume> GetDensityField() const;
+    void StartImpulsing(float x, float y);
+    void StopImpulsing();
     void Update(float delta_time, double seconds_elapsed, int frame_count);
+    void UpdateImpulsing(float x, float y);
 
     void set_solver_choice(PoissonMethod method) { solver_choice_ = method; }
     void set_num_multigrid_iterations(int n) { num_multigrid_iterations_ = n; }
@@ -44,9 +48,6 @@ public:
     void set_diagnosis(bool diagnosis) { diagnosis_ = diagnosis; }
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
-
-    // TODO
-    std::shared_ptr<GraphicsVolume> GetDensityTexture() const;
 
 private:
     friend class FluidUnittest;
@@ -72,6 +73,7 @@ private:
     void SolvePressure();
     void SubtractGradient();
 
+    GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> solver_;
@@ -89,7 +91,7 @@ private:
     std::shared_ptr<GraphicsVolume> general4_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
-    GraphicsLib graphics_lib_;
+    std::shared_ptr<glm::vec2> manual_impulse_;
 };
 
 #endif // _FLUID_SIMULATOR_H_

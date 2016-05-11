@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include <sstream>
+#include <numeric>
 
 #include "config_file_watcher.h"
 #include "cuda_host/cuda_main.h"
@@ -24,6 +25,7 @@ int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
 float kFieldOfView_ = 0.7f;
+float kAspectRatio = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
@@ -102,12 +104,12 @@ void UpdateFrame(unsigned int microseconds)
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
 
-    glm::vec3 eye(0, 0, 3.8f + trackball_->GetZoom());
+    glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
-    renderer_->Update(eye, glm::lookAt(eye, target, up),
-                      glm::mat4(trackball_->GetRotation()),
-                      glm::perspective(kFieldOfView_, 1.0f, 0.0f, 1.0f));
+    renderer_->Update(
+        eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
+        glm::perspective(kFieldOfView_, kAspectRatio, 0.0f, 1.0f));
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -164,7 +166,7 @@ void RenderFrame()
     glClear(GL_COLOR_BUFFER_BIT);
     
     float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
-    renderer_->Render(sim_->GetDensityTexture(), focal_length);
+    renderer_->Render(sim_->GetDensityField(), focal_length);
     Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
 
@@ -258,12 +260,53 @@ void Keyboard(unsigned char key, int x, int y)
     }
 }
 
+bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
+{
+    int width = glm::min(viewport_size_.x, viewport_size_.y);
+    if (x < (viewport_size_.x - width) / 2 ||
+            x >= (viewport_size_.x + width) / 2 ||
+            y < (viewport_size_.y - width) / 2 ||
+            y >= (viewport_size_.y + width) / 2)
+        return false;
+
+    glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    glm::vec3 target(0.0f);
+    glm::mat4 view = glm::lookAt(eye, target, up);
+    glm::mat4 model_view = view * glm::mat4(trackball_->GetRotation());
+    glm::vec3 eye_position =
+        (glm::transpose(model_view) * glm::vec4(eye, 1.0f)).xyz();
+    glm::vec3 screen_hit(2.0f * x / viewport_size_.x - 1.0f,
+                         1.0f - 2.0f * y / viewport_size_.y,
+                         1.0f);
+    screen_hit =
+        (glm::transpose(model_view) * glm::vec4(screen_hit, 1.0f)).xyz();
+
+    glm::vec3 diff = screen_hit - eye_position;
+    if (glm::abs(diff.y) < std::numeric_limits<float>::epsilon()) {
+        return false;
+    }
+
+    float r = (-1.0f + (4.0f / GridHeight) - eye_position.y) / diff.y;
+    result->x = r * diff.x + eye_position.x;
+    result->y = r * diff.z + eye_position.z;
+    return true;
+}
+
 void Mouse(int button, int state, int x, int y)
 {
-    if (state == GLUT_DOWN)
-        trackball_->MouseDown(x, y);
-    else if (state == GLUT_UP)
+    if (state == GLUT_DOWN) {
+        if (glutGetModifiers() == GLUT_ACTIVE_CTRL) {
+            glm::vec2 hotspot;
+            if (CalculateImpulseSpot(x, y, &hotspot))
+                sim_->StartImpulsing(hotspot.x, hotspot.y);
+        } else {
+            trackball_->MouseDown(x, y);
+        }
+    } else if (state == GLUT_UP) {
         trackball_->MouseUp(x, y);
+        sim_->StopImpulsing();
+    }
 }
 
 void Wheel(int button, int state, int x, int y)
@@ -276,6 +319,10 @@ void Wheel(int button, int state, int x, int y)
 void Motion(int x, int y)
 {
     trackball_->MouseMove(x, y);
+
+    glm::vec2 hotspot;
+    if (CalculateImpulseSpot(x, y, &hotspot))
+        sim_->UpdateImpulsing(hotspot.x, hotspot.y);
 }
 
 void TimerProc(int value)
