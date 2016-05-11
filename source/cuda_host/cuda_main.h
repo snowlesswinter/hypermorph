@@ -69,6 +69,9 @@ public:
                       std::shared_ptr<CudaVolume> source,
                       float minus_square_cell_size, float omega_over_beta,
                       int num_of_iterations);
+    void ReviseDensity(std::shared_ptr<CudaVolume> density,
+                       const glm::vec3& center_point, float radius,
+                       float value);
     void SubtractGradient(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> packed,
                           float gradient_scale);

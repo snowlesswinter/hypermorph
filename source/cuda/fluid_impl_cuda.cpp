@@ -42,6 +42,9 @@ extern void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
                                float minus_square_cell_size,
                                float omega_over_beta, int num_of_iterations,
                                uint3 volume_size, BlockArrangement* ba);
+extern void LaunchImpulseDensity(cudaArray* dest_array,
+                                 cudaArray* original_array, float3 center_point,
+                                 float radius, float3 value, uint3 volume_size);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
@@ -50,7 +53,7 @@ extern void LaunchSubtractGradient(cudaArray* dest_array,
 
 namespace
 {
-uint3 FromVmathVector(const glm::ivec3& v)
+uint3 FromGlmVector(const glm::ivec3& v)
 {
     return make_uint3(static_cast<uint>(v.x), static_cast<uint>(v.y),
                       static_cast<uint>(v.z));
@@ -72,7 +75,7 @@ void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            float dissipation, const glm::ivec3& volume_size)
 {
     LaunchAdvect(dest, velocity, source, time_step, dissipation,
-                 FromVmathVector(volume_size));
+                 FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
@@ -81,7 +84,7 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   const glm::ivec3& volume_size)
 {
     LaunchAdvect(dest, velocity, density, time_step, dissipation,
-                 FromVmathVector(volume_size));
+                 FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
@@ -89,7 +92,7 @@ void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                    const glm::ivec3& volume_size)
 {
     LaunchAdvectVelocity(dest, velocity, time_step, dissipation,
-                         FromVmathVector(volume_size));
+                         FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
@@ -100,7 +103,7 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
 {
     LaunchApplyBuoyancy(dest, velocity, temperature, time_step,
                         ambient_temperature, accel_factor, gravity,
-                        FromVmathVector(volume_size));
+                        FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
@@ -114,7 +117,7 @@ void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, make_float3(value.x, value.y, value.z), mask,
-        FromVmathVector(volume_size));
+        FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
@@ -127,7 +130,7 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
         density, density,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
-        radius, make_float3(value, 0, 0), 1, FromVmathVector(volume_size));
+        radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
@@ -135,7 +138,7 @@ void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                                       const glm::ivec3& volume_size)
 {
     LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
-                            FromVmathVector(volume_size));
+                            FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ComputeResidualPackedDiagnosis(
@@ -143,7 +146,7 @@ void FluidImplCuda::ComputeResidualPackedDiagnosis(
     const glm::ivec3& volume_size)
 {
     LaunchComputeResidualPackedDiagnosis(dest, source, inverse_h_square,
-                                         FromVmathVector(volume_size));
+                                         FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::DampedJacobi(cudaArray* dest, cudaArray* source,
@@ -152,7 +155,17 @@ void FluidImplCuda::DampedJacobi(cudaArray* dest, cudaArray* source,
                                  const glm::ivec3& volume_size)
 {
     LaunchDampedJacobi(dest, source, minus_square_cell_size, omega_over_beta,
-                       num_of_iterations, FromVmathVector(volume_size), ba_);
+                       num_of_iterations, FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::ReviseDensity(cudaArray* density,
+                                  const glm::vec3& center_point, float radius,
+                                  float value, const glm::ivec3& volume_size)
+{
+    LaunchImpulseDensity(
+        density, density,
+        make_float3(center_point.x, center_point.y, center_point.z),
+        radius, make_float3(value, 0, 0), FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
@@ -160,7 +173,7 @@ void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
                                      const glm::ivec3& volume_size)
 {
     LaunchSubtractGradient(dest, packed, gradient_scale,
-                           FromVmathVector(volume_size), ba_);
+                           FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::RoundPassed(int round)

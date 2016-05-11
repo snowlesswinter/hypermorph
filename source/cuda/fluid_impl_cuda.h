@@ -46,6 +46,9 @@ public:
                       float minus_square_cell_size, float omega_over_beta,
                       int num_of_iterations,
                       const glm::ivec3& volume_size);
+    void ReviseDensity(cudaArray* density, const glm::vec3& center_point,
+                       float radius, float value,
+                       const glm::ivec3& volume_size);
     void SubtractGradient(cudaArray* dest, cudaArray* packed,
                           float gradient_scale,
                           const glm::ivec3& volume_size);

@@ -39,7 +39,7 @@ extern void LaunchRestrictResidualPacked(cudaArray* dest_array,
 
 namespace
 {
-uint3 FromVmathVector(const glm::ivec3& v)
+uint3 FromGlmVector(const glm::ivec3& v)
 {
     return make_uint3(v.x, v.y, v.z);
 }
@@ -60,7 +60,7 @@ void MultigridImplCuda::ComputeResidualPacked(cudaArray* dest_array,
                                               const glm::ivec3& volume_size)
 {
     LaunchComputeResidualPacked(dest_array, source_array, inverse_h_square,
-                                FromVmathVector(volume_size), ba_);
+                                FromGlmVector(volume_size), ba_);
 }
 
 void MultigridImplCuda::ProlongatePacked(cudaArray* dest, cudaArray* coarse,
@@ -68,7 +68,7 @@ void MultigridImplCuda::ProlongatePacked(cudaArray* dest, cudaArray* coarse,
                                          const glm::ivec3& volume_size)
 {
     LaunchProlongatePacked(dest, coarse, fine, overlay,
-                           FromVmathVector(volume_size), ba_);
+                           FromGlmVector(volume_size), ba_);
 }
 
 void MultigridImplCuda::RelaxWithZeroGuessPacked(cudaArray* dest_array,
@@ -82,7 +82,7 @@ void MultigridImplCuda::RelaxWithZeroGuessPacked(cudaArray* dest_array,
     LaunchRelaxWithZeroGuessPacked(dest_array, source_array,
                                    alpha_omega_over_beta, one_minus_omega,
                                    minus_h_square, omega_times_inverse_beta,
-                                   FromVmathVector(volume_size));
+                                   FromGlmVector(volume_size));
 }
 
 void MultigridImplCuda::RestrictPacked(cudaArray* dest_array,
@@ -90,7 +90,7 @@ void MultigridImplCuda::RestrictPacked(cudaArray* dest_array,
                                        const glm::ivec3& volume_size)
 {
     LaunchRestrictPacked(dest_array, source_array,
-                         FromVmathVector(volume_size), ba_);
+                         FromGlmVector(volume_size), ba_);
 }
 
 void MultigridImplCuda::RestrictResidualPacked(cudaArray* dest_array,
@@ -98,5 +98,5 @@ void MultigridImplCuda::RestrictResidualPacked(cudaArray* dest_array,
                                                const glm::ivec3& volume_size)
 {
     LaunchRestrictResidualPacked(dest_array, source_array,
-                                 FromVmathVector(volume_size));
+                                 FromGlmVector(volume_size));
 }

@@ -68,6 +68,7 @@ private:
                         float splat_radius,
                         float value);
     void Jacobi(float cell_size);
+    void ReviseDensity();
     void SolvePressure();
     void SubtractGradient();
 

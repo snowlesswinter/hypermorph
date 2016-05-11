@@ -200,6 +200,14 @@ void CudaMain::DampedJacobi(std::shared_ptr<CudaVolume> dest,
                               num_of_iterations, dest->size());
 }
 
+void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
+                             const glm::vec3& center_point, float radius,
+                             float value)
+{
+    fluid_impl_->ReviseDensity(density->dev_array(), center_point, radius,
+                               value, density->size());
+}
+
 void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> packed,
                                 float gradient_scale)
