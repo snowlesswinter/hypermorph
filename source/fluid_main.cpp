@@ -155,6 +155,13 @@ void DisplayMetrics()
 void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
+    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //glClearColor(0.6f, 0.6f, 0.6f, 0.6f);
+    glClear(GL_COLOR_BUFFER_BIT);
     
     float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
     renderer_->Render(sim_->GetDensityTexture(), focal_length);

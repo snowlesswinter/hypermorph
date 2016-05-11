@@ -120,18 +120,18 @@ __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
 
 __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                               glm::vec3 eye_pos, float focal_length,
-                              glm::vec2 offset)
+                              glm::vec2 offset, glm::vec3 light_intensity)
 {
     const float kMaxDistance = sqrt(2.0f);
-    const int kNumSamples = 128;
+    const int kNumSamples = 224;
     const float kStepSize = kMaxDistance / static_cast<float>(kNumSamples);
-    const int kNumLightSamples = 32;
+    const int kNumLightSamples = 64;
     const float kLightScale =
         kMaxDistance / static_cast<float>(kNumLightSamples);
-    const float kAbsorption = 10.0f;
-    const float kDensityFactor = 10.0f;
-    const glm::vec3 light_pos(1.0f, 1.0f, 2.0f);
-    const glm::vec3 light_intensity(10.0f);
+    const float kAbsorptionTimesStepSize = 10.0f * kStepSize;
+    const float kDensityFactor = 30.0f;
+    const float kOcclusionFactor = 15.0f;
+    const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -174,27 +174,29 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
              i++, pos += step, travel -= kStepSize) {
         float density =
             tex3D(raycast_density, pos.x, pos.y, pos.z) * kDensityFactor;
-        if (density < 0.000001f)
+        if (density < 0.0001f)
             continue;
-
-        transparency *= 1.0f - density * kStepSize * kAbsorption;
-        if (transparency <= 0.01f)
-            break;
 
         glm::vec3 light_dir = glm::normalize(light_pos - pos) * kLightScale;
         float light_weight = 1.0f;
-        glm::vec3 light_pos = pos + light_dir;
+        glm::vec3 l_pos = pos + light_dir;
 
         for (int j = 0; j < kNumLightSamples; j++) {
-            float alpha = tex3D(raycast_density, light_pos.x, light_pos.y,
-                                light_pos.z);
-            light_weight *= 1.0f - kAbsorption * kStepSize * alpha;
+            float occlusion = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
+            light_weight *=
+                1.0f - kAbsorptionTimesStepSize * occlusion * kOcclusionFactor;
             if (light_weight <= 0.01f)
-                light_pos += light_dir;
+                break;
+
+            l_pos += light_dir;
         }
 
+        transparency *= 1.0f - density * kAbsorptionTimesStepSize;
         accumulated +=
             light_intensity * light_weight * transparency * density * kStepSize;
+
+        if (transparency <= 0.01f)
+            break;
     }
 
     ushort4 raw = make_ushort4(__float2half_rn(accumulated.x),
@@ -309,6 +311,10 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
     dim3 block(32, 8, 1);
     dim3 grid((t + block.x - 1) / block.x, (t + block.y - 1) / block.y, 1);
+
+    //glm::vec3 light_intensity(6.2109375f, 7.2265625f, 8.0078125f);
+    glm::vec3 light_intensity = glm::normalize(glm::vec3(171, 160, 139));
+    light_intensity *= 22.0f;
     RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                   offset);
+                                   offset, light_intensity);
 }

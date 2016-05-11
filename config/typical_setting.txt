@@ -1,0 +1,22 @@
+impulse temperature = 750
+temperature dissipation = 0.8
+velocity dissipation = 0.5
+density dissipation = 0.5
+fixed time step = -0.33
+
+graphics library = cuda
+poisson method = full multigrid
+ambient temperature = 0
+impulse temperature = 4.0
+impulse density = 2
+smoke buoyancy = 1
+smoke weight = 0.0001
+temperature dissipation = 0.1
+velocity dissipation = 0.13
+density dissipation = 0.06
+splat radius factor = 0.48
+number of jacobi iterations = 60
+num multigrid iterations = 5
+num full multigrid iterations = 2
+fixed time step = 0.33
+
