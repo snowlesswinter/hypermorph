@@ -222,10 +222,15 @@ FluidConfig::FluidConfig()
     , splat_radius_factor_(0.25f, "splat radius factor")
     , fixed_time_step_(0.33f, "fixed time step")
     , light_intensity_(22.0f, "light intensity")
+    , light_absorption_(10.0f, "light absorption")
+    , raycast_density_factor_(30.0f, "raycast density factor")
+    , raycast_occlusion_factor_(15.0f, "raycast occlusion factor")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
     , auto_impulse_(1, "auto impulse")
+    , num_raycast_samples_(224, "num raycast samples")
+    , num_raycast_light_samples_(64, "num raycast light samples")
     , initial_viewport_width_(512)
     , initial_viewport_height_(512)
 {
@@ -295,6 +300,9 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &splat_radius_factor_,
         &fixed_time_step_,
         &light_intensity_,
+        &light_absorption_,
+        &raycast_density_factor_,
+        &raycast_occlusion_factor_,
     };
 
     for (auto& f : float_fields) {
@@ -309,6 +317,8 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &num_multigrid_iterations_,
         &num_full_multigrid_iterations_,
         &auto_impulse_,
+        &num_raycast_samples_,
+        &num_raycast_light_samples_,
     };
 
     for (auto& f : int_fields) {
@@ -345,6 +355,9 @@ void FluidConfig::Store(std::ostream& stream)
         splat_radius_factor_,
         fixed_time_step_,
         light_intensity_,
+        light_absorption_,
+        raycast_density_factor_,
+        raycast_occlusion_factor_,
     };
 
     for (auto& f : float_fields)
@@ -355,6 +368,8 @@ void FluidConfig::Store(std::ostream& stream)
         num_multigrid_iterations_,
         num_full_multigrid_iterations_,
         auto_impulse_,
+        num_raycast_samples_,
+        num_raycast_light_samples_,
     };
 
     for (auto& f : int_fields)

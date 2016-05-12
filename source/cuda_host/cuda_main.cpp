@@ -268,7 +268,9 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                        std::shared_ptr<CudaVolume> density,
                        const glm::mat4& model_view, const glm::vec3& eye_pos,
                        const glm::vec3& light_color, float light_intensity,
-                       float focal_length)
+                       float focal_length, int num_samples,
+                       int num_light_samples, float absorption,
+                       float density_factor, float occlusion_factor)
 {
     auto i = registerd_textures_.find(dest);
     assert(i != registerd_textures_.end());
@@ -277,7 +279,8 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
 
     core_->Raycast(i->second.get(), density->dev_array(), model_view,
                    dest->size(), eye_pos, light_color, light_intensity,
-                   focal_length);
+                   focal_length, num_samples, num_light_samples, absorption,
+                   density_factor, occlusion_factor);
 }
 
 void CudaMain::RoundPassed(int round)

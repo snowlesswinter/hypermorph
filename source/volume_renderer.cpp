@@ -97,7 +97,12 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
         CudaMain::Instance()->Raycast(
             surf_, density_volume->cuda_volume(), model_view_, eye_position_,
             FluidConfig::Instance()->light_color(),
-            FluidConfig::Instance()->light_intensity(), focal_length);
+            FluidConfig::Instance()->light_intensity(), focal_length,
+            FluidConfig::Instance()->num_raycast_samples(),
+            FluidConfig::Instance()->num_raycast_light_samples(),
+            FluidConfig::Instance()->light_absorption(),
+            FluidConfig::Instance()->raycast_density_factor(),
+            FluidConfig::Instance()->raycast_occlusion_factor());
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

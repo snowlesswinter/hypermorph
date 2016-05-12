@@ -44,6 +44,13 @@ public:
     float splat_radius_factor() const { return splat_radius_factor_.value_; }
     float fixed_time_step() const { return fixed_time_step_.value_; }
     float light_intensity() const { return light_intensity_.value_; }
+    float light_absorption() const { return light_absorption_.value_; }
+    float raycast_density_factor() const {
+        return raycast_density_factor_.value_;
+    }
+    float raycast_occlusion_factor() const {
+        return raycast_occlusion_factor_.value_;
+    }
     int num_jacobi_iterations() const { return num_jacobi_iterations_.value_; }
     int num_multigrid_iterations() const {
         return num_multigrid_iterations_.value_;
@@ -53,6 +60,10 @@ public:
     }
     bool auto_impulse() const {
         return !!auto_impulse_.value_;
+    }
+    int num_raycast_samples() const { return num_raycast_samples_.value_; }
+    int num_raycast_light_samples() const {
+        return num_raycast_light_samples_.value_;
     }
     int initial_viewport_width() const { return initial_viewport_width_; }
     int initial_viewport_height() const { return initial_viewport_height_; }
@@ -83,10 +94,15 @@ private:
     ConfigField<float> splat_radius_factor_;
     ConfigField<float> fixed_time_step_;
     ConfigField<float> light_intensity_;
+    ConfigField<float> light_absorption_;
+    ConfigField<float> raycast_density_factor_;
+    ConfigField<float> raycast_occlusion_factor_;
     ConfigField<int> num_jacobi_iterations_;
     ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;
     ConfigField<int> auto_impulse_;
+    ConfigField<int> num_raycast_samples_;
+    ConfigField<int> num_raycast_light_samples_;
     int initial_viewport_width_;
     int initial_viewport_height_;
 };

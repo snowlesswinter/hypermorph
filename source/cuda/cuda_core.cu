@@ -120,17 +120,12 @@ __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
 
 __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                               glm::vec3 eye_pos, float focal_length,
-                              glm::vec2 offset, glm::vec3 light_intensity)
+                              glm::vec2 offset, glm::vec3 light_intensity,
+                              int num_samples, float step_size,
+                              int num_light_samples, float light_scale,
+                              float step_absorption, float density_factor,
+                              float occlusion_factor)
 {
-    const float kMaxDistance = sqrt(2.0f);
-    const int kNumSamples = 224;
-    const float kStepSize = kMaxDistance / static_cast<float>(kNumSamples);
-    const int kNumLightSamples = 64;
-    const float kLightScale =
-        kMaxDistance / static_cast<float>(kNumLightSamples);
-    const float kAbsorptionTimesStepSize = 10.0f * kStepSize;
-    const float kDensityFactor = 30.0f;
-    const float kOcclusionFactor = 15.0f;
     const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -166,35 +161,36 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     ray_stop = 0.5f * (ray_stop + 1.0f);
 
     glm::vec3 pos = ray_start;
-    glm::vec3 step = glm::normalize(ray_stop - ray_start) * kStepSize;
+    glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
     float transparency = 1.0f;
     glm::vec3 accumulated(0.0f);
 
-    for (int i = 0; i < kNumSamples && travel > 0.0f;
-             i++, pos += step, travel -= kStepSize) {
+    for (int i = 0; i < num_samples && travel > 0.0f;
+            i++, pos += step, travel -= step_size)
+    {
         float density =
-            tex3D(raycast_density, pos.x, pos.y, pos.z) * kDensityFactor;
-        if (density < 0.0001f)
+            tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
+        if (density < 0.001f)
             continue;
 
-        glm::vec3 light_dir = glm::normalize(light_pos - pos) * kLightScale;
+        glm::vec3 light_dir = glm::normalize(light_pos - pos) * light_scale;
         float light_weight = 1.0f;
         glm::vec3 l_pos = pos + light_dir;
 
-        for (int j = 0; j < kNumLightSamples; j++) {
+        for (int j = 0; j < num_light_samples; j++) {
             float occlusion = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
             light_weight *=
-                1.0f - kAbsorptionTimesStepSize * occlusion * kOcclusionFactor;
+                1.0f - step_absorption * occlusion * occlusion_factor;
             if (light_weight <= 0.01f)
                 break;
 
             l_pos += light_dir;
         }
 
-        transparency *= 1.0f - density * kAbsorptionTimesStepSize;
+        transparency *= 1.0f - density * step_absorption;
         accumulated +=
-            light_intensity * light_weight * transparency * density * kStepSize;
+            light_intensity * light_weight * transparency * density * step_size;
 
         if (transparency <= 0.01f)
             break;
@@ -280,7 +276,10 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                          const glm::mat4& model_view,
                          const glm::ivec2& surface_size,
                          const glm::vec3& eye_pos, const glm::vec3& light_color,
-                         float light_intensity, float focal_length)
+                         float light_intensity, float focal_length,
+                         int num_samples, int num_light_samples,
+                         float absorption, float density_factor,
+                         float occlusion_factor)
 {
     cudaChannelFormatDesc desc;
     cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
@@ -316,6 +315,14 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
     glm::vec3 intensity = glm::normalize(light_color);
     intensity *= light_intensity;
+    const float kMaxDistance = sqrt(2.0f);
+    const float kStepSize = kMaxDistance / static_cast<float>(num_samples);
+    const float kLightScale =
+        kMaxDistance / static_cast<float>(num_light_samples);
+    const float kAbsorptionTimesStepSize = absorption * kStepSize;
     RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                   offset, intensity);
+                                   offset, intensity, num_samples, kStepSize,
+                                   num_light_samples, kLightScale,
+                                   kAbsorptionTimesStepSize, density_factor,
+                                   occlusion_factor);
 }
