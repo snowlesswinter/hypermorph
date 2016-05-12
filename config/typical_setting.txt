@@ -19,4 +19,13 @@ number of jacobi iterations = 60
 num multigrid iterations = 5
 num full multigrid iterations = 2
 fixed time step = 0.33
+auto impulse = 1
+light intensity = 20
+num raycast samples = 180
+num raycast light samples = 60
+light absorption = 10
+raycast density factor = 40
+raycast occlusion factor = 23
 
+num raycast samples = 240
+num raycast light samples = 90

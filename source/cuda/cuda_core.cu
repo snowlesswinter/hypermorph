@@ -171,7 +171,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     {
         float density =
             tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
-        if (density < 0.001f)
+        if (density < 0.01f)
             continue;
 
         glm::vec3 light_dir = glm::normalize(light_pos - pos) * light_scale;
@@ -179,9 +179,8 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
         glm::vec3 l_pos = pos + light_dir;
 
         for (int j = 0; j < num_light_samples; j++) {
-            float occlusion = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
-            light_weight *=
-                1.0f - step_absorption * occlusion * occlusion_factor;
+            float d = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
+            light_weight *= 1.0f - step_absorption * d * occlusion_factor;
             if (light_weight <= 0.01f)
                 break;
 
