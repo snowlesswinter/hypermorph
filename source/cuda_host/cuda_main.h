@@ -97,6 +97,7 @@ public:
     void Raycast(std::shared_ptr<GLSurface> dest,
                  std::shared_ptr<CudaVolume> density,
                  const glm::mat4& model_view, const glm::vec3& eye_pos,
+                 const glm::vec3& light_color, float light_intensity,
                  float focal_length);
 
     // For diagnosis

@@ -377,7 +377,7 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         hotspot = glm::vec3(0.5f * GridWidth * (manual_impulse_->x + 1.0f),
                             0.0f,
                             0.5f * GridDepth * (manual_impulse_->y + 1.0f));
-    else
+    else if (!FluidConfig::Instance()->auto_impulse())
         return;
 
     ImpulseDensity(kImpulsePosition, hotspot, splat_radius,

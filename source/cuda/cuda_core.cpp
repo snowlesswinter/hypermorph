@@ -21,7 +21,9 @@ extern void LaunchClearVolumeKernel(cudaArray* dest_array,
 extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                 const glm::mat4& model_view,
                                 const glm::ivec2& surface_size,
-                                const glm::vec3& eye_pos, float focal_length);
+                                const glm::vec3& eye_pos,
+                                const glm::vec3& light_color,
+                                float light_intensity, float focal_length);
 
 CudaCore::CudaCore()
     : block_arrangement_()
@@ -290,7 +292,8 @@ void CudaCore::Sync()
 void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
                        const glm::mat4& model_view,
                        const glm::ivec2& surface_size,
-                       const glm::vec3& eye_pos, float focal_length)
+                       const glm::vec3& eye_pos, const glm::vec3& light_color,
+                       float light_intensity, float focal_length)
 {
     cudaGraphicsResource_t res[] = {
         dest->resource()
@@ -310,7 +313,7 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
         return;
 
     LaunchRaycastKernel(dest_array, density, model_view, surface_size, eye_pos,
-                        focal_length);
+                        light_color, light_intensity, focal_length);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

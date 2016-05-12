@@ -6,6 +6,7 @@
 #include <locale>
 #include <fstream>
 #include <functional>
+#include <regex>
 #include <sstream>
 #include <string>
 
@@ -96,6 +97,27 @@ std::istream& operator >> <FluidSimulator::PoissonMethod>(
     return is;
 }
 
+template <>
+std::istream& operator >> <glm::vec3>(
+    std::istream& is, FluidConfig::ConfigField<glm::vec3>& field)
+{
+    std::string color;
+    std::getline(is, color);
+    std::string trimmed_color = trimmed(color);
+    std::regex re(
+        "\\(\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*\\)");
+    std::smatch matched;
+    if (std::regex_match(trimmed_color, matched, re)) {
+        if (matched.size() == 4) {
+            for (size_t i = 1; i < matched.size(); i++) {
+                std::stringstream ss(matched[i]);
+                ss >> field.value_[i - 1];
+            }
+        }
+    }
+
+    return is;
+}
 
 template <typename T>
 std::ostream& operator <<(std::ostream& os, FluidConfig::ConfigField<T>& field)
@@ -124,6 +146,16 @@ std::ostream& operator << <FluidSimulator::PoissonMethod>(
     for (auto i : method_enum_desc)
         if (field.value_ == i.m_)
             os << i.desc_;
+
+    return os;
+}
+
+template <>
+std::ostream& operator << <glm::vec3>(
+    std::ostream& os, FluidConfig::ConfigField<glm::vec3>& field)
+{
+    os << field.desc_ << " = (" << field.value_.x << ", " << field.value_.y <<
+        ", " << field.value_.z << ")";
 
     return os;
 }
@@ -177,6 +209,7 @@ FluidConfig::FluidConfig()
     , graphics_lib_(GRAPHICS_LIB_CUDA, "graphics library")
     , poisson_method_(FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID,
                       "poisson method")
+    , light_color_(glm::vec3(171, 160, 139), "light color")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
     , impulse_density_(0.5f, "impulse density")
@@ -188,9 +221,11 @@ FluidConfig::FluidConfig()
     , density_dissipation_(0.2f, "density dissipation")
     , splat_radius_factor_(0.25f, "splat radius factor")
     , fixed_time_step_(0.33f, "fixed time step")
+    , light_intensity_(22.0f, "light intensity")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
+    , auto_impulse_(1, "auto impulse")
     , initial_viewport_width_(512)
     , initial_viewport_height_(512)
 {
@@ -231,6 +266,11 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         return;
     }
 
+    if (lower_trimmed == light_color_.desc_) {
+        value_stream >> light_color_;
+        return;
+    }
+
     ConfigField<std::string>* string_fields[] = {
         &preset_file_,
     };
@@ -254,6 +294,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &density_dissipation_,
         &splat_radius_factor_,
         &fixed_time_step_,
+        &light_intensity_,
     };
 
     for (auto& f : float_fields) {
@@ -267,6 +308,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &num_jacobi_iterations_,
         &num_multigrid_iterations_,
         &num_full_multigrid_iterations_,
+        &auto_impulse_,
     };
 
     for (auto& f : int_fields) {
@@ -281,6 +323,7 @@ void FluidConfig::Store(std::ostream& stream)
 {
     stream << graphics_lib_ << std::endl;
     stream << poisson_method_ << std::endl;
+    stream << light_color_ << std::endl;
 
     ConfigField<std::string> string_fields[] = {
         preset_file_,
@@ -301,6 +344,7 @@ void FluidConfig::Store(std::ostream& stream)
         density_dissipation_,
         splat_radius_factor_,
         fixed_time_step_,
+        light_intensity_,
     };
 
     for (auto& f : float_fields)
@@ -310,6 +354,7 @@ void FluidConfig::Store(std::ostream& stream)
         num_jacobi_iterations_,
         num_multigrid_iterations_,
         num_full_multigrid_iterations_,
+        auto_impulse_,
     };
 
     for (auto& f : int_fields)

@@ -287,7 +287,8 @@ bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
         return false;
     }
 
-    float r = (-1.0f + (4.0f / GridHeight) - eye_position.y) / diff.y;
+    float hot_plane_y = -1.0f + (2.0f / GridHeight) * 2.0f;
+    float r = (hot_plane_y - eye_position.y) / diff.y;
     result->x = r * diff.x + eye_position.x;
     result->y = r * diff.z + eye_position.z;
     return true;

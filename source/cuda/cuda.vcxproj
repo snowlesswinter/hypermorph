@@ -99,6 +99,7 @@
     <CudaCompile>
       <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
       <CodeGeneration>compute_20,sm_20</CodeGeneration>
+      <CudaRuntime>Static</CudaRuntime>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -145,6 +146,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile>
       <Include>$(ProjectDir)\..;$(CUDA_SAMPLES_PATH)\common\inc\;%(Include)</Include>
       <CodeGeneration>compute_20,sm_20</CodeGeneration>
+      <CudaRuntime>Static</CudaRuntime>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

@@ -33,7 +33,8 @@ public:
     static void Raycast(GraphicsResource* dest, cudaArray* density,
                         const glm::mat4& model_view,
                         const glm::ivec2& surface_size,
-                        const glm::vec3& eye_pos, float focal_length);
+                        const glm::vec3& eye_pos, const glm::vec3& light_color,
+                        float light_intensity, float focal_length);
 
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);

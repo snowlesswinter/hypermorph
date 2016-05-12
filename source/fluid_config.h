@@ -5,6 +5,7 @@
 
 #include "graphics_lib_enum.h"
 #include "fluid_simulator.h"
+#include "third_party/glm/vec3.hpp"
 
 class FluidConfig
 {
@@ -28,6 +29,7 @@ public:
     FluidSimulator::PoissonMethod poisson_method() const {
         return poisson_method_.value_;
     }
+    glm::vec3 light_color() const { return light_color_.value_; }
     float ambient_temperature() const { return ambient_temperature_.value_; }
     float impulse_temperature() const { return impulse_temperature_.value_; }
     float impulse_density() const { return impulse_density_.value_; }
@@ -41,12 +43,16 @@ public:
     float density_dissipation() const { return density_dissipation_.value_; }
     float splat_radius_factor() const { return splat_radius_factor_.value_; }
     float fixed_time_step() const { return fixed_time_step_.value_; }
+    float light_intensity() const { return light_intensity_.value_; }
     int num_jacobi_iterations() const { return num_jacobi_iterations_.value_; }
     int num_multigrid_iterations() const {
         return num_multigrid_iterations_.value_;
     }
     int num_full_multigrid_iterations() const {
         return num_full_multigrid_iterations_.value_;
+    }
+    bool auto_impulse() const {
+        return !!auto_impulse_.value_;
     }
     int initial_viewport_width() const { return initial_viewport_width_; }
     int initial_viewport_height() const { return initial_viewport_height_; }
@@ -64,6 +70,7 @@ private:
     ConfigField<std::string> preset_file_;
     ConfigField<GraphicsLib> graphics_lib_;
     ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
+    ConfigField<glm::vec3> light_color_;
     ConfigField<float> ambient_temperature_;
     ConfigField<float> impulse_temperature_;
     ConfigField<float> impulse_density_;
@@ -75,9 +82,11 @@ private:
     ConfigField<float> density_dissipation_;
     ConfigField<float> splat_radius_factor_;
     ConfigField<float> fixed_time_step_;
+    ConfigField<float> light_intensity_;
     ConfigField<int> num_jacobi_iterations_;
     ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;
+    ConfigField<int> auto_impulse_;
     int initial_viewport_width_;
     int initial_viewport_height_;
 };

@@ -279,7 +279,8 @@ void LaunchClearVolumeKernel(cudaArray* dest_array, const glm::vec4& value,
 void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                          const glm::mat4& model_view,
                          const glm::ivec2& surface_size,
-                         const glm::vec3& eye_pos, float focal_length)
+                         const glm::vec3& eye_pos, const glm::vec3& light_color,
+                         float light_intensity, float focal_length)
 {
     cudaChannelFormatDesc desc;
     cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
@@ -313,9 +314,8 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
     dim3 block(32, 8, 1);
     dim3 grid((t + block.x - 1) / block.x, (t + block.y - 1) / block.y, 1);
 
-    //glm::vec3 light_intensity(6.2109375f, 7.2265625f, 8.0078125f);
-    glm::vec3 light_intensity = glm::normalize(glm::vec3(171, 160, 139));
-    light_intensity *= 22.0f;
+    glm::vec3 intensity = glm::normalize(light_color);
+    intensity *= light_intensity;
     RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                   offset, light_intensity);
+                                   offset, intensity);
 }

@@ -267,6 +267,7 @@ void CudaMain::RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                        std::shared_ptr<CudaVolume> density,
                        const glm::mat4& model_view, const glm::vec3& eye_pos,
+                       const glm::vec3& light_color, float light_intensity,
                        float focal_length)
 {
     auto i = registerd_textures_.find(dest);
@@ -275,7 +276,8 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
         return;
 
     core_->Raycast(i->second.get(), density->dev_array(), model_view,
-                   dest->size(), eye_pos, focal_length);
+                   dest->size(), eye_pos, light_color, light_intensity,
+                   focal_length);
 }
 
 void CudaMain::RoundPassed(int round)

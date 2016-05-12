@@ -2,6 +2,7 @@
 #include "volume_renderer.h"
 
 #include "cuda_host/cuda_main.h"
+#include "fluid_config.h"
 #include "graphics_volume.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_surface.h"
@@ -93,8 +94,10 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
                             float focal_length)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->Raycast(surf_, density_volume->cuda_volume(),
-                                      model_view_, eye_position_, focal_length);
+        CudaMain::Instance()->Raycast(
+            surf_, density_volume->cuda_volume(), model_view_, eye_position_,
+            FluidConfig::Instance()->light_color(),
+            FluidConfig::Instance()->light_intensity(), focal_length);
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
