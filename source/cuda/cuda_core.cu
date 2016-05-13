@@ -164,11 +164,10 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
     float transparency = 1.0f;
-    glm::vec3 accumulated(0.0f);
+    float accumulated = 0.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
-            i++, pos += step, travel -= step_size)
-    {
+            i++, pos += step, travel -= step_size) {
         float density =
             tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
         if (density < 0.01f)
@@ -184,20 +183,24 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             if (light_weight <= 0.01f)
                 break;
 
+            // Early termination. Great performance gain.
+            if (l_pos.x < 0.0f || l_pos.y < 0.0f || l_pos.z < 0.0f ||
+                    l_pos.x > 1.0f || l_pos.y > 1.0f || l_pos.z > 1.0f)
+                break;
+
             l_pos += light_dir;
         }
 
         transparency *= 1.0f - density * step_absorption;
-        accumulated +=
-            light_intensity * light_weight * transparency * density * step_size;
+        accumulated += light_weight * transparency * density * step_size;
 
         if (transparency <= 0.01f)
             break;
     }
 
-    ushort4 raw = make_ushort4(__float2half_rn(accumulated.x),
-                               __float2half_rn(accumulated.y),
-                               __float2half_rn(accumulated.z),
+    ushort4 raw = make_ushort4(__float2half_rn(light_intensity.x * accumulated),
+                               __float2half_rn(light_intensity.y * accumulated),
+                               __float2half_rn(light_intensity.z * accumulated),
                                __float2half_rn(1.0f - transparency));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
                 (y + offset.y), cudaBoundaryModeTrap);
