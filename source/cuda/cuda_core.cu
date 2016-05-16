@@ -163,8 +163,8 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 pos = ray_start;
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
-    float transparency = 1.0f;
-    float accumulated = 0.0f;
+    float transmittance = 1.0f;
+    float luminance = 0.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
             i++, pos += step, travel -= step_size) {
@@ -191,17 +191,115 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             l_pos += light_dir;
         }
 
-        transparency *= 1.0f - density * step_absorption;
-        accumulated += light_weight * transparency * density * step_size;
+        transmittance *= 1.0f - density * step_absorption;
+        luminance += light_weight * transmittance * density;
 
-        if (transparency <= 0.01f)
+        if (transmittance <= 0.01f)
             break;
     }
 
-    ushort4 raw = make_ushort4(__float2half_rn(light_intensity.x * accumulated),
-                               __float2half_rn(light_intensity.y * accumulated),
-                               __float2half_rn(light_intensity.z * accumulated),
-                               __float2half_rn(1.0f - transparency));
+    ushort4 raw = make_ushort4(
+        __float2half_rn(light_intensity.x * luminance * step_size),
+        __float2half_rn(light_intensity.y * luminance * step_size),
+        __float2half_rn(light_intensity.z * luminance * step_size),
+        __float2half_rn(1.0f - transmittance));
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+                (y + offset.y), cudaBoundaryModeTrap);
+}
+
+__global__ void RaycastKernel_color(glm::mat3 model_view,
+                                    glm::vec2 viewport_size, glm::vec3 eye_pos,
+                                    float focal_length, glm::vec2 offset,
+                                    glm::vec3 light_intensity, int num_samples,
+                                    float step_size, int num_light_samples,
+                                    float light_scale, float step_absorption,
+                                    float density_factor,
+                                    float occlusion_factor)
+{
+    const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
+    glm::vec3 smoke_color(57.0f, 88.0f, 78.0f);
+    glm::vec3 dark = glm::normalize(smoke_color) * 0.2f;
+    smoke_color = glm::normalize(glm::vec3(140.0f, 190.0f, 154.0f)) * 15.0f;
+    smoke_color = glm::normalize(glm::vec3(128.0f, 190.0f, 234.0f)) * 15.0f;
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= static_cast<int>(viewport_size.x) ||
+        y >= static_cast<int>(viewport_size.y))
+        return;
+
+    glm::vec3 ray_dir;
+
+    // Normalize ray direction vector and transfrom to world space.
+    ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
+    ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
+    ray_dir.z = -focal_length;
+
+    // Transform the ray direction vector to model-view space.
+    ray_dir = glm::normalize(ray_dir * model_view);
+
+    // Ray origin is already in model space.
+    float near;
+    float far;
+    IntersectAABB(ray_dir, eye_pos, glm::vec3(-1.0f), glm::vec3(1.0f),
+                  &near, &far);
+    if (near < 0.0f)
+        near = 0.0f;
+
+    glm::vec3 ray_start = eye_pos + ray_dir * near;
+    glm::vec3 ray_stop = eye_pos + ray_dir * far;
+
+    // Transfrom to [0, 1) model space.
+    ray_start = 0.5f * (ray_start + 1.0f);
+    ray_stop = 0.5f * (ray_stop + 1.0f);
+
+    glm::vec3 pos = ray_start;
+    glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
+    float travel = glm::distance(ray_stop, ray_start);
+    float transmittance = 1.0f;
+    float luminance = 0.0f;
+
+    for (int i = 0; i < num_samples && travel > 0.0f;
+         i++, pos += step, travel -= step_size)
+    {
+        float density =
+            tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
+        if (density < 0.01f)
+            continue;
+
+        glm::vec3 light_dir = glm::normalize(light_pos - pos) * light_scale;
+        float light_weight = 1.0f;
+        glm::vec3 l_pos = pos + light_dir;
+
+        for (int j = 0; j < num_light_samples; j++)
+        {
+            float d = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
+            light_weight *= 1.0f - step_absorption * d * occlusion_factor;
+            if (light_weight <= 0.01f)
+                break;
+
+            // Early termination. Great performance gain.
+            if (l_pos.x < 0.0f || l_pos.y < 0.0f || l_pos.z < 0.0f ||
+                l_pos.x > 1.0f || l_pos.y > 1.0f || l_pos.z > 1.0f)
+                break;
+
+            l_pos += light_dir;
+        }
+
+        transmittance *= 1.0f - density * step_absorption;
+        luminance += light_weight * transmittance * density;
+
+        if (transmittance <= 0.01f)
+            break;
+    }
+
+    float alpha = glm::max(0.0f, glm::min(luminance / 20.0f, 1.0f));
+    ushort4 raw = make_ushort4(
+        __float2half_rn(dark.x + (light_intensity.x * alpha + (1.0f - alpha) * smoke_color.x) * luminance * step_size),
+        __float2half_rn(dark.y + (light_intensity.y * alpha + (1.0f - alpha) * smoke_color.y) * luminance * step_size),
+        __float2half_rn(dark.z + (light_intensity.z * alpha + (1.0f - alpha) * smoke_color.z) * luminance * step_size),
+        __float2half_rn(1.0f - transmittance));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
