@@ -40,6 +40,27 @@ __global__ void AdvectKernel(float time_step, float dissipation)
                 cudaBoundaryModeTrap);
 }
 
+__global__ void AdvectDensityKernel(float time_step, float dissipation)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z);
+    coord += 0.5f;
+    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
+    float3 back_traced =
+        coord - time_step * make_float3(velocity.x, velocity.y, velocity.z);
+
+    float density = tex3D(advect_source, back_traced.x, back_traced.y,
+                          back_traced.z);
+
+    float ¦Ø = dissipation * time_step * (1.0f - density);
+    float result = (1.0f - ¦Ø) * density;
+    surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z,
+                cudaBoundaryModeTrap);
+}
+
 __global__ void AdvectVelocityKernel(float time_step, float dissipation)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -220,7 +241,7 @@ __global__ void ImpulseDensityKernel(float3 center_point, float radius,
         make_float2(center_point.x, center_point.z);
     float d = hypotf(diff.x, diff.y);
     if (d < radius) {
-        surf3Dwrite(__float2half_rn(0.1f * value), impulse_dest1,
+        surf3Dwrite(__float2half_rn(value), impulse_dest1,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
     }
 }
@@ -442,6 +463,53 @@ void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     AdvectKernel<<<grid, block>>>(time_step, dissipation);
+
+    cudaUnbindTexture(&advect_source);
+    cudaUnbindTexture(&advect_velocity);
+}
+
+void LaunchAdvectDensity(cudaArray_t dest_array, cudaArray_t velocity_array,
+                         cudaArray_t source_array, float time_step,
+                         float dissipation, uint3 volume_size)
+{
+    cudaChannelFormatDesc desc;
+    cudaGetChannelDesc(&desc, dest_array);
+    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
+                                                &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    cudaGetChannelDesc(&desc, velocity_array);
+    advect_velocity.normalized = false;
+    advect_velocity.filterMode = cudaFilterModeLinear;
+    advect_velocity.addressMode[0] = cudaAddressModeClamp;
+    advect_velocity.addressMode[1] = cudaAddressModeClamp;
+    advect_velocity.addressMode[2] = cudaAddressModeClamp;
+    advect_velocity.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    cudaGetChannelDesc(&desc, source_array);
+    advect_source.normalized = false;
+    advect_source.filterMode = cudaFilterModeLinear;
+    advect_source.addressMode[0] = cudaAddressModeClamp;
+    advect_source.addressMode[1] = cudaAddressModeClamp;
+    advect_source.addressMode[2] = cudaAddressModeClamp;
+    advect_source.channelDesc = desc;
+
+    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
+    assert(result == cudaSuccess);
+    if (result != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    AdvectDensityKernel<<<grid, block>>>(time_step, dissipation);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);

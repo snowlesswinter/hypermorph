@@ -606,7 +606,7 @@ void FluidSimulator::ReviseDensity()
             GridWidth * FluidConfig::Instance()->splat_radius_factor();
         CudaMain::Instance()->ReviseDensity(
             density_->cuda_volume(), kImpulsePosition, splat_radius,
-            FluidConfig::Instance()->impulse_density());
+            FluidConfig::Instance()->impulse_density() * 0.2f);
     }
 }
 

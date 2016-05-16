@@ -17,6 +17,10 @@
 extern void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
                          cudaArray_t source_array, float time_step,
                          float dissipation, uint3 volume_size);
+extern void LaunchAdvectDensity(cudaArray_t dest_array,
+                                cudaArray_t velocity_array,
+                                cudaArray_t source_array, float time_step,
+                                float dissipation, uint3 volume_size);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
                                  cudaArray_t velocity_array, float time_step,
                                  float dissipation, uint3 volume_size);
@@ -83,8 +87,8 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   float dissipation,
                                   const glm::ivec3& volume_size)
 {
-    LaunchAdvect(dest, velocity, density, time_step, dissipation,
-                 FromGlmVector(volume_size));
+    LaunchAdvectDensity(dest, velocity, density, time_step, dissipation,
+                        FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
