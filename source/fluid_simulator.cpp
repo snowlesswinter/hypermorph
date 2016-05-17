@@ -43,8 +43,9 @@ FluidSimulator::FluidSimulator()
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_()
+    , velocity_prev_()
     , density_()
-    , density2_()
+    , density_prev_()
     , temperature_()
     , packed_()
     , general1_()
@@ -61,8 +62,9 @@ FluidSimulator::~FluidSimulator()
 bool FluidSimulator::Init()
 {
     velocity_.reset(new GraphicsVolume(graphics_lib_));
+    velocity_prev_.reset(new GraphicsVolume(graphics_lib_));
     density_.reset(new GraphicsVolume(graphics_lib_));
-    density2_.reset(new GraphicsVolume(graphics_lib_));
+    density_prev_.reset(new GraphicsVolume(graphics_lib_));
     temperature_.reset(new GraphicsVolume(graphics_lib_));
     packed_.reset(new GraphicsVolume(graphics_lib_));
     general1_.reset(new GraphicsVolume(graphics_lib_));
@@ -88,12 +90,17 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = density2_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = density_prev_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
     assert(result);
     if (!result)
         return false;
 
     result = velocity_->Create(GridWidth, GridHeight, GridDepth, 4, 2);
+    assert(result);
+    if (!result)
+        return false;
+
+    result = velocity_prev_->Create(GridWidth, GridHeight, GridDepth, 4, 2);
     assert(result);
     if (!result)
         return false;
@@ -155,7 +162,9 @@ bool FluidSimulator::Init()
 void FluidSimulator::Reset()
 {
     velocity_->Clear();
+    velocity_prev_->Clear();
     density_->Clear();
+    density_prev_->Clear();
     temperature_->Clear();
 
     diagnosis_volume_.reset();
@@ -247,11 +256,11 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectDensity(density2_->cuda_volume(),
+        CudaMain::Instance()->AdvectDensity(density_prev_->cuda_volume(),
                                             velocity_->cuda_volume(),
                                             density_->cuda_volume(),
                                             delta_time, density_dissipation);
-        std::swap(density_, density2_);
+        std::swap(density_, density_prev_);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
         std::swap(density_, general1_);
@@ -303,7 +312,9 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->AdvectVelocity(general4_->cuda_volume(),
                                              velocity_->cuda_volume(),
-                                             delta_time, velocity_dissipation);
+                                             velocity_prev_->cuda_volume(),
+                                             delta_time, delta_time,
+                                             velocity_dissipation);
     } else {
         glUseProgram(Programs.Advect);
 
@@ -369,8 +380,8 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         GridWidth * FluidConfig::Instance()->splat_radius_factor();
     float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
-    float hotspot_x = cos_factor * splat_radius * 0.5f + kImpulsePosition.x;
-    float hotspot_z = sin_factor * splat_radius * 0.5f + kImpulsePosition.z;
+    float hotspot_x = cos_factor * splat_radius * 0.8f + kImpulsePosition.x;
+    float hotspot_z = sin_factor * splat_radius * 0.8f + kImpulsePosition.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     if (manual_impulse_)

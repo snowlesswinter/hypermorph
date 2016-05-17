@@ -44,7 +44,9 @@ public:
                 float dissipation);
     void AdvectVelocity(std::shared_ptr<CudaVolume> dest,
                         std::shared_ptr<CudaVolume> velocity,
-                        float time_step, float dissipation);
+                        std::shared_ptr<CudaVolume> velocity_prev,
+                        float time_step, float time_step_prev,
+                        float dissipation);
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
                        std::shared_ptr<CudaVolume> velocity,
                        std::shared_ptr<CudaVolume> temperature,

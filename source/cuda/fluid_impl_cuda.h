@@ -22,7 +22,8 @@ public:
                        float time_step, float dissipation,
                        const glm::ivec3& volume_size);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
-                        float time_step, float dissipation,
+                        cudaArray* velocity_prev, float time_step,
+                        float time_step_prev, float dissipation,
                         const glm::ivec3& volume_size);
     void ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                        cudaArray* temperature, float time_step,

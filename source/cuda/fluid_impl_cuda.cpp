@@ -22,8 +22,17 @@ extern void LaunchAdvectDensity(cudaArray_t dest_array,
                                 cudaArray_t source_array, float time_step,
                                 float dissipation, uint3 volume_size);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
-                                 cudaArray_t velocity_array, float time_step,
+                                 cudaArray_t velocity_array,
+                                 cudaArray_t velocity_prev_array,
+                                 float time_step, float time_step_prev,
                                  float dissipation, uint3 volume_size);
+extern void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
+                                           cudaArray_t velocity_array,
+                                           cudaArray_t intermediate_array,
+                                           float time_step,
+                                           float time_step_prev,
+                                           float dissipation,
+                                           uint3 volume_size);
 extern void LaunchApplyBuoyancy(cudaArray* dest_array,
                                 cudaArray* velocity_array,
                                 cudaArray* temperature_array,
@@ -92,11 +101,13 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
-                                   float time_step, float dissipation,
+                                   cudaArray* velocity_prev, float time_step,
+                                   float time_step_prev, float dissipation,
                                    const glm::ivec3& volume_size)
 {
-    LaunchAdvectVelocity(dest, velocity, time_step, dissipation,
-                         FromGlmVector(volume_size));
+    LaunchAdvectVelocityMacCormack(dest, velocity, velocity_prev, time_step,
+                                   time_step_prev, dissipation,
+                                   FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,

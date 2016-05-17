@@ -98,10 +98,13 @@ void CudaMain::Advect(std::shared_ptr<CudaVolume> dest,
 
 void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> dest,
                               std::shared_ptr<CudaVolume> velocity,
-                              float time_step, float dissipation)
+                              std::shared_ptr<CudaVolume> velocity_prev,
+                              float time_step, float time_step_prev,
+                              float dissipation)
 {
     fluid_impl_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
-                                time_step, dissipation, dest->size());
+                                velocity_prev->dev_array(), time_step,
+                                time_step_prev, dissipation, dest->size());
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
