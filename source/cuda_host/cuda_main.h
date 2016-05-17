@@ -36,8 +36,9 @@ public:
 
     void AdvectDensity(std::shared_ptr<CudaVolume> dest,
                        std::shared_ptr<CudaVolume> velocity,
-                       std::shared_ptr<CudaVolume> density, float time_step,
-                       float dissipation);
+                       std::shared_ptr<CudaVolume> density,
+                       std::shared_ptr<CudaVolume> intermediate,
+                       float time_step, float dissipation);
     void Advect(std::shared_ptr<CudaVolume> dest,
                 std::shared_ptr<CudaVolume> velocity,
                 std::shared_ptr<CudaVolume> source, float time_step,

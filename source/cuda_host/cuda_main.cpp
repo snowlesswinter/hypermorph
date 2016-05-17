@@ -79,11 +79,12 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
 void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
                              std::shared_ptr<CudaVolume> velocity,
                              std::shared_ptr<CudaVolume> density,
+                             std::shared_ptr<CudaVolume> intermediate,
                              float time_step, float dissipation)
 {
     fluid_impl_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
-                               density->dev_array(), time_step, dissipation,
-                               dest->size());
+                               density->dev_array(), intermediate->dev_array(),
+                               time_step, dissipation, dest->size());
 }
 
 void CudaMain::Advect(std::shared_ptr<CudaVolume> dest,

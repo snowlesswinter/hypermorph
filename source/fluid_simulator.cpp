@@ -166,6 +166,7 @@ void FluidSimulator::Reset()
     density_->Clear();
     density_prev_->Clear();
     temperature_->Clear();
+    general1_->Clear();
 
     diagnosis_volume_.reset();
 
@@ -212,16 +213,16 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     SubtractGradient();
     Metrics::Instance()->OnVelocityRectified();
 
-    // Advect velocity
-    AdvectVelocity(proper_delta_time);
-    Metrics::Instance()->OnVelocityAvected();
-
     // Advect density and temperature
     AdvectTemperature(proper_delta_time);
     Metrics::Instance()->OnTemperatureAvected();
 
     AdvectDensity(proper_delta_time);
     Metrics::Instance()->OnDensityAvected();
+
+    // Advect velocity
+    AdvectVelocity(proper_delta_time);
+    Metrics::Instance()->OnVelocityAvected();
 
     // Apply buoyancy and gravity
     ApplyBuoyancy(proper_delta_time);
@@ -259,6 +260,7 @@ void FluidSimulator::AdvectDensity(float delta_time)
         CudaMain::Instance()->AdvectDensity(density_prev_->cuda_volume(),
                                             velocity_->cuda_volume(),
                                             density_->cuda_volume(),
+                                            general1_->cuda_volume(),
                                             delta_time, density_dissipation);
         std::swap(density_, density_prev_);
     } else {
