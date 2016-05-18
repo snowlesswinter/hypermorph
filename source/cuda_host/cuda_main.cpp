@@ -15,6 +15,23 @@
 #include "third_party/glm/vec2.hpp"
 #include "third_party/glm/vec3.hpp"
 
+namespace
+{
+::AdvectionMethod ToCudaAdvectionMethod(CudaMain::AdvectionMethod method)
+{
+    switch (method) {
+        case CudaMain::SEMI_LAGRANGIAN:
+            return ::SEMI_LAGRANGIAN;
+        case CudaMain::MACCORMACK_SEMI_LAGRANGIAN:
+            return ::MACCORMACK_SEMI_LAGRANGIAN;
+        default:
+            break;
+    }
+
+    return ::INVALID_ADVECTION_METHOD;
+}
+} // Anonymous namespace.
+
 CudaMain* CudaMain::Instance()
 {
     static CudaMain* instance = nullptr;
@@ -76,17 +93,6 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
     registerd_textures_.erase(i);
 }
 
-void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
-                             std::shared_ptr<CudaVolume> velocity,
-                             std::shared_ptr<CudaVolume> density,
-                             std::shared_ptr<CudaVolume> intermediate,
-                             float time_step, float dissipation)
-{
-    fluid_impl_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
-                               density->dev_array(), intermediate->dev_array(),
-                               time_step, dissipation, dest->size());
-}
-
 void CudaMain::Advect(std::shared_ptr<CudaVolume> dest,
                       std::shared_ptr<CudaVolume> velocity,
                       std::shared_ptr<CudaVolume> source, float time_step,
@@ -97,15 +103,29 @@ void CudaMain::Advect(std::shared_ptr<CudaVolume> dest,
                         dest->size());
 }
 
+void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
+                             std::shared_ptr<CudaVolume> velocity,
+                             std::shared_ptr<CudaVolume> density,
+                             std::shared_ptr<CudaVolume> intermediate,
+                             float time_step, float dissipation,
+                             AdvectionMethod method)
+{
+    fluid_impl_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
+                               density->dev_array(), intermediate->dev_array(),
+                               time_step, dissipation, dest->size(),
+                               ToCudaAdvectionMethod(method));
+}
+
 void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> dest,
                               std::shared_ptr<CudaVolume> velocity,
                               std::shared_ptr<CudaVolume> velocity_prev,
                               float time_step, float time_step_prev,
-                              float dissipation)
+                              float dissipation, AdvectionMethod method)
 {
     fluid_impl_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
                                 velocity_prev->dev_array(), time_step,
-                                time_step_prev, dissipation, dest->size());
+                                time_step_prev, dissipation, dest->size(),
+                                ToCudaAdvectionMethod(method));
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,

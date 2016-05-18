@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "advection_method.h"
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
@@ -20,11 +21,12 @@ public:
                 const glm::ivec3& volume_size);
     void AdvectDensity(cudaArray* dest, cudaArray* velocity, cudaArray* density,
                        cudaArray* intermediate, float time_step,
-                       float dissipation, const glm::ivec3& volume_size);
+                       float dissipation, const glm::ivec3& volume_size,
+                       AdvectionMethod method);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         cudaArray* velocity_prev, float time_step,
                         float time_step_prev, float dissipation,
-                        const glm::ivec3& volume_size);
+                        const glm::ivec3& volume_size, AdvectionMethod method);
     void ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                        cudaArray* temperature, float time_step,
                        float ambient_temperature, float accel_factor,

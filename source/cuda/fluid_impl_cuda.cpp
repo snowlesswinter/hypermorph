@@ -19,26 +19,16 @@ extern void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
                          float dissipation, uint3 volume_size);
 extern void LaunchAdvectDensity(cudaArray_t dest_array,
                                 cudaArray_t velocity_array,
-                                cudaArray_t source_array, float time_step,
-                                float dissipation, uint3 volume_size);
-extern void LaunchAdvectDensityMacCormack(cudaArray_t dest_array,
-                                          cudaArray_t velocity_array,
-                                          cudaArray_t source_array,
-                                          cudaArray_t intermediate_array,
-                                          float time_step, float dissipation,
-                                          uint3 volume_size);
+                                cudaArray_t source_array,
+                                cudaArray_t intermediate_array,
+                                float time_step, float dissipation,
+                                uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
                                  cudaArray_t velocity_array,
-                                 cudaArray_t velocity_prev_array,
+                                 cudaArray_t intermediate_array,
                                  float time_step, float time_step_prev,
-                                 float dissipation, uint3 volume_size);
-extern void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
-                                           cudaArray_t velocity_array,
-                                           cudaArray_t intermediate_array,
-                                           float time_step,
-                                           float time_step_prev,
-                                           float dissipation,
-                                           uint3 volume_size);
+                                 float dissipation, uint3 volume_size,
+                                 AdvectionMethod method);
 extern void LaunchApplyBuoyancy(cudaArray* dest_array,
                                 cudaArray* velocity_array,
                                 cudaArray* temperature_array,
@@ -100,22 +90,22 @@ void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
 void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   cudaArray* density, cudaArray* intermediate,
                                   float time_step, float dissipation,
-                                  const glm::ivec3& volume_size)
+                                  const glm::ivec3& volume_size,
+                                  AdvectionMethod method)
 {
-
-    LaunchAdvectDensityMacCormack(dest, velocity, density, intermediate,
-                                  time_step, dissipation,
-                                  FromGlmVector(volume_size));
+    LaunchAdvectDensity(dest, velocity, density, intermediate, time_step,
+                        dissipation, FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                    cudaArray* velocity_prev, float time_step,
                                    float time_step_prev, float dissipation,
-                                   const glm::ivec3& volume_size)
+                                   const glm::ivec3& volume_size,
+                                   AdvectionMethod method)
 {
-    LaunchAdvectVelocityMacCormack(dest, velocity, velocity_prev, time_step,
-                                   time_step_prev, dissipation,
-                                   FromGlmVector(volume_size));
+    LaunchAdvectVelocity(dest, velocity, velocity_prev, time_step,
+                         time_step_prev, dissipation,
+                         FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,

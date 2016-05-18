@@ -257,11 +257,14 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::AdvectionMethod method =
+            FluidConfig::Instance()->advection_method();
         CudaMain::Instance()->AdvectDensity(density_prev_->cuda_volume(),
                                             velocity_->cuda_volume(),
                                             density_->cuda_volume(),
                                             general1_->cuda_volume(),
-                                            delta_time, density_dissipation);
+                                            delta_time, density_dissipation,
+                                            method);
         std::swap(density_, density_prev_);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
@@ -312,11 +315,13 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     float velocity_dissipation =
         FluidConfig::Instance()->velocity_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::AdvectionMethod method =
+            FluidConfig::Instance()->advection_method();
         CudaMain::Instance()->AdvectVelocity(general4_->cuda_volume(),
                                              velocity_->cuda_volume(),
                                              velocity_prev_->cuda_volume(),
                                              delta_time, delta_time,
-                                             velocity_dissipation);
+                                             velocity_dissipation, method);
     } else {
         glUseProgram(Programs.Advect);
 

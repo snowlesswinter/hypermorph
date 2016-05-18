@@ -193,6 +193,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="advection_method.h" />
     <ClInclude Include="block_arrangement.h" />
     <ClInclude Include="cuda_core.h" />
     <ClInclude Include="fluid_impl_cuda.h" />

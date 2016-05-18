@@ -62,6 +62,11 @@ struct { FluidSimulator::PoissonMethod m_; char* desc_; } method_enum_desc[] = {
     {FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID, "full multigrid"},
 };
 
+struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
+    {CudaMain::SEMI_LAGRANGIAN, "semi lagrangian"},
+    {CudaMain::MACCORMACK_SEMI_LAGRANGIAN, "maccormack"},
+};
+
 template <typename T>
 std::istream& operator >>(std::istream& is, FluidConfig::ConfigField<T>& field)
 {
@@ -91,6 +96,21 @@ std::istream& operator >> <FluidSimulator::PoissonMethod>(
     std::getline(is, method);
     std::string lower_trimmed = to_lower(trimmed(method));
     for (auto i : method_enum_desc)
+        if (lower_trimmed == i.desc_)
+            field.value_ = i.m_;
+
+    return is;
+}
+
+template <>
+std::istream& operator >> <CudaMain::AdvectionMethod>(
+    std::istream& is,
+    FluidConfig::ConfigField<CudaMain::AdvectionMethod>& field)
+{
+    std::string method;
+    std::getline(is, method);
+    std::string lower_trimmed = to_lower(trimmed(method));
+    for (auto i : advect_enum_desc)
         if (lower_trimmed == i.desc_)
             field.value_ = i.m_;
 
@@ -144,6 +164,19 @@ std::ostream& operator << <FluidSimulator::PoissonMethod>(
 {
     os << field.desc_ << " = ";
     for (auto i : method_enum_desc)
+        if (field.value_ == i.m_)
+            os << i.desc_;
+
+    return os;
+}
+
+template <>
+std::ostream& operator << <CudaMain::AdvectionMethod>(
+    std::ostream& os,
+    FluidConfig::ConfigField<CudaMain::AdvectionMethod>& field)
+{
+    os << field.desc_ << " = ";
+    for (auto i : advect_enum_desc)
         if (field.value_ == i.m_)
             os << i.desc_;
 
@@ -209,6 +242,8 @@ FluidConfig::FluidConfig()
     , graphics_lib_(GRAPHICS_LIB_CUDA, "graphics library")
     , poisson_method_(FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID,
                       "poisson method")
+    , advection_method_(CudaMain::MACCORMACK_SEMI_LAGRANGIAN,
+                        "advection method")
     , light_color_(glm::vec3(171, 160, 139), "light color")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
@@ -268,6 +303,11 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
     
     if (lower_trimmed == poisson_method_.desc_) {
         value_stream >> poisson_method_;
+        return;
+    }
+
+    if (lower_trimmed == advection_method_.desc_) {
+        value_stream >> advection_method_;
         return;
     }
 
@@ -333,6 +373,7 @@ void FluidConfig::Store(std::ostream& stream)
 {
     stream << graphics_lib_ << std::endl;
     stream << poisson_method_ << std::endl;
+    stream << advection_method_ << std::endl;
     stream << light_color_ << std::endl;
 
     ConfigField<std::string> string_fields[] = {

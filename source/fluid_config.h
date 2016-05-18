@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "cuda_host/cuda_main.h"
 #include "graphics_lib_enum.h"
 #include "fluid_simulator.h"
 #include "third_party/glm/vec3.hpp"
@@ -28,6 +29,9 @@ public:
     GraphicsLib graphics_lib() const { return graphics_lib_.value_; }
     FluidSimulator::PoissonMethod poisson_method() const {
         return poisson_method_.value_;
+    }
+    CudaMain::AdvectionMethod advection_method() const {
+        return advection_method_.value_;
     }
     glm::vec3 light_color() const { return light_color_.value_; }
     float ambient_temperature() const { return ambient_temperature_.value_; }
@@ -81,6 +85,7 @@ private:
     ConfigField<std::string> preset_file_;
     ConfigField<GraphicsLib> graphics_lib_;
     ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
+    ConfigField<CudaMain::AdvectionMethod> advection_method_;
     ConfigField<glm::vec3> light_color_;
     ConfigField<float> ambient_temperature_;
     ConfigField<float> impulse_temperature_;

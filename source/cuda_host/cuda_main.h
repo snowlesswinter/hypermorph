@@ -23,6 +23,12 @@ class MultigridImplCuda;
 class CudaMain
 {
 public:
+    enum AdvectionMethod
+    {
+        SEMI_LAGRANGIAN,
+        MACCORMACK_SEMI_LAGRANGIAN,
+    };
+
     static CudaMain* Instance();
     static void DestroyInstance();
 
@@ -34,20 +40,21 @@ public:
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
 
-    void AdvectDensity(std::shared_ptr<CudaVolume> dest,
-                       std::shared_ptr<CudaVolume> velocity,
-                       std::shared_ptr<CudaVolume> density,
-                       std::shared_ptr<CudaVolume> intermediate,
-                       float time_step, float dissipation);
     void Advect(std::shared_ptr<CudaVolume> dest,
                 std::shared_ptr<CudaVolume> velocity,
                 std::shared_ptr<CudaVolume> source, float time_step,
                 float dissipation);
+    void AdvectDensity(std::shared_ptr<CudaVolume> dest,
+                       std::shared_ptr<CudaVolume> velocity,
+                       std::shared_ptr<CudaVolume> density,
+                       std::shared_ptr<CudaVolume> intermediate,
+                       float time_step, float dissipation,
+                       AdvectionMethod method);
     void AdvectVelocity(std::shared_ptr<CudaVolume> dest,
                         std::shared_ptr<CudaVolume> velocity,
                         std::shared_ptr<CudaVolume> velocity_prev,
                         float time_step, float time_step_prev,
-                        float dissipation);
+                        float dissipation, AdvectionMethod method);
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
                        std::shared_ptr<CudaVolume> velocity,
                        std::shared_ptr<CudaVolume> temperature,
