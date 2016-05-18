@@ -46,7 +46,7 @@ __global__ void AdvectMacCormackKernel(float time_step, float dissipation)
                           // accurate semi-Lagrangian method.
         ¦Õ_new = ¦Õ_n_plus_1_hat;
 
-    float result = (1.0f - dissipation * time_step * (1.0f - ¦Õ_new)) * ¦Õ_new;
+    float result = (1.0f - dissipation * time_step) * ¦Õ_new;
     surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 }
 

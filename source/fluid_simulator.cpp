@@ -213,16 +213,16 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     SubtractGradient();
     Metrics::Instance()->OnVelocityRectified();
 
+    // Advect velocity
+    AdvectVelocity(proper_delta_time);
+    Metrics::Instance()->OnVelocityAvected();
+
     // Advect density and temperature
     AdvectTemperature(proper_delta_time);
     Metrics::Instance()->OnTemperatureAvected();
 
     AdvectDensity(proper_delta_time);
     Metrics::Instance()->OnDensityAvected();
-
-    // Advect velocity
-    AdvectVelocity(proper_delta_time);
-    Metrics::Instance()->OnVelocityAvected();
 
     // Apply buoyancy and gravity
     ApplyBuoyancy(proper_delta_time);
