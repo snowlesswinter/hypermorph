@@ -85,10 +85,10 @@ private:
     std::shared_ptr<GraphicsVolume> velocity_;
     std::shared_ptr<GraphicsVolume> velocity_prev_;
     std::shared_ptr<GraphicsVolume> density_;
-    std::shared_ptr<GraphicsVolume> density_prev_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> packed_;
-    std::shared_ptr<GraphicsVolume> general1_;
+    std::shared_ptr<GraphicsVolume> general1a_;
+    std::shared_ptr<GraphicsVolume> general1b_;
     std::shared_ptr<GraphicsVolume> general4_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 

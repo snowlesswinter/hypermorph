@@ -17,8 +17,8 @@ public:
     ~FluidImplCuda();
 
     void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
-                float time_step, float dissipation,
-                const glm::ivec3& volume_size);
+                cudaArray* intermediate, float time_step, float dissipation,
+                const glm::ivec3& volume_size, AdvectionMethod method);
     void AdvectDensity(cudaArray* dest, cudaArray* velocity, cudaArray* density,
                        cudaArray* intermediate, float time_step,
                        float dissipation, const glm::ivec3& volume_size,
