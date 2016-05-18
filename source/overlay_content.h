@@ -19,9 +19,10 @@ private:
     struct BitmapBuf
     {
         HBITMAP hbitmap_;
+        HBRUSH hbrush_;
         void* bits_;
 
-        BitmapBuf() : hbitmap_(nullptr), bits_(nullptr) {}
+        BitmapBuf() : hbitmap_(nullptr), hbrush_(nullptr), bits_(nullptr) {}
     };
     GLuint GetTexture();
     GLuint GetProgram();

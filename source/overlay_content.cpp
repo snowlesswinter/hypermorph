@@ -23,6 +23,11 @@ OverlayContent::~OverlayContent()
         bitmap_buf_.bits_ = nullptr;
     }
 
+    if (bitmap_buf_.hbrush_) {
+        DeleteObject(bitmap_buf_.hbrush_);
+        bitmap_buf_.hbrush_ = nullptr;
+    }
+
     if (quad_mesh_) {
         delete quad_mesh_;
         quad_mesh_ = nullptr;
@@ -47,6 +52,8 @@ void OverlayContent::RenderText(const std::string& text, int viewport_width,
     HGDIOBJ old_bitmap = ::SelectObject(hdc, bitmap_buf.hbitmap_);
     ::SetBkMode(hdc, TRANSPARENT);
     ::SetTextColor(hdc, RGB(255, 255, 255));
+
+    ::FillRect(hdc, &bounds, bitmap_buf.hbrush_);
     ::DrawTextA(hdc, text.c_str(), text.length(), &bounds, DT_LEFT);
 
     ::SelectObject(hdc, old_bitmap);
@@ -106,6 +113,9 @@ MeshPod* OverlayContent::GetQuadMesh()
 
 OverlayContent::BitmapBuf OverlayContent::GetBitmapBuf()
 {
+    if (bitmap_buf_.hbitmap_)
+        return bitmap_buf_;
+
     HDC hdc = ::CreateCompatibleDC(nullptr);
     if (!hdc)
         return BitmapBuf();
@@ -125,5 +135,7 @@ OverlayContent::BitmapBuf OverlayContent::GetBitmapBuf()
         reinterpret_cast<void**>(&bitmap_buf_.bits_), nullptr, 0);
 
     DeleteDC(hdc);
+
+    bitmap_buf_.hbrush_ = CreateSolidBrush(0xFFFFFFFF);
     return bitmap_buf_;
 }

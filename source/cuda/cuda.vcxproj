@@ -173,6 +173,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="advection.cu">
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
+    </CudaCompile>
     <CudaCompile Include="cuda_core.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
