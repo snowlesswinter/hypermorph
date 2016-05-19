@@ -27,6 +27,7 @@ public:
     {
         SEMI_LAGRANGIAN,
         MACCORMACK_SEMI_LAGRANGIAN,
+        BFECC_SEMI_LAGRANGIAN,
     };
 
     static CudaMain* Instance();

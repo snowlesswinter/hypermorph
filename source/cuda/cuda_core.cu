@@ -253,7 +253,6 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
     float transmittance = 1.0f;
-    float luminance = 0.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
             i++, pos += step, travel -= step_size) {
@@ -489,7 +488,7 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
         kMaxDistance / static_cast<float>(num_light_samples);
     const float kAbsorptionTimesStepSize = absorption * kStepSize;
     
-    const bool fast = true;
+    const bool fast = false;
     if (fast)
         RaycastFastKernel<<<grid, block>>>(m, viewport_size, eye_pos,
                                            focal_length, offset, intensity,

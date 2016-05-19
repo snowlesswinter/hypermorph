@@ -24,6 +24,8 @@ namespace
             return ::SEMI_LAGRANGIAN;
         case CudaMain::MACCORMACK_SEMI_LAGRANGIAN:
             return ::MACCORMACK_SEMI_LAGRANGIAN;
+        case CudaMain::BFECC_SEMI_LAGRANGIAN:
+            return ::BFECC_SEMI_LAGRANGIAN;
         default:
             break;
     }

@@ -23,9 +23,6 @@ raycast density factor = 40
 raycast occlusion factor = 10
 
 impulse density = 1
-raycast density factor = 10
 velocity dissipation = 0.05
-impulse temperature = 2
+impulse temperature = 4
 temperature dissipation = 0.2
-num raycast samples = 360
-advection method = mcsl
