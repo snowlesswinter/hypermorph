@@ -17,14 +17,8 @@
 extern void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
                          cudaArray_t source_array,
                          cudaArray_t intermediate_array, float time_step,
-                         float dissipation, uint3 volume_size,
-                         AdvectionMethod method);
-extern void LaunchAdvectDensity(cudaArray_t dest_array,
-                                cudaArray_t velocity_array,
-                                cudaArray_t source_array,
-                                cudaArray_t intermediate_array,
-                                float time_step, float dissipation,
-                                uint3 volume_size, AdvectionMethod method);
+                         float dissipation, bool quadratic_dissipation,
+                         uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
                                  cudaArray_t velocity_array,
                                  cudaArray_t intermediate_array,
@@ -88,7 +82,7 @@ void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            AdvectionMethod method)
 {
     LaunchAdvect(dest, velocity, source, intermediate, time_step, dissipation,
-                 FromGlmVector(volume_size), method);
+                 false, FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
@@ -97,8 +91,8 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   const glm::ivec3& volume_size,
                                   AdvectionMethod method)
 {
-    LaunchAdvectDensity(dest, velocity, density, intermediate, time_step,
-                        dissipation, FromGlmVector(volume_size), method);
+    LaunchAdvect(dest, velocity, density, intermediate, time_step, dissipation,
+                 true, FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,

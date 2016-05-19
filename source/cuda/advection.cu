@@ -13,7 +13,8 @@ texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_intermed
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_intermediate1;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
 
-__global__ void AdvectMacCormackKernel(float time_step, float dissipation)
+__global__ void AdvectMacCormackKernel(float time_step, float dissipation,
+                                       bool quadratic_dissipation)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -46,11 +47,14 @@ __global__ void AdvectMacCormackKernel(float time_step, float dissipation)
                           // accurate semi-Lagrangian method.
         ¦Õ_new = ¦Õ_n_plus_1_hat;
 
-    float result = (1.0f - dissipation * time_step) * ¦Õ_new;
+    float result = quadratic_dissipation ?
+        (1.0f - dissipation * time_step * (1.0f - ¦Õ_new)) * ¦Õ_new :
+        (1.0f - dissipation * time_step) * ¦Õ_new;
     surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void AdvectSemiLagrangianKernel(float time_step, float dissipation)
+__global__ void AdvectSemiLagrangianKernel(float time_step, float dissipation,
+                                           bool quadratic_dissipation)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -60,64 +64,10 @@ __global__ void AdvectSemiLagrangianKernel(float time_step, float dissipation)
     float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
     float3 back_traced = coord - time_step * make_float3(velocity);
 
-    float result = (1.0f - dissipation * time_step) *
-        tex3D(advect_source, back_traced.x, back_traced.y, back_traced.z);
-    surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z,
-                cudaBoundaryModeTrap);
-}
-
-__global__ void AdvectDensityMacCormackKernel(float time_step, float dissipation)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 velocity = make_float3(tex3D(advect_velocity, coord.x, coord.y, coord.z));
-    float3 back_traced = coord - time_step * velocity;
-    float density = tex3D(advect_source, coord.x, coord.y, coord.z);
-
-    float d0 = tex3D(advect_source, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float d1 = tex3D(advect_source, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float d2 = tex3D(advect_source, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float d3 = tex3D(advect_source, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-    float d4 = tex3D(advect_source, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float d5 = tex3D(advect_source, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float d6 = tex3D(advect_source, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float d7 = tex3D(advect_source, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-
-    float d_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(d0, d1), d2), d3), d4), d5), d6), d7);
-    float d_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(d0, d1), d2), d3), d4), d5), d6), d7);
-
-    float d_n_plus_1_hat = tex3D(advect_intermediate1, coord.x, coord.y, coord.z);
-    float3 forward_traced = coord + time_step * velocity;
-    float d_n_hat = tex3D(advect_intermediate1, forward_traced.x, forward_traced.y, forward_traced.z);
-
-    float d_new = (d_n_plus_1_hat + 0.5f * (density - d_n_hat));
-    float clamped = fmaxf(fminf(d_new, d_max), d_min);
-    if (clamped != d_new) // New extrema found, revert to the first order
-                          // accurate semi-Lagrangian method.
-        d_new = d_n_plus_1_hat;
-
-    float result = (1.0f - dissipation * time_step * (1.0f - d_new)) * d_new;
-    surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
-}
-
-__global__ void AdvectDensitySemiLagrangianKernel(float time_step,
-                                                  float dissipation)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    float3 coord = make_float3(x, y, z) + 0.5f;
-    float4 velocity = tex3D(advect_velocity, coord.x, coord.y, coord.z);
-    float3 back_traced = coord - time_step * make_float3(velocity);
-    float density = tex3D(advect_source, back_traced.x, back_traced.y,
-                          back_traced.z);
-
-    float ¦Ø = dissipation * time_step * (1.0f - density);
-    float result = (1.0f - ¦Ø) * density;
+    float ¦Õ = tex3D(advect_source, back_traced.x, back_traced.y, back_traced.z);
+    float result = quadratic_dissipation ?
+        (1.0f - dissipation * time_step * (1.0f - ¦Õ)) * ¦Õ :
+        (1.0f - dissipation * time_step) * ¦Õ;
     surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z,
                 cudaBoundaryModeTrap);
 }
@@ -283,7 +233,8 @@ __global__ void AdvectVelocityKernel_smem(float time_step, float dissipation)
 void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
                             cudaArray_t source_array,
                             cudaArray_t intermediate_array, float time_step,
-                            float dissipation, uint3 volume_size)
+                            float dissipation, bool quadratic_dissipation,
+                            uint3 volume_size)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, intermediate_array);
@@ -322,7 +273,8 @@ void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f);
+    AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f,
+                                                quadratic_dissipation);
 
     cudaGetChannelDesc(&desc, dest_array);
     result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
@@ -344,7 +296,8 @@ void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
     if (result != cudaSuccess)
         return;
 
-    AdvectMacCormackKernel<<<grid, block>>>(time_step, dissipation);
+    AdvectMacCormackKernel<<<grid, block>>>(time_step, dissipation,
+                                            quadratic_dissipation);
 
     cudaUnbindTexture(&advect_intermediate1);
     cudaUnbindTexture(&advect_source);
@@ -353,13 +306,14 @@ void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
 
 void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
                   cudaArray_t source_array, cudaArray_t intermediate_array,
-                  float time_step, float dissipation, uint3 volume_size,
+                  float time_step, float dissipation,
+                  bool quadratic_dissipation, uint3 volume_size,
                   AdvectionMethod method)
 {
     if (method == MACCORMACK_SEMI_LAGRANGIAN) {
         LaunchAdvectMacCormack(dest_array, velocity_array, source_array,
                                intermediate_array, time_step, dissipation,
-                               volume_size);
+                               false, volume_size);
         return;
     }
 
@@ -400,136 +354,8 @@ void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, dissipation);
-
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
-}
-
-void LaunchAdvectDensityMacCormack(cudaArray_t dest_array,
-                                   cudaArray_t velocity_array,
-                                   cudaArray_t source_array,
-                                   cudaArray_t intermediate_array,
-                                   float time_step, float dissipation,
-                                   uint3 volume_size)
-{
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, intermediate_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest,
-                                                intermediate_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, source_array);
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    AdvectDensitySemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f);
-
-    cudaGetChannelDesc(&desc, dest_array);
-    result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, intermediate_array);
-    advect_intermediate1.normalized = false;
-    advect_intermediate1.filterMode = cudaFilterModeLinear;
-    advect_intermediate1.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate1.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate1, intermediate_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    AdvectDensityMacCormackKernel<<<grid, block>>>(time_step, dissipation);
-
-    cudaUnbindTexture(&advect_intermediate1);
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
-}
-
-void LaunchAdvectDensity(cudaArray_t dest_array, cudaArray_t velocity_array,
-                         cudaArray_t source_array,
-                         cudaArray_t intermediate_array, float time_step,
-                         float dissipation, uint3 volume_size,
-                         AdvectionMethod method)
-{
-    if (method == MACCORMACK_SEMI_LAGRANGIAN) {
-        LaunchAdvectDensityMacCormack(dest_array, velocity_array, source_array,
-                                      intermediate_array, time_step,
-                                      dissipation, volume_size);
-        return;
-    }
-
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, source_array);
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    AdvectDensitySemiLagrangianKernel<<<grid, block>>>(time_step, dissipation);
+    AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, dissipation,
+                                                quadratic_dissipation);
 
     cudaUnbindTexture(&advect_source);
     cudaUnbindTexture(&advect_velocity);
