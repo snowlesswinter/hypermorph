@@ -207,6 +207,74 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                 (y + offset.y), cudaBoundaryModeTrap);
 }
 
+__global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
+                                  glm::vec3 eye_pos, float focal_length,
+                                  glm::vec2 offset, glm::vec3 light_intensity,
+                                  int num_samples, float step_size,
+                                  int num_light_samples, float light_scale,
+                                  float step_absorption, float density_factor,
+                                  float occlusion_factor)
+{
+    const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= static_cast<int>(viewport_size.x) ||
+            y >= static_cast<int>(viewport_size.y))
+        return;
+
+    glm::vec3 ray_dir;
+
+    // Normalize ray direction vector and transfrom to world space.
+    ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
+    ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
+    ray_dir.z = -focal_length;
+
+    // Transform the ray direction vector to model-view space.
+    ray_dir = glm::normalize(ray_dir * model_view);
+
+    // Ray origin is already in model space.
+    float near;
+    float far;
+    IntersectAABB(ray_dir, eye_pos, glm::vec3(-1.0f), glm::vec3(1.0f),
+                  &near, &far);
+    if (near < 0.0f)
+        near = 0.0f;
+
+    glm::vec3 ray_start = eye_pos + ray_dir * near;
+    glm::vec3 ray_stop = eye_pos + ray_dir * far;
+
+    // Transfrom to [0, 1) model space.
+    ray_start = 0.5f * (ray_start + 1.0f);
+    ray_stop = 0.5f * (ray_stop + 1.0f);
+
+    glm::vec3 pos = ray_start;
+    glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
+    float travel = glm::distance(ray_stop, ray_start);
+    float transmittance = 1.0f;
+    float luminance = 0.0f;
+
+    for (int i = 0; i < num_samples && travel > 0.0f;
+            i++, pos += step, travel -= step_size) {
+        float density =
+            tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
+        if (density < 0.01f)
+            continue;
+
+        transmittance *= 1.0f - density * step_absorption;
+        if (transmittance <= 0.01f)
+            break;
+    }
+
+    ushort4 raw = make_ushort4(__float2half_rn(light_intensity.x),
+                               __float2half_rn(light_intensity.y),
+                               __float2half_rn(light_intensity.z),
+                               __float2half_rn(1.0f - transmittance));
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+                (y + offset.y), cudaBoundaryModeTrap);
+}
+
 __global__ void RaycastKernel_color(glm::mat3 model_view,
                                     glm::vec2 viewport_size, glm::vec3 eye_pos,
                                     float focal_length, glm::vec2 offset,
@@ -420,9 +488,19 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
     const float kLightScale =
         kMaxDistance / static_cast<float>(num_light_samples);
     const float kAbsorptionTimesStepSize = absorption * kStepSize;
-    RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                   offset, intensity, num_samples, kStepSize,
-                                   num_light_samples, kLightScale,
-                                   kAbsorptionTimesStepSize, density_factor,
-                                   occlusion_factor);
+    
+    const bool fast = true;
+    if (fast)
+        RaycastFastKernel<<<grid, block>>>(m, viewport_size, eye_pos,
+                                           focal_length, offset, intensity,
+                                           num_samples, kStepSize,
+                                           num_light_samples, kLightScale,
+                                           kAbsorptionTimesStepSize,
+                                           density_factor, occlusion_factor);
+    else
+        RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
+                                       offset, intensity, num_samples,
+                                       kStepSize, num_light_samples,
+                                       kLightScale, kAbsorptionTimesStepSize,
+                                       density_factor, occlusion_factor);
 }

@@ -63,8 +63,8 @@ struct { FluidSimulator::PoissonMethod m_; char* desc_; } method_enum_desc[] = {
 };
 
 struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
-    {CudaMain::SEMI_LAGRANGIAN, "semi lagrangian"},
-    {CudaMain::MACCORMACK_SEMI_LAGRANGIAN, "maccormack"},
+    {CudaMain::SEMI_LAGRANGIAN, "sl"},
+    {CudaMain::MACCORMACK_SEMI_LAGRANGIAN, "mcsl"},
 };
 
 template <typename T>

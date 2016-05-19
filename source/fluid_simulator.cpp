@@ -389,8 +389,8 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         GridWidth * FluidConfig::Instance()->splat_radius_factor();
     float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
-    float hotspot_x = cos_factor * splat_radius * 0.8f + kImpulsePosition.x;
-    float hotspot_z = sin_factor * splat_radius * 0.8f + kImpulsePosition.z;
+    float hotspot_x = cos_factor * splat_radius * 0.0f + kImpulsePosition.x;
+    float hotspot_z = sin_factor * splat_radius * 0.0f + kImpulsePosition.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     if (manual_impulse_)
@@ -622,11 +622,8 @@ void FluidSimulator::Jacobi(float cell_size)
 void FluidSimulator::ReviseDensity()
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        float splat_radius =
-            GridWidth * FluidConfig::Instance()->splat_radius_factor();
         CudaMain::Instance()->ReviseDensity(
-            density_->cuda_volume(), kImpulsePosition, splat_radius,
-            FluidConfig::Instance()->impulse_density() * 0.2f);
+            density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f, 0.0f);
     }
 }
 
