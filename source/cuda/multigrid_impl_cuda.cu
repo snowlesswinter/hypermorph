@@ -5,6 +5,7 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
+#include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> residual_dest;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> residual_source;
@@ -736,80 +737,41 @@ void LaunchComputeResidualPacked(cudaArray* dest_array, cudaArray* source_array,
                                  float inverse_h_square, uint3 volume_size,
                                  BlockArrangement* ba)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&residual_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&residual_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    residual_source.normalized = false;
-    residual_source.filterMode = cudaFilterModePoint;
-    residual_source.addressMode[0] = cudaAddressModeClamp;
-    residual_source.addressMode[1] = cudaAddressModeClamp;
-    residual_source.addressMode[2] = cudaAddressModeClamp;
-    residual_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&residual_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&residual_source, source_array, false,
+                                         cudaFilterModePoint);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block;
     dim3 grid;
     ba->Arrange(&block, &grid, volume_size);
     ComputeResidualPackedKernel<<<grid, block>>>(inverse_h_square);
-
-    cudaUnbindTexture(&residual_source);
 }
 
 void LaunchProlongatePacked(cudaArray* dest_array, cudaArray* coarse_array,
                             cudaArray* fine_array, float overlay,
                             uint3 volume_size_fine, BlockArrangement* ba)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&prolongate_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&prolongate_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, coarse_array);
-    prolongate_coarse.normalized = false;
-    prolongate_coarse.filterMode = cudaFilterModeLinear;
-    prolongate_coarse.addressMode[0] = cudaAddressModeClamp;
-    prolongate_coarse.addressMode[1] = cudaAddressModeClamp;
-    prolongate_coarse.addressMode[2] = cudaAddressModeClamp;
-    prolongate_coarse.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&prolongate_coarse, coarse_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_coarse = BindHelper::Bind(&prolongate_coarse, coarse_array,
+                                         false, cudaFilterModeLinear);
+    if (bound_coarse.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, fine_array);
-    prolongate_fine.normalized = false;
-    prolongate_fine.filterMode = cudaFilterModePoint;
-    prolongate_fine.addressMode[0] = cudaAddressModeClamp;
-    prolongate_fine.addressMode[1] = cudaAddressModeClamp;
-    prolongate_fine.addressMode[2] = cudaAddressModeClamp;
-    prolongate_fine.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&prolongate_fine, fine_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_fine = BindHelper::Bind(&prolongate_fine, fine_array, false,
+                                       cudaFilterModePoint);
+    if (bound_fine.error() != cudaSuccess)
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
     ProlongateLinearInterpolationKernel<<<grid, block>>>(overlay);
-
-    cudaUnbindTexture(&prolongate_fine);
-    cudaUnbindTexture(&prolongate_coarse);
 }
 
 void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
@@ -819,24 +781,12 @@ void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
                                     float omega_times_inverse_beta,
                                     uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&guess_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&guess_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    guess_source.normalized = false;
-    guess_source.filterMode = cudaFilterModePoint;
-    guess_source.addressMode[0] = cudaAddressModeClamp;
-    guess_source.addressMode[1] = cudaAddressModeClamp;
-    guess_source.addressMode[2] = cudaAddressModeClamp;
-    guess_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&guess_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&guess_source, source_array, false,
+                                         cudaFilterModePoint);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, volume_size.x / 8);
@@ -846,32 +796,17 @@ void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
                                                     one_minus_omega,
                                                     minus_h_square,
                                                     omega_times_inverse_beta);
-
-    cudaUnbindTexture(&guess_source);
 }
 
 void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
                               uint3 volume_size, BlockArrangement* ba)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&restrict_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&restrict_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    restrict_source.normalized = false;
-    restrict_source.filterMode = cudaFilterModeLinear;
-    restrict_source.addressMode[0] = cudaAddressModeClamp;
-    restrict_source.addressMode[1] = cudaAddressModeClamp;
-    restrict_source.addressMode[2] = cudaAddressModeClamp;
-    restrict_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&restrict_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&restrict_source, source_array, false,
+                                         cudaFilterModeLinear);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     uint3 volume_size_fine = volume_size * 2;
@@ -879,33 +814,19 @@ void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     RestrictLinearInterpolationKernel<<<grid, block>>>(volume_size_fine);
-
-    cudaUnbindTexture(&restrict_source);
 }
 
 void LaunchRestrictResidualPacked(cudaArray* dest_array,
                                   cudaArray* source_array, uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&restrict_residual_dest,
-                                                dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&restrict_residual_dest, dest_array)
+            != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    restrict_residual_source.normalized = false;
-    restrict_residual_source.filterMode = cudaFilterModeLinear;
-    restrict_residual_source.addressMode[0] = cudaAddressModeClamp;
-    restrict_residual_source.addressMode[1] = cudaAddressModeClamp;
-    restrict_residual_source.addressMode[2] = cudaAddressModeClamp;
-    restrict_residual_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&restrict_residual_source, source_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&restrict_residual_source,
+                                         source_array, false,
+                                         cudaFilterModeLinear);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     uint3 volume_size_fine = volume_size * 2;
@@ -913,6 +834,4 @@ void LaunchRestrictResidualPacked(cudaArray* dest_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     RestrictResidualLinearInterpolationKernel<<<grid, block>>>();
-
-    cudaUnbindTexture(&restrict_residual_source);
 }

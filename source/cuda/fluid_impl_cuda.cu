@@ -5,6 +5,7 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
+#include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
@@ -263,39 +264,17 @@ void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
                          float ambient_temperature, float accel_factor,
                          float gravity, uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&buoyancy_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&buoyancy_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    buoyancy_velocity.normalized = false;
-    buoyancy_velocity.filterMode = cudaFilterModePoint;
-    buoyancy_velocity.addressMode[0] = cudaAddressModeClamp;
-    buoyancy_velocity.addressMode[1] = cudaAddressModeClamp;
-    buoyancy_velocity.addressMode[2] = cudaAddressModeClamp;
-    buoyancy_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&buoyancy_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&buoyancy_velocity, velocity_array, false,
+                                      cudaFilterModePoint);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, temperature_array);
-    buoyancy_temperature.normalized = false;
-    buoyancy_temperature.filterMode = cudaFilterModePoint;
-    buoyancy_temperature.addressMode[0] = cudaAddressModeClamp;
-    buoyancy_temperature.addressMode[1] = cudaAddressModeClamp;
-    buoyancy_temperature.addressMode[2] = cudaAddressModeClamp;
-    buoyancy_temperature.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&buoyancy_temperature,
-                                    temperature_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_temp = BindHelper::Bind(&buoyancy_temperature, temperature_array,
+                                       false, cudaFilterModePoint);
+    if (bound_temp.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -303,9 +282,6 @@ void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
               volume_size.z / block.z);
     ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
                                          accel_factor, gravity);
-
-    cudaUnbindTexture(&buoyancy_temperature);
-    cudaUnbindTexture(&buoyancy_velocity);
 }
 
 void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
@@ -321,19 +297,13 @@ void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
     dim3 block(128, 2, 1);
     dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
     if (mask == 1) {
-        cudaError_t result = cudaBindSurfaceToArray(&impulse_dest1, dest_array,
-                                                    &desc);
-        assert(result == cudaSuccess);
-        if (result != cudaSuccess)
+        if (BindCudaSurfaceToArray(&impulse_dest1, dest_array) != cudaSuccess)
             return;
 
         ApplyImpulse1Kernel<<<grid, block>>>(center_point, hotspot, radius,
                                              value.x);
     } else if (mask == 7) {
-        cudaError_t result = cudaBindSurfaceToArray(&impulse_dest4, dest_array,
-                                                    &desc);
-        assert(result == cudaSuccess);
-        if (result != cudaSuccess)
+        if (BindCudaSurfaceToArray(&impulse_dest4, dest_array) != cudaSuccess)
             return;
 
         ApplyImpulse3Kernel<<<grid, block>>>(center_point, hotspot, radius,
@@ -344,26 +314,12 @@ void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
 void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
                              float half_inverse_cell_size, uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&divergence_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&divergence_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    divergence_velocity.normalized = false;
-    divergence_velocity.filterMode = cudaFilterModePoint;
-    divergence_velocity.addressMode[0] = cudaAddressModeClamp;
-    divergence_velocity.addressMode[1] = cudaAddressModeClamp;
-    divergence_velocity.addressMode[2] = cudaAddressModeClamp;
-    divergence_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&divergence_velocity, velocity_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
+                                      false, cudaFilterModePoint);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -371,8 +327,6 @@ void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
               volume_size.z / block.z);
     ComputeDivergenceKernel<<<grid, block>>>(half_inverse_cell_size,
                                              volume_size);
-
-    cudaUnbindTexture(&divergence_velocity);
 }
 
 void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
@@ -380,24 +334,12 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                           float inverse_h_square,
                                           uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&diagnosis, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&diagnosis, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    diagnosis_source.normalized = false;
-    diagnosis_source.filterMode = cudaFilterModePoint;
-    diagnosis_source.addressMode[0] = cudaAddressModeClamp;
-    diagnosis_source.addressMode[1] = cudaAddressModeClamp;
-    diagnosis_source.addressMode[2] = cudaAddressModeClamp;
-    diagnosis_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&diagnosis_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&diagnosis_source, source_array,
+                                         false, cudaFilterModePoint);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, volume_size.x / 8);
@@ -405,25 +347,17 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
               volume_size.z / block.z);
     ComputeResidualPackedDiagnosisKernel<<<grid, block>>>(inverse_h_square,
                                                           volume_size);
-
-    cudaUnbindTexture(&diagnosis_source);
 }
 
 void LaunchImpulseDensity(cudaArray* dest_array, cudaArray* original_array,
                           float3 center_point, float radius, float3 value,
                           uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    dim3 block(128, 2, 1);
-    dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
-
-    cudaError_t result = cudaBindSurfaceToArray(&impulse_dest1, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&impulse_dest1, dest_array) != cudaSuccess)
         return;
 
+    dim3 block(128, 2, 1);
+    dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
     ImpulseDensityKernel<<<grid, block>>>(center_point, radius, value.x);
 }
 
@@ -436,47 +370,21 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
                             float gradient_scale, uint3 volume_size,
                             BlockArrangement* ba)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&gradient_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&gradient_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, dest_array);
-    gradient_velocity.normalized = false;
-    gradient_velocity.filterMode = cudaFilterModePoint;
-    gradient_velocity.addressMode[0] = cudaAddressModeClamp;
-    gradient_velocity.addressMode[1] = cudaAddressModeClamp;
-    gradient_velocity.addressMode[2] = cudaAddressModeClamp;
-    gradient_velocity.channelDesc = desc;
-
-    // Reading as texture would be more efficient. Hardware half-float
-    // conversion?
-    result = cudaBindTextureToArray(&gradient_velocity, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
+                                      false, cudaFilterModePoint);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, packed_array);
-    gradient_packed.normalized = false;
-    gradient_packed.filterMode = cudaFilterModePoint;
-    gradient_packed.addressMode[0] = cudaAddressModeClamp;
-    gradient_packed.addressMode[1] = cudaAddressModeClamp;
-    gradient_packed.addressMode[2] = cudaAddressModeClamp;
-    gradient_packed.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&gradient_packed, packed_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_packed = BindHelper::Bind(&gradient_packed, packed_array,
+                                         false, cudaFilterModePoint);
+    if (bound_packed.error() != cudaSuccess)
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     SubtractGradientKernel<<<grid, block>>>(gradient_scale, volume_size);
-
-    cudaUnbindTexture(&gradient_packed);
-    cudaUnbindTexture(&gradient_velocity);
 }

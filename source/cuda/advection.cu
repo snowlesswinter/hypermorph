@@ -6,6 +6,7 @@
 
 #include "advection_method.h"
 #include "block_arrangement.h"
+#include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> advect_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
@@ -346,38 +347,17 @@ void LaunchAdvectBfecc(cudaArray_t dest_array, cudaArray_t velocity_array,
                        bool quadratic_dissipation, uint3 volume_size)
 {
     // Pass 1: Calculate ¦Õ_n_plus_1_hat, and store in |dest_array|.
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array,
+                                      false, cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&advect_source, source_array,
+                                         false, cudaFilterModeLinear);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -387,55 +367,29 @@ void LaunchAdvectBfecc(cudaArray_t dest_array, cudaArray_t velocity_array,
                                                 quadratic_dissipation);
 
     // Pass 2: Calculate ¦Õ_n_hat, and store in |intermediate_array|.
-    cudaGetChannelDesc(&desc, intermediate_array);
-    result = cudaBindSurfaceToArray(&advect_dest, intermediate_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, intermediate_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, dest_array);
-    advect_intermediate1.normalized = false;
-    advect_intermediate1.filterMode = cudaFilterModeLinear;
-    advect_intermediate1.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate1.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate1, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_intermediate1 = BindHelper::Bind(&advect_intermediate1,
+                                                dest_array, false,
+                                                cudaFilterModeLinear);
+    if (bound_intermediate1.error() != cudaSuccess)
         return;
 
     AdvectBfeccRemoveErrorKernel<<<grid, block>>>(-time_step);
-    cudaUnbindTexture(&advect_intermediate1);
 
     // Pass 3: Calculate the final result.
-    cudaGetChannelDesc(&desc, dest_array);
-    result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, intermediate_array);
-    advect_intermediate1.normalized = false;
-    advect_intermediate1.filterMode = cudaFilterModeLinear;
-    advect_intermediate1.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate1.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate1, intermediate_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    bound_intermediate1.Take(
+        BindHelper::Bind(&advect_intermediate1, intermediate_array, false,
+                         cudaFilterModeLinear));
+    if (bound_intermediate1.error() != cudaSuccess)
         return;
 
     AdvectBfeccKernel<<<grid, block>>>(time_step, dissipation,
                                        quadratic_dissipation);
-
-    cudaUnbindTexture(&advect_intermediate1);
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
@@ -444,38 +398,17 @@ void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
                             float dissipation, bool quadratic_dissipation,
                             uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, intermediate_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest,
-                                                intermediate_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, intermediate_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&advect_source, source_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -484,32 +417,17 @@ void LaunchAdvectMacCormack(cudaArray_t dest_array, cudaArray_t velocity_array,
     AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f,
                                                 quadratic_dissipation);
 
-    cudaGetChannelDesc(&desc, dest_array);
-    result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, intermediate_array);
-    advect_intermediate1.normalized = false;
-    advect_intermediate1.filterMode = cudaFilterModeLinear;
-    advect_intermediate1.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate1.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate1.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate1, intermediate_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_intermediate1 = BindHelper::Bind(&advect_intermediate1,
+                                                intermediate_array, false,
+                                                cudaFilterModeLinear);
+    if (bound_intermediate1.error() != cudaSuccess)
         return;
 
     AdvectMacCormackKernel<<<grid, block>>>(time_step, dissipation,
                                             quadratic_dissipation);
-
-    cudaUnbindTexture(&advect_intermediate1);
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
@@ -530,38 +448,17 @@ void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
         return;
     }
 
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    advect_source.normalized = false;
-    advect_source.filterMode = cudaFilterModeLinear;
-    advect_source.addressMode[0] = cudaAddressModeClamp;
-    advect_source.addressMode[1] = cudaAddressModeClamp;
-    advect_source.addressMode[2] = cudaAddressModeClamp;
-    advect_source.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_source, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_source = BindHelper::Bind(&advect_source, source_array, false,
+                                         cudaFilterModeLinear);
+    if (bound_source.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -569,9 +466,6 @@ void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
               volume_size.z / block.z);
     AdvectSemiLagrangianKernel<<<grid, block>>>(time_step, dissipation,
                                                 quadratic_dissipation);
-
-    cudaUnbindTexture(&advect_source);
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
@@ -581,25 +475,12 @@ void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
                                uint3 volume_size)
 {
     // Pass 1: Calculate ¦Õ_n_plus_1_hat, and store in |dest_array|.
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -608,53 +489,27 @@ void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
     AdvectVelocitySemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f);
 
     // Pass 2: Calculate ¦Õ_n_hat, and store in |intermediate_array|.
-    cudaGetChannelDesc(&desc, intermediate_array);
-    result = cudaBindSurfaceToArray(&advect_dest, intermediate_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, intermediate_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, dest_array);
-    advect_intermediate.normalized = false;
-    advect_intermediate.filterMode = cudaFilterModeLinear;
-    advect_intermediate.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_intermediate = BindHelper::Bind(&advect_intermediate, dest_array,
+                                               false, cudaFilterModeLinear);
+    if (bound_intermediate.error() != cudaSuccess)
         return;
 
     AdvectVelocityBfeccRemoveErrorKernel<<<grid, block>>>(-time_step);
-    cudaUnbindTexture(&advect_intermediate);
 
     // Pass 3: Calculate the final result.
-    cudaGetChannelDesc(&desc, dest_array);
-    result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, intermediate_array);
-    advect_intermediate.normalized = false;
-    advect_intermediate.filterMode = cudaFilterModeLinear;
-    advect_intermediate.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate, intermediate_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    bound_intermediate.Take(
+        BindHelper::Bind(&advect_intermediate, intermediate_array, false,
+                         cudaFilterModeLinear));
+    if (bound_intermediate.error() != cudaSuccess)
         return;
 
     AdvectVelocityBfeccKernel<<<grid, block>>>(time_step, dissipation);
-
-    cudaUnbindTexture(&advect_intermediate);
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
@@ -663,25 +518,12 @@ void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
                                     float time_step, float time_step_prev,
                                     float dissipation, uint3 volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, intermediate_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest,
-                                                intermediate_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, intermediate_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -689,30 +531,16 @@ void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
               volume_size.z / block.z);
     AdvectVelocitySemiLagrangianKernel<<<grid, block>>>(time_step, 0.0f);
 
-    cudaGetChannelDesc(&desc, dest_array);
-    result = cudaBindSurfaceToArray(&advect_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, intermediate_array);
-    advect_intermediate.normalized = false;
-    advect_intermediate.filterMode = cudaFilterModeLinear;
-    advect_intermediate.addressMode[0] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[1] = cudaAddressModeClamp;
-    advect_intermediate.addressMode[2] = cudaAddressModeClamp;
-    advect_intermediate.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_intermediate, intermediate_array,
-                                    &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_intermediate = BindHelper::Bind(&advect_intermediate,
+                                               intermediate_array, false,
+                                               cudaFilterModeLinear);
+    if (bound_intermediate.error() != cudaSuccess)
         return;
 
     AdvectVelocityMacCormackKernel<<<grid, block>>>(time_step, dissipation);
-
-    cudaUnbindTexture(&advect_intermediate);
-    cudaUnbindTexture(&advect_velocity);
 }
 
 void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
@@ -733,25 +561,12 @@ void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
         return;
     }
 
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&advect_dest, dest_array,
-                                                &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, velocity_array);
-    advect_velocity.normalized = false;
-    advect_velocity.filterMode = cudaFilterModeLinear;
-    advect_velocity.addressMode[0] = cudaAddressModeClamp;
-    advect_velocity.addressMode[1] = cudaAddressModeClamp;
-    advect_velocity.addressMode[2] = cudaAddressModeClamp;
-    advect_velocity.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&advect_velocity, velocity_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
+                                      cudaFilterModeLinear);
+    if (bound_vel.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -759,5 +574,4 @@ void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
               volume_size.z / block.z);
     AdvectVelocitySemiLagrangianKernel<<<grid, block>>>(time_step,
                                                         dissipation);
-    cudaUnbindTexture(&advect_velocity);
 }

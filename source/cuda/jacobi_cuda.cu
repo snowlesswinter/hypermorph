@@ -5,6 +5,7 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
+#include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> jacobi;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
@@ -482,24 +483,12 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
                         int num_of_iterations, uint3 volume_size,
                         BlockArrangement* ba)
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, dest_array);
-    cudaError_t result = cudaBindSurfaceToArray(&jacobi, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&jacobi, dest_array) != cudaSuccess)
         return;
 
-    cudaGetChannelDesc(&desc, source_array);
-    jacobi_packed.normalized = false;
-    jacobi_packed.filterMode = cudaFilterModePoint;
-    jacobi_packed.addressMode[0] = cudaAddressModeClamp;
-    jacobi_packed.addressMode[1] = cudaAddressModeClamp;
-    jacobi_packed.addressMode[2] = cudaAddressModeClamp;
-    jacobi_packed.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&jacobi_packed, source_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_packed = BindHelper::Bind(&jacobi_packed, source_array, false,
+                                      cudaFilterModePoint);
+    if (bound_packed.error() != cudaSuccess)
         return;
 
     for (int i = 0; i < num_of_iterations; i++) {
@@ -540,6 +529,4 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
                                                 omega_over_beta);
         }
     }
-
-    cudaUnbindTexture(&jacobi_packed);
 }

@@ -6,6 +6,7 @@
 
 #include <helper_math.h>
 
+#include "cuda_common.h"
 #include "third_party/glm/common.hpp"
 #include "third_party/glm/glm.hpp"
 #include "third_party/glm/mat3x3.hpp"
@@ -403,13 +404,11 @@ bool IsCompliant(const cudaChannelFormatDesc& desc)
 void LaunchClearVolumeKernel(cudaArray* dest_array, const glm::vec4& value,
                              const glm::ivec3& volume_size)
 {
-    cudaChannelFormatDesc desc;
-    cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&clear_volume, dest_array) != cudaSuccess)
         return;
 
-    result = cudaBindSurfaceToArray(&clear_volume, dest_array, &desc);
+    cudaChannelFormatDesc desc;
+    cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
     assert(result == cudaSuccess);
     if (result != cudaSuccess)
         return;
@@ -448,28 +447,12 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                          float absorption, float density_factor,
                          float occlusion_factor)
 {
-    cudaChannelFormatDesc desc;
-    cudaError_t result = cudaGetChannelDesc(&desc, dest_array);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    if (BindCudaSurfaceToArray(&raycast_dest, dest_array) != cudaSuccess)
         return;
 
-    result = cudaBindSurfaceToArray(&raycast_dest, dest_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
-        return;
-
-    cudaGetChannelDesc(&desc, density_array);
-    raycast_density.normalized = true;
-    raycast_density.filterMode = cudaFilterModeLinear;
-    raycast_density.addressMode[0] = cudaAddressModeClamp;
-    raycast_density.addressMode[1] = cudaAddressModeClamp;
-    raycast_density.addressMode[2] = cudaAddressModeClamp;
-    raycast_density.channelDesc = desc;
-
-    result = cudaBindTextureToArray(&raycast_density, density_array, &desc);
-    assert(result == cudaSuccess);
-    if (result != cudaSuccess)
+    auto bound_density = BindHelper::Bind(&raycast_density, density_array, true,
+                                          cudaFilterModeLinear);
+    if (bound_density.error() != cudaSuccess)
         return;
 
     int t = min(surface_size.x, surface_size.y);
