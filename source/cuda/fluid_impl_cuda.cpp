@@ -14,11 +14,12 @@
 #include "graphics_resource.h"
 #include "third_party/glm/vec3.hpp"
 
-extern void LaunchAdvect(cudaArray_t dest_array, cudaArray_t velocity_array,
-                         cudaArray_t source_array,
-                         cudaArray_t intermediate_array, float time_step,
-                         float dissipation, bool quadratic_dissipation,
-                         uint3 volume_size, AdvectionMethod method);
+extern void LaunchAdvectScalar(cudaArray_t dest_array,
+                               cudaArray_t velocity_array,
+                               cudaArray_t source_array,
+                               cudaArray_t intermediate_array, float time_step,
+                               float dissipation, bool quadratic_dissipation,
+                               uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
                                  cudaArray_t velocity_array,
                                  cudaArray_t intermediate_array,
@@ -81,8 +82,8 @@ void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            const glm::ivec3& volume_size,
                            AdvectionMethod method)
 {
-    LaunchAdvect(dest, velocity, source, intermediate, time_step, dissipation,
-                 false, FromGlmVector(volume_size), method);
+    LaunchAdvectScalar(dest, velocity, source, intermediate, time_step,
+                       dissipation, false, FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
@@ -91,8 +92,8 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   const glm::ivec3& volume_size,
                                   AdvectionMethod method)
 {
-    LaunchAdvect(dest, velocity, density, intermediate, time_step, dissipation,
-                 true, FromGlmVector(volume_size), method);
+    LaunchAdvectScalar(dest, velocity, density, intermediate, time_step,
+                       dissipation, true, FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
