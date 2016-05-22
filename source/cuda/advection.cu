@@ -41,8 +41,7 @@ __global__ void AdvectScalarBfeccKernel(float time_step, float dissipation,
     float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
     if (clamped != ¦Õ_new) // New extrema found, revert to the first order
                           // accurate semi-Lagrangian method.
-        ¦Õ_new = tex3D(advect_source, back_traced.x, back_traced.y,
-                      back_traced.z);
+        ¦Õ_new = tex3D(advect_source, back_traced.x, back_traced.y, back_traced.z);
 
     float result = quadratic_dissipation ?
         (1.0f - dissipation * time_step * (1.0f - ¦Õ_new)) * ¦Õ_new :
