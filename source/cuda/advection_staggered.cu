@@ -101,9 +101,11 @@ __device__ void GetVelocityLimitsStaggered(TextureType tex,
 template <typename TextureType>
 __device__ float3 GetCenterVelocity(TextureType tex, float3 pos)
 {
-    float3 pos_prime = pos + 1.0f;
     float3 v0 = make_float3(tex3D(tex, pos.x, pos.y, pos.z));
-    float3 v1 = make_float3(tex3D(tex, pos_prime.x, pos_prime.y, pos_prime.z));
+    float3 v1;
+    v1.x = tex3D(tex, pos.x + 1.0f, pos.y, pos.z).x;
+    v1.y = tex3D(tex, pos.x, pos.y + 1.0f, pos.z).y;
+    v1.z = tex3D(tex, pos.x, pos.y, pos.z + 1.0f).z;
     return 0.5f * (v0 + v1);
 }
 
@@ -116,8 +118,6 @@ __global__ void AdvectScalarBfeccStaggeredKernel(float time_step,
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    // !!volume boundary
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 velocity = GetCenterVelocity(advect_velocity, coord);
@@ -243,7 +243,7 @@ __global__ void AdvectVelocityBfeccStaggeredKernel(float time_step,
 
     float3 v_min;
     float3 v_max;
-    GetVelocityLimitsStaggered(advect_velocity, back_traced_x, back_traced_y, back_traced_y, &v_min, &v_max);
+    GetVelocityLimitsStaggered(advect_velocity, back_traced_x, back_traced_y, back_traced_z, &v_min, &v_max);
 
     float3 v_new;
     v_new.x = tex3D(advect_intermediate, back_traced_x.x, back_traced_x.y, back_traced_x.z).x;
@@ -308,7 +308,7 @@ __global__ void AdvectVelocityMacCormackStaggeredKernel(float time_step,
 
     float3 v_min;
     float3 v_max;
-    GetVelocityLimitsStaggered(advect_velocity, back_traced_x, back_traced_y, back_traced_y, &v_min, &v_max);
+    GetVelocityLimitsStaggered(advect_velocity, back_traced_x, back_traced_y, back_traced_z, &v_min, &v_max);
 
     float3 v_n_plus_1_hat = make_float3(tex3D(advect_intermediate, coord.x, coord.y, coord.z));
 
@@ -453,14 +453,16 @@ void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
                                  AdvectionMethod method)
 {
     if (method == MACCORMACK_SEMI_LAGRANGIAN) {
-        LaunchAdvectScalarMacCormackStaggered(dest_array, velocity_array, source_array,
-                               intermediate_array, time_step, dissipation,
-                               false, volume_size);
+        LaunchAdvectScalarMacCormackStaggered(dest_array, velocity_array,
+                                              source_array, intermediate_array,
+                                              time_step, dissipation, false,
+                                              volume_size);
         return;
     } else if (method == BFECC_SEMI_LAGRANGIAN) {
-        LaunchAdvectScalarBfeccStaggered(dest_array, velocity_array, source_array,
-                          intermediate_array, time_step, dissipation, false,
-                          volume_size);
+        LaunchAdvectScalarBfeccStaggered(dest_array, velocity_array,
+                                         source_array, intermediate_array,
+                                         time_step, dissipation, false,
+                                         volume_size);
         return;
     }
 
@@ -573,14 +575,15 @@ void LaunchAdvectVelocityStaggered(cudaArray_t dest_array,
 {
     if (method == MACCORMACK_SEMI_LAGRANGIAN) {
         LaunchAdvectVelocityMacCormackStaggered(dest_array, velocity_array,
-                                       intermediate_array, time_step,
-                                       time_step_prev, dissipation,
-                                       volume_size);
+                                                intermediate_array, time_step,
+                                                time_step_prev, dissipation,
+                                                volume_size);
         return;
     } else if (method == BFECC_SEMI_LAGRANGIAN) {
         LaunchAdvectVelocityBfeccStaggered(dest_array, velocity_array,
-                                  intermediate_array, time_step, time_step_prev,
-                                  dissipation, volume_size);
+                                           intermediate_array, time_step,
+                                           time_step_prev, dissipation,
+                                           volume_size);
         return;
     }
 

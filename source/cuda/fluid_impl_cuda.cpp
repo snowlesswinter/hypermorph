@@ -20,18 +20,39 @@ extern void LaunchAdvectScalar(cudaArray_t dest_array,
                                cudaArray_t intermediate_array, float time_step,
                                float dissipation, bool quadratic_dissipation,
                                uint3 volume_size, AdvectionMethod method);
+extern void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
+                                        cudaArray_t velocity_array,
+                                        cudaArray_t source_array,
+                                        cudaArray_t intermediate_array,
+                                        float time_step, float dissipation,
+                                        bool quadratic_dissipation,
+                                        uint3 volume_size,
+                                        AdvectionMethod method);
 extern void LaunchAdvectVelocity(cudaArray_t dest_array,
                                  cudaArray_t velocity_array,
                                  cudaArray_t intermediate_array,
                                  float time_step, float time_step_prev,
                                  float dissipation, uint3 volume_size,
                                  AdvectionMethod method);
+extern void LaunchAdvectVelocityStaggered(cudaArray_t dest_array,
+                                          cudaArray_t velocity_array,
+                                          cudaArray_t intermediate_array,
+                                          float time_step, float time_step_prev,
+                                          float dissipation, uint3 volume_size,
+                                          AdvectionMethod method);
 extern void LaunchApplyBuoyancy(cudaArray* dest_array,
                                 cudaArray* velocity_array,
                                 cudaArray* temperature_array,
                                 float time_step, float ambient_temperature,
                                 float accel_factor, float gravity,
                                 uint3 volume_size);
+extern void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
+                                         cudaArray* velocity_array,
+                                         cudaArray* temperature_array,
+                                         float time_step,
+                                         float ambient_temperature,
+                                         float accel_factor, float gravity,
+                                         uint3 volume_size);
 extern void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
                                float3 center_point, float3 hotspot,
                                float radius, float3 value, uint32_t mask,
@@ -40,6 +61,10 @@ extern void LaunchComputeDivergence(cudaArray* dest_array,
                                     cudaArray* velocity_array,
                                     float half_inverse_cell_size,
                                     uint3 volume_size);
+extern void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
+                                             cudaArray* velocity_array,
+                                             float half_inverse_cell_size,
+                                             uint3 volume_size);
 extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                                  cudaArray* source_array,
                                                  float inverse_h_square,
@@ -56,6 +81,11 @@ extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
                                    float gradient_scale, uint3 volume_size,
                                    BlockArrangement* ba);
+extern void LaunchSubtractGradientStaggered(cudaArray* dest_array,
+                                            cudaArray* packed_array,
+                                            float gradient_scale,
+                                            uint3 volume_size,
+                                            BlockArrangement* ba);
 
 namespace
 {
@@ -76,14 +106,22 @@ FluidImplCuda::~FluidImplCuda()
 {
 }
 
+bool staggered = true;
+
 void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            cudaArray* source, cudaArray* intermediate,
                            float time_step, float dissipation,
                            const glm::ivec3& volume_size,
                            AdvectionMethod method)
 {
-    LaunchAdvectScalar(dest, velocity, source, intermediate, time_step,
-                       dissipation, false, FromGlmVector(volume_size), method);
+    if (staggered)
+        LaunchAdvectScalarStaggered(dest, velocity, source, intermediate,
+                                    time_step, dissipation, false,
+                                    FromGlmVector(volume_size), method);
+    else
+        LaunchAdvectScalar(dest, velocity, source, intermediate, time_step,
+                           dissipation, false, FromGlmVector(volume_size),
+                           method);
 }
 
 void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
@@ -92,8 +130,14 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                                   const glm::ivec3& volume_size,
                                   AdvectionMethod method)
 {
-    LaunchAdvectScalar(dest, velocity, density, intermediate, time_step,
-                       dissipation, true, FromGlmVector(volume_size), method);
+    if (staggered)
+        LaunchAdvectScalarStaggered(dest, velocity, density, intermediate,
+                                    time_step, dissipation, true,
+                                    FromGlmVector(volume_size), method);
+    else
+        LaunchAdvectScalar(dest, velocity, density, intermediate, time_step,
+                           dissipation, true, FromGlmVector(volume_size),
+                           method);
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
@@ -102,9 +146,14 @@ void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                                    const glm::ivec3& volume_size,
                                    AdvectionMethod method)
 {
-    LaunchAdvectVelocity(dest, velocity, velocity_prev, time_step,
-                         time_step_prev, dissipation,
-                         FromGlmVector(volume_size), method);
+    if (staggered)
+        LaunchAdvectVelocityStaggered(dest, velocity, velocity_prev, time_step,
+                                      time_step_prev, dissipation,
+                                      FromGlmVector(volume_size), method);
+    else
+        LaunchAdvectVelocity(dest, velocity, velocity_prev, time_step,
+                             time_step_prev, dissipation,
+                             FromGlmVector(volume_size), method);
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
@@ -113,9 +162,14 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                                   float accel_factor, float gravity,
                                   const glm::ivec3& volume_size)
 {
-    LaunchApplyBuoyancy(dest, velocity, temperature, time_step,
-                        ambient_temperature, accel_factor, gravity,
-                        FromGlmVector(volume_size));
+    if (staggered)
+        LaunchApplyBuoyancyStaggered(dest, velocity, temperature, time_step,
+                                     ambient_temperature, accel_factor, gravity,
+                                     FromGlmVector(volume_size));
+    else
+        LaunchApplyBuoyancy(dest, velocity, temperature, time_step,
+                            ambient_temperature, accel_factor, gravity,
+                            FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
@@ -149,8 +203,12 @@ void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                                       float half_inverse_cell_size,
                                       const glm::ivec3& volume_size)
 {
-    LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
-                            FromGlmVector(volume_size));
+    if (staggered)
+        LaunchComputeDivergenceStaggered(dest, velocity, half_inverse_cell_size,
+                                         FromGlmVector(volume_size));
+    else
+        LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
+                                FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ComputeResidualPackedDiagnosis(
@@ -184,8 +242,12 @@ void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
                                      float gradient_scale,
                                      const glm::ivec3& volume_size)
 {
-    LaunchSubtractGradient(dest, packed, gradient_scale,
-                           FromGlmVector(volume_size), ba_);
+    if (staggered)
+        LaunchSubtractGradientStaggered(dest, packed, gradient_scale,
+                                        FromGlmVector(volume_size), ba_);
+    else
+        LaunchSubtractGradient(dest, packed, gradient_scale,
+                               FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::RoundPassed(int round)
