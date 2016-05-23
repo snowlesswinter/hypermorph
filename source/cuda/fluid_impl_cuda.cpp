@@ -106,7 +106,7 @@ FluidImplCuda::~FluidImplCuda()
 {
 }
 
-bool staggered = false;
+bool staggered = true;
 
 void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            cudaArray* source, cudaArray* intermediate,

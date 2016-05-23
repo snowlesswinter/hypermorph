@@ -43,7 +43,8 @@ __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
 
 __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
                                              float ambient_temperature,
-                                             float accel_factor, float gravity)
+                                             float accel_factor, float gravity,
+                                             float3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -54,13 +55,26 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
     float accel = time_step * ((t - ambient_temperature) * accel_factor -
                                gravity);
 
-    float4 velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
-    ushort4 result = make_ushort4(__float2half_rn(velocity.x),
-                                  __float2half_rn(velocity.y + accel),
-                                  __float2half_rn(velocity.z),
-                                  0);
-    surf3Dwrite(result, buoyancy_dest, x * sizeof(ushort4), y, z,
-                cudaBoundaryModeTrap);
+    float4 velocity;
+    ushort4 result;
+    if (y > 0) {
+        velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
+        result = make_ushort4(__float2half_rn(velocity.x),
+                              __float2half_rn(velocity.y + accel * 0.5f),
+                              __float2half_rn(velocity.z),
+                              0);
+        surf3Dwrite(result, buoyancy_dest, x * sizeof(ushort4), y, z,
+                    cudaBoundaryModeTrap);
+    }
+    if (y < volume_size.y - 1) {
+        velocity = tex3D(buoyancy_velocity, coord.x, coord.y + 1.0f, coord.z);
+        result = make_ushort4(__float2half_rn(velocity.x),
+                              __float2half_rn(velocity.y + accel * 0.5f),
+                              __float2half_rn(velocity.z),
+                              0);
+        surf3Dwrite(result, buoyancy_dest, x * sizeof(ushort4), y + 1, z,
+                    cudaBoundaryModeTrap);
+    }
 }
 
 __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
@@ -422,7 +436,8 @@ void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
               volume_size.z / block.z);
     ApplyBuoyancyStaggeredKernel<<<grid, block>>>(time_step,
                                                   ambient_temperature,
-                                                  accel_factor, gravity);
+                                                  accel_factor, gravity,
+                                                  make_float3(volume_size));
 }
 
 void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,

@@ -99,13 +99,15 @@ __device__ void GetVelocityLimitsStaggered(TextureType tex,
 }
 
 template <typename TextureType>
-__device__ float3 GetCenterVelocity(TextureType tex, float3 pos)
+__device__ float3 GetCenterVelocity(TextureType tex, float3 pos,
+                                    float3 volume_size)
 {
     float3 v0 = make_float3(tex3D(tex, pos.x, pos.y, pos.z));
     float3 v1;
-    v1.x = tex3D(tex, pos.x + 1.0f, pos.y, pos.z).x;
-    v1.y = tex3D(tex, pos.x, pos.y + 1.0f, pos.z).y;
-    v1.z = tex3D(tex, pos.x, pos.y, pos.z + 1.0f).z;
+    v1.x = pos.x > volume_size.x - 0.5001f ? 0.0f : tex3D(tex, pos.x + 1.0f, pos.y, pos.z).x;
+    v1.y = pos.y > volume_size.y - 0.5001f ? 0.0f : tex3D(tex, pos.x, pos.y + 1.0f, pos.z).y;
+    v1.z = pos.z > volume_size.z - 0.5001f ? 0.0f : tex3D(tex, pos.x, pos.y, pos.z + 1.0f).z;
+
     return 0.5f * (v0 + v1);
 }
 
@@ -113,14 +115,15 @@ __device__ float3 GetCenterVelocity(TextureType tex, float3 pos)
 
 __global__ void AdvectScalarBfeccStaggeredKernel(float time_step,
                                                  float dissipation,
-                                                 bool quadratic_dissipation)
+                                                 bool quadratic_dissipation,
+                                                 float3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 velocity = GetCenterVelocity(advect_velocity, coord);
+    float3 velocity = GetCenterVelocity(advect_velocity, coord, volume_size);
     float3 back_traced = coord - time_step * velocity;
 
     float ¦Õ0 = tex3D(advect_source, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
@@ -147,14 +150,15 @@ __global__ void AdvectScalarBfeccStaggeredKernel(float time_step,
     surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void AdvectScalarBfeccRemoveErrorStaggeredKernel(float time_step)
+__global__ void AdvectScalarBfeccRemoveErrorStaggeredKernel(float time_step,
+                                                            float3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 velocity = GetCenterVelocity(advect_velocity, coord);
+    float3 velocity = GetCenterVelocity(advect_velocity, coord, volume_size);
     float3 back_traced = coord - time_step * velocity;
 
     float ¦Õ = tex3D(advect_source, coord.x, coord.y, coord.z);
@@ -166,14 +170,15 @@ __global__ void AdvectScalarBfeccRemoveErrorStaggeredKernel(float time_step)
 }
 
 __global__ void AdvectScalarMacCormackStaggeredKernel(
-    float time_step, float dissipation, bool quadratic_dissipation)
+    float time_step, float dissipation, bool quadratic_dissipation,
+    float3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 velocity = GetCenterVelocity(advect_velocity, coord);
+    float3 velocity = GetCenterVelocity(advect_velocity, coord, volume_size);
     float3 back_traced = coord - time_step * velocity;
     float ¦Õ = tex3D(advect_source, coord.x, coord.y, coord.z);
 
@@ -206,14 +211,15 @@ __global__ void AdvectScalarMacCormackStaggeredKernel(
 }
 
 __global__ void AdvectScalarSemiLagrangianStaggeredKernel(
-    float time_step, float dissipation, bool quadratic_dissipation)
+    float time_step, float dissipation, bool quadratic_dissipation,
+    float3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 velocity = GetCenterVelocity(advect_velocity, coord); 
+    float3 velocity = GetCenterVelocity(advect_velocity, coord, volume_size);
     float3 back_traced = coord - time_step * velocity;
 
     float ¦Õ = tex3D(advect_source, back_traced.x, back_traced.y, back_traced.z);
@@ -376,7 +382,7 @@ void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     AdvectScalarSemiLagrangianStaggeredKernel<<<grid, block>>>(
-        time_step, 0.0f, quadratic_dissipation);
+        time_step, 0.0f, quadratic_dissipation, make_float3(volume_size));
 
     // Pass 2: Calculate ¦Õ_n_hat, and store in |intermediate_array|.
     if (BindCudaSurfaceToArray(&advect_dest, intermediate_array) != cudaSuccess)
@@ -388,7 +394,8 @@ void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
     if (bound_intermediate1.error() != cudaSuccess)
         return;
 
-    AdvectScalarBfeccRemoveErrorStaggeredKernel<<<grid, block>>>(-time_step);
+    AdvectScalarBfeccRemoveErrorStaggeredKernel<<<grid, block>>>(
+        -time_step, make_float3(volume_size));
 
     // Pass 3: Calculate the final result.
     if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
@@ -400,8 +407,9 @@ void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
     if (bound_intermediate1.error() != cudaSuccess)
         return;
 
-    AdvectScalarBfeccStaggeredKernel<<<grid, block>>>(time_step, dissipation,
-                                                      quadratic_dissipation);
+    AdvectScalarBfeccStaggeredKernel<<<grid, block>>>(
+        time_step, dissipation, quadratic_dissipation,
+        make_float3(volume_size));
 }
 
 void LaunchAdvectScalarMacCormackStaggered(cudaArray_t dest_array,
@@ -429,7 +437,7 @@ void LaunchAdvectScalarMacCormackStaggered(cudaArray_t dest_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     AdvectScalarSemiLagrangianStaggeredKernel<<<grid, block>>>(
-        time_step, 0.0f, quadratic_dissipation);
+        time_step, 0.0f, quadratic_dissipation, make_float3(volume_size));
 
     if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
         return;
@@ -441,7 +449,8 @@ void LaunchAdvectScalarMacCormackStaggered(cudaArray_t dest_array,
         return;
 
     AdvectScalarMacCormackStaggeredKernel<<<grid, block>>>(
-        time_step, dissipation, quadratic_dissipation);
+        time_step, dissipation, quadratic_dissipation,
+        make_float3(volume_size));
 }
 
 void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
@@ -483,7 +492,8 @@ void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     AdvectScalarSemiLagrangianStaggeredKernel<<<grid, block>>>(
-        time_step, dissipation, quadratic_dissipation);
+        time_step, dissipation, quadratic_dissipation,
+        make_float3(volume_size));
 }
 
 void LaunchAdvectVelocityBfeccStaggered(cudaArray_t dest_array,
