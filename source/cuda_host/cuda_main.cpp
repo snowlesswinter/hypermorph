@@ -238,10 +238,10 @@ void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
 
 void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> packed,
-                                float gradient_scale)
+                                float half_inverse_cell_size)
 {
     fluid_impl_->SubtractGradient(dest->dev_array(), packed->dev_array(),
-                                  gradient_scale, dest->size());
+                                  half_inverse_cell_size, dest->size());
 }
 
 void CudaMain::ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,

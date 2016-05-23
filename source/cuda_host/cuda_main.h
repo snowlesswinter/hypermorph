@@ -86,7 +86,7 @@ public:
                        float value);
     void SubtractGradient(std::shared_ptr<CudaVolume> dest,
                           std::shared_ptr<CudaVolume> packed,
-                          float gradient_scale);
+                          float half_inverse_cell_size);
 
     // Multigrid.
     void ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,

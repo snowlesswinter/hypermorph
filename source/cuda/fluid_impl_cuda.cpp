@@ -63,7 +63,7 @@ extern void LaunchComputeDivergence(cudaArray* dest_array,
                                     uint3 volume_size);
 extern void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                              cudaArray* velocity_array,
-                                             float half_inverse_cell_size,
+                                             float inverse_cell_size,
                                              uint3 volume_size);
 extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                                  cudaArray* source_array,
@@ -79,11 +79,11 @@ extern void LaunchImpulseDensity(cudaArray* dest_array,
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
-                                   float gradient_scale, uint3 volume_size,
-                                   BlockArrangement* ba);
+                                   float half_inverse_cell_size,
+                                   uint3 volume_size, BlockArrangement* ba);
 extern void LaunchSubtractGradientStaggered(cudaArray* dest_array,
                                             cudaArray* packed_array,
-                                            float gradient_scale,
+                                            float inverse_cell_size,
                                             uint3 volume_size,
                                             BlockArrangement* ba);
 
@@ -106,7 +106,7 @@ FluidImplCuda::~FluidImplCuda()
 {
 }
 
-bool staggered = true;
+bool staggered = false;
 
 void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
                            cudaArray* source, cudaArray* intermediate,
@@ -204,7 +204,8 @@ void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                                       const glm::ivec3& volume_size)
 {
     if (staggered)
-        LaunchComputeDivergenceStaggered(dest, velocity, half_inverse_cell_size,
+        LaunchComputeDivergenceStaggered(dest, velocity,
+                                         2.0f * half_inverse_cell_size,
                                          FromGlmVector(volume_size));
     else
         LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
@@ -239,14 +240,15 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
 }
 
 void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
-                                     float gradient_scale,
+                                     float half_inverse_cell_size,
                                      const glm::ivec3& volume_size)
 {
     if (staggered)
-        LaunchSubtractGradientStaggered(dest, packed, gradient_scale,
+        LaunchSubtractGradientStaggered(dest, packed,
+                                        2.0f * half_inverse_cell_size,
                                         FromGlmVector(volume_size), ba_);
     else
-        LaunchSubtractGradient(dest, packed, gradient_scale,
+        LaunchSubtractGradient(dest, packed, half_inverse_cell_size,
                                FromGlmVector(volume_size), ba_);
 }
 

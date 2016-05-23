@@ -623,7 +623,7 @@ void FluidSimulator::ReviseDensity()
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ReviseDensity(
-            density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f, 0.0f);
+            density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f, 0.1f);
     }
 }
 
@@ -709,16 +709,22 @@ void FluidSimulator::SubtractGradient()
     // I guess is a trick to compensate the inaccuracy of the solution of
     // Poisson equation. As the solution now becomes more and more precise,
     // I changed the number to 1.0 to keep the system stable.
-    const float gradient_scale = 1.0f / CellSize;
+    //
+    // 2016/5/23 update:
+    // During the process of verifying the staggered grid discretization, I
+    // found this coefficient should be the same as that in divergence
+    // calculation. This mistake was introduced at the first day the project
+    // was created.
+
+    const float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->SubtractGradient(velocity_->cuda_volume(),
                                                packed_->cuda_volume(),
-                                               gradient_scale);
+                                               half_inverse_cell_size);
     } else {
         glUseProgram(Programs.SubtractGradient);
 
-        SetUniform("GradientScale", gradient_scale);
-        SetUniform("HalfInverseCellSize", 0.5f / CellSize);
+        SetUniform("GradientScale", half_inverse_cell_size);
         SetUniform("velocity", 0);
         SetUniform("packed_tex", 1);
 

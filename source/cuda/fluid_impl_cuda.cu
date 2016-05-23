@@ -85,6 +85,24 @@ __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
     }
 }
 
+__global__ void ApplyImpulse1Kernel2(float3 center_point, float3 hotspot,
+                                     float radius, float value)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = 1 + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+    float2 diff =
+        make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
+    float d = hypotf(diff.x, diff.y);
+    if (d < 2.0f) {
+        surf3Dwrite(__float2half_rn(value), impulse_dest1,
+                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+        return;
+    }
+}
+
 __global__ void ImpulseDensityKernel(float3 center_point, float radius,
                                      float value)
 {
@@ -174,7 +192,7 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void ComputeDivergenceStaggeredKernel(float half_inverse_cell_size,
+__global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
                                                  uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -202,7 +220,7 @@ __global__ void ComputeDivergenceStaggeredKernel(float half_inverse_cell_size,
     if (z >= volume_size.z - 1)
         diff_fn = -base.z;
 
-    float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
+    float div = inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     ushort2 result = make_ushort2(0, __float2half_rn(div));
     surf3Dwrite(result, divergence_dest, x * sizeof(ushort2), y, z,
                 cudaBoundaryModeTrap);
@@ -256,7 +274,8 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
     dest_array[0] = x * x - round * round;
 }
 
-__global__ void SubtractGradientKernel(float gradient_scale, uint3 volume_size)
+__global__ void SubtractGradientKernel(float half_inverse_cell_size,
+                                       uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -298,7 +317,8 @@ __global__ void SubtractGradientKernel(float gradient_scale, uint3 volume_size)
 
     float3 old_v =
         make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));
-    float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * gradient_scale;
+    float3 grad =
+        make_float3(diff_ew, diff_ns, diff_fn) * half_inverse_cell_size;
     float3 new_v = old_v - grad;
     float3 result = mask * new_v; // Velocity goes to 0 when hit ???
     ushort4 raw = make_ushort4(__float2half_rn(result.x),
@@ -309,7 +329,7 @@ __global__ void SubtractGradientKernel(float gradient_scale, uint3 volume_size)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void SubtractGradientStaggeredKernel(float gradient_scale,
+__global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
                                                 uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -340,7 +360,7 @@ __global__ void SubtractGradientStaggeredKernel(float gradient_scale,
 
     float3 old_v =
         make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));
-    float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * gradient_scale;
+    float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * inverse_cell_size;
     float3 new_v = old_v - grad;
     float3 result = mask * new_v; // The mask makes sense in staggered grid.
     ushort4 raw = make_ushort4(__float2half_rn(result.x),
@@ -452,7 +472,7 @@ void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
 
 void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                       cudaArray* velocity_array,
-                                      float half_inverse_cell_size,
+                                      float inverse_cell_size,
                                       uint3 volume_size)
 {
     if (BindCudaSurfaceToArray(&divergence_dest, dest_array) != cudaSuccess)
@@ -466,7 +486,7 @@ void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    ComputeDivergenceStaggeredKernel<<<grid, block>>>(half_inverse_cell_size,
+    ComputeDivergenceStaggeredKernel<<<grid, block>>>(inverse_cell_size,
                                                       volume_size);
 }
 
@@ -508,7 +528,7 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
 }
 
 void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
-                            float gradient_scale, uint3 volume_size,
+                            float half_inverse_cell_size, uint3 volume_size,
                             BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&gradient_dest, dest_array) != cudaSuccess)
@@ -527,12 +547,13 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientKernel<<<grid, block>>>(gradient_scale, volume_size);
+    SubtractGradientKernel<<<grid, block>>>(half_inverse_cell_size,
+                                            volume_size);
 }
 
 void LaunchSubtractGradientStaggered(cudaArray* dest_array,
                                      cudaArray* packed_array,
-                                     float gradient_scale, uint3 volume_size,
+                                     float inverse_cell_size, uint3 volume_size,
                                      BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&gradient_dest, dest_array) != cudaSuccess)
@@ -551,6 +572,6 @@ void LaunchSubtractGradientStaggered(cudaArray* dest_array,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientStaggeredKernel<<<grid, block>>>(gradient_scale,
+    SubtractGradientStaggeredKernel<<<grid, block>>>(inverse_cell_size,
                                                      volume_size);
 }
