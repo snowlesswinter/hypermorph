@@ -55,6 +55,7 @@ public:
     float raycast_occlusion_factor() const {
         return raycast_occlusion_factor_.value_;
     }
+    float time_stretch() const { return time_stretch_.value_; }
     int num_jacobi_iterations() const { return num_jacobi_iterations_.value_; }
     int num_multigrid_iterations() const {
         return num_multigrid_iterations_.value_;
@@ -101,6 +102,7 @@ private:
     ConfigField<float> light_absorption_;
     ConfigField<float> raycast_density_factor_;
     ConfigField<float> raycast_occlusion_factor_;
+    ConfigField<float> time_stretch_;
     ConfigField<int> num_jacobi_iterations_;
     ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;

@@ -392,8 +392,9 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     double ¦Ð = 3.1415926;
     float splat_radius =
         GridWidth * FluidConfig::Instance()->splat_radius_factor();
-    float sin_factor = static_cast<float>(sin(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
-    float cos_factor = static_cast<float>(cos(seconds_elapsed / 4.0 * 2.0 * ¦Ð));
+    float time_stretch = FluidConfig::Instance()->time_stretch() + 0.00001f;
+    float sin_factor = static_cast<float>(sin(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
+    float cos_factor = static_cast<float>(cos(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
     float hotspot_x = cos_factor * splat_radius * 0.8f + kImpulsePosition.x;
     float hotspot_z = sin_factor * splat_radius * 0.8f + kImpulsePosition.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);

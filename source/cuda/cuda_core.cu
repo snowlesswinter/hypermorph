@@ -151,6 +151,13 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     float far;
     IntersectAABB(ray_dir, eye_pos, glm::vec3(-1.0f), glm::vec3(1.0f),
                   &near, &far);
+    if (far - near < 0.0001f) {
+        ushort4 raw = make_ushort4(0, __float2half_rn(1.0f), 0,
+                                   __float2half_rn(0.0f));
+        surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+                    (y + offset.y), cudaBoundaryModeTrap);
+        return;
+    }
     if (near < 0.0f)
         near = 0.0f;
 

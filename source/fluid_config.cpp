@@ -261,6 +261,7 @@ FluidConfig::FluidConfig()
     , light_absorption_(10.0f, "light absorption")
     , raycast_density_factor_(30.0f, "raycast density factor")
     , raycast_occlusion_factor_(15.0f, "raycast occlusion factor")
+    , time_stretch_(1.0f, "time stretch")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
@@ -345,6 +346,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &light_absorption_,
         &raycast_density_factor_,
         &raycast_occlusion_factor_,
+        &time_stretch_,
     };
 
     for (auto& f : float_fields) {
@@ -402,6 +404,7 @@ void FluidConfig::Store(std::ostream& stream)
         light_absorption_,
         raycast_density_factor_,
         raycast_occlusion_factor_,
+        time_stretch_,
     };
 
     for (auto& f : float_fields)
