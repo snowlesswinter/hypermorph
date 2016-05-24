@@ -65,6 +65,9 @@ public:
     }
     bool auto_impulse() const { return !!auto_impulse_.value_; }
     bool staggered() const { return !!staggered_.value_; }
+    bool vorticity_confinement() const {
+        return !!vorticity_confinement_.value_;
+    }
     int num_raycast_samples() const { return num_raycast_samples_.value_; }
     int num_raycast_light_samples() const {
         return num_raycast_light_samples_.value_;
@@ -108,6 +111,7 @@ private:
     ConfigField<int> num_full_multigrid_iterations_;
     ConfigField<int> auto_impulse_;
     ConfigField<int> staggered_;
+    ConfigField<int> vorticity_confinement_;
     ConfigField<int> num_raycast_samples_;
     ConfigField<int> num_raycast_light_samples_;
     int initial_viewport_width_;

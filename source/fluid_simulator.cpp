@@ -357,6 +357,11 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     }
 
     std::swap(velocity_, general4a_);
+
+    if (FluidConfig::Instance()->vorticity_confinement()) {
+        ComputeCurl();
+        BuildVorticityConfinemnet();
+    }
 }
 
 void FluidSimulator::ApplyBuoyancy(float delta_time)
@@ -430,6 +435,22 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     );
     Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
             initial_velocity, 7);
+}
+
+void FluidSimulator::BuildVorticityConfinemnet()
+{
+
+}
+
+void FluidSimulator::ComputeCurl()
+{
+    // Please note that the nth velocity in still within |general4a_|.
+    float inverse_cell_size = 1.0f / CellSize;
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ComputeCurl(general4b_->cuda_volume(),
+                                          general4a_->cuda_volume(),
+                                          inverse_cell_size);
+    }
 }
 
 void FluidSimulator::ComputeDivergence()

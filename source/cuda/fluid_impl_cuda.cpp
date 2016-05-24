@@ -58,6 +58,12 @@ extern void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
                                float3 center_point, float3 hotspot,
                                float radius, float3 value, uint32_t mask,
                                uint3 volume_size);
+extern void LaunchComputeCurlStaggered(cudaArray* dest_array,
+                                       cudaArray* velocity_array,
+                                       cudaArray* curl_array,
+                                       float inverse_cell_size,
+                                       uint3 volume_size,
+                                       BlockArrangement* ba);
 extern void LaunchComputeDivergence(cudaArray* dest_array,
                                     cudaArray* velocity_array,
                                     float half_inverse_cell_size,
@@ -198,6 +204,14 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
+}
+
+void FluidImplCuda::ComputeCurl(cudaArray* dest, cudaArray* velocity,
+                                cudaArray* curl, float inverse_cell_size,
+                                const glm::ivec3& volume_size)
+{
+    LaunchComputeCurlStaggered(dest, velocity, curl, inverse_cell_size,
+                               FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,

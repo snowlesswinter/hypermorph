@@ -104,9 +104,9 @@ __device__ float3 GetCenterVelocity(TextureType tex, float3 pos,
 {
     float3 v0 = make_float3(tex3D(tex, pos.x, pos.y, pos.z));
     float3 v1;
-    v1.x = pos.x > volume_size.x - 0.5001f ? 0.0f : tex3D(tex, pos.x + 1.0f, pos.y, pos.z).x;
-    v1.y = pos.y > volume_size.y - 0.5001f ? 0.0f : tex3D(tex, pos.x, pos.y + 1.0f, pos.z).y;
-    v1.z = pos.z > volume_size.z - 0.5001f ? 0.0f : tex3D(tex, pos.x, pos.y, pos.z + 1.0f).z;
+    v1.x = tex3D(tex, pos.x + 1.0f, pos.y, pos.z).x;
+    v1.y = tex3D(tex, pos.x, pos.y + 1.0f, pos.z).y;
+    v1.z = tex3D(tex, pos.x, pos.y, pos.z + 1.0f).z;
 
     return 0.5f * (v0 + v1);
 }
@@ -164,7 +164,7 @@ __global__ void AdvectScalarBfeccRemoveErrorStaggeredKernel(float time_step,
     float ¦Õ = tex3D(advect_source, coord.x, coord.y, coord.z);
     float result = tex3D(advect_intermediate1, back_traced.x, back_traced.y,
                          back_traced.z);
-    result = 0.5f * (3.0f * ¦Õ - result);
+    result = ¦Õ + 0.5f * (¦Õ - result);
     surf3Dwrite(__float2half_rn(result), advect_dest, x * sizeof(ushort), y, z,
                 cudaBoundaryModeTrap);
 }
@@ -280,7 +280,7 @@ __global__ void AdvectVelocityBfeccRemoveErrorStaggeredKernel(float time_step)
                                                      advect_intermediate, coord,
                                                      time_step, &velocity);
 
-    new_velocity = 0.5f * (3.0f * velocity - new_velocity);
+    new_velocity = velocity + 0.5f * (velocity - new_velocity);
     ushort4 result = make_ushort4(__float2half_rn(new_velocity.x),
                                   __float2half_rn(new_velocity.y),
                                   __float2half_rn(new_velocity.z),

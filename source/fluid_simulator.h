@@ -60,6 +60,8 @@ private:
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(double seconds_elapsed, float delta_time);
+    void BuildVorticityConfinemnet();
+    void ComputeCurl();
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size, int num_of_iterations);

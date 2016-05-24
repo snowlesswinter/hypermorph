@@ -72,6 +72,9 @@ public:
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
                       const glm::vec3& value, uint32_t mask);
+    void ComputeCurl(std::shared_ptr<CudaVolume> dest,
+                     std::shared_ptr<CudaVolume> velocity,
+                     float inverse_cell_size);
     void ComputeDivergence(std::shared_ptr<CudaVolume> dest,
                            std::shared_ptr<CudaVolume> velocity,
                            float half_inverse_cell_size);
