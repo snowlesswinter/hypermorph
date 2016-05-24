@@ -396,12 +396,14 @@ void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&buoyancy_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_temp = BindHelper::Bind(&buoyancy_temperature, temperature_array,
-                                       false, cudaFilterModeLinear);
+                                       false, cudaFilterModeLinear,
+                                       cudaAddressModeClamp);
     if (bound_temp.error() != cudaSuccess)
         return;
 
@@ -422,12 +424,14 @@ void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&buoyancy_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_temp = BindHelper::Bind(&buoyancy_temperature, temperature_array,
-                                       false, cudaFilterModeLinear);
+                                       false, cudaFilterModeLinear,
+                                       cudaAddressModeClamp);
     if (bound_temp.error() != cudaSuccess)
         return;
 
@@ -474,7 +478,8 @@ void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
-                                      false, cudaFilterModePoint);
+                                      false, cudaFilterModePoint,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
@@ -494,7 +499,8 @@ void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
-                                      false, cudaFilterModeLinear);
+                                      false, cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
@@ -514,7 +520,8 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
         return;
 
     auto bound_source = BindHelper::Bind(&diagnosis_source, source_array,
-                                         false, cudaFilterModePoint);
+                                         false, cudaFilterModePoint,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -550,12 +557,14 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
-                                      false, cudaFilterModePoint);
+                                      false, cudaFilterModePoint,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_packed = BindHelper::Bind(&gradient_packed, packed_array,
-                                         false, cudaFilterModePoint);
+                                         false, cudaFilterModePoint,
+                                         cudaAddressModeClamp);
     if (bound_packed.error() != cudaSuccess)
         return;
 
@@ -575,12 +584,14 @@ void LaunchSubtractGradientStaggered(cudaArray* dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
-                                      false, cudaFilterModeLinear);
+                                      false, cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_packed = BindHelper::Bind(&gradient_packed, packed_array,
-                                         false, cudaFilterModeLinear);
+                                         false, cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_packed.error() != cudaSuccess)
         return;
 

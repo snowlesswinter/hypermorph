@@ -487,7 +487,8 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
         return;
 
     auto bound_packed = BindHelper::Bind(&jacobi_packed, source_array, false,
-                                      cudaFilterModePoint);
+                                         cudaFilterModePoint,
+                                         cudaAddressModeClamp);
     if (bound_packed.error() != cudaSuccess)
         return;
 

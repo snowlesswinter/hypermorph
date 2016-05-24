@@ -741,7 +741,8 @@ void LaunchComputeResidualPacked(cudaArray* dest_array, cudaArray* source_array,
         return;
 
     auto bound_source = BindHelper::Bind(&residual_source, source_array, false,
-                                         cudaFilterModePoint);
+                                         cudaFilterModePoint,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -759,12 +760,14 @@ void LaunchProlongatePacked(cudaArray* dest_array, cudaArray* coarse_array,
         return;
 
     auto bound_coarse = BindHelper::Bind(&prolongate_coarse, coarse_array,
-                                         false, cudaFilterModeLinear);
+                                         false, cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_coarse.error() != cudaSuccess)
         return;
 
     auto bound_fine = BindHelper::Bind(&prolongate_fine, fine_array, false,
-                                       cudaFilterModePoint);
+                                       cudaFilterModePoint,
+                                       cudaAddressModeClamp);
     if (bound_fine.error() != cudaSuccess)
         return;
 
@@ -785,7 +788,8 @@ void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
         return;
 
     auto bound_source = BindHelper::Bind(&guess_source, source_array, false,
-                                         cudaFilterModePoint);
+                                         cudaFilterModePoint,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -805,7 +809,8 @@ void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
         return;
 
     auto bound_source = BindHelper::Bind(&restrict_source, source_array, false,
-                                         cudaFilterModeLinear);
+                                         cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -825,7 +830,8 @@ void LaunchRestrictResidualPacked(cudaArray* dest_array,
 
     auto bound_source = BindHelper::Bind(&restrict_residual_source,
                                          source_array, false,
-                                         cudaFilterModeLinear);
+                                         cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 

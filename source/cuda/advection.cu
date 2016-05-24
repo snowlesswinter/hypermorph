@@ -352,12 +352,14 @@ void LaunchAdvectScalarBfecc(cudaArray_t dest_array, cudaArray_t velocity_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array,
-                                      false, cudaFilterModeLinear);
+                                      false, cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_source = BindHelper::Bind(&advect_source, source_array,
-                                         false, cudaFilterModeLinear);
+                                         false, cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -373,7 +375,8 @@ void LaunchAdvectScalarBfecc(cudaArray_t dest_array, cudaArray_t velocity_array,
 
     auto bound_intermediate1 = BindHelper::Bind(&advect_intermediate1,
                                                 dest_array, false,
-                                                cudaFilterModeLinear);
+                                                cudaFilterModeLinear,
+                                                cudaAddressModeClamp);
     if (bound_intermediate1.error() != cudaSuccess)
         return;
 
@@ -385,7 +388,7 @@ void LaunchAdvectScalarBfecc(cudaArray_t dest_array, cudaArray_t velocity_array,
 
     bound_intermediate1.Take(
         BindHelper::Bind(&advect_intermediate1, intermediate_array, false,
-                         cudaFilterModeLinear));
+                         cudaFilterModeLinear, cudaAddressModeClamp));
     if (bound_intermediate1.error() != cudaSuccess)
         return;
 
@@ -404,12 +407,14 @@ void LaunchAdvectScalarMacCormack(cudaArray_t dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_source = BindHelper::Bind(&advect_source, source_array, false,
-                                      cudaFilterModeLinear);
+                                         cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -424,7 +429,8 @@ void LaunchAdvectScalarMacCormack(cudaArray_t dest_array,
 
     auto bound_intermediate1 = BindHelper::Bind(&advect_intermediate1,
                                                 intermediate_array, false,
-                                                cudaFilterModeLinear);
+                                                cudaFilterModeLinear,
+                                                cudaAddressModeClamp);
     if (bound_intermediate1.error() != cudaSuccess)
         return;
 
@@ -454,12 +460,14 @@ void LaunchAdvectScalar(cudaArray_t dest_array, cudaArray_t velocity_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
     auto bound_source = BindHelper::Bind(&advect_source, source_array, false,
-                                         cudaFilterModeLinear);
+                                         cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
     if (bound_source.error() != cudaSuccess)
         return;
 
@@ -481,7 +489,8 @@ void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
@@ -495,7 +504,8 @@ void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
         return;
 
     auto bound_intermediate = BindHelper::Bind(&advect_intermediate, dest_array,
-                                               false, cudaFilterModeLinear);
+                                               false, cudaFilterModeLinear,
+                                               cudaAddressModeClamp);
     if (bound_intermediate.error() != cudaSuccess)
         return;
 
@@ -507,7 +517,7 @@ void LaunchAdvectVelocityBfecc(cudaArray_t dest_array,
 
     bound_intermediate.Take(
         BindHelper::Bind(&advect_intermediate, intermediate_array, false,
-                         cudaFilterModeLinear));
+                         cudaFilterModeLinear, cudaAddressModeClamp));
     if (bound_intermediate.error() != cudaSuccess)
         return;
 
@@ -524,7 +534,8 @@ void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
@@ -538,7 +549,8 @@ void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
 
     auto bound_intermediate = BindHelper::Bind(&advect_intermediate,
                                                intermediate_array, false,
-                                               cudaFilterModeLinear);
+                                               cudaFilterModeLinear,
+                                               cudaAddressModeClamp);
     if (bound_intermediate.error() != cudaSuccess)
         return;
 
@@ -567,7 +579,8 @@ void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
         return;
 
     auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear);
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 

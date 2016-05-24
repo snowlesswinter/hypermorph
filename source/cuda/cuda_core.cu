@@ -451,7 +451,8 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
         return;
 
     auto bound_density = BindHelper::Bind(&raycast_density, density_array, true,
-                                          cudaFilterModeLinear);
+                                          cudaFilterModeLinear,
+                                          cudaAddressModeBorder);
     if (bound_density.error() != cudaSuccess)
         return;
 

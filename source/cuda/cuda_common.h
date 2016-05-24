@@ -14,15 +14,16 @@ cudaError_t BindCudaSurfaceToArray(SurfaceType* surf, cudaArray* cuda_array)
 template <typename TextureType>
 cudaError_t BindCudaTextureToArray(TextureType* tex, cudaArray* cuda_array,
                                    bool normalize,
-                                   cudaTextureFilterMode filter_mode)
+                                   cudaTextureFilterMode filter_mode,
+                                   cudaTextureAddressMode addr_mode)
 {
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, cuda_array);
     tex->normalized = normalize;
     tex->filterMode = filter_mode;
-    tex->addressMode[0] = cudaAddressModeClamp;
-    tex->addressMode[1] = cudaAddressModeClamp;
-    tex->addressMode[2] = cudaAddressModeClamp;
+    tex->addressMode[0] = addr_mode;
+    tex->addressMode[1] = addr_mode;
+    tex->addressMode[2] = addr_mode;
     tex->channelDesc = desc;
 
     cudaError_t result = cudaBindTextureToArray(tex, cuda_array, &desc);
@@ -35,10 +36,12 @@ class AutoUnbind
 {
 public:
     AutoUnbind(TextureType* tex, cudaArray* cuda_array, bool normalize,
-               cudaTextureFilterMode filter_mode)
+               cudaTextureFilterMode filter_mode,
+               cudaTextureAddressMode addr_mode)
         : tex_(tex)
         , error_(
-            BindCudaTextureToArray(tex, cuda_array, normalize, filter_mode))
+            BindCudaTextureToArray(tex, cuda_array, normalize, filter_mode,
+                                   addr_mode))
     {
     }
     AutoUnbind(AutoUnbind<TextureType>&& obj)
@@ -81,9 +84,11 @@ public:
     template <typename TextureType>
     static AutoUnbind<TextureType> Bind(TextureType* tex, cudaArray* cuda_array,
                                         bool normalize,
-                                        cudaTextureFilterMode filter_mode)
+                                        cudaTextureFilterMode filter_mode,
+                                        cudaTextureAddressMode addr_mode)
     {
-        return AutoUnbind<TextureType>(tex, cuda_array, normalize, filter_mode);
+        return AutoUnbind<TextureType>(tex, cuda_array, normalize, filter_mode,
+                                       addr_mode);
     }
 };
 
