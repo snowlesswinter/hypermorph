@@ -311,6 +311,11 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                    density_factor, occlusion_factor);
 }
 
+void CudaMain::SetStaggered(bool staggered)
+{
+    fluid_impl_->set_staggered(staggered);
+}
+
 void CudaMain::RoundPassed(int round)
 {
     fluid_impl_->RoundPassed(round);

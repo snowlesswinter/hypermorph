@@ -265,6 +265,7 @@ FluidConfig::FluidConfig()
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
     , auto_impulse_(1, "auto impulse")
+    , staggered_(1, "staggered")
     , num_raycast_samples_(224, "num raycast samples")
     , num_raycast_light_samples_(64, "num raycast light samples")
     , initial_viewport_width_(512)
@@ -358,6 +359,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &num_multigrid_iterations_,
         &num_full_multigrid_iterations_,
         &auto_impulse_,
+        &staggered_,
         &num_raycast_samples_,
         &num_raycast_light_samples_,
     };
@@ -410,6 +412,7 @@ void FluidConfig::Store(std::ostream& stream)
         num_multigrid_iterations_,
         num_full_multigrid_iterations_,
         auto_impulse_,
+        staggered_,
         num_raycast_samples_,
         num_raycast_light_samples_,
     };

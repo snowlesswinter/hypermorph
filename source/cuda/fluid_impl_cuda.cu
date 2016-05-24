@@ -51,7 +51,7 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float t = tex3D(buoyancy_temperature, coord.x, coord.y - 0.5f, coord.z);
+    float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
     float accel = time_step * ((t - ambient_temperature) * accel_factor -
                                gravity);
 
@@ -220,9 +220,9 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
     float  north =  tex3D(divergence_velocity, coord.x,        coord.y + 1.0f, coord.z).y;
     float  far =    tex3D(divergence_velocity, coord.x,        coord.y,        coord.z + 1.0f).z;
 
-    float diff_ew = east -  base.x;
+    float diff_ew = east  - base.x;
     float diff_ns = north - base.y;
-    float diff_fn = far -   base.z;
+    float diff_fn = far   - base.z;
 
     // Handle boundary problem
     if (x >= volume_size.x - 1)

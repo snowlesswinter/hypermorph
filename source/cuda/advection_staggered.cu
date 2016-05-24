@@ -263,7 +263,7 @@ __global__ void AdvectVelocityBfeccStaggeredKernel(float time_step,
         v_new.z = tex3D(advect_velocity, back_traced_z.x, back_traced_z.y, back_traced_z.z).z;
     }
 
-    v_new = (1.0f - dissipation * time_step) * v_new;
+    v_new *= (1.0f - dissipation * time_step);
     ushort4 result = make_ushort4(__float2half_rn(v_new.x), __float2half_rn(v_new.y), __float2half_rn(v_new.z), 0);
     surf3Dwrite(result, advect_dest, x * sizeof(ushort4), y, z, cudaBoundaryModeTrap);
 }

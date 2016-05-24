@@ -59,8 +59,11 @@ public:
     // For debugging.
     void RoundPassed(int round);
 
+    void set_staggered(bool staggered) { staggered_ = staggered; }
+
 private:
     BlockArrangement* ba_;
+    bool staggered_;
 };
 
 #endif // _FLUID_IMPL_CUDA_H_

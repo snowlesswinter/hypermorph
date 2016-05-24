@@ -114,6 +114,8 @@ public:
                  float absorption, float density_factor,
                  float occlusion_factor);
 
+    void SetStaggered(bool staggered);
+
     // For diagnosis
     void RoundPassed(int round);
     void Sync();

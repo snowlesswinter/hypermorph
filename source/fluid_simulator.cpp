@@ -178,6 +178,11 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
     return density_;
 }
 
+void FluidSimulator::SetStaggered(bool staggered)
+{
+    CudaMain::Instance()->SetStaggered(staggered);
+}
+
 void FluidSimulator::StartImpulsing(float x, float y)
 {
     manual_impulse_.reset(new glm::vec2(x, y));
@@ -213,16 +218,16 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     SubtractGradient();
     Metrics::Instance()->OnVelocityRectified();
 
-    // Advect velocity
-    AdvectVelocity(proper_delta_time);
-    Metrics::Instance()->OnVelocityAvected();
-
     // Advect density and temperature
     AdvectTemperature(proper_delta_time);
     Metrics::Instance()->OnTemperatureAvected();
 
     AdvectDensity(proper_delta_time);
     Metrics::Instance()->OnDensityAvected();
+
+    // Advect velocity
+    AdvectVelocity(proper_delta_time);
+    Metrics::Instance()->OnVelocityAvected();
 
     // Apply buoyancy and gravity
     ApplyBuoyancy(proper_delta_time);
