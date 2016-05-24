@@ -60,8 +60,9 @@ public:
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
                        std::shared_ptr<CudaVolume> velocity,
                        std::shared_ptr<CudaVolume> temperature,
-                       float time_step, float ambient_temperature,
-                       float accel_factor, float gravity);
+                       std::shared_ptr<CudaVolume> density, float time_step,
+                       float ambient_temperature, float accel_factor,
+                       float gravity);
     void ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
                              const glm::vec3& center_point,
                              const glm::vec3& hotspot, float radius,

@@ -128,20 +128,23 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> dest,
 {
     fluid_impl_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
                                 velocity_prev->dev_array(), time_step,
-                                time_step_prev, dissipation, dest->size(),
+                                time_step_prev, dissipation, dest->size() - 1,
                                 ToCudaAdvectionMethod(method));
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
                              std::shared_ptr<CudaVolume> velocity,
                              std::shared_ptr<CudaVolume> temperature,
+                             std::shared_ptr<CudaVolume> density,
                              float time_step, float ambient_temperature,
                              float accel_factor, float gravity)
 {
+    // NOTE: The temperature's volume size should be used instead of the
+    //       velocity's.
     fluid_impl_->ApplyBuoyancy(dest->dev_array(), velocity->dev_array(),
-                               temperature->dev_array(), time_step,
-                               ambient_temperature, accel_factor, gravity,
-                               dest->size());
+                               temperature->dev_array(), density->dev_array(),
+                               time_step, ambient_temperature, accel_factor,
+                               gravity, temperature->size());
 }
 
 void CudaMain::ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
@@ -240,8 +243,10 @@ void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> dest,
                                 std::shared_ptr<CudaVolume> packed,
                                 float half_inverse_cell_size)
 {
+    // NOTE: The pressure's volume size should be used instead of the
+    //       velocity's.
     fluid_impl_->SubtractGradient(dest->dev_array(), packed->dev_array(),
-                                  half_inverse_cell_size, dest->size());
+                                  half_inverse_cell_size, packed->size());
 }
 
 void CudaMain::ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,

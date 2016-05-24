@@ -167,8 +167,8 @@ void FluidUnittest::TestDivergenceCalculation(int random_seed)
     sim_glsl.ComputeDivergence();
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           2, sim_cuda.general4_.get(),
-                                           sim_glsl.general4_.get(),
+                                           2, sim_cuda.general4a_.get(),
+                                           sim_glsl.general4a_.get(),
                                            __FUNCTION__);
 }
 
@@ -193,8 +193,8 @@ void FluidUnittest::TestGradientSubtraction(int random_seed)
                                       sim_glsl.velocity_.get(), width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
-    UnittestCommon::InitializeVolume4(sim_cuda.general4_.get(),
-                                      sim_glsl.general4_.get(), width, height,
+    UnittestCommon::InitializeVolume4(sim_cuda.general4a_.get(),
+                                      sim_glsl.general4a_.get(), width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-4.0f, 4.0f));
 

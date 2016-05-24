@@ -4,16 +4,16 @@ advection method = mcsl
 ambient temperature = 0
 splat radius factor = 0.32
 smoke buoyancy = 1
-smoke weight = 0.0001
+smoke weight = 1
 
-impulse temperature = 0.3
-impulse density = 0.3
+impulse temperature = 1
+impulse density = 1
 
-temperature dissipation = 0.1
+temperature dissipation = 0.2
 velocity dissipation = 0.005
 density dissipation = 0.03
 
-splat radius factor = 0.32
+splat radius factor = 0.45
 number of jacobi iterations = 60
 num multigrid iterations = 5
 num full multigrid iterations = 2
@@ -27,4 +27,3 @@ light absorption = 10
 raycast density factor = 40
 raycast occlusion factor = 16
 time stretch = 4
-

@@ -28,9 +28,10 @@ public:
                         float time_step_prev, float dissipation,
                         const glm::ivec3& volume_size, AdvectionMethod method);
     void ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
-                       cudaArray* temperature, float time_step,
-                       float ambient_temperature, float accel_factor,
-                       float gravity, const glm::ivec3& volume_size);
+                       cudaArray* temperature, cudaArray* density,
+                       float time_step, float ambient_temperature,
+                       float accel_factor, float gravity,
+                       const glm::ivec3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,

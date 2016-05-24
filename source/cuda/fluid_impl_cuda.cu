@@ -10,6 +10,7 @@
 surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_density;
 surface<void, cudaSurfaceType3D> impulse_dest1;
 surface<void, cudaSurfaceType3D> impulse_dest4;
 surface<void, cudaSurfaceType3D> divergence_dest;
@@ -29,8 +30,9 @@ __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
-    float accel = time_step * ((t - ambient_temperature) * accel_factor -
-                                gravity);
+    float d = tex3D(buoyancy_density, coord.x, coord.y, coord.z);
+    float accel =
+        time_step * ((t - ambient_temperature) * accel_factor - d * gravity);
 
     float4 velocity = tex3D(buoyancy_velocity, coord.x, coord.y, coord.z);
     ushort4 result = make_ushort4(__float2half_rn(velocity.x),
@@ -52,8 +54,9 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float t = tex3D(buoyancy_temperature, coord.x, coord.y, coord.z);
-    float accel = time_step * ((t - ambient_temperature) * accel_factor -
-                               gravity);
+    float d = tex3D(buoyancy_density, coord.x, coord.y, coord.z);
+    float accel =
+        time_step * ((t - ambient_temperature) * accel_factor - d * gravity);
 
     float4 velocity;
     ushort4 result;
@@ -363,14 +366,8 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 
     // Handle boundary problem
     float3 mask = make_float3(1.0f);
-    if (x <= 0)
-        mask.x = 0;
-
-    if (y <= 0)
-        mask.y = 0;
-
-    if (z <= 0)
-        mask.z = 0;
+    if (x <= 0 || y <= 0 || z <= 0)
+        mask = make_float3(0.0f);
 
     float3 old_v =
         make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));
@@ -388,9 +385,9 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 // =============================================================================
 
 void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
-                         cudaArray* temperature_array, float time_step,
-                         float ambient_temperature, float accel_factor,
-                         float gravity, uint3 volume_size)
+                         cudaArray* temperature_array, cudaArray* density_array,
+                         float time_step, float ambient_temperature,
+                         float accel_factor, float gravity, uint3 volume_size)
 {
     if (BindCudaSurfaceToArray(&buoyancy_dest, dest_array) != cudaSuccess)
         return;
@@ -407,6 +404,12 @@ void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
     if (bound_temp.error() != cudaSuccess)
         return;
 
+    auto bound_density = BindHelper::Bind(&buoyancy_density, density_array,
+                                          false, cudaFilterModeLinear,
+                                          cudaAddressModeClamp);
+    if (bound_density.error() != cudaSuccess)
+        return;
+
     dim3 block(8, 8, 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
@@ -416,7 +419,8 @@ void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
 
 void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
                                   cudaArray* velocity_array,
-                                  cudaArray* temperature_array, float time_step,
+                                  cudaArray* temperature_array,
+                                  cudaArray* density_array, float time_step,
                                   float ambient_temperature, float accel_factor,
                                   float gravity, uint3 volume_size)
 {
@@ -433,6 +437,12 @@ void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
                                        false, cudaFilterModeLinear,
                                        cudaAddressModeClamp);
     if (bound_temp.error() != cudaSuccess)
+        return;
+
+    auto bound_density = BindHelper::Bind(&buoyancy_density, density_array,
+                                          false, cudaFilterModeLinear,
+                                          cudaAddressModeClamp);
+    if (bound_density.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);

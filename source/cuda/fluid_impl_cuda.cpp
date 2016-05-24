@@ -43,12 +43,13 @@ extern void LaunchAdvectVelocityStaggered(cudaArray_t dest_array,
 extern void LaunchApplyBuoyancy(cudaArray* dest_array,
                                 cudaArray* velocity_array,
                                 cudaArray* temperature_array,
-                                float time_step, float ambient_temperature,
-                                float accel_factor, float gravity,
-                                uint3 volume_size);
+                                cudaArray* density_array, float time_step,
+                                float ambient_temperature, float accel_factor,
+                                float gravity, uint3 volume_size);
 extern void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
                                          cudaArray* velocity_array,
                                          cudaArray* temperature_array,
+                                         cudaArray* density_array,
                                          float time_step,
                                          float ambient_temperature,
                                          float accel_factor, float gravity,
@@ -156,17 +157,18 @@ void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
-                                  cudaArray* temperature, float time_step,
-                                  float ambient_temperature,
+                                  cudaArray* temperature, cudaArray* density,
+                                  float time_step, float ambient_temperature,
                                   float accel_factor, float gravity,
                                   const glm::ivec3& volume_size)
 {
     if (staggered_)
-        LaunchApplyBuoyancyStaggered(dest, velocity, temperature, time_step,
-                                     ambient_temperature, accel_factor, gravity,
+        LaunchApplyBuoyancyStaggered(dest, velocity, temperature, density,
+                                     time_step, ambient_temperature,
+                                     accel_factor, gravity,
                                      FromGlmVector(volume_size));
     else
-        LaunchApplyBuoyancy(dest, velocity, temperature, time_step,
+        LaunchApplyBuoyancy(dest, velocity, temperature, density, time_step,
                             ambient_temperature, accel_factor, gravity,
                             FromGlmVector(volume_size));
 }
