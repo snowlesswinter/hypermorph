@@ -17,27 +17,57 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
 template <typename TextureType>
 __device__ __inline float3 GetVelocityXStaggered(TextureType tex, float3 pos)
 {
+    if (pos.x < 0.5001f)
+        return make_float3(0.0f);
+
     float v_x = tex3D(tex, pos.x, pos.y, pos.z).x;
     float v_y = tex3D(tex, pos.x - 0.5f, pos.y + 0.5f, pos.z).y;
     float v_z = tex3D(tex, pos.x - 0.5f, pos.y, pos.z + 0.5f).z;
+
+    if (pos.y > 127.4999f)
+        v_y *= 0.5f;
+
+    if (pos.z > 127.4999f)
+        v_z *= 0.5f;
+
     return make_float3(v_x, v_y, v_z);
 }
 
 template <typename TextureType>
 __device__ __inline float3 GetVelocityYStaggered(TextureType tex, float3 pos)
 {
+    if (pos.y < 0.5001f)
+        return make_float3(0.0f);
+
     float v_x = tex3D(tex, pos.x + 0.5f, pos.y - 0.5f, pos.z).x;
     float v_y = tex3D(tex, pos.x, pos.y, pos.z).y;
     float v_z = tex3D(tex, pos.x, pos.y - 0.5f, pos.z + 0.5f).z;
+
+    if (pos.x > 127.4999f)
+        v_x *= 0.5f;
+
+    if (pos.z > 127.4999f)
+        v_z *= 0.5f;
+
     return make_float3(v_x, v_y, v_z);
 }
 
 template <typename TextureType>
 __device__ __inline float3 GetVelocityZStaggered(TextureType tex, float3 pos)
 {
+    if (pos.z < 0.5001f)
+        return make_float3(0.0f);
+
     float v_x = tex3D(tex, pos.x + 0.5f, pos.y, pos.z - 0.5f).x;
     float v_y = tex3D(tex, pos.x, pos.y + 0.5f, pos.z - 0.5f).y;
     float v_z = tex3D(tex, pos.x, pos.y, pos.z).z;
+
+    if (pos.x > 127.4999f)
+        v_x *= 0.5f;
+
+    if (pos.y > 127.4999f)
+        v_y *= 0.5f;
+
     return make_float3(v_x, v_y, v_z);
 }
 
