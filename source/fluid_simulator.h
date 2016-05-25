@@ -4,15 +4,9 @@
 #include <memory>
 
 #include "graphics_lib_enum.h"
+#include "graphics_volume_group.h"
 #include "third_party/glm/fwd.hpp"
 
-namespace Vectormath
-{
-namespace Aos
-{
-class Vector3;
-}
-}
 class FluidUnittest;
 class GraphicsVolume;
 class MultigridCore;
@@ -76,6 +70,8 @@ private:
     void SolvePressure();
     void SubtractGradient();
 
+    const GraphicsVolume3& GetVorticityVolume();
+
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;
@@ -86,6 +82,7 @@ private:
     bool diagnosis_;
 
     std::shared_ptr<GraphicsVolume> velocity_;
+    GraphicsVolume3 vorticity_;
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> packed_;

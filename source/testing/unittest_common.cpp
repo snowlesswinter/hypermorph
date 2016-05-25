@@ -11,7 +11,6 @@
 #include "graphics_volume.h"
 #include "half_float/half.h"
 #include "opengl/gl_volume.h"
-#include "opengl/gl_utility.h"
 #include "third_party/glm/vec3.hpp"
 #include "utility.h"
 

@@ -6,13 +6,6 @@
 
 #include "third_party/glm/fwd.hpp"
 
-namespace Vectormath
-{
-namespace Aos
-{
-class Vector3;
-}
-}
 class CudaCore;
 class CudaVolume;
 class FluidImplCuda;
@@ -72,7 +65,9 @@ public:
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
                       const glm::vec3& value, uint32_t mask);
-    void ComputeCurl(std::shared_ptr<CudaVolume> dest,
+    void ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
+                     std::shared_ptr<CudaVolume> dest_y,
+                     std::shared_ptr<CudaVolume> dest_z,
                      std::shared_ptr<CudaVolume> velocity,
                      float inverse_cell_size);
     void ComputeDivergence(std::shared_ptr<CudaVolume> dest,

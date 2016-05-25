@@ -15,7 +15,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_intermedi
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
 
 template <typename TextureType>
-__device__ __inline float3 GetVelocityXStaggered(TextureType tex, float3 pos)
+__device__ inline float3 GetVelocityXStaggered(TextureType tex, float3 pos)
 {
     float v_x = tex3D(tex, pos.x, pos.y, pos.z).x;
     float v_y = tex3D(tex, pos.x - 0.5f, pos.y + 0.5f, pos.z).y;
@@ -24,7 +24,7 @@ __device__ __inline float3 GetVelocityXStaggered(TextureType tex, float3 pos)
 }
 
 template <typename TextureType>
-__device__ __inline float3 GetVelocityYStaggered(TextureType tex, float3 pos)
+__device__ inline float3 GetVelocityYStaggered(TextureType tex, float3 pos)
 {
     float v_x = tex3D(tex, pos.x + 0.5f, pos.y - 0.5f, pos.z).x;
     float v_y = tex3D(tex, pos.x, pos.y, pos.z).y;
@@ -33,7 +33,7 @@ __device__ __inline float3 GetVelocityYStaggered(TextureType tex, float3 pos)
 }
 
 template <typename TextureType>
-__device__ __inline float3 GetVelocityZStaggered(TextureType tex, float3 pos)
+__device__ inline float3 GetVelocityZStaggered(TextureType tex, float3 pos)
 {
     float v_x = tex3D(tex, pos.x + 0.5f, pos.y, pos.z - 0.5f).x;
     float v_y = tex3D(tex, pos.x, pos.y + 0.5f, pos.z - 0.5f).y;
@@ -64,10 +64,10 @@ __device__ float3 BackTraceVelocityStaggered(TextureType vel_field,
     return make_float3(v_x, v_y, v_z);
 }
 
-template <int n> __device__ __inline float GetComponent(float4 v);
-template <> __device__ __inline float GetComponent<0>(float4 v) { return v.x; }
-template <> __device__ __inline float GetComponent<1>(float4 v) { return v.y; }
-template <> __device__ __inline float GetComponent<2>(float4 v) { return v.z; }
+template <int n> __device__ inline float GetComponent(float4 v);
+template <> __device__ inline float GetComponent<0>(float4 v) { return v.x; }
+template <> __device__ inline float GetComponent<1>(float4 v) { return v.y; }
+template <> __device__ inline float GetComponent<2>(float4 v) { return v.z; }
 
 template <typename TextureType, int component>
 __device__ void GetVelocityLimitStaggered(TextureType tex, float3 back_traced,

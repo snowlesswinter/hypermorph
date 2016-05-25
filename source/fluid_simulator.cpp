@@ -43,6 +43,7 @@ FluidSimulator::FluidSimulator()
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_()
+    , vorticity_()
     , density_()
     , temperature_()
     , packed_()
@@ -172,6 +173,12 @@ void FluidSimulator::Reset()
     general1b_->Clear();
     general4a_->Clear();
     general4b_->Clear();
+
+    if (vorticity_) {
+        vorticity_.x()->Clear();
+        vorticity_.y()->Clear();
+        vorticity_.z()->Clear();
+    }
 
     diagnosis_volume_.reset();
 
@@ -444,10 +451,16 @@ void FluidSimulator::BuildVorticityConfinemnet()
 
 void FluidSimulator::ComputeCurl()
 {
+    const GraphicsVolume3& vorticity = GetVorticityVolume();
+    if (!vorticity)
+        return;
+
     // Please note that the nth velocity in still within |general4a_|.
     float inverse_cell_size = 1.0f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ComputeCurl(general4b_->cuda_volume(),
+        CudaMain::Instance()->ComputeCurl(vorticity.x()->cuda_volume(),
+                                          vorticity.y()->cuda_volume(),
+                                          vorticity.z()->cuda_volume(),
                                           general4a_->cuda_volume(),
                                           inverse_cell_size);
     }
@@ -772,4 +785,14 @@ void FluidSimulator::SubtractGradient()
                               velocity_->gl_volume()->depth());
         ResetState();
     }
+}
+
+const GraphicsVolume3& FluidSimulator::GetVorticityVolume()
+{
+    if (!vorticity_) {
+        bool r = vorticity_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
+        assert(r);
+    }
+
+    return vorticity_;
 }

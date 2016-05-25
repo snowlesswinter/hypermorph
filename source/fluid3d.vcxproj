@@ -92,11 +92,11 @@
     <ClInclude Include="fluid_simulator.h" />
     <ClInclude Include="graphics_lib_enum.h" />
     <ClInclude Include="graphics_volume.h" />
+    <ClInclude Include="graphics_volume_group.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="opengl\gl_program.h" />
     <ClInclude Include="opengl\gl_surface.h" />
     <ClInclude Include="opengl\gl_texture.h" />
-    <ClInclude Include="opengl\gl_utility.h" />
     <ClInclude Include="opengl\gl_volume.h" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="poisson_solver\full_multigrid_poisson_solver.h" />
@@ -121,11 +121,11 @@
     <ClCompile Include="cuda_host\cuda_volume.cpp" />
     <ClCompile Include="fluid_simulator.cpp" />
     <ClCompile Include="graphics_volume.cpp" />
+    <ClCompile Include="graphics_volume_group.cpp" />
     <ClCompile Include="metrics.cpp" />
     <ClCompile Include="opengl\gl_program.cpp" />
     <ClCompile Include="opengl\gl_surface.cpp" />
     <ClCompile Include="opengl\gl_texture.cpp" />
-    <ClCompile Include="opengl\gl_utility.cpp" />
     <ClCompile Include="opengl\gl_volume.cpp" />
     <ClCompile Include="overlay_content.cpp" />
     <ClCompile Include="poisson_solver\full_multigrid_poisson_solver.cpp" />

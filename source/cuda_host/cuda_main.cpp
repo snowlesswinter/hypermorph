@@ -167,13 +167,17 @@ void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
                               dest->size());
 }
 
-void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> dest,
+void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
+                           std::shared_ptr<CudaVolume> dest_y,
+                           std::shared_ptr<CudaVolume> dest_z,
                            std::shared_ptr<CudaVolume> velocity,
                            float inverse_cell_size)
 {
-    fluid_impl_->ComputeCurl(dest->dev_array(), velocity->dev_array(),
-                             dest->dev_array(), inverse_cell_size,
-                             dest->size());
+    fluid_impl_->ComputeCurl(dest_x->dev_array(), dest_y->dev_array(),
+                             dest_z->dev_array(), velocity->dev_array(),
+                             dest_x->dev_array(), dest_y->dev_array(),
+                             dest_z->dev_array(), inverse_cell_size,
+                             dest_x->size());
 }
 
 void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> dest,
