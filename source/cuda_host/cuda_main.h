@@ -65,6 +65,18 @@ public:
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
                       const glm::vec3& value, uint32_t mask);
+    void ApplyVorticityConfinement(std::shared_ptr<CudaVolume> dest,
+                                   std::shared_ptr<CudaVolume> velocity,
+                                   std::shared_ptr<CudaVolume> vort_x,
+                                   std::shared_ptr<CudaVolume> vort_y,
+                                   std::shared_ptr<CudaVolume> vort_z);
+    void BuildVorticityConfinement(std::shared_ptr<CudaVolume> dest_x,
+                                   std::shared_ptr<CudaVolume> dest_y,
+                                   std::shared_ptr<CudaVolume> dest_z,
+                                   std::shared_ptr<CudaVolume> vort_x,
+                                   std::shared_ptr<CudaVolume> vort_y,
+                                   std::shared_ptr<CudaVolume> vort_z,
+                                   float coeff, float cell_size);
     void ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
                      std::shared_ptr<CudaVolume> dest_y,
                      std::shared_ptr<CudaVolume> dest_z,

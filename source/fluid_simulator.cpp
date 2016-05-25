@@ -34,7 +34,7 @@ static struct
 } Programs;
 
 FluidSimulator::FluidSimulator()
-    : graphics_lib_(GRAPHICS_LIB_GLSL)
+    : graphics_lib_(GRAPHICS_LIB_CUDA)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
     , solver_()
@@ -43,7 +43,8 @@ FluidSimulator::FluidSimulator()
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_()
-    , vorticity_()
+    , vorticity_(GRAPHICS_LIB_CUDA)
+    , vort_conf_(GRAPHICS_LIB_CUDA)
     , density_()
     , temperature_()
     , packed_()
@@ -62,14 +63,14 @@ FluidSimulator::~FluidSimulator()
 
 bool FluidSimulator::Init()
 {
-    velocity_.reset(new GraphicsVolume(graphics_lib_));
-    density_.reset(new GraphicsVolume(graphics_lib_));
-    temperature_.reset(new GraphicsVolume(graphics_lib_));
-    packed_.reset(new GraphicsVolume(graphics_lib_));
-    general1a_.reset(new GraphicsVolume(graphics_lib_));
-    general1b_.reset(new GraphicsVolume(graphics_lib_));
-    general4a_.reset(new GraphicsVolume(graphics_lib_));
-    general4b_.reset(new GraphicsVolume(graphics_lib_));
+    velocity_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    density_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    temperature_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    packed_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    general1a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    general1b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    general4a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
+    general4b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
 
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
@@ -365,9 +366,10 @@ void FluidSimulator::AdvectVelocity(float delta_time)
 
     std::swap(velocity_, general4a_);
 
-    if (FluidConfig::Instance()->vorticity_confinement()) {
+    if (FluidConfig::Instance()->vorticity_confinement() > 0.0f) {
         ComputeCurl();
-        BuildVorticityConfinemnet();
+        BuildVorticityConfinemnet(delta_time);
+        ApplyVorticityConfinemnet();
     }
 }
 
@@ -444,14 +446,49 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
             initial_velocity, 7);
 }
 
-void FluidSimulator::BuildVorticityConfinemnet()
+void FluidSimulator::ApplyVorticityConfinemnet()
 {
+    const GraphicsVolume3& vort_conf = GetVorticityConfinementField();
+    if (!vort_conf)
+        return;
 
+    // Please note that the nth velocity in still within |general4a_|.
+    float inverse_cell_size = 1.0f / CellSize;
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyVorticityConfinement(
+            general4a_->cuda_volume(), velocity_->cuda_volume(),
+            vort_conf.x()->cuda_volume(), vort_conf.y()->cuda_volume(),
+            vort_conf.z()->cuda_volume());
+    }
+
+    std::swap(velocity_, general4a_);
+}
+
+void FluidSimulator::BuildVorticityConfinemnet(float delta_time)
+{
+    const GraphicsVolume3& vorticity = GetVorticityField();
+    if (!vorticity)
+        return;
+
+    const GraphicsVolume3& vort_conf = GetVorticityConfinementField();
+    if (!vort_conf)
+        return;
+
+    // Please note that the nth velocity in still within |general4a_|.
+    float inverse_cell_size = 1.0f / CellSize;
+    float vort_conf_coef = FluidConfig::Instance()->vorticity_confinement();
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->BuildVorticityConfinement(
+            vort_conf.x()->cuda_volume(), vort_conf.y()->cuda_volume(),
+            vort_conf.z()->cuda_volume(), vorticity.x()->cuda_volume(),
+            vorticity.y()->cuda_volume(), vorticity.z()->cuda_volume(),
+            vort_conf_coef * delta_time, CellSize);
+    }
 }
 
 void FluidSimulator::ComputeCurl()
 {
-    const GraphicsVolume3& vorticity = GetVorticityVolume();
+    const GraphicsVolume3& vorticity = GetVorticityField();
     if (!vorticity)
         return;
 
@@ -787,7 +824,7 @@ void FluidSimulator::SubtractGradient()
     }
 }
 
-const GraphicsVolume3& FluidSimulator::GetVorticityVolume()
+const GraphicsVolume3& FluidSimulator::GetVorticityField()
 {
     if (!vorticity_) {
         bool r = vorticity_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
@@ -795,4 +832,14 @@ const GraphicsVolume3& FluidSimulator::GetVorticityVolume()
     }
 
     return vorticity_;
+}
+
+const GraphicsVolume3& FluidSimulator::GetVorticityConfinementField()
+{
+    if (!vort_conf_) {
+        bool r = vort_conf_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
+        assert(r);
+    }
+
+    return vort_conf_;
 }

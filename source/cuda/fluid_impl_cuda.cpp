@@ -58,6 +58,23 @@ extern void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
                                float3 center_point, float3 hotspot,
                                float radius, float3 value, uint32_t mask,
                                uint3 volume_size);
+extern void LaunchApplyVorticityConfinementStaggered(cudaArray* dest,
+                                                     cudaArray* velocity,
+                                                     cudaArray* conf_x,
+                                                     cudaArray* conf_y,
+                                                     cudaArray* conf_z,
+                                                     uint3 volume_size,
+                                                     BlockArrangement* ba);
+extern void LaunchBuildVorticityConfinementStaggered(cudaArray* dest_x,
+                                                     cudaArray* dest_y,
+                                                     cudaArray* dest_z,
+                                                     cudaArray* curl_x,
+                                                     cudaArray* curl_y,
+                                                     cudaArray* curl_z,
+                                                     float coeff,
+                                                     float cell_size,
+                                                     uint3 volume_size,
+                                                     BlockArrangement* ba);
 extern void LaunchComputeCurlStaggered(cudaArray* dest_x, cudaArray* dest_y,
                                        cudaArray* dest_z, cudaArray* velocity,
                                        cudaArray* curl_x, cudaArray* curl_y,
@@ -204,6 +221,32 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
+}
+
+void FluidImplCuda::ApplyVorticityConfinement(cudaArray* dest,
+                                              cudaArray* velocity,
+                                              cudaArray* conf_x,
+                                              cudaArray* conf_y,
+                                              cudaArray* conf_z,
+                                              const glm::ivec3& volume_size)
+{
+    LaunchApplyVorticityConfinementStaggered(dest, velocity, conf_x, conf_y,
+                                             conf_z, FromGlmVector(volume_size),
+                                             ba_);
+}
+
+void FluidImplCuda::BuildVorticityConfinement(cudaArray* dest_x,
+                                              cudaArray* dest_y,
+                                              cudaArray* dest_z,
+                                              cudaArray* curl_x,
+                                              cudaArray* curl_y,
+                                              cudaArray* curl_z,
+                                              float coeff, float cell_size,
+                                              const glm::ivec3& volume_size)
+{
+    LaunchBuildVorticityConfinementStaggered(dest_x, dest_y, dest_z, curl_x,
+                                             curl_y, curl_z, coeff, cell_size,
+                                             FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeCurl(cudaArray* dest_x, cudaArray* dest_y,

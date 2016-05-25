@@ -167,6 +167,37 @@ void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
                               dest->size());
 }
 
+void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> dest,
+                                         std::shared_ptr<CudaVolume> velocity,
+                                         std::shared_ptr<CudaVolume> vort_x,
+                                         std::shared_ptr<CudaVolume> vort_y,
+                                         std::shared_ptr<CudaVolume> vort_z)
+{
+    fluid_impl_->ApplyVorticityConfinement(dest->dev_array(),
+                                           velocity->dev_array(),
+                                           vort_x->dev_array(),
+                                           vort_y->dev_array(),
+                                           vort_z->dev_array(),
+                                           dest->size() - 1);
+}
+
+void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> dest_x,
+                                         std::shared_ptr<CudaVolume> dest_y,
+                                         std::shared_ptr<CudaVolume> dest_z,
+                                         std::shared_ptr<CudaVolume> vort_x,
+                                         std::shared_ptr<CudaVolume> vort_y,
+                                         std::shared_ptr<CudaVolume> vort_z,
+                                         float coeff, float cell_size)
+{
+    fluid_impl_->BuildVorticityConfinement(dest_x->dev_array(),
+                                           dest_y->dev_array(),
+                                           dest_z->dev_array(),
+                                           vort_x->dev_array(),
+                                           vort_y->dev_array(),
+                                           vort_z->dev_array(), coeff,
+                                           cell_size, dest_x->size());
+}
+
 void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
                            std::shared_ptr<CudaVolume> dest_y,
                            std::shared_ptr<CudaVolume> dest_z,

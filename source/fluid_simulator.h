@@ -54,7 +54,8 @@ private:
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(double seconds_elapsed, float delta_time);
-    void BuildVorticityConfinemnet();
+    void ApplyVorticityConfinemnet();
+    void BuildVorticityConfinemnet(float delta_time);
     void ComputeCurl();
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
@@ -70,7 +71,8 @@ private:
     void SolvePressure();
     void SubtractGradient();
 
-    const GraphicsVolume3& GetVorticityVolume();
+    const GraphicsVolume3& GetVorticityField();
+    const GraphicsVolume3& GetVorticityConfinementField();
 
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
@@ -83,6 +85,7 @@ private:
 
     std::shared_ptr<GraphicsVolume> velocity_;
     GraphicsVolume3 vorticity_;
+    GraphicsVolume3 vort_conf_;
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> packed_;

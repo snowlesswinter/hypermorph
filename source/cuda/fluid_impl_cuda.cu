@@ -366,8 +366,14 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 
     // Handle boundary problem
     float3 mask = make_float3(1.0f);
-    if (x <= 0 || y <= 0 || z <= 0)
-        mask = make_float3(0.0f);
+    if (x <= 0)
+        mask.x = 0;
+
+    if (y <= 0)
+        mask.y = 0;
+
+    if (z <= 0)
+        mask.z = 0;
 
     float3 old_v =
         make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));

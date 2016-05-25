@@ -262,12 +262,12 @@ FluidConfig::FluidConfig()
     , raycast_density_factor_(30.0f, "raycast density factor")
     , raycast_occlusion_factor_(15.0f, "raycast occlusion factor")
     , time_stretch_(1.0f, "time stretch")
+    , vorticity_confinement_(0.1f, "vorticity confinement")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
     , auto_impulse_(1, "auto impulse")
     , staggered_(1, "staggered")
-    , vorticity_confinement_(1, "vorticity confinement")
     , num_raycast_samples_(224, "num raycast samples")
     , num_raycast_light_samples_(64, "num raycast light samples")
     , initial_viewport_width_(512)
@@ -348,6 +348,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &raycast_density_factor_,
         &raycast_occlusion_factor_,
         &time_stretch_,
+        &vorticity_confinement_,
     };
 
     for (auto& f : float_fields) {
@@ -363,7 +364,6 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &num_full_multigrid_iterations_,
         &auto_impulse_,
         &staggered_,
-        &vorticity_confinement_,
         &num_raycast_samples_,
         &num_raycast_light_samples_,
     };
@@ -407,6 +407,7 @@ void FluidConfig::Store(std::ostream& stream)
         raycast_density_factor_,
         raycast_occlusion_factor_,
         time_stretch_,
+        vorticity_confinement_,
     };
 
     for (auto& f : float_fields)
@@ -418,7 +419,6 @@ void FluidConfig::Store(std::ostream& stream)
         num_full_multigrid_iterations_,
         auto_impulse_,
         staggered_,
-        vorticity_confinement_,
         num_raycast_samples_,
         num_raycast_light_samples_,
     };

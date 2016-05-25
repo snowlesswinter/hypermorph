@@ -3,8 +3,9 @@
 
 #include <cassert>
 
-GraphicsVolume3::GraphicsVolume3()
-    : x_()
+GraphicsVolume3::GraphicsVolume3(GraphicsLib graphics_lib)
+    : graphics_lib_(graphics_lib)
+    , x_()
     , y_()
     , z_()
     , v_({&x_, &y_, &z_})
@@ -12,7 +13,8 @@ GraphicsVolume3::GraphicsVolume3()
 }
 
 GraphicsVolume3::GraphicsVolume3(GraphicsVolume3&& obj)
-    : x_(std::move(obj.x_))
+    : graphics_lib_(obj.graphics_lib_)
+    , x_(std::move(obj.x_))
     , y_(std::move(obj.y_))
     , z_(std::move(obj.z_))
     , v_({&x_, &y_, &z_})
@@ -22,19 +24,22 @@ GraphicsVolume3::GraphicsVolume3(GraphicsVolume3&& obj)
 bool GraphicsVolume3::Create(int width, int height, int depth,
                              int num_of_components, int byte_width)
 {
-    std::shared_ptr<GraphicsVolume> x;
+    std::shared_ptr<GraphicsVolume> x =
+        std::make_shared<GraphicsVolume>(graphics_lib_);
     bool r = x->Create(width, height, depth, num_of_components, byte_width);
     assert(r);
     if (!r)
         return false;
 
-    std::shared_ptr<GraphicsVolume> y;
+    std::shared_ptr<GraphicsVolume> y =
+        std::make_shared<GraphicsVolume>(graphics_lib_);
     r = y->Create(width, height, depth, num_of_components, byte_width);
     assert(r);
     if (!r)
         return false;
 
-    std::shared_ptr<GraphicsVolume> z;
+    std::shared_ptr<GraphicsVolume> z =
+        std::make_shared<GraphicsVolume>(graphics_lib_);
     r = z->Create(width, height, depth, num_of_components, byte_width);
     assert(r);
     if (!r)
