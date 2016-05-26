@@ -34,6 +34,7 @@ namespace
 }
 } // Anonymous namespace.
 
+extern int size_tweak;
 CudaMain* CudaMain::Instance()
 {
     static CudaMain* instance = nullptr;
@@ -128,7 +129,8 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> dest,
 {
     fluid_impl_->AdvectVelocity(dest->dev_array(), velocity->dev_array(),
                                 velocity_prev->dev_array(), time_step,
-                                time_step_prev, dissipation, dest->size() - 1,
+                                time_step_prev, dissipation,
+                                dest->size() - size_tweak,
                                 ToCudaAdvectionMethod(method));
 }
 
@@ -178,7 +180,7 @@ void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> dest,
                                            vort_x->dev_array(),
                                            vort_y->dev_array(),
                                            vort_z->dev_array(),
-                                           dest->size() - 1);
+                                           dest->size() - size_tweak);
 }
 
 void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> dest_x,

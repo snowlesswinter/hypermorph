@@ -12,6 +12,7 @@ surface<void, cudaSurfaceType3D> surf_x;
 surface<void, cudaSurfaceType3D> surf_y;
 surface<void, cudaSurfaceType3D> surf_z;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_velocity;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_div;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vort_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vort_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vort_z;
@@ -170,6 +171,69 @@ __global__ void ComputeCurlStaggeredKernel(uint3 volume_size,
     surf3Dwrite(raw_z, surf_z, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 }
 
+__global__ void ComputeDivergenceStaggeredKernelForVort(float inverse_cell_size,
+                                                        uint3 volume_size)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float4 base =   tex3D(tex_velocity, coord.x,        coord.y,        coord.z);
+    float  east =   tex3D(tex_velocity, coord.x + 1.0f, coord.y,        coord.z).x;
+    float  north =  tex3D(tex_velocity, coord.x,        coord.y + 1.0f, coord.z).y;
+    float  far =    tex3D(tex_velocity, coord.x,        coord.y,        coord.z + 1.0f).z;
+
+    float diff_ew = east  - base.x;
+    float diff_ns = north - base.y;
+    float diff_fn = far   - base.z;
+
+    // Handle boundary problem
+    if (x >= volume_size.x - 1)
+        diff_ew = -base.x;
+
+    if (y >= volume_size.y - 1)
+        diff_ns = -base.y;
+
+    if (z >= volume_size.z - 1)
+        diff_fn = -base.z;
+
+    float div = inverse_cell_size * (diff_ew + diff_ns + diff_fn);
+    ushort result = __float2half_rn(div);
+    surf3Dwrite(result, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void DecayVorticesStaggeredKernel(float time_step)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float div_x = tex3D(tex_div, coord.x, coord.y - 0.5f, coord.z - 0.5f);
+    float coef_x = fminf(0.0f, -div_x * time_step);
+
+    float vort_x = tex3D(tex_vort_x, coord.x, coord.y, coord.z);
+    ushort result_x = __float2half_rn(vort_x * __expf(coef_x));
+    surf3Dwrite(result_x, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+
+    float div_y = tex3D(tex_div, coord.x - 0.5f, coord.y, coord.z - 0.5f);
+    float coef_y = fminf(0.0f, -div_y * time_step);
+
+    float vort_y = tex3D(tex_vort_y, coord.x, coord.y, coord.z);
+    ushort result_y = __float2half_rn(vort_y * __expf(coef_y));
+    surf3Dwrite(result_y, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+
+    float div_z = tex3D(tex_div, coord.x - 0.5f, coord.y - 0.5f, coord.z);
+    float coef_z = fminf(0.0f, -div_z * time_step);
+
+    float vort_z = tex3D(tex_vort_z, coord.x, coord.y, coord.z);
+    ushort result_z = __float2half_rn(vort_z * __expf(coef_z));
+    surf3Dwrite(result_z, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
+
 __global__ void StretchVortexStaggeredKernel(float scale)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -311,6 +375,28 @@ void LaunchBuildVorticityConfinementStaggered(cudaArray* dest_x,
                                                               0.5f / cell_size,
                                                               volume_size);
 }
+
+
+void LaunchComputeDivergenceStaggeredForVort(cudaArray* dest,
+                                             cudaArray* velocity,
+                                             float cell_size, uint3 volume_size)
+{
+    if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
+        return;
+
+    auto bound_vel = BindHelper::Bind(&tex_velocity, velocity, false,
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
+    if (bound_vel.error() != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    ComputeDivergenceStaggeredKernelForVort<<<grid, block>>>(1.0f / cell_size,
+                                                             volume_size);
+}
+
 
 void LaunchComputeCurlStaggered(cudaArray* dest_x, cudaArray* dest_y,
                                 cudaArray* dest_z, cudaArray* velocity,

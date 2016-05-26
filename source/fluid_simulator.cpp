@@ -33,6 +33,11 @@ static struct
     GLuint diagnose_;
 } Programs;
 
+int size_tweak = 2;
+const int kVelGridWidth = GridWidth + size_tweak;
+const int kVelGridHeight = GridHeight + size_tweak;
+const int kVelGridDepth = GridDepth + size_tweak;
+
 FluidSimulator::FluidSimulator()
     : graphics_lib_(GRAPHICS_LIB_CUDA)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
@@ -92,7 +97,7 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = velocity_->Create(GridWidth + 1, GridHeight + 1, GridDepth + 1, 4,
+    result = velocity_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
                                2);
     assert(result);
     if (!result)
@@ -103,7 +108,8 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = packed_->Create(GridWidth, GridHeight, GridDepth, 2, volume_byte_width_);
+    result = packed_->Create(GridWidth, GridHeight, GridDepth, 2,
+                             volume_byte_width_);
     assert(result);
     if (!result)
         return false;
@@ -118,13 +124,13 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = general4a_->Create(GridWidth + 1, GridHeight + 1, GridDepth + 1, 4,
+    result = general4a_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
                                 2);
     assert(result);
     if (!result)
         return false;
 
-    result = general4b_->Create(GridWidth + 1, GridHeight + 1, GridDepth + 1, 4,
+    result = general4b_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
                                 2);
     assert(result);
     if (!result)

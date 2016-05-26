@@ -6,13 +6,24 @@
 
 #include "advection_method.h"
 #include "block_arrangement.h"
+#include "cuda_array_group.h"
 #include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> advect_dest;
+surface<void, cudaSurfaceType3D> surf;
+surface<void, cudaSurfaceType3D> surf_x;
+surface<void, cudaSurfaceType3D> surf_y;
+surface<void, cudaSurfaceType3D> surf_z;
+texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_velocity;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_velocity;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_intermediate;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_intermediate1;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> advect_source;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_temp;
 
 template <typename TextureType>
 __device__ inline float3 GetVelocityXStaggered(TextureType tex, float3 pos)
@@ -38,6 +49,15 @@ __device__ inline float3 GetVelocityZStaggered(TextureType tex, float3 pos)
     float v_x = tex3D(tex, pos.x + 0.5f, pos.y, pos.z - 0.5f).x;
     float v_y = tex3D(tex, pos.x, pos.y + 0.5f, pos.z - 0.5f).y;
     float v_z = tex3D(tex, pos.x, pos.y, pos.z).z;
+    return make_float3(v_x, v_y, v_z);
+}
+
+template <typename TextureType>
+__device__ inline float3 GetVelocityStaggeredOffset(TextureType tex, float3 pos, float3 offset)
+{
+    float v_x = tex3D(tex, pos.x + offset.x + 0.5f, pos.y + offset.y,        pos.z + offset.z       ).x;
+    float v_y = tex3D(tex, pos.x + offset.x,        pos.y + offset.y + 0.5f, pos.z + offset.z       ).y;
+    float v_z = tex3D(tex, pos.x + offset.x,        pos.y + offset.y,        pos.z + offset.z + 0.5f).z;
     return make_float3(v_x, v_y, v_z);
 }
 
@@ -112,6 +132,97 @@ __device__ float3 GetCenterVelocity(TextureType tex, float3 pos,
 }
 
 // =============================================================================
+
+__global__ void AdvectFieldMacCormackStaggeredOffsetKernel(float3 offset,
+                                                           float time_step,
+                                                           float dissipation)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float3 vel = GetVelocityStaggeredOffset(tex_velocity, coord, offset);
+    float3 back_traced = coord - vel * time_step;
+
+    float ¦Õ_n = tex3D(tex, coord.x, coord.y, coord.z);
+
+    float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float ¦Õ2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float ¦Õ3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float ¦Õ4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float ¦Õ5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float ¦Õ6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float ¦Õ7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+
+    float ¦Õ_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+    float ¦Õ_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+
+    float ¦Õ_np1_hat = tex3D(tex_temp, coord.x, coord.y, coord.z);
+
+    float3 forward_trace = coord + vel * time_step;
+    float ¦Õ_n_hat = tex3D(tex_temp, forward_trace.x, forward_trace.y, forward_trace.z);
+
+    float ¦Õ_new = ¦Õ_np1_hat + 0.5f * (¦Õ_n - ¦Õ_n_hat);
+    float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
+    if (clamped != ¦Õ_new)
+        ¦Õ_new = ¦Õ_np1_hat;
+
+    ¦Õ_new *= (1.0f - dissipation * time_step);
+    ushort r = __float2half_rn(¦Õ_new);
+    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel(
+    float3 offset, float time_step, float dissipation)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float3 vel = GetVelocityStaggeredOffset(tex_velocity, coord, offset);
+    float3 back_traced = coord - vel * time_step;
+    float ¦Õ = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
+    ¦Õ *= (1.0f - dissipation * time_step);
+    ushort r = __float2half_rn(¦Õ);
+    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void AdvectFieldsSemiLagrangianStaggeredOffsetKernel(
+    float3 offset_x, float3 offset_y, float3 offset_z, float time_step,
+    float dissipation)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float3 v_x = GetVelocityStaggeredOffset(tex_velocity, coord, offset_x);
+    float3 back_traced_x = coord - v_x * time_step;
+    float ¦Õ_x = tex3D(tex_x, back_traced_x.x, back_traced_x.y, back_traced_x.z);
+    ¦Õ_x *= (1.0f - dissipation * time_step);
+    ushort r_x = __float2half_rn(¦Õ_x);
+    surf3Dwrite(r_x, surf_x, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+
+    float3 v_y = GetVelocityStaggeredOffset(tex_velocity, coord, offset_y);
+    float3 back_traced_y = coord - v_y * time_step;
+    float ¦Õ_y = tex3D(tex_y, back_traced_y.x, back_traced_y.y, back_traced_y.z);
+    ¦Õ_y *= (1.0f - dissipation * time_step);
+    ushort r_y = __float2half_rn(¦Õ_y);
+    surf3Dwrite(r_y, surf_x, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+
+    float3 v_z = GetVelocityStaggeredOffset(tex_velocity, coord, offset_z);
+    float3 back_traced_z = coord - v_z * time_step;
+    float ¦Õ_z = tex3D(tex_z, back_traced_z.x, back_traced_z.y, back_traced_z.z);
+    ¦Õ_z *= (1.0f - dissipation * time_step);
+    ushort r_z = __float2half_rn(¦Õ_z);
+    surf3Dwrite(r_z, surf_x, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
 
 __global__ void AdvectScalarBfeccStaggeredKernel(float time_step,
                                                  float dissipation,
@@ -355,6 +466,62 @@ __global__ void AdvectVelocitySemiLagrangianStaggeredKernel(float time_step,
 }
 
 // =============================================================================
+
+void LaunchAdvectFieldsMacCormackStaggeredOffset(const CudaArrayGroup& dest,
+                                                 cudaArray_t velocity,
+                                                 const CudaArrayGroup& source,
+                                                 const CudaArrayGroup& temp,
+                                                 float time_step,
+                                                 float dissipation,
+                                                 uint3 volume_size,
+                                                 BlockArrangement* ba)
+{
+    auto bound_vel = BindHelper::Bind(&tex_velocity, velocity, false,
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
+    if (bound_vel.error() != cudaSuccess)
+        return;
+
+    for (int i = 0; i < dest.num_of_components(); i++) {
+        if (BindCudaSurfaceToArray(&surf, temp[i]) != cudaSuccess)
+            return;
+
+        auto bound = BindHelper::Bind(&tex, source[i], false,
+                                      cudaFilterModeLinear,
+                                      cudaAddressModeClamp);
+        if (bound.error() != cudaSuccess)
+            return;
+
+        dim3 block;
+        dim3 grid;
+        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+        AdvectFieldSemiLagrangianStaggeredOffsetKernel<<<grid, block>>>(
+            source.offset(i), time_step, 0.0f);
+    }
+
+    for (int j = 0; j < dest.num_of_components(); j++) {
+        if (BindCudaSurfaceToArray(&surf, dest[j]) != cudaSuccess)
+            return;
+
+        auto bound_s = BindHelper::Bind(&tex, source[j], false,
+                                        cudaFilterModeLinear,
+                                        cudaAddressModeClamp);
+        if (bound_s.error() != cudaSuccess)
+            return;
+
+        auto bound_t = BindHelper::Bind(&tex_temp, temp[j], false,
+                                        cudaFilterModeLinear,
+                                        cudaAddressModeClamp);
+        if (bound_t.error() != cudaSuccess)
+            return;
+
+        dim3 block;
+        dim3 grid;
+        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+        AdvectFieldMacCormackStaggeredOffsetKernel<<<grid, block>>>(
+            dest.offset(j), time_step, dissipation);
+    }
+}
 
 void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
                                       cudaArray_t velocity_array,
