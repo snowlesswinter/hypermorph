@@ -9,6 +9,7 @@
 #include <cuda_profiler_api.h>
 #include <helper_cuda.h>
 #include <helper_cuda_gl.h>
+#include <helper_math.h>
 
 #include "graphics_resource.h"
 #include "third_party/glm/mat4x4.hpp"
@@ -16,7 +17,8 @@
 
 extern void LaunchClearVolumeKernel(cudaArray* dest_array,
                                     const glm::vec4& value,
-                                    const glm::ivec3& volume_size);
+                                    const uint3& volume_size,
+                                    BlockArrangement* ba);
 
 extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                 const glm::mat4& model_view,
@@ -27,6 +29,14 @@ extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                 int num_samples, int num_light_samples,
                                 float absorption, float density_factor,
                                 float occlusion_factor);
+namespace
+{
+uint3 FromGlmVector(const glm::ivec3& v)
+{
+    return make_uint3(static_cast<uint>(v.x), static_cast<uint>(v.y),
+                      static_cast<uint>(v.z));
+}
+} // Anonymous namespace.
 
 CudaCore::CudaCore()
     : block_arrangement_()
@@ -237,7 +247,8 @@ void CudaCore::FreeVolumeMemory(cudaArray* mem)
 void CudaCore::ClearVolume(cudaArray* dest, const glm::vec4& value,
                            const glm::ivec3& volume_size)
 {
-    LaunchClearVolumeKernel(dest, value, volume_size);
+    LaunchClearVolumeKernel(dest, value, FromGlmVector(volume_size),
+                            &block_arrangement_);
 
 }
 

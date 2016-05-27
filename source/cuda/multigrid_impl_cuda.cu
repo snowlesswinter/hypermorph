@@ -748,7 +748,7 @@ void LaunchComputeResidualPacked(cudaArray* dest_array, cudaArray* source_array,
 
     dim3 block;
     dim3 grid;
-    ba->Arrange(&block, &grid, volume_size);
+    ba->ArrangeRowScan(&block, &grid, volume_size);
     ComputeResidualPackedKernel<<<grid, block>>>(inverse_h_square);
 }
 

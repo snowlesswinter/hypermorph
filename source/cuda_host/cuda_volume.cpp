@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "cuda/cuda_core.h"
+#include "cuda_host/cuda_main.h"
 #include "third_party/glm/vec3.hpp"
 #include "third_party/glm/vec4.hpp"
 
@@ -35,8 +36,8 @@ CudaVolume::~CudaVolume()
 void CudaVolume::Clear()
 {
     if (dev_array_) {
-        CudaCore::ClearVolume(dev_array_, glm::vec4(0.0f),
-                              glm::ivec3(width_, height_, depth_));
+        CudaMain::Instance()->ClearVolume(this, glm::vec4(0.0f),
+                                          glm::ivec3(width_, height_, depth_));
     }
 }
 

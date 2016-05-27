@@ -33,7 +33,7 @@ static struct
     GLuint diagnose_;
 } Programs;
 
-int size_tweak = 2;
+int size_tweak = 1;
 const int kVelGridWidth = GridWidth + size_tweak;
 const int kVelGridHeight = GridHeight + size_tweak;
 const int kVelGridDepth = GridDepth + size_tweak;

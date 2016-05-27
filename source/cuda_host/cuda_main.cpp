@@ -70,6 +70,12 @@ bool CudaMain::Init()
     return core_->Init();
 }
 
+void CudaMain::ClearVolume(CudaVolume* dest, const glm::vec4& value,
+                           const glm::ivec3& volume_size)
+{
+    core_->ClearVolume(dest->dev_array(), value, volume_size);
+}
+
 int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
 {
     if (registerd_textures_.find(texture) != registerd_textures_.end())

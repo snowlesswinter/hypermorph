@@ -24,8 +24,6 @@ public:
     static void FreeVolumeInPlaceMemory(cudaPitchedPtr* mem);
     static void FreeVolumeMemory(cudaArray* mem);
 
-    static void ClearVolume(cudaArray* dest, const glm::vec4& value,
-                            const glm::ivec3& volume_size);
     static void CopyFromVolume(void* dest, size_t pitch, cudaArray* source,
                                const glm::ivec3& volume_size);
     static void CopyToVolume(cudaArray* dest, void* source, size_t pitch,
@@ -39,6 +37,8 @@ public:
                         float absorption, float density_factor,
                         float occlusion_factor);
 
+    void ClearVolume(cudaArray* dest, const glm::vec4& value,
+                     const glm::ivec3& volume_size);
     int RegisterGLImage(unsigned int texture, unsigned int target,
                         GraphicsResource* graphics_res);
     int RegisterGLBuffer(unsigned int buffer, GraphicsResource* graphics_res);

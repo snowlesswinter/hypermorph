@@ -254,7 +254,7 @@ __global__ void StretchVortexStaggeredKernel(float scale)
     float v_x0 = tex3D(tex_velocity, coord.x + dx_x + 0.5f, coord.y + dy_x - 0.5f, coord.z + dz_x - 0.5f).x;
     float v_x1 = tex3D(tex_velocity, coord.x - dx_x + 0.5f, coord.y - dy_x - 0.5f, coord.z - dz_x - 0.5f).x;
 
-    ushort result_x = __float2half_rn(scale * (v_x0 - v_x1 * mag_x) + ¦Ø_xx);
+    ushort result_x = __float2half_rn(scale * (v_x0 - v_x1) * mag_x + ¦Ø_xx);
     surf3Dwrite(result_x, surf_x, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 
     float ¦Ø_yx = tex3D(tex_vort_x, coord.x - 0.5f, coord.y + 0.5f, coord.z);
@@ -269,7 +269,7 @@ __global__ void StretchVortexStaggeredKernel(float scale)
     float v_y0 = tex3D(tex_velocity, coord.x + dx_y - 0.5f, coord.y + dy_y + 0.5f, coord.z + dz_y - 0.5f).y;
     float v_y1 = tex3D(tex_velocity, coord.x - dx_y - 0.5f, coord.y - dy_y + 0.5f, coord.z - dz_y - 0.5f).y;
 
-    ushort result_y = __float2half_rn(scale * (v_y0 - v_y1 * mag_y) + ¦Ø_yy);
+    ushort result_y = __float2half_rn(scale * (v_y0 - v_y1) * mag_y + ¦Ø_yy);
     surf3Dwrite(result_y, surf_y, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 
     float ¦Ø_zx = tex3D(tex_vort_x, coord.x - 0.5f, coord.y, coord.z + 0.5f);
@@ -284,7 +284,7 @@ __global__ void StretchVortexStaggeredKernel(float scale)
     float v_z0 = tex3D(tex_velocity, coord.x + dx_z - 0.5f, coord.y + dy_z - 0.5f, coord.z + dz_z + 0.5f).z;
     float v_z1 = tex3D(tex_velocity, coord.x - dx_z - 0.5f, coord.y - dy_z - 0.5f, coord.z - dz_z + 0.5f).z;
 
-    ushort result_z = __float2half_rn(scale * (v_z0 - v_z1 * mag_z) + ¦Ø_zz);
+    ushort result_z = __float2half_rn(scale * (v_z0 - v_z1) * mag_z + ¦Ø_zz);
     surf3Dwrite(result_z, surf_z, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
 }
 

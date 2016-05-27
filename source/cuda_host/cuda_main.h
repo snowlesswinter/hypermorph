@@ -31,6 +31,8 @@ public:
 
     bool Init();
 
+    void ClearVolume(CudaVolume* dest, const glm::vec4& value,
+                     const glm::ivec3& volume_size);
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
 

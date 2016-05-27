@@ -1,5 +1,7 @@
 #include "block_arrangement.h"
 
+#include <algorithm>
+
 #include <cuda_runtime.h>
 
 BlockArrangement::BlockArrangement()
@@ -18,16 +20,16 @@ void BlockArrangement::Init(int dev_id)
     cudaGetDeviceProperties(dev_prop_.get(), dev_id);
 }
 
-void BlockArrangement::Arrange(dim3* block, dim3* grid,
-                               const uint3& volume_size)
+void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
+                                      const uint3& volume_size)
 {
     if (!block || !grid || !volume_size.x)
         return;
 
     int threads = dev_prop_->maxThreadsPerBlock >> 1;
     int bw = volume_size.x;
-    int bh = threads / volume_size.x;
-    int bd = threads / bw / bh;
+    int bh = threads / bw;
+    int bd = std::min(threads / bw / bh, static_cast<int>(volume_size.z));
     if (!bh || !bd)
         return;
 

@@ -11,11 +11,14 @@ surface<void, cudaSurfaceType3D> jacobi;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> jacobi_packed;
 
 __global__ void DampedJacobiKernel(float minus_square_cell_size,
-                                   float omega_over_beta)
+                                   float omega_over_beta, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = blockIdx.x * blockDim.x + threadIdx.x;
+    uint y = blockIdx.y * blockDim.y + threadIdx.y;
+    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float near =              tex3D(jacobi_packed, x, y, z - 1.0f).x;
     float south =             tex3D(jacobi_packed, x, y - 1.0f, z).x;
@@ -525,9 +528,9 @@ void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
         } else {
             dim3 block;
             dim3 grid;
-            ba->Arrange(&block, &grid, volume_size);
+            ba->ArrangeRowScan(&block, &grid, volume_size);
             DampedJacobiKernel<<<grid, block>>>(minus_square_cell_size,
-                                                omega_over_beta);
+                                                omega_over_beta, volume_size);
         }
     }
 }
