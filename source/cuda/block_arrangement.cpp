@@ -28,14 +28,14 @@ void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
 
     int threads = dev_prop_->maxThreadsPerBlock >> 1;
     int bw = volume_size.x;
-    int bh = threads / bw;
+    int bh = std::min(threads / bw, static_cast<int>(volume_size.y));
     int bd = std::min(threads / bw / bh, static_cast<int>(volume_size.z));
     if (!bh || !bd)
         return;
 
     *block = dim3(bw, bh, bd);
-    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.x + bh - 1) / bh,
-                 (volume_size.x + bd - 1) / bd);
+    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
+                 (volume_size.z + bd - 1) / bd);
 }
 
 void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
@@ -48,6 +48,6 @@ void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
     int bh = 8;
     int bd = 8;
     *block = dim3(bw, bh, bd);
-    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.x + bh - 1) / bh,
-                 (volume_size.x + bd - 1) / bd);
+    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
+                 (volume_size.z + bd - 1) / bd);
 }

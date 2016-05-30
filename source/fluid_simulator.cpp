@@ -609,17 +609,15 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
 void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
 {
-    float one_minus_omega = 0.33333333f;
-    float minus_square_cell_size = -(cell_size * cell_size);
-    float omega_over_beta = 0.11111111f;
-
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->DampedJacobi(packed_->cuda_volume(),
-                                               packed_->cuda_volume(),
-                                               minus_square_cell_size,
-                                               omega_over_beta,
-                                               num_of_iterations);
+        CudaMain::Instance()->Relax(packed_->cuda_volume(),
+                                    packed_->cuda_volume(), cell_size,
+                                    num_of_iterations);
     } else {
+        float one_minus_omega = 0.33333333f;
+        float minus_square_cell_size = -(cell_size * cell_size);
+        float omega_over_beta = 0.11111111f;
+
         for (int i = 0; i < num_of_iterations; ++i) {
             glUseProgram(Programs.DampedJacobi);
 

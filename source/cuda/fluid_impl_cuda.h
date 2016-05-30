@@ -59,10 +59,8 @@ public:
     void ComputeResidualPackedDiagnosis(cudaArray* dest, cudaArray* source,
                                         float inverse_h_square,
                                         const glm::ivec3& volume_size);
-    void DampedJacobi(cudaArray* dest, cudaArray* source,
-                      float minus_square_cell_size, float omega_over_beta,
-                      int num_of_iterations,
-                      const glm::ivec3& volume_size);
+    void Relax(cudaArray* dest, cudaArray* source, float cell_size,
+               int num_of_iterations, const glm::ivec3& volume_size);
     void ReviseDensity(cudaArray* density, const glm::vec3& center_point,
                        float radius, float value,
                        const glm::ivec3& volume_size);

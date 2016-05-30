@@ -90,10 +90,9 @@ public:
     void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> dest,
                                         std::shared_ptr<CudaVolume> velocity,
                                         float inverse_h_square);
-    void DampedJacobi(std::shared_ptr<CudaVolume> dest,
-                      std::shared_ptr<CudaVolume> source,
-                      float minus_square_cell_size, float omega_over_beta,
-                      int num_of_iterations);
+    void Relax(std::shared_ptr<CudaVolume> dest,
+               std::shared_ptr<CudaVolume> source, float cell_size,
+               int num_of_iterations);
     void ReviseDensity(std::shared_ptr<CudaVolume> density,
                        const glm::vec3& center_point, float radius,
                        float value);

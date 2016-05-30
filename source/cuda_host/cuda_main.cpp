@@ -273,14 +273,12 @@ void CudaMain::ComputeResidualPackedDiagnosis(
     PrintDebugString("(CUDA) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
 }
 
-void CudaMain::DampedJacobi(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> source,
-                            float minus_square_cell_size,
-                            float omega_over_beta, int num_of_iterations)
+void CudaMain::Relax(std::shared_ptr<CudaVolume> dest,
+                     std::shared_ptr<CudaVolume> source, float cell_size,
+                     int num_of_iterations)
 {
-    fluid_impl_->DampedJacobi(dest->dev_array(), source->dev_array(),
-                              minus_square_cell_size, omega_over_beta,
-                              num_of_iterations, dest->size());
+    fluid_impl_->Relax(dest->dev_array(), source->dev_array(), cell_size,
+                       num_of_iterations, dest->size());
 }
 
 void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,

@@ -93,13 +93,12 @@ extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                                  cudaArray* source_array,
                                                  float inverse_h_square,
                                                  uint3 volume_size);
-extern void LaunchDampedJacobi(cudaArray* dest_array, cudaArray* source_array,
-                               float minus_square_cell_size,
-                               float omega_over_beta, int num_of_iterations,
-                               uint3 volume_size, BlockArrangement* ba);
 extern void LaunchImpulseDensity(cudaArray* dest_array,
                                  cudaArray* original_array, float3 center_point,
                                  float radius, float3 value, uint3 volume_size);
+extern void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
+                        int num_of_iterations, uint3 volume_size,
+                        BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
@@ -281,13 +280,11 @@ void FluidImplCuda::ComputeResidualPackedDiagnosis(
                                          FromGlmVector(volume_size));
 }
 
-void FluidImplCuda::DampedJacobi(cudaArray* dest, cudaArray* source,
-                                 float minus_square_cell_size,
-                                 float omega_over_beta, int num_of_iterations,
-                                 const glm::ivec3& volume_size)
+void FluidImplCuda::Relax(cudaArray* dest, cudaArray* source, float cell_size,
+           int num_of_iterations, const glm::ivec3& volume_size)
 {
-    LaunchDampedJacobi(dest, source, minus_square_cell_size, omega_over_beta,
-                       num_of_iterations, FromGlmVector(volume_size), ba_);
+    LaunchRelax(dest, source, cell_size, num_of_iterations,
+                FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ReviseDensity(cudaArray* density,
