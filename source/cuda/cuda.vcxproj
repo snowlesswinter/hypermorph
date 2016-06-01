@@ -186,6 +186,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
     <CudaCompile Include="fluid_impl_cuda.cu" />
+    <CudaCompile Include="impulse.cu">
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
+    </CudaCompile>
     <CudaCompile Include="multigrid_impl_cuda.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>

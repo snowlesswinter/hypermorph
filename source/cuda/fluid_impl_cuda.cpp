@@ -93,9 +93,17 @@ extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
                                                  cudaArray* source_array,
                                                  float inverse_h_square,
                                                  uint3 volume_size);
+extern void LaunchGenerateHeatSphere(cudaArray* dest, cudaArray* original,
+                                     float3 center_point, float radius,
+                                     float3 value, uint3 volume_size,
+                                     BlockArrangement* ba);
 extern void LaunchImpulseDensity(cudaArray* dest_array,
                                  cudaArray* original_array, float3 center_point,
                                  float radius, float3 value, uint3 volume_size);
+extern void LaunchImpulseDensitySphere(cudaArray* dest, cudaArray* original,
+                                       float3 center_point, float radius,
+                                       float3 value, uint3 volume_size,
+                                       BlockArrangement* ba);
 extern void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
                         int num_of_iterations, uint3 volume_size,
                         BlockArrangement* ba);
@@ -118,6 +126,8 @@ uint3 FromGlmVector(const glm::ivec3& v)
                       static_cast<uint>(v.z));
 }
 } // Anonymous namespace.
+
+extern int sphere;
 
 FluidImplCuda::FluidImplCuda(BlockArrangement* ba)
     : ba_(ba)
@@ -201,12 +211,19 @@ void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
                                  const glm::vec3& value, uint32_t mask,
                                  const glm::ivec3& volume_size)
 {
-    LaunchApplyImpulse(
-        dest, source,
-        make_float3(center_point.x, center_point.y, center_point.z),
-        make_float3(hotspot.x, hotspot.y, hotspot.z),
-        radius, make_float3(value.x, value.y, value.z), mask,
-        FromGlmVector(volume_size));
+    if (sphere)
+        LaunchGenerateHeatSphere(
+            dest, source,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            radius, make_float3(value.x, value.y, value.z),
+            FromGlmVector(volume_size), ba_);
+    else
+        LaunchApplyImpulse(
+            dest, source,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            make_float3(hotspot.x, hotspot.y, hotspot.z),
+            radius, make_float3(value.x, value.y, value.z), mask,
+            FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
@@ -215,11 +232,18 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
                                         float radius, float value,
                                         const glm::ivec3& volume_size)
 {
-    LaunchApplyImpulse(
-        density, density,
-        make_float3(center_point.x, center_point.y, center_point.z),
-        make_float3(hotspot.x, hotspot.y, hotspot.z),
-        radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
+    if (sphere)
+        LaunchImpulseDensitySphere(
+            density, density,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            radius, make_float3(value, value, value),
+            FromGlmVector(volume_size), ba_);
+    else
+        LaunchApplyImpulse(
+            density, density,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            make_float3(hotspot.x, hotspot.y, hotspot.z),
+            radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyVorticityConfinement(cudaArray* dest,
@@ -291,10 +315,16 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
                                   const glm::vec3& center_point, float radius,
                                   float value, const glm::ivec3& volume_size)
 {
-    LaunchImpulseDensity(
-        density, density,
-        make_float3(center_point.x, center_point.y, center_point.z),
-        radius, make_float3(value, 0, 0), FromGlmVector(volume_size));
+    if (sphere)
+        LaunchImpulseDensitySphere(
+            density, density,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            radius, make_float3(value, 0, 0), FromGlmVector(volume_size), ba_);
+    else
+        LaunchImpulseDensity(
+            density, density,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            radius, make_float3(value, 0, 0), FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,

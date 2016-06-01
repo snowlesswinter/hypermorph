@@ -24,8 +24,8 @@ const int GridWidth = 128;
 const int GridHeight = GridWidth;
 const int GridDepth = GridWidth;
 const float kMaxTimeStep = 0.33f;
-const glm::vec3 kImpulsePosition(GridWidth / 2.0f, 0, GridDepth / 2.0f);
-const float kBuoyancyCoef = 10.0f;
+const glm::vec3 kImpulsePosition(GridWidth / 2.0f, 10.0f, GridDepth / 2.0f);
+const float kBuoyancyCoef = 1.0f;
 
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)

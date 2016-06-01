@@ -38,6 +38,8 @@ const int kVelGridWidth = GridWidth + size_tweak;
 const int kVelGridHeight = GridHeight + size_tweak;
 const int kVelGridDepth = GridDepth + size_tweak;
 
+int sphere = 0;
+
 FluidSimulator::FluidSimulator()
     : graphics_lib_(GRAPHICS_LIB_CUDA)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
@@ -710,8 +712,10 @@ void FluidSimulator::Jacobi(float cell_size)
 void FluidSimulator::ReviseDensity()
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ReviseDensity(
-            density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f, 0.1f);
+        if (!sphere)
+            CudaMain::Instance()->ReviseDensity(
+                density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f,
+                0.1f);
     }
 }
 
