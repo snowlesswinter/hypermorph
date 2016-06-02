@@ -14,7 +14,13 @@ private:
 public:
     explicit GraphicsVolume3(GraphicsLib graphics_lib);
     GraphicsVolume3(GraphicsVolume3&& obj);
+    GraphicsVolume3(const std::shared_ptr<GraphicsVolume>& x,
+                    const std::shared_ptr<GraphicsVolume>& y,
+                    const std::shared_ptr<GraphicsVolume>& z);
 
+    bool Assign(const std::shared_ptr<GraphicsVolume>& x,
+                const std::shared_ptr<GraphicsVolume>& y,
+                const std::shared_ptr<GraphicsVolume>& z);
     bool Create(int width, int height, int depth, int num_of_components,
                 int byte_width);
 

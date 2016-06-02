@@ -104,6 +104,7 @@
     <ClInclude Include="poisson_solver\multigrid_core_cuda.h" />
     <ClInclude Include="poisson_solver\multigrid_core_glsl.h" />
     <ClInclude Include="poisson_solver\multigrid_poisson_solver.h" />
+    <ClInclude Include="poisson_solver\open_boundary_multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\poisson_solver.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
@@ -133,6 +134,7 @@
     <ClCompile Include="poisson_solver\multigrid_core_cuda.cpp" />
     <ClCompile Include="poisson_solver\multigrid_core_glsl.cpp" />
     <ClCompile Include="poisson_solver\multigrid_poisson_solver.cpp" />
+    <ClCompile Include="poisson_solver\open_boundary_multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\poisson_solver.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />

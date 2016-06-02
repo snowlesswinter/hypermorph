@@ -75,6 +75,9 @@
     </ClInclude>
     <ClInclude Include="trackball.h" />
     <ClInclude Include="graphics_volume_group.h" />
+    <ClInclude Include="poisson_solver\open_boundary_multigrid_poisson_solver.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -135,5 +138,8 @@
       <Filter>opengl</Filter>
     </ClCompile>
     <ClCompile Include="graphics_volume_group.cpp" />
+    <ClCompile Include="poisson_solver\open_boundary_multigrid_poisson_solver.cpp">
+      <Filter>poisson_solver</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

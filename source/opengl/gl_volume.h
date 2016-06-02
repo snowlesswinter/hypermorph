@@ -14,6 +14,7 @@ public:
 
     bool Create(int width, int height, int depth, GLint internal_format,
                 GLenum format, int byte_width);
+    bool HasSameProperties(const GLVolume& other) const;
 
     int depth() const { return depth_; }
 

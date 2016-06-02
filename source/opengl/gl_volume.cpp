@@ -48,3 +48,11 @@ void GLVolume::SetTexImage(const void* buffer)
     assert(e == GL_NO_ERROR);
     Unbind();
 }
+
+bool GLVolume::HasSameProperties(const GLVolume& other) const
+{
+    return width() == other.width() && height() == other.height() &&
+        depth() == other.depth() &&
+        internal_format() == other.internal_format() &&
+        format() == other.format() && byte_width() == other.byte_width();
+}

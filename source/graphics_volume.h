@@ -16,8 +16,9 @@ public:
     void Clear();
     bool Create(int width, int height, int depth, int num_of_components,
                 int byte_width);
-    void Reset(GraphicsLib lib);
+    bool HasSameProperties(const GraphicsVolume& other) const;
 
+    GraphicsLib graphics_lib() const { return graphics_lib_; }
     int GetWidth() const;
     int GetHeight() const;
     int GetDepth() const;

@@ -93,6 +93,9 @@ public:
     void Relax(std::shared_ptr<CudaVolume> dest,
                std::shared_ptr<CudaVolume> source, float cell_size,
                int num_of_iterations);
+    void Relax(std::shared_ptr<CudaVolume> unp1, std::shared_ptr<CudaVolume> un,
+               std::shared_ptr<CudaVolume> b, float cell_size,
+               int num_of_iterations);
     void ReviseDensity(std::shared_ptr<CudaVolume> density,
                        const glm::vec3& center_point, float radius,
                        float value);
@@ -101,11 +104,19 @@ public:
                           float half_inverse_cell_size);
 
     // Multigrid.
+    void ComputeResidual(std::shared_ptr<CudaVolume> r,
+                         std::shared_ptr<CudaVolume> u,
+                         std::shared_ptr<CudaVolume> b, float cell_size);
     void ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,
                                std::shared_ptr<CudaVolume> packed,
                                float inverse_h_square);
+    void Prolongate(std::shared_ptr<CudaVolume> fine,
+                    std::shared_ptr<CudaVolume> coarse);
     void ProlongatePacked(std::shared_ptr<CudaVolume> coarse,
                           std::shared_ptr<CudaVolume> fine, float overlay);
+    void RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
+                            std::shared_ptr<CudaVolume> b,
+                            float cell_size);
     void RelaxWithZeroGuessPacked(std::shared_ptr<CudaVolume> dest,
                                   std::shared_ptr<CudaVolume> packed,
                                   float alpha_omega_over_beta,
@@ -114,6 +125,8 @@ public:
                                   float omega_times_inverse_beta);
     void RestrictPacked(std::shared_ptr<CudaVolume> coarse,
                         std::shared_ptr<CudaVolume> fine);
+    void RestrictResidual(std::shared_ptr<CudaVolume> b,
+                          std::shared_ptr<CudaVolume> r);
     void RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
                                 std::shared_ptr<CudaVolume> fine);
 

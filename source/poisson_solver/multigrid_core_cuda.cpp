@@ -5,6 +5,7 @@
 
 #include "cuda_host/cuda_main.h"
 #include "graphics_volume.h"
+#include "graphics_volume_group.h"
 #include "utility.h"
 
 MultigridCoreCuda::MultigridCoreCuda()
@@ -28,6 +29,15 @@ std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
+std::shared_ptr<GraphicsVolume3> MultigridCoreCuda::CreateVolumeGroup(
+    int width, int height, int depth, int num_of_components, int byte_width)
+{
+    std::shared_ptr<GraphicsVolume3> r(new GraphicsVolume3(GRAPHICS_LIB_CUDA));
+    bool succeeded = r->Create(width, height, depth, num_of_components,
+                               byte_width);
+    return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
+}
+
 void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& packed,
                                         const GraphicsVolume& residual,
                                         float cell_size)
@@ -36,6 +46,16 @@ void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& packed,
     CudaMain::Instance()->ComputeResidualPacked(residual.cuda_volume(),
                                                 packed.cuda_volume(),
                                                 inverse_h_square);
+    
+}
+
+void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& r,
+                                        const GraphicsVolume& u,
+                                        const GraphicsVolume& b,
+                                        float cell_size)
+{
+    CudaMain::Instance()->ComputeResidual(r.cuda_volume(), u.cuda_volume(),
+                                          b.cuda_volume(), cell_size);
 }
 
 void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
@@ -45,11 +65,24 @@ void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
                                            fine.cuda_volume(), 1.0f);
 }
 
+void MultigridCoreCuda::ProlongateResidual(const GraphicsVolume& fine,
+                                           const GraphicsVolume& coarse)
+{
+    CudaMain::Instance()->Prolongate(fine.cuda_volume(), coarse.cuda_volume());
+}
+
 void MultigridCoreCuda::ProlongateResidualPacked(const GraphicsVolume& coarse,
                                                  const GraphicsVolume& fine)
 {
     CudaMain::Instance()->ProlongatePacked(coarse.cuda_volume(),
                                            fine.cuda_volume(), 1.0f);
+}
+
+void MultigridCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
+                              float cell_size, int num_of_iterations)
+{
+    CudaMain::Instance()->Relax(u.cuda_volume(), u.cuda_volume(),
+                                b.cuda_volume(), cell_size, num_of_iterations);
 }
 
 void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
@@ -63,6 +96,14 @@ void MultigridCoreCuda::RelaxWithZeroGuessAndComputeResidual(
     const GraphicsVolume& packed_volumes, float cell_size, int times)
 {
     // Just wait and see how the profiler tells us.
+}
+
+void MultigridCoreCuda::RelaxWithZeroGuess(const GraphicsVolume& u,
+                                           const GraphicsVolume& b,
+                                           float cell_size)
+{
+    CudaMain::Instance()->RelaxWithZeroGuess(u.cuda_volume(), b.cuda_volume(),
+                                             cell_size);
 }
 
 void MultigridCoreCuda::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
@@ -85,6 +126,12 @@ void MultigridCoreCuda::RestrictPacked(const GraphicsVolume& fine,
 {
     CudaMain::Instance()->RestrictPacked(coarse.cuda_volume(),
                                          fine.cuda_volume());
+}
+
+void MultigridCoreCuda::RestrictResidual(const GraphicsVolume& b,
+                                         const GraphicsVolume& r)
+{
+    CudaMain::Instance()->RestrictResidual(b.cuda_volume(), r.cuda_volume());
 }
 
 void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,

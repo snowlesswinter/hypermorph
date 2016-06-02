@@ -15,9 +15,16 @@ public:
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
+    virtual std::shared_ptr<GraphicsVolume3> CreateVolumeGroup(
+        int width, int height, int depth, int num_of_components,
+        int byte_width) override;
 
     virtual void ComputeResidual(const GraphicsVolume& packed,
                                  const GraphicsVolume& residual,
+                                 float cell_size) override;
+    virtual void ComputeResidual(const GraphicsVolume& r,
+                                 const GraphicsVolume& u,
+                                 const GraphicsVolume& b,
                                  float cell_size) override;
 
     // ProlongateAndRelax() is deprecated. Though it seems to be a bit useful
@@ -26,17 +33,26 @@ public:
     // trivial if we sum all things up.
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) override;
+    virtual void ProlongateResidual(const GraphicsVolume& fine,
+                                    const GraphicsVolume& coarse) override;
     virtual void ProlongateResidualPacked(const GraphicsVolume& coarse,
                                           const GraphicsVolume& fine) override;
+    virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
+                       float cell_size, int num_of_iterations) override;
     virtual void RelaxPacked(const GraphicsVolume& u_and_b, float cell_size,
                              int num_of_iterations) override;
     virtual void RelaxWithZeroGuessAndComputeResidual(
         const GraphicsVolume& packed_volumes, float cell_size,
         int times) override;
+    virtual void RelaxWithZeroGuess(const GraphicsVolume& u,
+                                    const GraphicsVolume& b,
+                                    float cell_size) override;
     virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
                                           float cell_size) override;
     virtual void RestrictPacked(const GraphicsVolume& fine,
                                 const GraphicsVolume& coarse) override;
+    virtual void RestrictResidual(const GraphicsVolume& b,
+                                  const GraphicsVolume& r) override;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) override;
 

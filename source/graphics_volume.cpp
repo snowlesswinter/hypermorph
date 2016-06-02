@@ -97,6 +97,20 @@ std::shared_ptr<CudaVolume> GraphicsVolume::cuda_volume() const
     return cuda_volume_;
 }
 
+bool GraphicsVolume::HasSameProperties(const GraphicsVolume& other) const
+{
+    if (graphics_lib_ != other.graphics_lib_)
+        return false;
+
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA)
+        return cuda_volume_->HasSameProperties(*other.cuda_volume());
+
+    if (graphics_lib_ == GRAPHICS_LIB_GLSL)
+        return gl_volume_->HasSameProperties(*other.gl_volume());
+
+    return false;
+}
+
 int GraphicsVolume::GetWidth() const
 {
     assert(gl_volume_ || cuda_volume_);

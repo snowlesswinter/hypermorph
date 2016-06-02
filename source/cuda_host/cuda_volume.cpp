@@ -81,6 +81,14 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
     return result;
 }
 
+bool CudaVolume::HasSameProperties(const CudaVolume& other) const
+{
+    return width_ == other.width_ && height_ == other.height_ &&
+        depth_ == other.depth_ &&
+        num_of_components_ == other.num_of_components_ &&
+        byte_width_ == other.byte_width_;
+}
+
 glm::ivec3 CudaVolume::size() const
 {
     return glm::ivec3(width_, height_, depth_);

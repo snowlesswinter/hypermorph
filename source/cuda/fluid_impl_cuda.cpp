@@ -107,6 +107,9 @@ extern void LaunchImpulseDensitySphere(cudaArray* dest, cudaArray* original,
 extern void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
                         int num_of_iterations, uint3 volume_size,
                         BlockArrangement* ba);
+extern void LaunchRelax2(cudaArray* unp1, cudaArray* un, cudaArray* b,
+                         float cell_size, int num_of_iterations,
+                         uint3 volume_size, BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
@@ -308,6 +311,14 @@ void FluidImplCuda::Relax(cudaArray* dest, cudaArray* source, float cell_size,
            int num_of_iterations, const glm::ivec3& volume_size)
 {
     LaunchRelax(dest, source, cell_size, num_of_iterations,
+                FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
+                          float cell_size, int num_of_iterations,
+                          const glm::ivec3& volume_size)
+{
+    LaunchRelax2(unp1, un, b, cell_size, num_of_iterations,
                 FromGlmVector(volume_size), ba_);
 }
 

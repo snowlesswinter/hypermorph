@@ -9,6 +9,8 @@
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_u;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 
 __global__ void DampedJacobiKernel(float minus_square_cell_size,
                                    float omega_over_beta, uint3 volume_size)
@@ -510,6 +512,38 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
+__global__ void RelaxRedBlackGaussSeidelKernel2(float minus_square_cell_size,
+                                                float one_minus_omega,
+                                                float omega_over_beta,
+                                                uint3 volume_size, uint offset)
+{
+    uint x = blockIdx.x * blockDim.x + threadIdx.x;
+    uint y = blockIdx.y * blockDim.y + threadIdx.y;
+    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    x = (x << 1) + ((offset + y + z) & 0x1);
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float near =   tex3D(tex_u, x, y, z - 1.0f);
+    float south =  tex3D(tex_u, x, y - 1.0f, z);
+    float west =   tex3D(tex_u, x - 1.0f, y, z);
+    float center = tex3D(tex_u, x, y, z);
+    float east =   tex3D(tex_u, x + 1.0f, y, z);
+    float north =  tex3D(tex_u, x, y + 1.0f, z);
+    float far =    tex3D(tex_u, x, y, z + 1.0f);
+
+    float b = tex3D(tex_b, x, y, z);
+
+    float u = one_minus_omega * center +
+        (west + east + south + north + far + near + minus_square_cell_size *
+        b) * omega_over_beta;
+
+    ushort r = __float2half_rn(u);
+    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+}
+
 // =============================================================================
 
 void RelaxDampedJacobi(cudaArray* dest, cudaArray* source,
@@ -599,6 +633,44 @@ void RelaxRedBlackGaussSeidel(cudaArray* dest, cudaArray* source,
     }
 }
 
+void RelaxRedBlackGaussSeidel2(cudaArray* unp1, cudaArray* un, cudaArray* b,
+                               float cell_size, int num_of_iterations,
+                               uint3 volume_size, BlockArrangement* ba)
+{
+    if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
+        return;
+
+    auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_u.error() != cudaSuccess)
+        return;
+
+    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_b.error() != cudaSuccess)
+        return;
+
+    float minus_square_cell_size = -cell_size * cell_size;
+    float omega_over_beta = 0.1666666f * 1.3f;
+    float one_minus_omega = -0.3f;
+
+    uint3 half_size = volume_size;
+    half_size.x /= 2;
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, half_size);
+    for (int i = 0; i < num_of_iterations; i++) {
+        RelaxRedBlackGaussSeidelKernel2<<<grid, block>>>(minus_square_cell_size,
+                                                         one_minus_omega,
+                                                         omega_over_beta,
+                                                         volume_size, 0);
+        RelaxRedBlackGaussSeidelKernel2<<<grid, block>>>(minus_square_cell_size,
+                                                         one_minus_omega,
+                                                         omega_over_beta,
+                                                         volume_size, 1);
+    }
+}
+
 void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
                  int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
 {
@@ -609,4 +681,11 @@ void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
     else
         RelaxRedBlackGaussSeidel(dest, source, cell_size, num_of_iterations,
                                  volume_size, ba);
+}
+
+void LaunchRelax2(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
+                  int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
+{
+    RelaxRedBlackGaussSeidel2(unp1, un, b, cell_size, num_of_iterations,
+                              volume_size, ba);
 }

@@ -281,6 +281,15 @@ void CudaMain::Relax(std::shared_ptr<CudaVolume> dest,
                        num_of_iterations, dest->size());
 }
 
+void CudaMain::Relax(std::shared_ptr<CudaVolume> unp1,
+                     std::shared_ptr<CudaVolume> un,
+                     std::shared_ptr<CudaVolume> b, float cell_size,
+                     int num_of_iterations)
+{
+    fluid_impl_->Relax(unp1->dev_array(), un->dev_array(), b->dev_array(),
+                       cell_size, num_of_iterations, unp1->size());
+}
+
 void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
                              const glm::vec3& center_point, float radius,
                              float value)
@@ -299,6 +308,14 @@ void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> dest,
                                   half_inverse_cell_size, packed->size());
 }
 
+void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
+                               std::shared_ptr<CudaVolume> u,
+                               std::shared_ptr<CudaVolume> b, float cell_size)
+{
+    multigrid_impl_->ComputeResidual(r->dev_array(), u->dev_array(),
+                                     b->dev_array(), cell_size, r->size());
+}
+
 void CudaMain::ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,
                                      std::shared_ptr<CudaVolume> packed,
                                      float inverse_h_square)
@@ -306,6 +323,13 @@ void CudaMain::ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,
     multigrid_impl_->ComputeResidualPacked(dest->dev_array(),
                                            packed->dev_array(),
                                            inverse_h_square, dest->size());
+}
+
+void CudaMain::Prolongate(std::shared_ptr<CudaVolume> fine,
+                          std::shared_ptr<CudaVolume> coarse)
+{
+    multigrid_impl_->Prolongate(fine->dev_array(), coarse->dev_array(),
+                                fine->size());
 }
 
 void CudaMain::ProlongatePacked(std::shared_ptr<CudaVolume> coarse,
@@ -316,6 +340,14 @@ void CudaMain::ProlongatePacked(std::shared_ptr<CudaVolume> coarse,
                                       coarse->dev_array(),
                                       fine->dev_array(), overlay,
                                       fine->size());
+}
+
+void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
+                                  std::shared_ptr<CudaVolume> b,
+                                  float cell_size)
+{
+    multigrid_impl_->RelaxWithZeroGuess(u->dev_array(), b->dev_array(),
+                                        cell_size, u->size());
 }
 
 void CudaMain::RelaxWithZeroGuessPacked(std::shared_ptr<CudaVolume> dest,
@@ -338,6 +370,13 @@ void CudaMain::RestrictPacked(std::shared_ptr<CudaVolume> coarse,
 {
     multigrid_impl_->RestrictPacked(coarse->dev_array(), fine->dev_array(),
                                     coarse->size());
+}
+
+void CudaMain::RestrictResidual(std::shared_ptr<CudaVolume> b,
+                                std::shared_ptr<CudaVolume> r)
+{
+    multigrid_impl_->RestrictResidual(b->dev_array(), r->dev_array(),
+                                      b->size());
 }
 
 void CudaMain::RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,

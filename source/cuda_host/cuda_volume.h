@@ -19,6 +19,7 @@ public:
                 int byte_width);
     bool CreateInPlace(int width, int height, int depth, int num_of_components,
                        int byte_width);
+    bool HasSameProperties(const CudaVolume& other) const;
 
     cudaArray* dev_array() const { return dev_array_; }
     cudaPitchedPtr* dev_mem() const { return dev_mem_; }

@@ -5,6 +5,7 @@
 
 #include "cuda_host/cuda_main.h"
 #include "graphics_volume.h"
+#include "graphics_volume_group.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_volume.h"
 #include "shader/fluid_shader.h"
@@ -40,6 +41,16 @@ std::shared_ptr<GraphicsVolume> MultigridCoreGlsl::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
+std::shared_ptr<GraphicsVolume3> MultigridCoreGlsl::CreateVolumeGroup(
+    int width, int height, int depth, int num_of_components, int byte_width)
+{
+    std::shared_ptr<GraphicsVolume3> r(new GraphicsVolume3(GRAPHICS_LIB_GLSL));
+    bool succeeded = r->Create(width, height, depth, num_of_components,
+                               byte_width);
+
+    return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
+}
+
 void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
                                         const GraphicsVolume& residual,
                                         float cell_size)
@@ -55,6 +66,14 @@ void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                           residual.gl_volume()->depth());
     ResetState();
+}
+
+void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
+                                        const GraphicsVolume& u,
+                                        const GraphicsVolume& b,
+                                        float cell_size)
+{
+
 }
 
 void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
@@ -78,6 +97,12 @@ void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
     ResetState();
 }
 
+void MultigridCoreGlsl::ProlongateResidual(const GraphicsVolume& fine,
+                                           const GraphicsVolume& coarse)
+{
+
+}
+
 void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
                                                  const GraphicsVolume& fine)
 {
@@ -97,6 +122,12 @@ void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                           fine.gl_volume()->depth());
     ResetState();
+}
+
+void MultigridCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
+                              float cell_size, int num_of_iterations)
+{
+
 }
 
 void MultigridCoreGlsl::RelaxPacked(const GraphicsVolume& u_and_b,
@@ -123,6 +154,13 @@ void MultigridCoreGlsl::RelaxWithZeroGuessAndComputeResidual(
     const GraphicsVolume& packed_volumes, float cell_size, int times)
 {
     // Just wait and see how the profiler tells us.
+}
+
+void MultigridCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
+                                           const GraphicsVolume& b,
+                                           float cell_size)
+{
+
 }
 
 void MultigridCoreGlsl::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
@@ -159,6 +197,12 @@ void MultigridCoreGlsl::RestrictPacked(const GraphicsVolume& fine,
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                           coarse.gl_volume()->depth());
     ResetState();
+}
+
+void MultigridCoreGlsl::RestrictResidual(const GraphicsVolume& b,
+                                         const GraphicsVolume& r)
+{
+
 }
 
 void MultigridCoreGlsl::RestrictResidualPacked(const GraphicsVolume& fine,
