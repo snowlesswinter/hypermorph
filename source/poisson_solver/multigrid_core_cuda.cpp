@@ -91,13 +91,6 @@ void MultigridCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                                 b.cuda_volume(), cell_size, num_of_iterations);
 }
 
-void MultigridCoreCuda::RelaxPacked(const GraphicsVolume& u_and_b,
-                                    float cell_size, int num_of_iterations)
-{
-    CudaMain::Instance()->Relax(u_and_b.cuda_volume(), u_and_b.cuda_volume(),
-                                cell_size, num_of_iterations);
-}
-
 void MultigridCoreCuda::RelaxWithZeroGuessAndComputeResidual(
     const GraphicsVolume& packed_volumes, float cell_size, int times)
 {

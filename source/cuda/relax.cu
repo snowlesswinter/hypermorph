@@ -22,21 +22,21 @@ __global__ void DampedJacobiKernel(float minus_square_cell_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =              tex3D(tex_packed, x, y, z - 1.0f).x;
-    float south =             tex3D(tex_packed, x, y - 1.0f, z).x;
-    float west =              tex3D(tex_packed, x - 1.0f, y, z).x;
-    float2 packed_center =    tex3D(tex_packed, x, y, z);
-    float east =              tex3D(tex_packed, x + 1.0f, y, z).x;
-    float north =             tex3D(tex_packed, x, y + 1.0f, z).x;
-    float far =               tex3D(tex_packed, x, y, z + 1.0f).x;
+    float near =   tex3D(tex_u, x, y, z - 1.0f);
+    float south =  tex3D(tex_u, x, y - 1.0f, z);
+    float west =   tex3D(tex_u, x - 1.0f, y, z);
+    float center = tex3D(tex_u, x, y, z);
+    float east =   tex3D(tex_u, x + 1.0f, y, z);
+    float north =  tex3D(tex_u, x, y + 1.0f, z);
+    float far =    tex3D(tex_u, x, y, z + 1.0f);
+    float b =      tex3D(tex_b, x, y, z);
 
-    float u = omega_over_beta * 3.0f * packed_center.x +
+    float u = omega_over_beta * 3.0f * center +
         (west + east + south + north + far + near + minus_square_cell_size *
-        packed_center.y) * omega_over_beta;
+        b) * omega_over_beta;
 
-    ushort2 raw = make_ushort2(__float2half_rn(u),
-                               __float2half_rn(packed_center.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = __float2half_rn(u);
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __device__ void ReadBlockAndHalo_32x6(int z, uint tx, uint ty, float2* smem)
@@ -495,37 +495,6 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =           tex3D(tex_packed, x, y, z - 1.0f).x;
-    float south =          tex3D(tex_packed, x, y - 1.0f, z).x;
-    float west =           tex3D(tex_packed, x - 1.0f, y, z).x;
-    float2 packed_center = tex3D(tex_packed, x, y, z);
-    float east =           tex3D(tex_packed, x + 1.0f, y, z).x;
-    float north =          tex3D(tex_packed, x, y + 1.0f, z).x;
-    float far =            tex3D(tex_packed, x, y, z + 1.0f).x;
-
-    float u = one_minus_omega * packed_center.x +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        packed_center.y) * omega_over_beta;
-
-    ushort2 raw = make_ushort2(__float2half_rn(u),
-                               __float2half_rn(packed_center.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
-}
-
-__global__ void RelaxRedBlackGaussSeidelKernel2(float minus_square_cell_size,
-                                                float one_minus_omega,
-                                                float omega_over_beta,
-                                                uint3 volume_size, uint offset)
-{
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
-
-    x = (x << 1) + ((offset + y + z) & 0x1);
-
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
     float near =   tex3D(tex_u, x, y, z - 1.0f);
     float south =  tex3D(tex_u, x, y - 1.0f, z);
     float west =   tex3D(tex_u, x - 1.0f, y, z);
@@ -533,29 +502,33 @@ __global__ void RelaxRedBlackGaussSeidelKernel2(float minus_square_cell_size,
     float east =   tex3D(tex_u, x + 1.0f, y, z);
     float north =  tex3D(tex_u, x, y + 1.0f, z);
     float far =    tex3D(tex_u, x, y, z + 1.0f);
-
-    float b = tex3D(tex_b, x, y, z);
+    float b =      tex3D(tex_b, x, y, z);
 
     float u = one_minus_omega * center +
         (west + east + south + north + far + near + minus_square_cell_size *
         b) * omega_over_beta;
 
-    ushort r = __float2half_rn(u);
-    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto r = __float2half_rn(u);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
 
-void RelaxDampedJacobi(cudaArray* dest, cudaArray* source,
+void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
                        float cell_size, int num_of_iterations,
                        uint3 volume_size, BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex_packed, source, false,
-                                  cudaFilterModePoint, cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_u.error() != cudaSuccess)
+        return;
+
+    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_b.error() != cudaSuccess)
         return;
 
     float minus_square_cell_size = -cell_size * cell_size;
@@ -600,16 +573,21 @@ void RelaxDampedJacobi(cudaArray* dest, cudaArray* source,
     }
 }
 
-void RelaxRedBlackGaussSeidel(cudaArray* dest, cudaArray* source,
-                              float cell_size, int num_of_iterations,
-                              uint3 volume_size, BlockArrangement* ba)
+void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
+                               float cell_size, int num_of_iterations,
+                               uint3 volume_size, BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex_packed, source, false,
-                                  cudaFilterModePoint, cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_u.error() != cudaSuccess)
+        return;
+
+    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_b.error() != cudaSuccess)
         return;
 
     float minus_square_cell_size = -cell_size * cell_size;
@@ -633,59 +611,14 @@ void RelaxRedBlackGaussSeidel(cudaArray* dest, cudaArray* source,
     }
 }
 
-void RelaxRedBlackGaussSeidel2(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                               float cell_size, int num_of_iterations,
-                               uint3 volume_size, BlockArrangement* ba)
-{
-    if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
-        return;
-
-    auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
-                                    cudaAddressModeBorder); // Dirichlet
-    if (bound_u.error() != cudaSuccess)
-        return;
-
-    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_b.error() != cudaSuccess)
-        return;
-
-    float minus_square_cell_size = -cell_size * cell_size;
-    float omega_over_beta = 0.1666666f * 1.3f;
-    float one_minus_omega = -0.3f;
-
-    uint3 half_size = volume_size;
-    half_size.x /= 2;
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, half_size);
-    for (int i = 0; i < num_of_iterations; i++) {
-        RelaxRedBlackGaussSeidelKernel2<<<grid, block>>>(minus_square_cell_size,
-                                                         one_minus_omega,
-                                                         omega_over_beta,
-                                                         volume_size, 0);
-        RelaxRedBlackGaussSeidelKernel2<<<grid, block>>>(minus_square_cell_size,
-                                                         one_minus_omega,
-                                                         omega_over_beta,
-                                                         volume_size, 1);
-    }
-}
-
-void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
+void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
                  int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
 {
     bool jacobi = false;
     if (jacobi)
-        RelaxDampedJacobi(dest, source, cell_size, num_of_iterations,
+        RelaxDampedJacobi(unp1, un, b, cell_size, num_of_iterations,
                           volume_size, ba);
     else
-        RelaxRedBlackGaussSeidel(dest, source, cell_size, num_of_iterations,
+        RelaxRedBlackGaussSeidel(unp1, un, b, cell_size, num_of_iterations,
                                  volume_size, ba);
-}
-
-void LaunchRelax2(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
-                  int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
-{
-    RelaxRedBlackGaussSeidel2(unp1, un, b, cell_size, num_of_iterations,
-                              volume_size, ba);
 }

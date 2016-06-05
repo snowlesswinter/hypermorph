@@ -68,11 +68,9 @@ public:
     void ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                            float half_inverse_cell_size,
                            const glm::ivec3& volume_size);
-    void ComputeResidualPackedDiagnosis(cudaArray* dest, cudaArray* source,
-                                        float inverse_h_square,
+    void ComputeResidualPackedDiagnosis(cudaArray* residual, cudaArray* u,
+                                        cudaArray* b, float inverse_h_square,
                                         const glm::ivec3& volume_size);
-    void Relax(cudaArray* dest, cudaArray* source, float cell_size,
-               int num_of_iterations, const glm::ivec3& volume_size);
     void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
                int num_of_iterations, const glm::ivec3& volume_size);
     void ReviseDensity(cudaArray* density, const glm::vec3& center_point,

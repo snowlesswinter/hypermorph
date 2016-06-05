@@ -133,12 +133,6 @@ void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
 void MultigridCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                               float cell_size, int num_of_iterations)
 {
-
-}
-
-void MultigridCoreGlsl::RelaxPacked(const GraphicsVolume& u_and_b,
-                                    float cell_size, int num_of_iterations)
-{
     for (int i = 0; i < num_of_iterations; i++) {
         GetRelaxPackedProgram()->Use();
 
@@ -147,11 +141,11 @@ void MultigridCoreGlsl::RelaxPacked(const GraphicsVolume& u_and_b,
         SetUniform("minus_h_square", -(cell_size * cell_size));
         SetUniform("omega_over_beta", 0.11111111f);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, u_and_b.gl_volume()->frame_buffer());
+        glBindFramebuffer(GL_FRAMEBUFFER, u.gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, u_and_b.gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D, u.gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              u_and_b.gl_volume()->depth());
+                              u.gl_volume()->depth());
         ResetState();
     }
 }

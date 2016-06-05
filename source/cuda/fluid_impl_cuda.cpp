@@ -96,8 +96,8 @@ extern void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                              cudaArray* velocity_array,
                                              float inverse_cell_size,
                                              uint3 volume_size);
-extern void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
-                                                 cudaArray* source_array,
+extern void LaunchComputeResidualPackedDiagnosis(cudaArray* residual,
+                                                 cudaArray* u, cudaArray* b,
                                                  float inverse_h_square,
                                                  uint3 volume_size);
 extern void LaunchGenerateHeatSphere(cudaArray* dest, cudaArray* original,
@@ -111,12 +111,9 @@ extern void LaunchImpulseDensitySphere(cudaArray* dest, cudaArray* original,
                                        float3 center_point, float radius,
                                        float3 value, uint3 volume_size,
                                        BlockArrangement* ba);
-extern void LaunchRelax(cudaArray* dest, cudaArray* source, float cell_size,
-                        int num_of_iterations, uint3 volume_size,
-                        BlockArrangement* ba);
-extern void LaunchRelax2(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                         float cell_size, int num_of_iterations,
-                         uint3 volume_size, BlockArrangement* ba);
+extern void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b,
+                        float cell_size, int num_of_iterations,
+                        uint3 volume_size, BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* dest_array,
                                    cudaArray* packed_array,
@@ -368,25 +365,18 @@ void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
 }
 
 void FluidImplCuda::ComputeResidualPackedDiagnosis(
-    cudaArray* dest, cudaArray* source, float inverse_h_square,
+    cudaArray* residual, cudaArray* u, cudaArray* b, float inverse_h_square,
     const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualPackedDiagnosis(dest, source, inverse_h_square,
+    LaunchComputeResidualPackedDiagnosis(residual, u, b, inverse_h_square,
                                          FromGlmVector(volume_size));
-}
-
-void FluidImplCuda::Relax(cudaArray* dest, cudaArray* source, float cell_size,
-           int num_of_iterations, const glm::ivec3& volume_size)
-{
-    LaunchRelax(dest, source, cell_size, num_of_iterations,
-                FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
                           float cell_size, int num_of_iterations,
                           const glm::ivec3& volume_size)
 {
-    LaunchRelax2(unp1, un, b, cell_size, num_of_iterations,
+    LaunchRelax(unp1, un, b, cell_size, num_of_iterations,
                 FromGlmVector(volume_size), ba_);
 }
 

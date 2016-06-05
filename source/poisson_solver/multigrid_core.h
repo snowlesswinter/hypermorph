@@ -35,8 +35,6 @@ public:
                                           const GraphicsVolume& fine) = 0;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                        float cell_size, int num_of_iterations) = 0;
-    virtual void RelaxPacked(const GraphicsVolume& u_and_b, float cell_size,
-                             int num_of_iterations) = 0;
     virtual void RelaxWithZeroGuessAndComputeResidual(
         const GraphicsVolume& packed_volumes, float cell_size, int times) = 0;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,

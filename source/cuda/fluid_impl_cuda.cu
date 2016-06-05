@@ -10,6 +10,7 @@
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_density;
@@ -17,8 +18,6 @@ surface<void, cudaSurfaceType3D> impulse_dest1;
 surface<void, cudaSurfaceType3D> impulse_dest4;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_velocity;
-surface<void, cudaSurfaceType3D> diagnosis;
-texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
 __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
                                     float accel_factor, float gravity)
@@ -166,38 +165,37 @@ __global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
 
     float3 coord = make_float3(x, y, z);
 
-    float  near =   tex3D(diagnosis_source, coord.x, coord.y, coord.z - 1.0f).x;
-    float  south =  tex3D(diagnosis_source, coord.x, coord.y - 1.0f, coord.z).x;
-    float  west =   tex3D(diagnosis_source, coord.x - 1.0f, coord.y, coord.z).x;
-    float2 center = tex3D(diagnosis_source, coord.x, coord.y, coord.z);
-    float  east =   tex3D(diagnosis_source, coord.x + 1.0f, coord.y, coord.z).x;
-    float  north =  tex3D(diagnosis_source, coord.x, coord.y + 1.0f, coord.z).x;
-    float  far =    tex3D(diagnosis_source, coord.x, coord.y, coord.z + 1.0f).x;
-    float  b_center = center.y;
+    float near =   tex3D(tex, coord.x, coord.y, coord.z - 1.0f);
+    float south =  tex3D(tex, coord.x, coord.y - 1.0f, coord.z);
+    float west =   tex3D(tex, coord.x - 1.0f, coord.y, coord.z);
+    float center = tex3D(tex, coord.x, coord.y, coord.z);
+    float east =   tex3D(tex, coord.x + 1.0f, coord.y, coord.z);
+    float north =  tex3D(tex, coord.x, coord.y + 1.0f, coord.z);
+    float far =    tex3D(tex, coord.x, coord.y, coord.z + 1.0f);
+    float b =      tex3D(tex_b, coord.x, coord.y, coord.z);
 
     if (coord.y == volume_size.y - 1)
-        north = center.x;
+        north = center;
 
     if (coord.y == 0)
-        south = center.x;
+        south = center;
 
     if (coord.x == volume_size.x - 1)
-        east = center.x;
+        east = center;
 
     if (coord.x == 0)
-        west = center.x;
+        west = center;
 
     if (coord.z == volume_size.z - 1)
-        far = center.x;
+        far = center;
 
     if (coord.z == 0)
-        near = center.x;
+        near = center;
 
-    float v = b_center -
-        (north + south + east + west + far + near - 6.0 * center.x) *
+    float v = b -
+        (north + south + east + west + far + near - 6.0 * center) *
         inverse_h_square;
-    surf3Dwrite(fabsf(v), diagnosis, x * sizeof(float), y, z,
-                cudaBoundaryModeTrap);
+    surf3Dwrite(fabsf(v), surf, x * sizeof(float), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RoundPassedKernel(int* dest_array, int round, int x)
@@ -413,18 +411,22 @@ void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                                       volume_size);
 }
 
-void LaunchComputeResidualPackedDiagnosis(cudaArray* dest_array,
-                                          cudaArray* source_array,
+void LaunchComputeResidualPackedDiagnosis(cudaArray* residual,
+                                          cudaArray* u, cudaArray* b,
                                           float inverse_h_square,
                                           uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&diagnosis, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, residual) != cudaSuccess)
         return;
 
-    auto bound_source = BindHelper::Bind(&diagnosis_source, source_array,
-                                         false, cudaFilterModePoint,
-                                         cudaAddressModeClamp);
-    if (bound_source.error() != cudaSuccess)
+    auto bound_u = BindHelper::Bind(&tex, u, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_u.error() != cudaSuccess)
+        return;
+
+    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_b.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, volume_size.x / 8);

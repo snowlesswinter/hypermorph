@@ -96,12 +96,10 @@ public:
     void ComputeDivergence(std::shared_ptr<CudaVolume> dest,
                            std::shared_ptr<CudaVolume> velocity,
                            float half_inverse_cell_size);
-    void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> dest,
-                                        std::shared_ptr<CudaVolume> velocity,
+    void ComputeResidualPackedDiagnosis(std::shared_ptr<CudaVolume> residual,
+                                        std::shared_ptr<CudaVolume> u,
+                                        std::shared_ptr<CudaVolume> b,
                                         float inverse_h_square);
-    void Relax(std::shared_ptr<CudaVolume> dest,
-               std::shared_ptr<CudaVolume> source, float cell_size,
-               int num_of_iterations);
     void Relax(std::shared_ptr<CudaVolume> unp1, std::shared_ptr<CudaVolume> un,
                std::shared_ptr<CudaVolume> b, float cell_size,
                int num_of_iterations);

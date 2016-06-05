@@ -533,7 +533,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualPackedDiagnosis(
             diagnosis_volume_->cuda_volume(), pressure_->cuda_volume(),
-            inverse_h_square);
+            general1a_->cuda_volume(), inverse_h_square);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         glUseProgram(Programs.diagnose_);
 
@@ -592,7 +592,8 @@ void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->Relax(pressure_->cuda_volume(),
-                                    pressure_->cuda_volume(), cell_size,
+                                    pressure_->cuda_volume(),
+                                    general1a_->cuda_volume(), cell_size,
                                     num_of_iterations);
     } else {
         float one_minus_omega = 0.33333333f;

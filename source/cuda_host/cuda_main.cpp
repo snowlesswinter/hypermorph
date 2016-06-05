@@ -246,17 +246,18 @@ void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> dest,
 }
 
 void CudaMain::ComputeResidualPackedDiagnosis(
-    std::shared_ptr<CudaVolume> dest, std::shared_ptr<CudaVolume> source,
-    float inverse_h_square)
+    std::shared_ptr<CudaVolume> residual, std::shared_ptr<CudaVolume> u,
+    std::shared_ptr<CudaVolume> b, float inverse_h_square)
 {
-    fluid_impl_->ComputeResidualPackedDiagnosis(dest->dev_array(),
-                                                source->dev_array(),
-                                                inverse_h_square, dest->size());
+    fluid_impl_->ComputeResidualPackedDiagnosis(residual->dev_array(),
+                                                u->dev_array(), b->dev_array(),
+                                                inverse_h_square,
+                                                residual->size());
 
     // =========================================================================
-    int w = dest->width();
-    int h = dest->height();
-    int d = dest->depth();
+    int w = residual->width();
+    int h = residual->height();
+    int d = residual->depth();
     int n = 1;
     int element_size = sizeof(float);
 
@@ -265,8 +266,8 @@ void CudaMain::ComputeResidualPackedDiagnosis(
         buf = new char[w * h * d * element_size * n];
 
     memset(buf, 0, w * h * d * element_size * n);
-    CudaCore::CopyFromVolume(buf, w * element_size * n, dest->dev_array(),
-                             dest->size());
+    CudaCore::CopyFromVolume(buf, w * element_size * n, residual->dev_array(),
+                             residual->size());
 
     float* f = (float*)buf;
     double sum = 0.0;
@@ -288,14 +289,6 @@ void CudaMain::ComputeResidualPackedDiagnosis(
 
     double avg = sum / (w * h * d);
     PrintDebugString("(CUDA) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
-}
-
-void CudaMain::Relax(std::shared_ptr<CudaVolume> dest,
-                     std::shared_ptr<CudaVolume> source, float cell_size,
-                     int num_of_iterations)
-{
-    fluid_impl_->Relax(dest->dev_array(), source->dev_array(), cell_size,
-                       num_of_iterations, dest->size());
 }
 
 void CudaMain::Relax(std::shared_ptr<CudaVolume> unp1,
