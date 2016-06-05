@@ -7,6 +7,7 @@
 #include "poisson_solver.h"
 
 class GraphicsVolume;
+class GraphicsVolume3;
 class MultigridCore;
 class MultigridPoissonSolver : public PoissonSolver
 {
@@ -16,7 +17,8 @@ public:
 
     virtual bool Initialize(int width, int height, int depth,
                             int byte_width) override;
-    virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
+    virtual void Solve(std::shared_ptr<GraphicsVolume> u,
+                       std::shared_ptr<GraphicsVolume> b, float cell_size,
                        bool as_precondition) override;
 
     void set_num_finest_level_iteration_per_pass(int n) {
@@ -27,17 +29,13 @@ public:
     void Diagnose(GraphicsVolume* packed);
 
 private:
-    typedef std::pair<std::shared_ptr<GraphicsVolume>,
-        std::shared_ptr<GraphicsVolume>> VolumePair;
-
-    void RelaxPacked(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
-                     int times);
-    void SolveOpt(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
+    void SolveOpt(std::shared_ptr<GraphicsVolume> u,
+                  std::shared_ptr<GraphicsVolume> b, float cell_size,
                   bool as_precondition);
-    bool ValidateVolume(std::shared_ptr<GraphicsVolume> u_and_b);
+    bool ValidateVolume(std::shared_ptr<GraphicsVolume> v);
 
     MultigridCore* core_;
-    std::vector<VolumePair> volume_resource;
+    std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource_;
     std::shared_ptr<GraphicsVolume> residual_volume_;
     int num_finest_level_iteration_per_pass_;
     bool diagnosis_;

@@ -76,6 +76,12 @@ void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
 
 }
 
+void MultigridCoreGlsl::Prolongate(const GraphicsVolume& fine,
+                                   const GraphicsVolume& coarse)
+{
+
+}
+
 void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
                                          const GraphicsVolume& fine)
 {
@@ -183,6 +189,12 @@ void MultigridCoreGlsl::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
     ResetState();
 }
 
+void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
+                                 const GraphicsVolume& fine)
+{
+
+}
+
 void MultigridCoreGlsl::RestrictPacked(const GraphicsVolume& fine,
                                        const GraphicsVolume& coarse)
 {
@@ -197,12 +209,6 @@ void MultigridCoreGlsl::RestrictPacked(const GraphicsVolume& fine,
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                           coarse.gl_volume()->depth());
     ResetState();
-}
-
-void MultigridCoreGlsl::RestrictResidual(const GraphicsVolume& b,
-                                         const GraphicsVolume& r)
-{
-
 }
 
 void MultigridCoreGlsl::RestrictResidualPacked(const GraphicsVolume& fine,

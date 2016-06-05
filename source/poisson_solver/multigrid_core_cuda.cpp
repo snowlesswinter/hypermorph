@@ -58,6 +58,12 @@ void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& r,
                                           b.cuda_volume(), cell_size);
 }
 
+void MultigridCoreCuda::Prolongate(const GraphicsVolume& fine,
+                                   const GraphicsVolume& coarse)
+{
+    CudaMain::Instance()->Prolongate(fine.cuda_volume(), coarse.cuda_volume());
+}
+
 void MultigridCoreCuda::ProlongatePacked(const GraphicsVolume& coarse,
                                          const GraphicsVolume& fine)
 {
@@ -121,17 +127,17 @@ void MultigridCoreCuda::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
                                                    omega_times_inverse_beta);
 }
 
+void MultigridCoreCuda::Restrict(const GraphicsVolume& coarse,
+                                 const GraphicsVolume& fine)
+{
+    CudaMain::Instance()->Restrict(coarse.cuda_volume(), fine.cuda_volume());
+}
+
 void MultigridCoreCuda::RestrictPacked(const GraphicsVolume& fine,
                                        const GraphicsVolume& coarse)
 {
     CudaMain::Instance()->RestrictPacked(coarse.cuda_volume(),
                                          fine.cuda_volume());
-}
-
-void MultigridCoreCuda::RestrictResidual(const GraphicsVolume& b,
-                                         const GraphicsVolume& r)
-{
-    CudaMain::Instance()->RestrictResidual(b.cuda_volume(), r.cuda_volume());
 }
 
 void MultigridCoreCuda::RestrictResidualPacked(const GraphicsVolume& fine,

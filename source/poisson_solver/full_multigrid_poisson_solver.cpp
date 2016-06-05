@@ -14,7 +14,7 @@ const int kWidthOfCoarsestLevel = 32;
 FullMultigridPoissonSolver::FullMultigridPoissonSolver(MultigridCore* core)
     : core_(core)
     , solver_(new MultigridPoissonSolver(core))
-    , packed_textures_()
+    , volume_resource_()
 {
 
 }
@@ -31,8 +31,8 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
         return false;
 
     // Placeholder for the solution buffer.
-    packed_textures_.clear();
-    packed_textures_.push_back(std::shared_ptr<GraphicsVolume>());
+    volume_resource_.clear();
+    volume_resource_.push_back(VolumePair());
 
     int min_width = std::min(std::min(width, height), depth);
 
@@ -42,12 +42,17 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
         int h = height / scale;
         int d = depth / scale;
 
-        std::shared_ptr<GraphicsVolume> v = core_->CreateVolume(w, h, d, 2,
-                                                                byte_width);
-        if (!v)
+        std::shared_ptr<GraphicsVolume> v0 = core_->CreateVolume(w, h, d, 1,
+                                                                 byte_width);
+        if (!v0)
             return false;
 
-        packed_textures_.push_back(v);
+        std::shared_ptr<GraphicsVolume> v1 = core_->CreateVolume(w, h, d, 1,
+                                                                 byte_width);
+        if (!v1)
+            return false;
+
+        volume_resource_.push_back(std::make_pair(v0, v1));
 
         scale <<= 1;
     }
@@ -55,51 +60,50 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
     return true;
 }
 
-void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
+void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
+                                       std::shared_ptr<GraphicsVolume> b,
                                        float cell_size, bool as_precondition)
 {
-    if (u_and_b->GetWidth() < 32) {
-        solver_->Solve(u_and_b, cell_size, true);
+    if (u->GetWidth() < 32) {
+            solver_->Solve(u, b, cell_size, true);
         return;
     }
 
-    assert(packed_textures_.size() > 1);
-    if (packed_textures_.size() <= 1)
+    assert(volume_resource_.size() > 1);
+    if (volume_resource_.size() <= 1)
         return;
 
     // With less iterations in each level but more iterating in every V-Cycle
     // will out perform the case visa versa(less time cost, lower avg/max |r|),
     // especially in high divergence cases.
     solver_->set_num_finest_level_iteration_per_pass(3);
-    packed_textures_[0] = u_and_b;
+    volume_resource_[0] = std::make_pair(u, b);
 
-    const int num_of_levels = static_cast<int>(packed_textures_.size());
-    float level_cell_size = cell_size;
+    const int num_of_levels = static_cast<int>(volume_resource_.size());
     for (int i = 0; i < num_of_levels - 1; i++) {
-        std::shared_ptr<GraphicsVolume> fine_volume = packed_textures_[i];
-        std::shared_ptr<GraphicsVolume> coarse_volume = packed_textures_[i + 1];
+        VolumePair fine_volume = volume_resource_[i];
+        VolumePair coarse_volume = volume_resource_[i + 1];
 
-        core_->RestrictPacked(*fine_volume, *coarse_volume);
-
-        level_cell_size *= 1.0f;
+        core_->Restrict(*coarse_volume.first, *fine_volume.first);
+        core_->Restrict(*coarse_volume.second, *fine_volume.second);
     }
 
-    std::shared_ptr<GraphicsVolume> coarsest =
-        packed_textures_[num_of_levels - 1];
+    VolumePair coarsest = volume_resource_[num_of_levels - 1];
     if (as_precondition)
-        core_->RelaxWithZeroGuessPacked(*coarsest, level_cell_size);
+        core_->RelaxWithZeroGuess(*coarsest.first, *coarsest.second, cell_size);
 
-    RelaxPacked(coarsest, level_cell_size, 16);
+    core_->Relax(*coarsest.first, *coarsest.second, cell_size, 16);
 
     int times_to_iterate = 1;
     for (int j = num_of_levels - 2; j >= 0; j--) {
-        std::shared_ptr<GraphicsVolume> coarse_volume = packed_textures_[j + 1];
-        std::shared_ptr<GraphicsVolume> fine_volume = packed_textures_[j];
+        VolumePair coarse_volume = volume_resource_[j + 1];
+        VolumePair fine_volume = volume_resource_[j];
 
-        core_->ProlongatePacked(*coarse_volume, *fine_volume);
+        core_->Prolongate(*fine_volume.first, *coarse_volume.first);
 
         for (int k = 0; k < times_to_iterate; k++)
-            solver_->Solve(fine_volume, level_cell_size, false);
+            solver_->Solve(fine_volume.first, fine_volume.second, cell_size,
+                           false);
 
         // For comparison.
         // 
@@ -107,21 +111,14 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
         // a base relaxation times of 5, Multigrid had achieved a notable
         // lower avg/max |r| compared to Jacobi in our experiments.
 
-        //RelaxPacked(fine_volume, level_cell_size, 15);
+        //Relax(fine_volume.first, fine_volume.second, cell_size, 15);
 
         // Experiments revealed that iterations in different levels almost
         // equally contribute to the final result, thus we are not going to
         // reduce the iteration times in coarsen level.
         times_to_iterate += 0;
-        level_cell_size *= 1.0f;
     }
 
 //     if (!as_precondition)
 //         core_->Diagnose(t.get());
-}
-
-void FullMultigridPoissonSolver::RelaxPacked(
-    std::shared_ptr<GraphicsVolume> u_and_b, float cell_size, int times)
-{
-    core_->RelaxPacked(*u_and_b, cell_size, times);
 }

@@ -66,7 +66,6 @@ private:
     void ImpulseDensity(const glm::vec3& position, const glm::vec3& hotspot,
                         float splat_radius,
                         float value);
-    void Jacobi(float cell_size);
     void ReviseDensity();
     void SolvePressure();
     void SubtractGradient();
@@ -102,7 +101,7 @@ private:
     GraphicsVolume3 vort_conf_;
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
-    std::shared_ptr<GraphicsVolume> packed_;
+    std::shared_ptr<GraphicsVolume> pressure_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;
     std::shared_ptr<GraphicsVolume> general1c_;

@@ -39,10 +39,10 @@ extern void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
                                            float minus_h_square,
                                            float omega_times_inverse_beta,
                                            uint3 volume_size);
+extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine,
+                           uint3 volume_size);
 extern void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
                                  uint3 volume_size, BlockArrangement* ba);
-extern void LaunchRestrictResidual(cudaArray* b, cudaArray* r,
-                                   uint3 volume_size);
 extern void LaunchRestrictResidualPacked(cudaArray* dest_array,
                                          cudaArray* source_array,
                                          uint3 volume_size);
@@ -115,18 +115,18 @@ void MultigridImplCuda::RelaxWithZeroGuessPacked(cudaArray* dest_array,
                                    FromGlmVector(volume_size));
 }
 
+void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
+                                 const glm::ivec3& volume_size)
+{
+    LaunchRestrict(coarse, fine, FromGlmVector(volume_size));
+}
+
 void MultigridImplCuda::RestrictPacked(cudaArray* dest_array,
                                        cudaArray* source_array,
                                        const glm::ivec3& volume_size)
 {
     LaunchRestrictPacked(dest_array, source_array,
                          FromGlmVector(volume_size), ba_);
-}
-
-void MultigridImplCuda::RestrictResidual(cudaArray* b, cudaArray* r,
-                                         const glm::ivec3& volume_size)
-{
-    LaunchRestrictResidual(b, r, FromGlmVector(volume_size));
 }
 
 void MultigridImplCuda::RestrictResidualPacked(cudaArray* dest_array,

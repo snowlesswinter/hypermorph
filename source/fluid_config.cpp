@@ -56,10 +56,10 @@ struct { GraphicsLib graphics_lib_; char* desc_; } lib_enum_desc[] = {
 };
 
 struct { FluidSimulator::PoissonMethod m_; char* desc_; } method_enum_desc[] = {
-    {FluidSimulator::POISSON_SOLVER_JACOBI, "jacobi"},
-    {FluidSimulator::POISSON_SOLVER_DAMPED_JACOBI, "damped jacobi"},
-    {FluidSimulator::POISSON_SOLVER_MULTI_GRID, "multigrid"},
-    {FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID, "full multigrid"},
+    {FluidSimulator::POISSON_SOLVER_JACOBI, "j"},
+    {FluidSimulator::POISSON_SOLVER_DAMPED_JACOBI, "dj"},
+    {FluidSimulator::POISSON_SOLVER_MULTI_GRID, "mg"},
+    {FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID, "fmg"},
 };
 
 struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {

@@ -7,17 +7,16 @@
 #include "block_arrangement.h"
 #include "cuda_common.h"
 
+surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> buoyancy_dest;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_density;
 surface<void, cudaSurfaceType3D> impulse_dest1;
 surface<void, cudaSurfaceType3D> impulse_dest4;
-surface<void, cudaSurfaceType3D> divergence_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
-surface<void, cudaSurfaceType3D> gradient_dest;
 texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_velocity;
-texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_packed;
 surface<void, cudaSurfaceType3D> diagnosis;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> diagnosis_source;
 
@@ -121,9 +120,8 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
         diff_fn = far + center.z;
 
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
-    ushort2 result = make_ushort2(0, __float2half_rn(div));
-    surf3Dwrite(result, divergence_dest, x * sizeof(ushort2), y, z,
-                cudaBoundaryModeTrap);
+    auto r = __float2half_rn(div);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
@@ -155,9 +153,8 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
         diff_fn = -base.z;
 
     float div = inverse_cell_size * (diff_ew + diff_ns + diff_fn);
-    ushort2 result = make_ushort2(0, __float2half_rn(div));
-    surf3Dwrite(result, divergence_dest, x * sizeof(ushort2), y, z,
-                cudaBoundaryModeTrap);
+    auto r = __float2half_rn(div);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
@@ -217,13 +214,13 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
 
     float3 coord = make_float3(x, y, z); // Careful: Non-interpolation version.
 
-    float near =   tex3D(gradient_packed, coord.x, coord.y, coord.z - 1.0f).x;
-    float south =  tex3D(gradient_packed, coord.x, coord.y - 1.0f, coord.z).x;
-    float west =   tex3D(gradient_packed, coord.x - 1.0f, coord.y, coord.z).x;
-    float center = tex3D(gradient_packed, coord.x, coord.y, coord.z).x;
-    float east =   tex3D(gradient_packed, coord.x + 1.0f, coord.y, coord.z).x;
-    float north =  tex3D(gradient_packed, coord.x, coord.y + 1.0f, coord.z).x;
-    float far =    tex3D(gradient_packed, coord.x, coord.y, coord.z + 1.0f).x;
+    float near =   tex3D(tex, coord.x, coord.y, coord.z - 1.0f);
+    float south =  tex3D(tex, coord.x, coord.y - 1.0f, coord.z);
+    float west =   tex3D(tex, coord.x - 1.0f, coord.y, coord.z);
+    float center = tex3D(tex, coord.x, coord.y, coord.z);
+    float east =   tex3D(tex, coord.x + 1.0f, coord.y, coord.z);
+    float north =  tex3D(tex, coord.x, coord.y + 1.0f, coord.z);
+    float far =    tex3D(tex, coord.x, coord.y, coord.z + 1.0f);
 
     float diff_ew = east - west;
     float diff_ns = north - south;
@@ -259,7 +256,7 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
                                __float2half_rn(result.y),
                                __float2half_rn(result.z),
                                0);
-    surf3Dwrite(raw, gradient_dest, x * sizeof(ushort4), y, z,
+    surf3Dwrite(raw, surf, x * sizeof(ushort4), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -272,10 +269,10 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     
-    float near =  tex3D(gradient_packed, coord.x,        coord.y,          coord.z - 1.0f).x;
-    float south = tex3D(gradient_packed, coord.x,        coord.y - 1.0f,   coord.z).x;
-    float west =  tex3D(gradient_packed, coord.x - 1.0f, coord.y,          coord.z).x;
-    float base =  tex3D(gradient_packed, coord.x,        coord.y,          coord.z).x;
+    float near =  tex3D(tex, coord.x,        coord.y,          coord.z - 1.0f);
+    float south = tex3D(tex, coord.x,        coord.y - 1.0f,   coord.z);
+    float west =  tex3D(tex, coord.x - 1.0f, coord.y,          coord.z);
+    float base =  tex3D(tex, coord.x,        coord.y,          coord.z);
 
     float diff_ew = base - west;
     float diff_ns = base - south;
@@ -297,12 +294,11 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * inverse_cell_size;
     float3 new_v = old_v - grad;
     float3 result = mask * new_v; // The mask makes sense in staggered grid.
-    ushort4 raw = make_ushort4(__float2half_rn(result.x),
-                               __float2half_rn(result.y),
-                               __float2half_rn(result.z),
-                               0);
-    surf3Dwrite(raw, gradient_dest, x * sizeof(ushort4), y, z,
-                cudaBoundaryModeTrap);
+    auto raw = make_ushort4(__float2half_rn(result.x),
+                            __float2half_rn(result.y),
+                            __float2half_rn(result.z),
+                            0);
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -380,7 +376,7 @@ void LaunchApplyBuoyancyStaggered(cudaArray* dest_array,
 void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
                              float half_inverse_cell_size, uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&divergence_dest, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
         return;
 
     auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
@@ -401,7 +397,7 @@ void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                       float inverse_cell_size,
                                       uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&divergence_dest, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
         return;
 
     auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
@@ -447,7 +443,7 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
                             float half_inverse_cell_size, uint3 volume_size,
                             BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&gradient_dest, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
         return;
 
     auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
@@ -456,10 +452,9 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    auto bound_packed = BindHelper::Bind(&gradient_packed, packed_array,
-                                         false, cudaFilterModePoint,
-                                         cudaAddressModeClamp);
-    if (bound_packed.error() != cudaSuccess)
+    auto bound = BindHelper::Bind(&tex, packed_array, false,
+                                  cudaFilterModePoint, cudaAddressModeClamp);
+    if (bound.error() != cudaSuccess)
         return;
 
     dim3 block;
@@ -474,7 +469,7 @@ void LaunchSubtractGradientStaggered(cudaArray* dest_array,
                                      float inverse_cell_size, uint3 volume_size,
                                      BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&gradient_dest, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
         return;
 
     auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
@@ -483,10 +478,9 @@ void LaunchSubtractGradientStaggered(cudaArray* dest_array,
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    auto bound_packed = BindHelper::Bind(&gradient_packed, packed_array,
-                                         false, cudaFilterModeLinear,
-                                         cudaAddressModeClamp);
-    if (bound_packed.error() != cudaSuccess)
+    auto bound = BindHelper::Bind(&tex, packed_array, false,
+                                  cudaFilterModeLinear, cudaAddressModeClamp);
+    if (bound.error() != cudaSuccess)
         return;
 
     dim3 block;

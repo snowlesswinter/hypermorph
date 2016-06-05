@@ -27,7 +27,7 @@ private:
                std::shared_ptr<GraphicsVolume> b, float cell_size, int times);
 
     MultigridCore* core_;
-    std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource;
+    std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource_;
     std::shared_ptr<GraphicsVolume> residual_volume_;
     int num_finest_level_iteration_per_pass_;
 };

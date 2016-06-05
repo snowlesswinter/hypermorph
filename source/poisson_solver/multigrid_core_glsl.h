@@ -26,6 +26,8 @@ public:
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b,
                                  float cell_size) override;
+    virtual void Prolongate(const GraphicsVolume& fine,
+                            const GraphicsVolume& coarse) override;
 
     // ProlongateAndRelax() is deprecated. Though it seems to be a bit useful
     // that saving one time texture fetch, it still need to read the texture in
@@ -49,10 +51,10 @@ public:
                                     float cell_size) override;
     virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
                                           float cell_size) override;
+    virtual void Restrict(const GraphicsVolume& coarse,
+                          const GraphicsVolume& fine) override;
     virtual void RestrictPacked(const GraphicsVolume& fine,
                                 const GraphicsVolume& coarse) override;
-    virtual void RestrictResidual(const GraphicsVolume& b,
-                                  const GraphicsVolume& r) override;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) override;
 

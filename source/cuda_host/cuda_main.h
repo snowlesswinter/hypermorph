@@ -132,10 +132,10 @@ public:
                                   float one_minus_omega,
                                   float minus_h_square,
                                   float omega_times_inverse_beta);
+    void Restrict(std::shared_ptr<CudaVolume> coarse,
+                  std::shared_ptr<CudaVolume> fine);
     void RestrictPacked(std::shared_ptr<CudaVolume> coarse,
                         std::shared_ptr<CudaVolume> fine);
-    void RestrictResidual(std::shared_ptr<CudaVolume> b,
-                          std::shared_ptr<CudaVolume> r);
     void RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
                                 std::shared_ptr<CudaVolume> fine);
 

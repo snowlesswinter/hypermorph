@@ -36,8 +36,8 @@ __global__ void ComputeResidualPackedKernel(float inverse_h_square)
     float v = b_center -
         (north + south + east + west + far + near - 6.0f * center.x) *
         inverse_h_square;
-    ushort raw = __float2half_rn(v);
-    surf3Dwrite(raw, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto raw = __float2half_rn(v);
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ComputeResidualKernel(float inverse_h_square)
@@ -58,8 +58,8 @@ __global__ void ComputeResidualKernel(float inverse_h_square)
     float v = b -
         (north + south + east + west + far + near - 6.0f * center) *
         inverse_h_square;
-    ushort r = __float2half_rn(v);
-    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto r = __float2half_rn(v);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ProlongateLinearInterpolationKernel(float overlay)
@@ -76,9 +76,9 @@ __global__ void ProlongateLinearInterpolationKernel(float overlay)
     float2 result = make_float2(overlay * original.x + result_float,
                                 original.y);
 
-    ushort2 raw = make_ushort2(__float2half_rn(result.x),
-                               __float2half_rn(result.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(__float2half_rn(result.x),
+                            __float2half_rn(result.y));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ProlongateLerpKernel()
@@ -91,8 +91,8 @@ __global__ void ProlongateLerpKernel()
 
     float coarse = tex3D(tex, coord.x, coord.y, coord.z);
     float fine = tex3D(tex_fine, x, y, z);
-    ushort raw = __float2half_rn(fine + coarse);
-    surf3Dwrite(raw, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto raw = __float2half_rn(fine + coarse);
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ProlongateLinearInterpolation2Kernel(float overlay)
@@ -119,9 +119,9 @@ __global__ void ProlongateLinearInterpolation2Kernel(float overlay)
     float2 result = make_float2(overlay * original.x + result_float,
                                 original.y);
 
-    ushort2 raw = make_ushort2(__float2half_rn(result.x),
-                               __float2half_rn(result.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(__float2half_rn(result.x),
+                            __float2half_rn(result.y));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ProlongateFullWeightedKernel(float overlay, uint3 volume_size)
@@ -314,9 +314,9 @@ __global__ void ProlongateFullWeightedKernel(float overlay, uint3 volume_size)
     float2 result = make_float2(overlay * original.x + result_float,
                                 original.y);
 
-    ushort2 raw = make_ushort2(__float2half_rn(result.x),
-                               __float2half_rn(result.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(__float2half_rn(result.x),
+                            __float2half_rn(result.y));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RelaxWithZeroGuessPackedKernel(float alpha_omega_over_beta,
@@ -343,8 +343,8 @@ __global__ void RelaxWithZeroGuessPackedKernel(float alpha_omega_over_beta,
         (alpha_omega_over_beta * (north + south + east + west + far + near) +
         minus_h_square * b_center) * omega_times_inverse_beta;
 
-    ushort2 raw = make_ushort2(__float2half_rn(v), __float2half_rn(b_center));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap); 
+    auto raw = make_ushort2(__float2half_rn(v), __float2half_rn(b_center));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap); 
 }
 
 __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
@@ -370,8 +370,8 @@ __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
         (alpha_omega_over_beta * (north + south + east + west + far + near) +
         minus_h_square * center) * omega_times_inverse_beta;
 
-    ushort r = __float2half_rn(u);
-    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto r = __float2half_rn(u);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RestrictFullWeightedKernel(uint3 volume_size_fine)
@@ -562,9 +562,9 @@ __global__ void RestrictFullWeightedKernel(uint3 volume_size_fine)
         south_center_far +
         south_west_far;
 
-    ushort2 raw = make_ushort2(__float2half_rn(result.x),
-                               __float2half_rn(result.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(__float2half_rn(result.x),
+                            __float2half_rn(result.y));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RestrictLinearInterpolationKernel(uint3 volume_size_fine)
@@ -576,9 +576,9 @@ __global__ void RestrictLinearInterpolationKernel(uint3 volume_size_fine)
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
     float2 result = tex3D(restrict_source, coord.x, coord.y, coord.z);
-    ushort2 raw = make_ushort2(__float2half_rn(result.x),
-                               __float2half_rn(result.y));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(__float2half_rn(result.x),
+                            __float2half_rn(result.y));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RestrictResidualFullWeightedKernel(uint3 volume_size_fine)
@@ -767,8 +767,8 @@ __global__ void RestrictResidualFullWeightedKernel(uint3 volume_size_fine)
         south_center_far +
         south_west_far;
 
-    ushort2 raw = make_ushort2(0, __float2half_rn(result));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(0, __float2half_rn(result));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void RestrictResidualLinearInterpolationKernel()
@@ -780,11 +780,11 @@ __global__ void RestrictResidualLinearInterpolationKernel()
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
     float result = tex3D(restrict_residual_source, coord.x, coord.y, coord.z);
-    ushort2 raw = make_ushort2(0, __float2half_rn(result));
-    surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
+    auto raw = make_ushort2(0, __float2half_rn(result));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void RestrictResidualLerpKernel()
+__global__ void RestrictLerpKernel()
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -792,8 +792,8 @@ __global__ void RestrictResidualLerpKernel()
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
-    ushort r = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
-    surf3Dwrite(r, surf, x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
+    auto r = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -939,6 +939,22 @@ void LaunchRelaxWithZeroGuessPacked(cudaArray* dest_array,
                                                     omega_times_inverse_beta);
 }
 
+void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size)
+{
+    if (BindCudaSurfaceToArray(&surf, coarse) != cudaSuccess)
+        return;
+
+    auto bound = BindHelper::Bind(&tex, fine, false, cudaFilterModeLinear,
+                                  cudaAddressModeClamp);
+    if (bound.error() != cudaSuccess)
+        return;
+
+    dim3 block(8, 8, 8);
+    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
+              volume_size.z / block.z);
+    RestrictLerpKernel<<<grid, block>>>();
+}
+
 void LaunchRestrictPacked(cudaArray* dest_array, cudaArray* source_array,
                           uint3 volume_size, BlockArrangement* ba)
 {
@@ -976,21 +992,4 @@ void LaunchRestrictResidualPacked(cudaArray* dest_array,
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
     RestrictResidualLinearInterpolationKernel<<<grid, block>>>();
-}
-
-void LaunchRestrictResidual(cudaArray* b, cudaArray* r, uint3 volume_size)
-{
-    if (BindCudaSurfaceToArray(&surf, b) != cudaSuccess)
-        return;
-
-    auto bound = BindHelper::Bind(&tex, r, false, cudaFilterModeLinear,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
-        return;
-
-    uint3 volume_size_fine = volume_size * 2;
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    RestrictResidualLerpKernel<<<grid, block>>>();
 }

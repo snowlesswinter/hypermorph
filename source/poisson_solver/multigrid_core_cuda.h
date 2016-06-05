@@ -26,6 +26,8 @@ public:
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b,
                                  float cell_size) override;
+    virtual void Prolongate(const GraphicsVolume& fine,
+                            const GraphicsVolume& coarse) override;
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) override;
     virtual void ProlongateResidual(const GraphicsVolume& fine,
@@ -44,10 +46,10 @@ public:
                                     float cell_size) override;
     virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
                                           float cell_size) override;
+    virtual void Restrict(const GraphicsVolume& coarse,
+                          const GraphicsVolume& fine) override;
     virtual void RestrictPacked(const GraphicsVolume& fine,
                                 const GraphicsVolume& coarse) override;
-    virtual void RestrictResidual(const GraphicsVolume& b,
-                                  const GraphicsVolume& r) override;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) override;
 };

@@ -5,6 +5,7 @@
 #include <tuple>
 
 #include "graphics_volume.h"
+#include "graphics_volume_group.h"
 #include "metrics.h"
 #include "multigrid_core.h"
 #include "utility.h"
@@ -26,7 +27,7 @@
 
 MultigridPoissonSolver::MultigridPoissonSolver(MultigridCore* core)
     : core_(core)
-    , volume_resource()
+    , volume_resource_()
     , residual_volume_()
     , num_finest_level_iteration_per_pass_(2)
     , diagnosis_(false)
@@ -42,7 +43,7 @@ MultigridPoissonSolver::~MultigridPoissonSolver()
 bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
                                         int byte_width)
 {
-    volume_resource.clear();
+    volume_resource_.clear();
     residual_volume_ = core_->CreateVolume(width, height, depth, 1, byte_width);
 
     int min_width = std::min(std::min(width, height), depth);
@@ -51,17 +52,13 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;
-        std::shared_ptr<GraphicsVolume> v0 = core_->CreateVolume(w, h, d, 2,
-                                                                 byte_width);
-        if (!v0)
+
+        std::shared_ptr<GraphicsVolume3> g = core_->CreateVolumeGroup(
+            w, h, d, 1, byte_width);
+        if (!g)
             return false;
 
-        std::shared_ptr<GraphicsVolume> v1 = core_->CreateVolume(w, h, d, 1,
-                                                                 byte_width);
-        if (!v1)
-            return false;
-
-        volume_resource.push_back(std::make_pair(v0, v1));
+        volume_resource_.push_back(g);
 
         scale <<= 1;
     }
@@ -69,95 +66,90 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
     return true;
 }
 
-void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u_and_b,
+void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
+                                   std::shared_ptr<GraphicsVolume> b,
                                    float cell_size, bool as_precondition)
 {
-    if (!ValidateVolume(u_and_b))
+    if (!ValidateVolume(u) || !ValidateVolume(b))
         return;
 
-    SolveOpt(u_and_b, cell_size, as_precondition);
-
-    //Diagnose(u_and_b);
+    SolveOpt(u, b, cell_size, as_precondition);
 }
 
 bool MultigridPoissonSolver::ValidateVolume(
-    std::shared_ptr<GraphicsVolume> u_and_b)
+    std::shared_ptr<GraphicsVolume> v)
 {
-    if (volume_resource.empty())
+    if (volume_resource_.empty())
         return false;
 
-    if (u_and_b->GetWidth() > volume_resource[0].first->GetWidth() * 2 ||
-            u_and_b->GetHeight() > volume_resource[0].first->GetHeight() * 2 ||
-            u_and_b->GetDepth() > volume_resource[0].first->GetDepth() * 2)
+    if (v->GetWidth() > volume_resource_[0]->x()->GetWidth() * 2 ||
+            v->GetHeight() > volume_resource_[0]->x()->GetHeight() * 2 ||
+            v->GetDepth() > volume_resource_[0]->x()->GetDepth() * 2)
         return false;
 
     return true;
 }
 
-void MultigridPoissonSolver::RelaxPacked(
-    std::shared_ptr<GraphicsVolume> u_and_b, float cell_size, int times)
-{
-    core_->RelaxPacked(*u_and_b, cell_size, times);
-}
-
-void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u_and_b,
+void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u,
+                                      std::shared_ptr<GraphicsVolume> b,
                                       float cell_size, bool as_precondition)
 {
-    auto i = volume_resource.begin();
+    auto i = volume_resource_.begin();
     auto prev = i;
-    for (; i != volume_resource.end(); ++i) {
-        if (i->first->GetWidth() * 2 == u_and_b->GetWidth())
+    for (; i != volume_resource_.end(); ++i) {
+        if ((*i)->x()->GetWidth() * 2 == u->GetWidth())
             break;
 
         prev = i;
     }
 
-    assert(i != volume_resource.end());
-    if (i == volume_resource.end())
+    assert(i != volume_resource_.end());
+    if (i == volume_resource_.end())
         return;
 
     std::shared_ptr<GraphicsVolume> residual_volume =
-        i == prev ? residual_volume_ : prev->second;
-    std::vector<VolumePair> surfs(1, std::make_pair(u_and_b, residual_volume));
-    surfs.insert(surfs.end(), i, volume_resource.end());
+        i == prev ? residual_volume_ : (*prev)->z();
+    std::vector<std::shared_ptr<GraphicsVolume3>> volumes(
+        1, std::make_shared<GraphicsVolume3>(u, b, residual_volume));
+
+    volumes.insert(volumes.end(), i, volume_resource_.end());
 
     int times_to_iterate = num_finest_level_iteration_per_pass_;
 
-    const int num_of_levels = static_cast<int>(surfs.size());
-    float level_cell_size = cell_size;
+    const int num_of_levels = static_cast<int>(volumes.size());
     for (int i = 0; i < num_of_levels - 1; i++) {
-        VolumePair fine_volumes = surfs[i];
-        std::shared_ptr<GraphicsVolume> coarse_volume = surfs[i + 1].first;
+        std::shared_ptr<GraphicsVolume3> fine_volumes = volumes[i];
+        std::shared_ptr<GraphicsVolume> coarse_volume = volumes[i + 1]->y();
 
         if (i || as_precondition)
-            core_->RelaxWithZeroGuessPacked(*fine_volumes.first,
-                                            level_cell_size);
+            core_->RelaxWithZeroGuess(*fine_volumes->x(), *fine_volumes->y(),
+                                      cell_size);
         else
-            RelaxPacked(fine_volumes.first, level_cell_size, 2);
+            core_->Relax(*fine_volumes->x(), *fine_volumes->y(), cell_size, 2);
 
-        RelaxPacked(fine_volumes.first, level_cell_size, times_to_iterate - 2);
-        core_->ComputeResidual(*fine_volumes.first, *fine_volumes.second,
-                               level_cell_size);
-        core_->RestrictResidualPacked(*fine_volumes.second, *coarse_volume);
+        core_->Relax(*fine_volumes->x(), *fine_volumes->y(), cell_size,
+                     times_to_iterate - 2);
+        core_->ComputeResidual(*fine_volumes->z(), *fine_volumes->x(),
+                               *fine_volumes->y(), cell_size);
+        core_->Restrict(*coarse_volume, *fine_volumes->z());
 
         times_to_iterate *= 2;
-        level_cell_size /= 1.0f; // Reducing the h every level will give us
-                                 // worse result of |r|. Need digging.
     }
 
-    std::shared_ptr<GraphicsVolume> coarsest = surfs[num_of_levels - 1].first;
-    core_->RelaxWithZeroGuessPacked(*coarsest, level_cell_size);
-    RelaxPacked(coarsest, level_cell_size, times_to_iterate - 2);
+    std::shared_ptr<GraphicsVolume3> coarsest = volumes[num_of_levels - 1];
+    core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y(), cell_size);
+    core_->Relax(*coarsest->x(), *coarsest->y(), cell_size,
+                 times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
-        std::shared_ptr<GraphicsVolume> coarse_volume = surfs[j + 1].first;
-        std::shared_ptr<GraphicsVolume> fine_volume = surfs[j].first;
+        std::shared_ptr<GraphicsVolume> coarse_volume = volumes[j + 1]->x();
+        std::shared_ptr<GraphicsVolume3> fine_volume = volumes[j];
 
         times_to_iterate /= 2;
-        level_cell_size *= 1.0f;
 
-        core_->ProlongateResidualPacked(*coarse_volume, *fine_volume);
-        RelaxPacked(fine_volume, level_cell_size, times_to_iterate/* - 1*/);
+        core_->ProlongateResidual(*fine_volume->x(), *coarse_volume);
+        core_->Relax(*fine_volume->x(), *fine_volume->y(), cell_size,
+                     times_to_iterate);
     }
 }
 

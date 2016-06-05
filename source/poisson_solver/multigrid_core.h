@@ -25,6 +25,8 @@ public:
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b, float cell_size) = 0;
+    virtual void Prolongate(const GraphicsVolume& fine,
+                            const GraphicsVolume& coarse) = 0;
     virtual void ProlongatePacked(const GraphicsVolume& coarse,
                                   const GraphicsVolume& fine) = 0;
     virtual void ProlongateResidual(const GraphicsVolume& fine,
@@ -42,10 +44,10 @@ public:
                                     float cell_size) = 0;
     virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
                                           float cell_size) = 0;
+    virtual void Restrict(const GraphicsVolume& coarse,
+                          const GraphicsVolume& fine) = 0;
     virtual void RestrictPacked(const GraphicsVolume& fine,
                                 const GraphicsVolume& coarse) = 0;
-    virtual void RestrictResidual(const GraphicsVolume& b,
-                                  const GraphicsVolume& r) = 0;
     virtual void RestrictResidualPacked(const GraphicsVolume& fine,
                                         const GraphicsVolume& coarse) = 0;
 };

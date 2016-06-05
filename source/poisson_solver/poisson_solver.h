@@ -12,7 +12,8 @@ public:
 
     virtual bool Initialize(int width, int height, int depth,
                             int byte_width) = 0;
-    virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
+    virtual void Solve(std::shared_ptr<GraphicsVolume> u,
+                       std::shared_ptr<GraphicsVolume> b, float cell_size,
                        bool as_precondition) = 0;
 };
 

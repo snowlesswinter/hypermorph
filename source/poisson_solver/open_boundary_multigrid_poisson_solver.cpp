@@ -10,7 +10,7 @@
 OpenBoundaryMultigridPoissonSolver::OpenBoundaryMultigridPoissonSolver(
         MultigridCore* core)
     : core_(core)
-    , volume_resource()
+    , volume_resource_()
     , residual_volume_()
     , num_finest_level_iteration_per_pass_(2)
 {
@@ -25,7 +25,7 @@ bool OpenBoundaryMultigridPoissonSolver::Initialize(int width, int height,
                                                     int depth,
                                                     int byte_width)
 {
-    volume_resource.clear();
+    volume_resource_.clear();
     residual_volume_ = core_->CreateVolume(width, height, depth, 1, byte_width);
 
     int min_width = std::min(std::min(width, height), depth);
@@ -35,13 +35,12 @@ bool OpenBoundaryMultigridPoissonSolver::Initialize(int width, int height,
         int h = height / scale;
         int d = depth / scale;
 
-
         std::shared_ptr<GraphicsVolume3> v = core_->CreateVolumeGroup(
             w, h, d, 1, byte_width);
         if (!v)
             return false;
 
-        volume_resource.push_back(v);
+        volume_resource_.push_back(v);
 
         scale <<= 1;
     }
@@ -53,17 +52,17 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
     std::shared_ptr<GraphicsVolume> u, std::shared_ptr<GraphicsVolume> b,
     float cell_size)
 {
-    auto i = volume_resource.begin();
+    auto i = volume_resource_.begin();
     auto prev = i;
-    for (; i != volume_resource.end(); ++i) {
+    for (; i != volume_resource_.end(); ++i) {
         if ((*i)->x()->GetWidth() * 2 == u->GetWidth())
             break;
 
         prev = i;
     }
 
-    assert(i != volume_resource.end());
-    if (i == volume_resource.end())
+    assert(i != volume_resource_.end());
+    if (i == volume_resource_.end())
         return;
 
     std::shared_ptr<GraphicsVolume> residual_volume =
@@ -71,7 +70,7 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
     std::vector<std::shared_ptr<GraphicsVolume3>> volumes(
         1, std::make_shared<GraphicsVolume3>(u, b, residual_volume));
 
-    volumes.insert(volumes.end(), i, volume_resource.end());
+    volumes.insert(volumes.end(), i, volume_resource_.end());
 
     int times_to_iterate = num_finest_level_iteration_per_pass_;
 
@@ -90,7 +89,7 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
               times_to_iterate - 2);
         core_->ComputeResidual(*fine_volumes->z(), *fine_volumes->x(),
                                *fine_volumes->y(), cell_size);
-        core_->RestrictResidual(*coarse_volume, *fine_volumes->z());
+        core_->Restrict(*coarse_volume, *fine_volumes->z());
 
         times_to_iterate *= 2;
     }

@@ -382,18 +382,18 @@ void CudaMain::RelaxWithZeroGuessPacked(std::shared_ptr<CudaVolume> dest,
                                               dest->size());
 }
 
+void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
+                        std::shared_ptr<CudaVolume> fine)
+{
+    multigrid_impl_->Restrict(coarse->dev_array(), fine->dev_array(),
+                              coarse->size());
+}
+
 void CudaMain::RestrictPacked(std::shared_ptr<CudaVolume> coarse,
                               std::shared_ptr<CudaVolume> fine)
 {
     multigrid_impl_->RestrictPacked(coarse->dev_array(), fine->dev_array(),
                                     coarse->size());
-}
-
-void CudaMain::RestrictResidual(std::shared_ptr<CudaVolume> b,
-                                std::shared_ptr<CudaVolume> r)
-{
-    multigrid_impl_->RestrictResidual(b->dev_array(), r->dev_array(),
-                                      b->size());
 }
 
 void CudaMain::RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,

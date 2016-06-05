@@ -16,16 +16,17 @@ public:
 
     virtual bool Initialize(int width, int height, int depth,
                             int byte_width) override;
-    virtual void Solve(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
+    virtual void Solve(std::shared_ptr<GraphicsVolume> u,
+                       std::shared_ptr<GraphicsVolume> b, float cell_size,
                        bool as_precondition) override;
 
 private:
-    void RelaxPacked(std::shared_ptr<GraphicsVolume> u_and_b, float cell_size,
-                     int times);
+    typedef std::pair<std::shared_ptr<GraphicsVolume>,
+        std::shared_ptr<GraphicsVolume>> VolumePair;
 
     MultigridCore* core_;
     std::unique_ptr<MultigridPoissonSolver> solver_;
-    std::vector<std::shared_ptr<GraphicsVolume>> packed_textures_;
+    std::vector<VolumePair> volume_resource_;
 };
 
 #endif // _FULL_MULTIGRID_POISSON_SOLVER_H_

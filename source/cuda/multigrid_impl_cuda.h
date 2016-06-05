@@ -32,10 +32,10 @@ public:
                                   float one_minus_omega, float minus_h_square,
                                   float omega_times_inverse_beta,
                                   const glm::ivec3& volume_size);
+    void Restrict(cudaArray* coarse, cudaArray* fine,
+                  const glm::ivec3& volume_size);
     void RestrictPacked(cudaArray* dest_array, cudaArray* source_array,
                         const glm::ivec3& volume_size);
-    void RestrictResidual(cudaArray* b, cudaArray* r,
-                          const glm::ivec3& volume_size);
     void RestrictResidualPacked(cudaArray* dest_array, cudaArray* source_array,
                                 const glm::ivec3& volume_size);
 
