@@ -52,6 +52,15 @@ public:
                         std::shared_ptr<CudaVolume> velocity_prev,
                         float time_step, float time_step_prev,
                         float dissipation, AdvectionMethod method);
+    void AdvectVorticityFields(std::shared_ptr<CudaVolume> fnp1_x,
+                               std::shared_ptr<CudaVolume> fnp1_y,
+                               std::shared_ptr<CudaVolume> fnp1_z,
+                               std::shared_ptr<CudaVolume> fn_x,
+                               std::shared_ptr<CudaVolume> fn_y,
+                               std::shared_ptr<CudaVolume> fn_z,
+                               std::shared_ptr<CudaVolume> aux,
+                               std::shared_ptr<CudaVolume> velocity,
+                               float time_step, float dissipation);
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
                        std::shared_ptr<CudaVolume> velocity,
                        std::shared_ptr<CudaVolume> temperature,
@@ -129,6 +138,34 @@ public:
                           std::shared_ptr<CudaVolume> r);
     void RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
                                 std::shared_ptr<CudaVolume> fine);
+
+    // Vorticity.
+    void AddCurlPsi(std::shared_ptr<CudaVolume> velocity,
+                    std::shared_ptr<CudaVolume> psi_x,
+                    std::shared_ptr<CudaVolume> psi_y,
+                    std::shared_ptr<CudaVolume> psi_z,
+                    float cell_size);
+    void ComputeDeltaVorticity(std::shared_ptr<CudaVolume> vort_np1_x,
+                               std::shared_ptr<CudaVolume> vort_np1_y,
+                               std::shared_ptr<CudaVolume> vort_np1_z,
+                               std::shared_ptr<CudaVolume> vort_x,
+                               std::shared_ptr<CudaVolume> vort_y,
+                               std::shared_ptr<CudaVolume> vort_z);
+    void ComputeDivergenceForVort(std::shared_ptr<CudaVolume> div,
+                                  std::shared_ptr<CudaVolume> velocity,
+                                  float cell_size);
+    void DecayVortices(std::shared_ptr<CudaVolume> vort_x,
+                       std::shared_ptr<CudaVolume> vort_y,
+                       std::shared_ptr<CudaVolume> vort_z,
+                       std::shared_ptr<CudaVolume> div, float time_step);
+    void StretchVortices(std::shared_ptr<CudaVolume> vort_np1_x,
+                         std::shared_ptr<CudaVolume> vort_np1_y,
+                         std::shared_ptr<CudaVolume> vort_np1_z,
+                         std::shared_ptr<CudaVolume> velocity,
+                         std::shared_ptr<CudaVolume> vort_x,
+                         std::shared_ptr<CudaVolume> vort_y,
+                         std::shared_ptr<CudaVolume> vort_z,
+                         float cell_size, float time_step);
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,

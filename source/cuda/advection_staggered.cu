@@ -6,7 +6,7 @@
 
 #include "advection_method.h"
 #include "block_arrangement.h"
-#include "cuda_array_group.h"
+#include "field_offset.h"
 #include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> advect_dest;
@@ -467,14 +467,12 @@ __global__ void AdvectVelocitySemiLagrangianStaggeredKernel(float time_step,
 
 // =============================================================================
 
-void LaunchAdvectFieldsMacCormackStaggeredOffset(const CudaArrayGroup& dest,
-                                                 cudaArray_t velocity,
-                                                 const CudaArrayGroup& source,
-                                                 const CudaArrayGroup& temp,
-                                                 float time_step,
-                                                 float dissipation,
-                                                 uint3 volume_size,
-                                                 BlockArrangement* ba)
+void LaunchAdvectFieldsMacCormackStaggeredOffset(
+    cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x,
+    cudaArray* fn_y, cudaArray* fn_z, float3 offset_x, float3 offset_y,
+    float3 offset_z, cudaArray* aux, cudaArray* velocity,
+    float time_step, float dissipation,
+    uint3 volume_size, BlockArrangement* ba)
 {
     auto bound_vel = BindHelper::Bind(&tex_velocity, velocity, false,
                                       cudaFilterModeLinear,
@@ -482,12 +480,15 @@ void LaunchAdvectFieldsMacCormackStaggeredOffset(const CudaArrayGroup& dest,
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    for (int i = 0; i < dest.num_of_components(); i++) {
-        if (BindCudaSurfaceToArray(&surf, temp[i]) != cudaSuccess)
+    cudaArray* fnp1[] = {fnp1_x, fnp1_y, fnp1_z};
+    cudaArray* fn[] = {fn_x, fn_y, fn_z};
+    float3 offset[] = {-offset_x, -offset_y, -offset_z};
+    int num_of_fields = sizeof(fnp1) / sizeof(fnp1[0]);
+    for (int i = 0; i < num_of_fields; i++) {
+        if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
 
-        auto bound = BindHelper::Bind(&tex, source[i], false,
-                                      cudaFilterModeLinear,
+        auto bound = BindHelper::Bind(&tex, fn[i], false, cudaFilterModeLinear,
                                       cudaAddressModeClamp);
         if (bound.error() != cudaSuccess)
             return;
@@ -496,37 +497,48 @@ void LaunchAdvectFieldsMacCormackStaggeredOffset(const CudaArrayGroup& dest,
         dim3 grid;
         ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
         AdvectFieldSemiLagrangianStaggeredOffsetKernel<<<grid, block>>>(
-            source.offset(i), time_step, 0.0f);
-    }
+            offset[i], time_step, 0.0f);
 
-    for (int j = 0; j < dest.num_of_components(); j++) {
-        if (BindCudaSurfaceToArray(&surf, dest[j]) != cudaSuccess)
+        if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
-        auto bound_s = BindHelper::Bind(&tex, source[j], false,
+        auto bound_s = BindHelper::Bind(&tex, fn[i], false,
                                         cudaFilterModeLinear,
                                         cudaAddressModeClamp);
         if (bound_s.error() != cudaSuccess)
             return;
 
-        auto bound_t = BindHelper::Bind(&tex_temp, temp[j], false,
+        auto bound_t = BindHelper::Bind(&tex_temp, aux, false,
                                         cudaFilterModeLinear,
                                         cudaAddressModeClamp);
         if (bound_t.error() != cudaSuccess)
             return;
 
-        dim3 block;
-        dim3 grid;
-        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
         AdvectFieldMacCormackStaggeredOffsetKernel<<<grid, block>>>(
-            dest.offset(j), time_step, dissipation);
+            offset[i], time_step, dissipation);
     }
 }
 
-void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
-                                      cudaArray_t velocity_array,
-                                      cudaArray_t source_array,
-                                      cudaArray_t intermediate_array,
+void LaunchAdvectFieldsStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                 cudaArray* fnp1_z, cudaArray* fn_x,
+                                 cudaArray* fn_y, cudaArray* fn_z,
+                                 cudaArray* aux, cudaArray* velocity,
+                                 float time_step, float dissipation,
+                                 uint3 volume_size, BlockArrangement* ba,
+                                 AdvectionMethod method)
+{
+    LaunchAdvectFieldsMacCormackStaggeredOffset(fnp1_x, fnp1_y, fnp1_z, fn_x,
+                                                fn_y, fn_z, make_float3(0.0f),
+                                                make_float3(0.0f),
+                                                make_float3(0.0f), aux,
+                                                velocity, time_step,
+                                                dissipation, volume_size, ba);
+}
+
+void LaunchAdvectScalarBfeccStaggered(cudaArray* dest_array,
+                                      cudaArray* velocity_array,
+                                      cudaArray* source_array,
+                                      cudaArray* intermediate_array,
                                       float time_step, float dissipation,
                                       bool quadratic_dissipation,
                                       uint3 volume_size)
@@ -582,10 +594,10 @@ void LaunchAdvectScalarBfeccStaggered(cudaArray_t dest_array,
         make_float3(volume_size));
 }
 
-void LaunchAdvectScalarMacCormackStaggered(cudaArray_t dest_array,
-                                           cudaArray_t velocity_array,
-                                           cudaArray_t source_array,
-                                           cudaArray_t intermediate_array,
+void LaunchAdvectScalarMacCormackStaggered(cudaArray* dest_array,
+                                           cudaArray* velocity_array,
+                                           cudaArray* source_array,
+                                           cudaArray* intermediate_array,
                                            float time_step, float dissipation,
                                            bool quadratic_dissipation,
                                            uint3 volume_size)
@@ -626,10 +638,10 @@ void LaunchAdvectScalarMacCormackStaggered(cudaArray_t dest_array,
         make_float3(volume_size));
 }
 
-void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
-                                 cudaArray_t velocity_array,
-                                 cudaArray_t source_array,
-                                 cudaArray_t intermediate_array,
+void LaunchAdvectScalarStaggered(cudaArray* dest_array,
+                                 cudaArray* velocity_array,
+                                 cudaArray* source_array,
+                                 cudaArray* intermediate_array,
                                  float time_step, float dissipation,
                                  bool quadratic_dissipation, uint3 volume_size,
                                  AdvectionMethod method)
@@ -671,9 +683,9 @@ void LaunchAdvectScalarStaggered(cudaArray_t dest_array,
         make_float3(volume_size));
 }
 
-void LaunchAdvectVelocityBfeccStaggered(cudaArray_t dest_array,
-                                        cudaArray_t velocity_array,
-                                        cudaArray_t intermediate_array,
+void LaunchAdvectVelocityBfeccStaggered(cudaArray* dest_array,
+                                        cudaArray* velocity_array,
+                                        cudaArray* intermediate_array,
                                         float time_step, float time_step_prev,
                                         float dissipation, uint3 volume_size)
 {
@@ -718,9 +730,9 @@ void LaunchAdvectVelocityBfeccStaggered(cudaArray_t dest_array,
     AdvectVelocityBfeccStaggeredKernel<<<grid, block>>>(time_step, dissipation);
 }
 
-void LaunchAdvectVelocityMacCormackStaggered(cudaArray_t dest_array,
-                                             cudaArray_t velocity_array,
-                                             cudaArray_t intermediate_array,
+void LaunchAdvectVelocityMacCormackStaggered(cudaArray* dest_array,
+                                             cudaArray* velocity_array,
+                                             cudaArray* intermediate_array,
                                              float time_step,
                                              float time_step_prev,
                                              float dissipation,
@@ -755,9 +767,9 @@ void LaunchAdvectVelocityMacCormackStaggered(cudaArray_t dest_array,
                                                              dissipation);
 }
 
-void LaunchAdvectVelocityStaggered(cudaArray_t dest_array,
-                                   cudaArray_t velocity_array,
-                                   cudaArray_t intermediate_array,
+void LaunchAdvectVelocityStaggered(cudaArray* dest_array,
+                                   cudaArray* velocity_array,
+                                   cudaArray* intermediate_array,
                                    float time_step, float time_step_prev,
                                    float dissipation, uint3 volume_size,
                                    AdvectionMethod method)
@@ -790,4 +802,21 @@ void LaunchAdvectVelocityStaggered(cudaArray_t dest_array,
               volume_size.z / block.z);
     AdvectVelocitySemiLagrangianStaggeredKernel<<<grid, block>>>(time_step,
                                                                  dissipation);
+}
+
+void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                    cudaArray* fnp1_z, cudaArray* fn_x,
+                                    cudaArray* fn_y, cudaArray* fn_z,
+                                    cudaArray* aux, cudaArray* velocity,
+                                    float time_step, float dissipation,
+                                    uint3 volume_size, BlockArrangement* ba,
+                                    AdvectionMethod method)
+{
+    LaunchAdvectFieldsMacCormackStaggeredOffset(fnp1_x, fnp1_y, fnp1_z, fn_x,
+                                                fn_y, fn_z,
+                                                GetOffsetVorticityField(0),
+                                                GetOffsetVorticityField(1),
+                                                GetOffsetVorticityField(2), aux,
+                                                velocity, time_step,
+                                                dissipation, volume_size, ba);
 }

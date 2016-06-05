@@ -7,6 +7,7 @@
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
+class CudaArrayGroup;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
@@ -23,6 +24,17 @@ public:
                        cudaArray* intermediate, float time_step,
                        float dissipation, const glm::ivec3& volume_size,
                        AdvectionMethod method);
+    void AdvectFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                      cudaArray* fnp1_z, cudaArray* fn_x,
+                      cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux,
+                      cudaArray* velocity, float time_step, float dissipation,
+                      const glm::ivec3& volume_size);
+    void AdvectVorticityFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                               cudaArray* fnp1_z, cudaArray* fn_x,
+                               cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux,
+                               cudaArray* velocity, float time_step,
+                               float dissipation,
+                               const glm::ivec3& volume_size);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         cudaArray* velocity_prev, float time_step,
                         float time_step_prev, float dissipation,
@@ -69,6 +81,26 @@ public:
     void SubtractGradient(cudaArray* dest, cudaArray* packed,
                           float gradient_scale,
                           const glm::ivec3& volume_size);
+
+    // Vorticity.
+    void AddCurlPsi(cudaArray* velocity, cudaArray* psi_x, cudaArray* psi_y,
+                    cudaArray* psi_z, float cell_size,
+                    const glm::ivec3& volume_size);
+    void ComputeDeltaVorticity(cudaArray* vort_np1_x, cudaArray* vort_np1_y,
+                               cudaArray* vort_np1_z, cudaArray* vort_x,
+                               cudaArray* vort_y, cudaArray* vort_z,
+                               const glm::ivec3& volume_size);
+    void ComputeDivergenceForVort(cudaArray* div, cudaArray* velocity,
+                                  float cell_size,
+                                  const glm::ivec3& volume_size);
+    void DecayVortices(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z,
+                       cudaArray* div, float time_step,
+                       const glm::ivec3& volume_size);
+    void StretchVortices(cudaArray* vort_np1_x, cudaArray* vort_np1_y,
+                         cudaArray* vort_np1_z, cudaArray* velocity,
+                         cudaArray* vort_x, cudaArray* vort_y,
+                         cudaArray* vort_z, float cell_size, float time_step,
+                         const glm::ivec3& volume_size);
 
     // For debugging.
     void RoundPassed(int round);

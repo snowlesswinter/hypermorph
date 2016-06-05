@@ -140,6 +140,7 @@ void DisplayMetrics()
         "Divergence",
         "Pressure",
         "Gradient",
+        "Vorticity",
         "Raycast",
         "Render",
         "Prolongate",

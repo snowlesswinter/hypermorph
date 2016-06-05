@@ -14,6 +14,13 @@
 #include "graphics_resource.h"
 #include "third_party/glm/vec3.hpp"
 
+extern void LaunchAdvectFieldsStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                        cudaArray* fnp1_z, cudaArray* fn_x,
+                                        cudaArray* fn_y, cudaArray* fn_z,
+                                        cudaArray* aux, cudaArray* velocity,
+                                        float time_step, float dissipation,
+                                        uint3 volume_size, BlockArrangement* ba,
+                                        AdvectionMethod method);
 extern void LaunchAdvectScalar(cudaArray_t dest_array,
                                cudaArray_t velocity_array,
                                cudaArray_t source_array,
@@ -121,6 +128,41 @@ extern void LaunchSubtractGradientStaggered(cudaArray* dest_array,
                                             uint3 volume_size,
                                             BlockArrangement* ba);
 
+// Vorticity.
+extern void LaunchAddCurlPsi(cudaArray* velocity, cudaArray* psi_x,
+                             cudaArray* psi_y, cudaArray* psi_z,
+                             float cell_size, uint3 volume_size,
+                             BlockArrangement* ba);
+extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                           cudaArray* fnp1_z, cudaArray* fn_x,
+                                           cudaArray* fn_y, cudaArray* fn_z,
+                                           cudaArray* aux, cudaArray* velocity,
+                                           float time_step, float dissipation,
+                                           uint3 volume_size,
+                                           BlockArrangement* ba,
+                                           AdvectionMethod method);
+extern void LaunchComputeDivergenceStaggeredForVort(cudaArray* div,
+                                                    cudaArray* velocity,
+                                                    float cell_size,
+                                                    uint3 volume_size);
+extern void LaunchComputeDeltaVorticity(cudaArray* vnp1_x, cudaArray* vnp1_y,
+                                        cudaArray* vnp1_z, cudaArray* vn_x,
+                                        cudaArray* vn_y, cudaArray* vn_z,
+                                        uint3 volume_size,
+                                        BlockArrangement* ba);
+extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
+                                         cudaArray* vort_z, cudaArray* div,
+                                         float time_step, uint3 volume_size,
+                                         BlockArrangement* ba);
+extern void LaunchStretchVorticesStaggered(cudaArray* vort_np1_x,
+                                           cudaArray* vort_np1_y,
+                                           cudaArray* vort_np1_z,
+                                           cudaArray* velocity,
+                                           cudaArray* vort_x, cudaArray* vort_y,
+                                           cudaArray* vort_z, float cell_size,
+                                           float time_step, uint3 volume_size,
+                                           BlockArrangement* ba);
+
 namespace
 {
 uint3 FromGlmVector(const glm::ivec3& v)
@@ -173,6 +215,32 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
         LaunchAdvectScalar(dest, velocity, density, intermediate, time_step,
                            dissipation, true, FromGlmVector(volume_size),
                            method);
+}
+
+void FluidImplCuda::AdvectFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                 cudaArray* fnp1_z, cudaArray* fn_x,
+                                 cudaArray* fn_y, cudaArray* fn_z,
+                                 cudaArray* aux, cudaArray* velocity,
+                                 float time_step, float dissipation,
+                                 const glm::ivec3& volume_size)
+{
+    LaunchAdvectFieldsStaggered(fnp1_x,  fnp1_y, fnp1_z,  fn_x, fn_y,  fn_z,
+                                aux, velocity, time_step, dissipation,
+                                FromGlmVector(volume_size), ba_,
+                                MACCORMACK_SEMI_LAGRANGIAN);
+}
+
+void FluidImplCuda::AdvectVorticityFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                          cudaArray* fnp1_z, cudaArray* fn_x,
+                                          cudaArray* fn_y, cudaArray* fn_z,
+                                          cudaArray* aux, cudaArray* velocity,
+                                          float time_step, float dissipation,
+                                          const glm::ivec3& volume_size)
+{
+    LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z,
+                                   aux, velocity, time_step, dissipation,
+                                   FromGlmVector(volume_size), ba_,
+                                   MACCORMACK_SEMI_LAGRANGIAN);
 }
 
 void FluidImplCuda::AdvectVelocity(cudaArray* dest, cudaArray* velocity,
@@ -349,6 +417,57 @@ void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
     else
         LaunchSubtractGradient(dest, packed, half_inverse_cell_size,
                                FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::AddCurlPsi(cudaArray* velocity, cudaArray* psi_x,
+                               cudaArray* psi_y, cudaArray* psi_z,
+                               float cell_size, const glm::ivec3& volume_size)
+{
+    LaunchAddCurlPsi(velocity, psi_x, psi_y, psi_z, cell_size,
+                     FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::ComputeDeltaVorticity(cudaArray* vort_np1_x,
+                                          cudaArray* vort_np1_y,
+                                          cudaArray* vort_np1_z,
+                                          cudaArray* vort_x,
+                                          cudaArray* vort_y, cudaArray* vort_z,
+                                          const glm::ivec3& volume_size)
+{
+    LaunchComputeDeltaVorticity(vort_np1_x, vort_np1_y, vort_np1_z, vort_x,
+                                vort_y, vort_z, FromGlmVector(volume_size),
+                                ba_);
+}
+
+void FluidImplCuda::ComputeDivergenceForVort(cudaArray* div,
+                                             cudaArray* velocity,
+                                             float cell_size,
+                                             const glm::ivec3& volume_size)
+{
+    LaunchComputeDivergenceStaggeredForVort(div, velocity, cell_size,
+                                            FromGlmVector(volume_size));
+}
+
+void FluidImplCuda::DecayVortices(cudaArray* vort_x, cudaArray* vort_y,
+                                  cudaArray* vort_z, cudaArray* div,
+                                  float time_step,
+                                  const glm::ivec3& volume_size)
+{
+    LaunchDecayVorticesStaggered(vort_x, vort_y, vort_z, div, time_step,
+                                 FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::StretchVortices(cudaArray* vort_np1_x,
+                                    cudaArray* vort_np1_y,
+                                    cudaArray* vort_np1_z, cudaArray* velocity,
+                                    cudaArray* vort_x, cudaArray* vort_y,
+                                    cudaArray* vort_z, float cell_size,
+                                    float time_step,
+                                    const glm::ivec3& volume_size)
+{
+    LaunchStretchVorticesStaggered(vort_np1_x, vort_np1_y, vort_np1_z, velocity,
+                                   vort_x, vort_y, vort_z, cell_size, time_step,
+                                   FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::RoundPassed(int round)

@@ -19,21 +19,6 @@ surface<void, cudaSurfaceType3D> clear_volume;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> raycast_density;
 surface<void, cudaSurfaceType2D> raycast_dest;
 
-__global__ void AbsoluteKernel(float* out_data, int w, int h, int d)
-{
-    int block_offset = gridDim.x * gridDim.y * blockIdx.z +
-        gridDim.x * blockIdx.y + blockIdx.x;
-    int index = block_offset * blockDim.x*blockDim.y*blockDim.z +
-        blockDim.x*blockDim.y*threadIdx.z + blockDim.x*threadIdx.y + threadIdx.x;
-    float3 coord;
-    coord.x = (float(blockIdx.x) * blockDim.x + threadIdx.x + 0.5f) / w;
-    coord.y = (float(blockIdx.y) * blockDim.y + threadIdx.y + 0.5f) / h;
-    coord.z = (float(blockIdx.z) * blockDim.z + threadIdx.x + 0.5f) / d;
-
-    float1 cc = tex3D(in_tex, coord.x, coord.y, coord.z);
-    out_data[index] = cc.x;
-}
-
 __global__ void ClearVolume4Kernel(glm::vec4 value, uint3 volume_size)
 {
     uint x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -43,8 +28,8 @@ __global__ void ClearVolume4Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    surf3Dwrite(make_float4(value.x, value.y, value.z, value.w), clear_volume,
-                x * sizeof(float4), y, z, cudaBoundaryModeTrap);
+    auto raw = make_float4(value.x, value.y, value.z, value.w);
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ClearVolume2Kernel(glm::vec4 value, uint3 volume_size)
@@ -56,8 +41,8 @@ __global__ void ClearVolume2Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    surf3Dwrite(make_float2(value.x, value.y), clear_volume, x * sizeof(float2),
-                y, z, cudaBoundaryModeTrap);
+    auto raw = make_float2(value.x, value.y);
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ClearVolume1Kernel(glm::vec4 value, uint3 volume_size)
@@ -69,7 +54,7 @@ __global__ void ClearVolume1Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    surf3Dwrite(value.x, clear_volume, x * sizeof(float), y, z,
+    surf3Dwrite(value.x, clear_volume, x * sizeof(value.x), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -82,11 +67,11 @@ __global__ void ClearVolumeHalf4Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    ushort4 raw = make_ushort4(__float2half_rn(value.x),
-                               __float2half_rn(value.y),
-                               __float2half_rn(value.z),
-                               __float2half_rn(value.w));
-    surf3Dwrite(raw, clear_volume, x * sizeof(ushort4), y, z,
+    auto raw = make_ushort4(__float2half_rn(value.x),
+                            __float2half_rn(value.y),
+                            __float2half_rn(value.z),
+                            __float2half_rn(value.w));
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -99,9 +84,9 @@ __global__ void ClearVolumeHalf2Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    ushort2 raw = make_ushort2(__float2half_rn(value.x),
-                               __float2half_rn(value.y));
-    surf3Dwrite(raw, clear_volume, x * sizeof(ushort2), y, z,
+    auto raw = make_ushort2(__float2half_rn(value.x),
+                            __float2half_rn(value.y));
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -114,8 +99,8 @@ __global__ void ClearVolumeHalf1Kernel(glm::vec4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    ushort1 raw = make_ushort1(__float2half_rn(value.x));
-    surf3Dwrite(raw, clear_volume, x * sizeof(ushort1), y, z,
+    auto raw = make_ushort1(__float2half_rn(value.x));
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
                 cudaBoundaryModeTrap);
 }
 
@@ -205,7 +190,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
 
         for (int j = 0; j < num_light_samples; j++) {
             float d = tex3D(raycast_density, l_pos.x, l_pos.y, l_pos.z);
-            light_weight *= 1.0f - step_absorption * d * occlusion_factor;
+            light_weight *= __expf(-step_absorption * d * occlusion_factor);
             if (light_weight <= 0.01f)
                 break;
 
@@ -217,19 +202,19 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             l_pos += light_dir;
         }
 
-        transmittance *= 1.0f - density * step_absorption;
+        transmittance *= __expf(-density * step_absorption);
         luminance += light_weight * transmittance * density;
 
         if (transmittance <= 0.01f)
             break;
     }
 
-    ushort4 raw = make_ushort4(
+    auto raw = make_ushort4(
         __float2half_rn(light_intensity.x * luminance * step_size),
         __float2half_rn(light_intensity.y * luminance * step_size),
         __float2half_rn(light_intensity.z * luminance * step_size),
         __float2half_rn(1.0f - transmittance));
-    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
 
@@ -292,11 +277,11 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             break;
     }
 
-    ushort4 raw = make_ushort4(__float2half_rn(light_intensity.x),
-                               __float2half_rn(light_intensity.y),
-                               __float2half_rn(light_intensity.z),
-                               __float2half_rn(1.0f - transmittance));
-    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+    auto raw = make_ushort4(__float2half_rn(light_intensity.x),
+                            __float2half_rn(light_intensity.y),
+                            __float2half_rn(light_intensity.z),
+                            __float2half_rn(1.0f - transmittance));
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
 
@@ -388,12 +373,12 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
     }
 
     float alpha = glm::max(0.0f, glm::min(luminance / 20.0f, 1.0f));
-    ushort4 raw = make_ushort4(
+    auto raw = make_ushort4(
         __float2half_rn(dark.x + (light_intensity.x * alpha + (1.0f - alpha) * smoke_color.x) * luminance * step_size),
         __float2half_rn(dark.y + (light_intensity.y * alpha + (1.0f - alpha) * smoke_color.y) * luminance * step_size),
         __float2half_rn(dark.z + (light_intensity.z * alpha + (1.0f - alpha) * smoke_color.z) * luminance * step_size),
         __float2half_rn(1.0f - transmittance));
-    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(ushort4),
+    surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
 

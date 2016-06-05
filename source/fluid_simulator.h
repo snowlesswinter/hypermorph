@@ -10,6 +10,7 @@
 class FluidUnittest;
 class GraphicsVolume;
 class MultigridCore;
+class OpenBoundaryMultigridPoissonSolver;
 class PoissonSolver;
 class FluidSimulator
 {
@@ -54,9 +55,8 @@ private:
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(double seconds_elapsed, float delta_time);
-    void ApplyVorticityConfinemnet();
-    void BuildVorticityConfinemnet(float delta_time);
-    void ComputeCurl();
+    void ComputeCurl(const GraphicsVolume3* vorticity,
+                     std::shared_ptr<GraphicsVolume> velocity);
     void ComputeDivergence();
     void ComputeResidualDiagnosis(float cell_size);
     void DampedJacobi(float cell_size, int num_of_iterations);
@@ -71,13 +71,26 @@ private:
     void SolvePressure();
     void SubtractGradient();
 
+    // Vorticity.
+    void AddCurlPsi();
+    void AdvectVortices(float delta_time);
+    void ApplyVorticityConfinemnet();
+    void BuildVorticityConfinemnet(float delta_time);
+    void ComputeDeltaVorticity();
+    void DecayVortices(float delta_time, float cell_size);
+    void RestoreVorticity(float delta_time);
+    void SolvePsi();
+    void StretchVortices(float delta_time, float cell_size);
+
     const GraphicsVolume3& GetVorticityField();
+    const GraphicsVolume3& GetAuxField();
     const GraphicsVolume3& GetVorticityConfinementField();
 
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;
-    std::unique_ptr<PoissonSolver> solver_;
+    std::unique_ptr<PoissonSolver> pressure_solver_;
+    std::unique_ptr<OpenBoundaryMultigridPoissonSolver> psi_solver_;
     int num_multigrid_iterations_;
     int num_full_multigrid_iterations_;
     int volume_byte_width_;
@@ -85,12 +98,15 @@ private:
 
     std::shared_ptr<GraphicsVolume> velocity_;
     GraphicsVolume3 vorticity_;
+    GraphicsVolume3 aux_;
     GraphicsVolume3 vort_conf_;
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> packed_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;
+    std::shared_ptr<GraphicsVolume> general1c_;
+    std::shared_ptr<GraphicsVolume> general1d_;
     std::shared_ptr<GraphicsVolume> general4a_;
     std::shared_ptr<GraphicsVolume> general4b_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;

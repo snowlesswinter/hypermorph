@@ -18,6 +18,7 @@ public:
         COMPUTE_DIVERGENCE,
         SOLVE_PRESSURE,
         RECTIFY_VELOCITY,
+        RESTORE_VORTICITY,
         PERFORM_RAYCAST,
         RENDER_DENSITY,
 
@@ -49,6 +50,7 @@ public:
     void OnDivergenceComputed();
     void OnPressureSolved();
     void OnVelocityRectified();
+    void OnVorticityRestored();
     void OnRaycastPerformed();
 
     void OnProlongated();

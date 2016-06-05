@@ -641,7 +641,7 @@ void RelaxRedBlackGaussSeidel2(cudaArray* unp1, cudaArray* un, cudaArray* b,
         return;
 
     auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
+                                    cudaAddressModeBorder); // Dirichlet
     if (bound_u.error() != cudaSuccess)
         return;
 

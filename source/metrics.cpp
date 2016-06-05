@@ -130,6 +130,11 @@ void Metrics::OnVelocityRectified()
     OnOperationProceeded(RECTIFY_VELOCITY);
 }
 
+void Metrics::OnVorticityRestored()
+{
+    OnOperationProceeded(RESTORE_VORTICITY);
+}
+
 void Metrics::OnRaycastPerformed()
 {
     OnOperationProceeded(PERFORM_RAYCAST);

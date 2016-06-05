@@ -12,6 +12,8 @@ private:
     typedef std::shared_ptr<GraphicsVolume> GraphicsVolume3::* BoolType;
 
 public:
+    static int num_of_volumes() { return num_of_volumes_; }
+
     explicit GraphicsVolume3(GraphicsLib graphics_lib);
     GraphicsVolume3(GraphicsVolume3&& obj);
     GraphicsVolume3(const std::shared_ptr<GraphicsVolume>& x,
@@ -32,6 +34,8 @@ public:
     operator BoolType() const;
 
 private:
+    static const int num_of_volumes_ = 3;
+
     GraphicsVolume3(const GraphicsVolume3&);
     GraphicsVolume3& operator=(const GraphicsVolume3&);
 
@@ -39,7 +43,7 @@ private:
     std::shared_ptr<GraphicsVolume> x_;
     std::shared_ptr<GraphicsVolume> y_;
     std::shared_ptr<GraphicsVolume> z_;
-    std::array<std::shared_ptr<GraphicsVolume>*, 3> v_;
+    std::array<std::shared_ptr<GraphicsVolume>*, num_of_volumes_> v_;
 };
 
 #endif // _GRAPHICS_VOLUME_GROUP_H_
