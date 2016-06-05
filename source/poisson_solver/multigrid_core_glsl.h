@@ -19,9 +19,6 @@ public:
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
 
-    virtual void ComputeResidual(const GraphicsVolume& packed,
-                                 const GraphicsVolume& residual,
-                                 float cell_size) override;
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b,
@@ -29,32 +26,15 @@ public:
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) override;
 
-    // ProlongateAndRelax() is deprecated. Though it seems to be a bit useful
-    // that saving one time texture fetch, it still need to read the texture in
-    // prolong-and-add operation. So the advantage of fetch-saving would be
-    // trivial if we sum all things up.
-    virtual void ProlongatePacked(const GraphicsVolume& coarse,
-                                  const GraphicsVolume& fine) override;
     virtual void ProlongateResidual(const GraphicsVolume& fine,
                                     const GraphicsVolume& coarse) override;
-    virtual void ProlongateResidualPacked(const GraphicsVolume& coarse,
-                                          const GraphicsVolume& fine) override;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                        float cell_size, int num_of_iterations) override;
-    virtual void RelaxWithZeroGuessAndComputeResidual(
-        const GraphicsVolume& packed_volumes, float cell_size,
-        int times) override;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,
                                     const GraphicsVolume& b,
                                     float cell_size) override;
-    virtual void RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
-                                          float cell_size) override;
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) override;
-    virtual void RestrictPacked(const GraphicsVolume& fine,
-                                const GraphicsVolume& coarse) override;
-    virtual void RestrictResidualPacked(const GraphicsVolume& fine,
-                                        const GraphicsVolume& coarse) override;
 
 private:
     GLProgram* GetProlongatePackedProgram();

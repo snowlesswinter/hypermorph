@@ -531,7 +531,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
     float inverse_h_square = 1.0f / (cell_size * cell_size);
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ComputeResidualPackedDiagnosis(
+        CudaMain::Instance()->ComputeResidualDiagnosis(
             diagnosis_volume_->cuda_volume(), pressure_->cuda_volume(),
             general1a_->cuda_volume(), inverse_h_square);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
@@ -741,6 +741,19 @@ void FluidSimulator::SolvePressure()
                                              pressure_->GetDepth(),
                                              volume_byte_width_);
             }
+
+            // The reason why the prolongation in FMG taking the last result 
+            // into account would produce a better solution remains a mystery.
+            // Recently I found that in a new time step the pressure must be
+            // reinitialized to 0 before iteration, or the FMG is going to
+            // blow the velocity. This would kind of reveal that the current
+            // prolongation scheme is not providing an accurate answer(go to
+            // chaos when the iteration times is set to above 3).
+            //
+            // Also note that, the result of the first iteration in the V-cycle
+            // is the error of the 0 guess.
+
+            pressure_->Clear();
 
             // Chaos occurs if the iteration times is set to a value above 2.
             for (int i = 0; i < num_full_multigrid_iterations_; i++)

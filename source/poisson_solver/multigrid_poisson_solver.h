@@ -25,9 +25,6 @@ public:
         num_finest_level_iteration_per_pass_ = n;
     }
 
-    // TODO
-    void Diagnose(GraphicsVolume* packed);
-
 private:
     void SolveOpt(std::shared_ptr<GraphicsVolume> u,
                   std::shared_ptr<GraphicsVolume> b, float cell_size,

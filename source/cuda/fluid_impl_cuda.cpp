@@ -96,10 +96,9 @@ extern void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                              cudaArray* velocity_array,
                                              float inverse_cell_size,
                                              uint3 volume_size);
-extern void LaunchComputeResidualPackedDiagnosis(cudaArray* residual,
-                                                 cudaArray* u, cudaArray* b,
-                                                 float inverse_h_square,
-                                                 uint3 volume_size);
+extern void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
+                                           cudaArray* b, float inverse_h_square,
+                                           uint3 volume_size);
 extern void LaunchGenerateHeatSphere(cudaArray* dest, cudaArray* original,
                                      float3 center_point, float radius,
                                      float3 value, uint3 volume_size,
@@ -115,12 +114,11 @@ extern void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b,
                         float cell_size, int num_of_iterations,
                         uint3 volume_size, BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
-extern void LaunchSubtractGradient(cudaArray* dest_array,
-                                   cudaArray* packed_array,
+extern void LaunchSubtractGradient(cudaArray* velocity, cudaArray* pressure,
                                    float half_inverse_cell_size,
                                    uint3 volume_size, BlockArrangement* ba);
-extern void LaunchSubtractGradientStaggered(cudaArray* dest_array,
-                                            cudaArray* packed_array,
+extern void LaunchSubtractGradientStaggered(cudaArray* velocity,
+                                            cudaArray* pressure,
                                             float inverse_cell_size,
                                             uint3 volume_size,
                                             BlockArrangement* ba);
@@ -364,12 +362,13 @@ void FluidImplCuda::ComputeDivergence(cudaArray* dest, cudaArray* velocity,
                                 FromGlmVector(volume_size));
 }
 
-void FluidImplCuda::ComputeResidualPackedDiagnosis(
-    cudaArray* residual, cudaArray* u, cudaArray* b, float inverse_h_square,
-    const glm::ivec3& volume_size)
+void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
+                                             cudaArray* b,
+                                             float inverse_h_square,
+                                             const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualPackedDiagnosis(residual, u, b, inverse_h_square,
-                                         FromGlmVector(volume_size));
+    LaunchComputeResidualDiagnosis(residual, u, b, inverse_h_square,
+                                   FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
@@ -396,16 +395,16 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
             radius, make_float3(value, 0, 0), FromGlmVector(volume_size));
 }
 
-void FluidImplCuda::SubtractGradient(cudaArray* dest, cudaArray* packed,
+void FluidImplCuda::SubtractGradient(cudaArray* velocity, cudaArray* pressure,
                                      float half_inverse_cell_size,
                                      const glm::ivec3& volume_size)
 {
     if (staggered_)
-        LaunchSubtractGradientStaggered(dest, packed,
+        LaunchSubtractGradientStaggered(velocity, pressure,
                                         2.0f * half_inverse_cell_size,
                                         FromGlmVector(volume_size), ba_);
     else
-        LaunchSubtractGradient(dest, packed, half_inverse_cell_size,
+        LaunchSubtractGradient(velocity, pressure, half_inverse_cell_size,
                                FromGlmVector(volume_size), ba_);
 }
 

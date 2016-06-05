@@ -34,10 +34,10 @@ void MultigridUnittest::TestProlongation(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.ProlongatePacked(cuda_coarse, cuda_fine);
+    cuda_core.Prolongate(cuda_coarse, cuda_fine);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.ProlongatePacked(glsl_coarse, glsl_fine);
+    glsl_core.Prolongate(glsl_coarse, glsl_fine);
 
     int pitch_fine = cuda_fine.GetWidth() * sizeof(uint16_t) * n;
     int size_fine = pitch_fine * cuda_fine.GetHeight() *
@@ -77,10 +77,12 @@ void MultigridUnittest::TestResidualCalculation(int random_seed)
                                       std::make_pair(-2.0f, 2.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.ComputeResidual(cuda_volume, cuda_residual, CellSize);
+    cuda_core.ComputeResidual(cuda_volume, cuda_volume, cuda_residual,
+                              CellSize);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.ComputeResidual(glsl_volume, glsl_residual, CellSize);
+    glsl_core.ComputeResidual(glsl_volume, glsl_volume, glsl_residual,
+                              CellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size_1,
                                            pitch_1, n_1, 1, &cuda_residual,
@@ -115,10 +117,10 @@ void MultigridUnittest::TestResidualRestriction(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.RestrictResidualPacked(cuda_fine, cuda_coarse);
+    cuda_core.Restrict(cuda_fine, cuda_coarse);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.RestrictResidualPacked(glsl_fine, glsl_coarse);
+    glsl_core.Restrict(glsl_fine, glsl_coarse);
 
     int pitch_coarse = cuda_coarse.GetWidth() * sizeof(uint16_t) * n_2;
     int size_coarse = pitch_coarse * cuda_coarse.GetHeight() *
@@ -155,10 +157,10 @@ void MultigridUnittest::TestRestriction(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.RestrictPacked(cuda_fine, cuda_coarse);
+    cuda_core.Restrict(cuda_fine, cuda_coarse);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.RestrictPacked(glsl_fine, glsl_coarse);
+    glsl_core.Restrict(glsl_fine, glsl_coarse);
 
     int pitch_coarse = cuda_coarse.GetWidth() * sizeof(uint16_t) * n;
     int size_coarse = pitch_coarse * cuda_coarse.GetHeight() *
@@ -191,10 +193,10 @@ void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.RelaxWithZeroGuessPacked(cuda_volume, CellSize);
+    cuda_core.RelaxWithZeroGuess(cuda_volume, cuda_volume, CellSize);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.RelaxWithZeroGuessPacked(glsl_volume, CellSize);
+    glsl_core.RelaxWithZeroGuess(glsl_volume, glsl_volume, CellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, &cuda_volume, &glsl_volume,

@@ -156,8 +156,8 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ComputeResidualPackedDiagnosisKernel(float inverse_h_square,
-                                                     uint3 volume_size)
+__global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
+                                               uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -411,10 +411,9 @@ void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
                                                       volume_size);
 }
 
-void LaunchComputeResidualPackedDiagnosis(cudaArray* residual,
-                                          cudaArray* u, cudaArray* b,
-                                          float inverse_h_square,
-                                          uint3 volume_size)
+void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
+                                    cudaArray* b, float inverse_h_square,
+                                    uint3 volume_size)
 {
     if (BindCudaSurfaceToArray(&surf, residual) != cudaSuccess)
         return;
@@ -432,8 +431,8 @@ void LaunchComputeResidualPackedDiagnosis(cudaArray* residual,
     dim3 block(8, 8, volume_size.x / 8);
     dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
               volume_size.z / block.z);
-    ComputeResidualPackedDiagnosisKernel<<<grid, block>>>(inverse_h_square,
-                                                          volume_size);
+    ComputeResidualDiagnosisKernel<<<grid, block>>>(inverse_h_square,
+                                                    volume_size);
 }
 
 void LaunchRoundPassed(int* dest_array, int round, int x)
@@ -441,20 +440,20 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
-void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
+void LaunchSubtractGradient(cudaArray* velocity, cudaArray* pressure,
                             float half_inverse_cell_size, uint3 volume_size,
                             BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, velocity) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
+    auto bound_vel = BindHelper::Bind(&gradient_velocity, velocity,
                                       false, cudaFilterModePoint,
                                       cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, packed_array, false,
+    auto bound = BindHelper::Bind(&tex, pressure, false,
                                   cudaFilterModePoint, cudaAddressModeClamp);
     if (bound.error() != cudaSuccess)
         return;
@@ -466,22 +465,21 @@ void LaunchSubtractGradient(cudaArray* dest_array, cudaArray* packed_array,
                                             volume_size);
 }
 
-void LaunchSubtractGradientStaggered(cudaArray* dest_array,
-                                     cudaArray* packed_array,
+void LaunchSubtractGradientStaggered(cudaArray* velocity, cudaArray* pressure,
                                      float inverse_cell_size, uint3 volume_size,
                                      BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, velocity) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&gradient_velocity, dest_array,
+    auto bound_vel = BindHelper::Bind(&gradient_velocity, velocity,
                                       false, cudaFilterModeLinear,
                                       cudaAddressModeClamp);
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, packed_array, false,
-                                  cudaFilterModeLinear, cudaAddressModeClamp);
+    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModeLinear,
+                                  cudaAddressModeClamp);
     if (bound.error() != cudaSuccess)
         return;
 

@@ -245,14 +245,14 @@ void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> dest,
                                    half_inverse_cell_size, dest->size());
 }
 
-void CudaMain::ComputeResidualPackedDiagnosis(
-    std::shared_ptr<CudaVolume> residual, std::shared_ptr<CudaVolume> u,
-    std::shared_ptr<CudaVolume> b, float inverse_h_square)
+void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
+                                        std::shared_ptr<CudaVolume> u,
+                                        std::shared_ptr<CudaVolume> b,
+                                        float inverse_h_square)
 {
-    fluid_impl_->ComputeResidualPackedDiagnosis(residual->dev_array(),
-                                                u->dev_array(), b->dev_array(),
-                                                inverse_h_square,
-                                                residual->size());
+    fluid_impl_->ComputeResidualDiagnosis(residual->dev_array(), u->dev_array(),
+                                          b->dev_array(), inverse_h_square,
+                                          residual->size());
 
     // =========================================================================
     int w = residual->width();
@@ -308,14 +308,14 @@ void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
                                value, density->size());
 }
 
-void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> dest,
-                                std::shared_ptr<CudaVolume> packed,
+void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> velocity,
+                                std::shared_ptr<CudaVolume> pressure,
                                 float half_inverse_cell_size)
 {
     // NOTE: The pressure's volume size should be used instead of the
     //       velocity's.
-    fluid_impl_->SubtractGradient(dest->dev_array(), packed->dev_array(),
-                                  half_inverse_cell_size, packed->size());
+    fluid_impl_->SubtractGradient(velocity->dev_array(), pressure->dev_array(),
+                                  half_inverse_cell_size, pressure->size());
 }
 
 void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
@@ -326,30 +326,11 @@ void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
                                      b->dev_array(), cell_size, r->size());
 }
 
-void CudaMain::ComputeResidualPacked(std::shared_ptr<CudaVolume> dest,
-                                     std::shared_ptr<CudaVolume> packed,
-                                     float inverse_h_square)
-{
-    multigrid_impl_->ComputeResidualPacked(dest->dev_array(),
-                                           packed->dev_array(),
-                                           inverse_h_square, dest->size());
-}
-
 void CudaMain::Prolongate(std::shared_ptr<CudaVolume> fine,
                           std::shared_ptr<CudaVolume> coarse)
 {
     multigrid_impl_->Prolongate(fine->dev_array(), coarse->dev_array(),
                                 fine->size());
-}
-
-void CudaMain::ProlongatePacked(std::shared_ptr<CudaVolume> coarse,
-                                    std::shared_ptr<CudaVolume> fine,
-                                    float overlay)
-{
-    multigrid_impl_->ProlongatePacked(fine->dev_array(),
-                                      coarse->dev_array(),
-                                      fine->dev_array(), overlay,
-                                      fine->size());
 }
 
 void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
@@ -360,40 +341,11 @@ void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
                                         cell_size, u->size());
 }
 
-void CudaMain::RelaxWithZeroGuessPacked(std::shared_ptr<CudaVolume> dest,
-                                        std::shared_ptr<CudaVolume> packed,
-                                        float alpha_omega_over_beta,
-                                        float one_minus_omega,
-                                        float minus_h_square,
-                                        float omega_times_inverse_beta)
-{
-    multigrid_impl_->RelaxWithZeroGuessPacked(dest->dev_array(),
-                                              packed->dev_array(),
-                                              alpha_omega_over_beta,
-                                              one_minus_omega, minus_h_square,
-                                              omega_times_inverse_beta,
-                                              dest->size());
-}
-
 void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
                         std::shared_ptr<CudaVolume> fine)
 {
     multigrid_impl_->Restrict(coarse->dev_array(), fine->dev_array(),
                               coarse->size());
-}
-
-void CudaMain::RestrictPacked(std::shared_ptr<CudaVolume> coarse,
-                              std::shared_ptr<CudaVolume> fine)
-{
-    multigrid_impl_->RestrictPacked(coarse->dev_array(), fine->dev_array(),
-                                    coarse->size());
-}
-
-void CudaMain::RestrictResidualPacked(std::shared_ptr<CudaVolume> coarse,
-                                      std::shared_ptr<CudaVolume> fine)
-{
-    multigrid_impl_->RestrictResidualPacked(coarse->dev_array(),
-                                            fine->dev_array(), coarse->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> velocity,

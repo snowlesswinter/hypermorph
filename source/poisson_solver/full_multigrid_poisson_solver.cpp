@@ -76,7 +76,7 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
     // With less iterations in each level but more iterating in every V-Cycle
     // will out perform the case visa versa(less time cost, lower avg/max |r|),
     // especially in high divergence cases.
-    solver_->set_num_finest_level_iteration_per_pass(3);
+    solver_->set_num_finest_level_iteration_per_pass(2);
     volume_resource_[0] = std::make_pair(u, b);
 
     const int num_of_levels = static_cast<int>(volume_resource_.size());
@@ -84,13 +84,17 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
         VolumePair fine_volume = volume_resource_[i];
         VolumePair coarse_volume = volume_resource_[i + 1];
 
+        core_->Relax(*fine_volume.first, *fine_volume.second, cell_size, 1);
+
         core_->Restrict(*coarse_volume.first, *fine_volume.first);
-        core_->Restrict(*coarse_volume.second, *fine_volume.second);
+
+        if (as_precondition)
+            core_->Restrict(*coarse_volume.second, *fine_volume.second);
     }
 
     VolumePair coarsest = volume_resource_[num_of_levels - 1];
-    if (as_precondition)
-        core_->RelaxWithZeroGuess(*coarsest.first, *coarsest.second, cell_size);
+    //if (as_precondition)
+    //    core_->RelaxWithZeroGuess(*coarsest.first, *coarsest.second, cell_size);
 
     core_->Relax(*coarsest.first, *coarsest.second, cell_size, 16);
 
@@ -111,14 +115,11 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
         // a base relaxation times of 5, Multigrid had achieved a notable
         // lower avg/max |r| compared to Jacobi in our experiments.
 
-        //Relax(fine_volume.first, fine_volume.second, cell_size, 15);
+        //core_->Relax(*fine_volume.first, *fine_volume.second, cell_size, 15);
 
         // Experiments revealed that iterations in different levels almost
         // equally contribute to the final result, thus we are not going to
         // reduce the iteration times in coarsen level.
         times_to_iterate += 0;
     }
-
-//     if (!as_precondition)
-//         core_->Diagnose(t.get());
 }

@@ -1,11 +1,11 @@
 graphics library = cuda
-poisson method = full multigrid
+poisson method = fmg
 advection method = mcsl
 ambient temperature = 0
 smoke buoyancy = 1
 smoke weight = 0.1
 
-impulse temperature = 7
+impulse temperature = 5
 impulse density = 0.4
 
 temperature dissipation = 0.1
@@ -25,7 +25,16 @@ num raycast light samples = 90
 light absorption = 10
 raycast density factor = 40
 raycast occlusion factor = 16
-time stretch = 16
-vorticity confinement = 0.1
+time stretch = 5
+vorticity confinement = -0.12
 
+impulse temperature = 0
+velocity dissipation = 0.
+impulse density = 0
+density dissipation = 0.0
+fixed time step = 0.3
+splat radius factor = 0.25
 
+fixed time step = 0.1
+impulse temperature = 5
+impulse density = 2

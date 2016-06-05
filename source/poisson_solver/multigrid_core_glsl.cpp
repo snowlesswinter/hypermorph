@@ -51,8 +51,9 @@ std::shared_ptr<GraphicsVolume3> MultigridCoreGlsl::CreateVolumeGroup(
     return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
 }
 
-void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
-                                        const GraphicsVolume& residual,
+void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
+                                        const GraphicsVolume& u,
+                                        const GraphicsVolume& b,
                                         float cell_size)
 {
     GetResidualPackedProgram()->Use();
@@ -60,30 +61,16 @@ void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& packed,
     SetUniform("packed_tex", 0);
     SetUniform("inverse_h_square", 1.0f / (cell_size * cell_size));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, residual.gl_volume()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, r.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.gl_volume()->texture_handle());
+    glBindTexture(GL_TEXTURE_3D, u.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          residual.gl_volume()->depth());
+                          u.gl_volume()->depth());
     ResetState();
-}
-
-void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
-                                        const GraphicsVolume& u,
-                                        const GraphicsVolume& b,
-                                        float cell_size)
-{
-
 }
 
 void MultigridCoreGlsl::Prolongate(const GraphicsVolume& fine,
                                    const GraphicsVolume& coarse)
-{
-
-}
-
-void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
-                                         const GraphicsVolume& fine)
 {
     GetProlongatePackedProgram()->Use();
 
@@ -105,12 +92,6 @@ void MultigridCoreGlsl::ProlongatePacked(const GraphicsVolume& coarse,
 
 void MultigridCoreGlsl::ProlongateResidual(const GraphicsVolume& fine,
                                            const GraphicsVolume& coarse)
-{
-
-}
-
-void MultigridCoreGlsl::ProlongateResidualPacked(const GraphicsVolume& coarse,
-                                                 const GraphicsVolume& fine)
 {
     GetProlongatePackedProgram()->Use();
 
@@ -150,21 +131,9 @@ void MultigridCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
     }
 }
 
-void MultigridCoreGlsl::RelaxWithZeroGuessAndComputeResidual(
-    const GraphicsVolume& packed_volumes, float cell_size, int times)
-{
-    // Just wait and see how the profiler tells us.
-}
-
 void MultigridCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
                                            const GraphicsVolume& b,
                                            float cell_size)
-{
-
-}
-
-void MultigridCoreGlsl::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
-                                                 float cell_size)
 {
     GetRelaxZeroGuessPackedProgram()->Use();
 
@@ -175,40 +144,18 @@ void MultigridCoreGlsl::RelaxWithZeroGuessPacked(const GraphicsVolume& packed,
     SetUniform("minus_h_square", -(cell_size * cell_size));
     SetUniform("omega_times_inverse_beta", 0.11111111f);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, packed.gl_volume()->frame_buffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, u.gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, packed.gl_volume()->texture_handle());
+    glBindTexture(GL_TEXTURE_3D, u.gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          packed.gl_volume()->depth());
+                          u.gl_volume()->depth());
     ResetState();
 }
 
 void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
                                  const GraphicsVolume& fine)
 {
-
-}
-
-void MultigridCoreGlsl::RestrictPacked(const GraphicsVolume& fine,
-                                       const GraphicsVolume& coarse)
-{
     GetRestrictPackedProgram()->Use();
-
-    SetUniform("s", 0);
-    SetUniform("inverse_size", CalculateInverseSize(*fine.gl_volume()));
-
-    glBindFramebuffer(GL_FRAMEBUFFER, coarse.gl_volume()->frame_buffer());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, fine.gl_volume()->texture_handle());
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                          coarse.gl_volume()->depth());
-    ResetState();
-}
-
-void MultigridCoreGlsl::RestrictResidualPacked(const GraphicsVolume& fine,
-                                               const GraphicsVolume& coarse)
-{
-    GetRestrictResidualPackedProgram()->Use();
 
     SetUniform("s", 0);
     SetUniform("inverse_size", CalculateInverseSize(*fine.gl_volume()));
