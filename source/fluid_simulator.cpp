@@ -52,6 +52,7 @@ FluidSimulator::FluidSimulator()
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_()
+    , velocity2_(GRAPHICS_LIB_CUDA)
     , vorticity_(GRAPHICS_LIB_CUDA)
     , aux_(GRAPHICS_LIB_CUDA)
     , vort_conf_(GRAPHICS_LIB_CUDA)
@@ -107,6 +108,12 @@ bool FluidSimulator::Init()
         return false;
 
     result = velocity_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
+                               2);
+    assert(result);
+    if (!result)
+        return false;
+
+    result = velocity2_.Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 1,
                                2);
     assert(result);
     if (!result)
@@ -201,6 +208,12 @@ void FluidSimulator::Reset()
     general1d_->Clear();
     general4a_->Clear();
     general4b_->Clear();
+
+    if (velocity2_) {
+        velocity2_.x()->Clear();
+        velocity2_.y()->Clear();
+        velocity2_.z()->Clear();
+    }
 
     if (vorticity_) {
         vorticity_.x()->Clear();
@@ -380,6 +393,16 @@ void FluidSimulator::AdvectVelocity(float delta_time)
                                              general4b_->cuda_volume(),
                                              delta_time, delta_time,
                                              velocity_dissipation, method);
+        CudaMain::Instance()->AdvectVelocity(general1a_->cuda_volume(),
+                                             general1b_->cuda_volume(),
+                                             general1c_->cuda_volume(),
+                                             velocity2_.x()->cuda_volume(),
+                                             velocity2_.y()->cuda_volume(),
+                                             velocity2_.z()->cuda_volume(),
+                                             general4b_->cuda_volume(),
+                                             delta_time, velocity_dissipation,
+                                             method);
+        velocity2_.Swap(GraphicsVolume3(general1a_, general1b_, general1c_));
     } else {
         glUseProgram(Programs.Advect);
 

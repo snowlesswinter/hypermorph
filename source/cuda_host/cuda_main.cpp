@@ -140,6 +140,26 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> dest,
                                 ToCudaAdvectionMethod(method));
 }
 
+void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
+                              std::shared_ptr<CudaVolume> vnp1_y,
+                              std::shared_ptr<CudaVolume> vnp1_z,
+                              std::shared_ptr<CudaVolume> vn_x,
+                              std::shared_ptr<CudaVolume> vn_y,
+                              std::shared_ptr<CudaVolume> vn_z,
+                              std::shared_ptr<CudaVolume> aux, float time_step,
+                              float dissipation, AdvectionMethod method)
+{
+    fluid_impl_->AdvectVectorFields(vnp1_x->dev_array(), vnp1_y->dev_array(),
+                                    vnp1_z->dev_array(), vn_x->dev_array(),
+                                    vn_y->dev_array(), vn_z->dev_array(),
+                                    aux->dev_array(), vn_x->dev_array(),
+                                    vn_y->dev_array(), vn_z->dev_array(),
+                                    time_step, dissipation,
+                                    vnp1_x->size() - size_tweak,
+                                    FluidImplCuda::VECTOR_FIELD_VORTICITY,
+                                    ToCudaAdvectionMethod(method));
+}
+
 void CudaMain::AdvectVorticityFields(std::shared_ptr<CudaVolume> fnp1_x,
                                      std::shared_ptr<CudaVolume> fnp1_y,
                                      std::shared_ptr<CudaVolume> fnp1_z,
@@ -150,11 +170,11 @@ void CudaMain::AdvectVorticityFields(std::shared_ptr<CudaVolume> fnp1_x,
                                      std::shared_ptr<CudaVolume> velocity,
                                      float time_step, float dissipation)
 {
-    fluid_impl_->AdvectVorticityFields(fnp1_x->dev_array(), fnp1_y->dev_array(),
-                                       fnp1_z->dev_array(), fn_x->dev_array(),
-                                       fn_y->dev_array(), fn_z->dev_array(),
-                                       aux->dev_array(), velocity->dev_array(),
-                                       time_step, dissipation, fnp1_x->size());
+    fluid_impl_->AdvectVectorFields(fnp1_x->dev_array(), fnp1_y->dev_array(),
+                                    fnp1_z->dev_array(), fn_x->dev_array(),
+                                    fn_y->dev_array(), fn_z->dev_array(),
+                                    aux->dev_array(), velocity->dev_array(),
+                                    time_step, dissipation, fnp1_x->size());
 }
 
 void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,

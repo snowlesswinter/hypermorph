@@ -96,6 +96,7 @@ private:
     bool diagnosis_;
 
     std::shared_ptr<GraphicsVolume> velocity_;
+    GraphicsVolume3 velocity2_;
     GraphicsVolume3 vorticity_;
     GraphicsVolume3 aux_;
     GraphicsVolume3 vort_conf_;

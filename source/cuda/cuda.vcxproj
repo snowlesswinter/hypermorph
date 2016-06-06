@@ -211,6 +211,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="field_offset.h" />
     <ClInclude Include="fluid_impl_cuda.h" />
     <ClInclude Include="graphics_resource.h" />
+    <ClInclude Include="kernel_launcher.h" />
     <ClInclude Include="multigrid_impl_cuda.h" />
   </ItemGroup>
   <ItemGroup>

@@ -52,6 +52,15 @@ public:
                         std::shared_ptr<CudaVolume> velocity_prev,
                         float time_step, float time_step_prev,
                         float dissipation, AdvectionMethod method);
+    void AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
+                        std::shared_ptr<CudaVolume> vnp1_y,
+                        std::shared_ptr<CudaVolume> vnp1_z,
+                        std::shared_ptr<CudaVolume> vn_x,
+                        std::shared_ptr<CudaVolume> vn_y,
+                        std::shared_ptr<CudaVolume> vn_z,
+                        std::shared_ptr<CudaVolume> aux,
+                        float time_step, float dissipation,
+                        AdvectionMethod method);
     void AdvectVorticityFields(std::shared_ptr<CudaVolume> fnp1_x,
                                std::shared_ptr<CudaVolume> fnp1_y,
                                std::shared_ptr<CudaVolume> fnp1_z,

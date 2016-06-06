@@ -14,6 +14,12 @@ class GraphicsResource;
 class FluidImplCuda
 {
 public:
+    enum VectorField
+    {
+        VECTOR_FIELD_VELOCITY,
+        VECTOR_FIELD_VORTICITY,
+    };
+
     explicit FluidImplCuda(BlockArrangement* ba);
     ~FluidImplCuda();
 
@@ -29,12 +35,17 @@ public:
                       cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux,
                       cudaArray* velocity, float time_step, float dissipation,
                       const glm::ivec3& volume_size);
-    void AdvectVorticityFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                               cudaArray* fnp1_z, cudaArray* fn_x,
-                               cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux,
-                               cudaArray* velocity, float time_step,
-                               float dissipation,
-                               const glm::ivec3& volume_size);
+    void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                            cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
+                            cudaArray* fn_z, cudaArray* aux,
+                            cudaArray* velocity, float time_step,
+                            float dissipation, const glm::ivec3& volume_size);
+    void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                            cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
+                            cudaArray* fn_z, cudaArray* aux, cudaArray* vel_x,
+                            cudaArray* vel_y, cudaArray* vel_z, float time_step,
+                            float dissipation, const glm::ivec3& volume_size,
+                            VectorField field, AdvectionMethod method);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
                         cudaArray* velocity_prev, float time_step,
                         float time_step_prev, float dissipation,
