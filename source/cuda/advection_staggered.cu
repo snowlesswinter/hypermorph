@@ -894,14 +894,12 @@ __global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel2(
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-void AdvectFieldsMacCormackStaggeredOffset(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                                           cudaArray* fnp1_z, cudaArray* fn_x,
-                                           cudaArray* fn_y, cudaArray* fn_z,
-                                           float3 offset_x, float3 offset_y,
-                                           float3 offset_z, cudaArray* aux,
+void AdvectFieldsMacCormackStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
+                                           float3* offset, int num_of_fields,
                                            cudaArray* vel_x, cudaArray* vel_y,
-                                           cudaArray* vel_z, float time_step,
-                                           float dissipation, uint3 volume_size,
+                                           cudaArray* vel_z, cudaArray* aux,
+                                           float time_step, float dissipation,
+                                           uint3 volume_size,
                                            BlockArrangement* ba)
 {
     auto bound_vx = BindHelper::Bind(&tex_vx, vel_x, false,
@@ -922,10 +920,6 @@ void AdvectFieldsMacCormackStaggeredOffset(cudaArray* fnp1_x, cudaArray* fnp1_y,
     if (bound_vz.error() != cudaSuccess)
         return;
 
-    cudaArray* fnp1[] = {fnp1_x, fnp1_y, fnp1_z};
-    cudaArray* fn[] = {fn_x, fn_y, fn_z};
-    float3 offset[] = {-offset_x, -offset_y, -offset_z};
-    int num_of_fields = sizeof(fnp1) / sizeof(fnp1[0]);
     for (int i = 0; i < num_of_fields; i++) {
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
@@ -964,16 +958,37 @@ void AdvectFieldsMacCormackStaggeredOffset(cudaArray* fnp1_x, cudaArray* fnp1_y,
 void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                    cudaArray* fnp1_z, cudaArray* fn_x,
                                    cudaArray* fn_y, cudaArray* fn_z,
-                                   cudaArray* aux, cudaArray* vel_x,
-                                   cudaArray* vel_y, cudaArray* vel_z,
+                                   cudaArray* vel_x, cudaArray* vel_y,
+                                   cudaArray* vel_z, cudaArray* aux,
                                    float time_step, float dissipation,
-                                   uint3 volume_size, BlockArrangement* ba,
-                                   AdvectionMethod method)
+                                   AdvectionMethod method,
+                                   uint3 volume_size, BlockArrangement* ba)
 {
-    AdvectFieldsMacCormackStaggeredOffset(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
-                                          fn_z, GetOffsetVelocityField(0),
-                                          GetOffsetVelocityField(1),
-                                          GetOffsetVelocityField(2), aux,
-                                          vel_x, vel_y, vel_z, time_step,
+    cudaArray* fnp1s[] = {fnp1_x, fnp1_y, fnp1_z};
+    cudaArray* fns[] = {fn_x, fn_y, fn_z};
+    float3 offsets[] = {
+        -GetOffsetVelocityField(0),
+        -GetOffsetVelocityField(1),
+        -GetOffsetVelocityField(2)
+    };
+    int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
+    AdvectFieldsMacCormackStaggeredOffset(fnp1s, fns, offsets, num_of_fields,
+                                          vel_x, vel_y, vel_z, aux, time_step,
+                                          dissipation, volume_size, ba);
+}
+
+void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
+                                      cudaArray* vel_x, cudaArray* vel_y,
+                                      cudaArray* vel_z, cudaArray* aux,
+                                      float time_step, float dissipation,
+                                      AdvectionMethod method,
+                                      uint3 volume_size, BlockArrangement* ba)
+{
+    cudaArray* fnp1s[] = {fnp1};
+    cudaArray* fns[] = {fn};
+    float3 offsets[] = {make_float3(0.0f)};
+    int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
+    AdvectFieldsMacCormackStaggeredOffset(fnp1s, fns, offsets, num_of_fields,
+                                          vel_x, vel_y, vel_z, aux, time_step,
                                           dissipation, volume_size, ba);
 }

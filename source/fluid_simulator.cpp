@@ -325,14 +325,13 @@ void FluidSimulator::AdvectDensity(float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::AdvectionMethod method =
-            FluidConfig::Instance()->advection_method();
-        CudaMain::Instance()->AdvectDensity(general1a_->cuda_volume(),
-                                            velocity_->cuda_volume(),
-                                            density_->cuda_volume(),
-                                            general1b_->cuda_volume(),
-                                            delta_time, density_dissipation,
-                                            method);
+        CudaMain::Instance()->AdvectField(general1a_->cuda_volume(),
+                                          density_->cuda_volume(),
+                                          velocity2_.x()->cuda_volume(),
+                                          velocity2_.y()->cuda_volume(),
+                                          velocity2_.z()->cuda_volume(),
+                                          general1b_->cuda_volume(), delta_time,
+                                          density_dissipation);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
     }
@@ -366,14 +365,13 @@ void FluidSimulator::AdvectTemperature(float delta_time)
     float temperature_dissipation =
         FluidConfig::Instance()->temperature_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::AdvectionMethod method =
-            FluidConfig::Instance()->advection_method();
-        CudaMain::Instance()->Advect(general1a_->cuda_volume(),
-                                     velocity_->cuda_volume(),
-                                     temperature_->cuda_volume(),
-                                     general1b_->cuda_volume(),
-                                     delta_time, temperature_dissipation,
-                                     method);
+        CudaMain::Instance()->AdvectField(general1a_->cuda_volume(),
+                                          temperature_->cuda_volume(),
+                                          velocity2_.x()->cuda_volume(),
+                                          velocity2_.y()->cuda_volume(),
+                                          velocity2_.z()->cuda_volume(),
+                                          general1b_->cuda_volume(), delta_time,
+                                          temperature_dissipation);
     } else {
         AdvectImpl(temperature_, delta_time, temperature_dissipation);
     }
@@ -388,11 +386,6 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::AdvectionMethod method =
             FluidConfig::Instance()->advection_method();
-        CudaMain::Instance()->AdvectVelocity(general4a_->cuda_volume(),
-                                             velocity_->cuda_volume(),
-                                             general4b_->cuda_volume(),
-                                             delta_time, delta_time,
-                                             velocity_dissipation, method);
         CudaMain::Instance()->AdvectVelocity(general1a_->cuda_volume(),
                                              general1b_->cuda_volume(),
                                              general1c_->cuda_volume(),
@@ -422,9 +415,10 @@ void FluidSimulator::AdvectVelocity(float delta_time)
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               general4a_->gl_volume()->depth());
         ResetState();
+
+        std::swap(velocity_, general4a_);
     }
 
-    std::swap(velocity_, general4a_);
 }
 
 void FluidSimulator::ApplyBuoyancy(float delta_time)
@@ -432,8 +426,9 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
     float smoke_weight = FluidConfig::Instance()->smoke_weight();
     float ambient_temperature = FluidConfig::Instance()->ambient_temperature();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyBuoyancy(general4a_->cuda_volume(),
-                                            velocity_->cuda_volume(),
+        CudaMain::Instance()->ApplyBuoyancy(velocity2_.x()->cuda_volume(),
+                                            velocity2_.y()->cuda_volume(),
+                                            velocity2_.z()->cuda_volume(),
                                             temperature_->cuda_volume(),
                                             density_->cuda_volume(), delta_time,
                                             ambient_temperature,
@@ -457,9 +452,10 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               general4a_->gl_volume()->depth());
         ResetState();
+
+        std::swap(velocity_, general4a_);
     }
 
-    std::swap(velocity_, general4a_);
 }
 
 void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)

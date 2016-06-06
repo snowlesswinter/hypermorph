@@ -35,6 +35,10 @@ public:
                       cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux,
                       cudaArray* velocity, float time_step, float dissipation,
                       const glm::ivec3& volume_size);
+    void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x,
+                           cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
+                           float time_step, float dissipation,
+                           const glm::ivec3& volume_size);
     void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                             cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
                             cudaArray* fn_z, cudaArray* aux,
@@ -42,8 +46,8 @@ public:
                             float dissipation, const glm::ivec3& volume_size);
     void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                             cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
-                            cudaArray* fn_z, cudaArray* aux, cudaArray* vel_x,
-                            cudaArray* vel_y, cudaArray* vel_z, float time_step,
+                            cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y,
+                            cudaArray* vel_z, cudaArray* aux, float time_step,
                             float dissipation, const glm::ivec3& volume_size,
                             VectorField field, AdvectionMethod method);
     void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
@@ -55,6 +59,11 @@ public:
                        float time_step, float ambient_temperature,
                        float accel_factor, float gravity,
                        const glm::ivec3& volume_size);
+    void ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
+                       cudaArray* vel_z, cudaArray* temperature,
+                       cudaArray* density, float time_step,
+                       float ambient_temperature, float accel_factor,
+                       float gravity, const glm::ivec3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
