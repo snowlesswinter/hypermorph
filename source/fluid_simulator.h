@@ -95,8 +95,7 @@ private:
     int volume_byte_width_;
     bool diagnosis_;
 
-    std::shared_ptr<GraphicsVolume> velocity_;
-    GraphicsVolume3 velocity2_;
+    GraphicsVolume3 velocity_;
     GraphicsVolume3 vorticity_;
     GraphicsVolume3 aux_;
     GraphicsVolume3 vort_conf_;
@@ -107,8 +106,7 @@ private:
     std::shared_ptr<GraphicsVolume> general1b_;
     std::shared_ptr<GraphicsVolume> general1c_;
     std::shared_ptr<GraphicsVolume> general1d_;
-    std::shared_ptr<GraphicsVolume> general4a_;
-    std::shared_ptr<GraphicsVolume> general4b_;
+    std::shared_ptr<GraphicsVolume> general1e_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
     std::shared_ptr<glm::vec2> manual_impulse_;

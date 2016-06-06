@@ -41,19 +41,10 @@ public:
                            const glm::ivec3& volume_size);
     void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                             cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
-                            cudaArray* fn_z, cudaArray* aux,
-                            cudaArray* velocity, float time_step,
-                            float dissipation, const glm::ivec3& volume_size);
-    void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                            cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
                             cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y,
                             cudaArray* vel_z, cudaArray* aux, float time_step,
                             float dissipation, const glm::ivec3& volume_size,
                             VectorField field, AdvectionMethod method);
-    void AdvectVelocity(cudaArray* dest, cudaArray* velocity,
-                        cudaArray* velocity_prev, float time_step,
-                        float time_step_prev, float dissipation,
-                        const glm::ivec3& volume_size, AdvectionMethod method);
     void ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
                        cudaArray* temperature, cudaArray* density,
                        float time_step, float ambient_temperature,

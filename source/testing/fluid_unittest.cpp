@@ -37,9 +37,9 @@ void FluidUnittest::TestBuoyancyApplication(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n_4 = 4;
     int n_1 = 1;
     int pitch_4 = width * sizeof(uint16_t) * n_4;
@@ -48,9 +48,9 @@ void FluidUnittest::TestBuoyancyApplication(int random_seed)
     int size_1 = pitch_1 * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n_4, pitch_4, size_4,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n_4, pitch_4, size_4,
                                       std::make_pair(-5.0f, 5.0f));
     UnittestCommon::InitializeVolume1(sim_cuda.temperature_.get(),
                                       sim_glsl.temperature_.get(), width,
@@ -62,8 +62,8 @@ void FluidUnittest::TestBuoyancyApplication(int random_seed)
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size_4,
                                            pitch_4, n_4, 7,
-                                           sim_cuda.velocity_.get(),
-                                           sim_glsl.velocity_.get(),
+                                           sim_cuda.velocity_.x().get(),
+                                           sim_glsl.velocity_.x().get(),
                                            __FUNCTION__);
 }
 
@@ -107,9 +107,9 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n_v = 4;
     int n_d = 1;
     int pitch_v = width * sizeof(uint16_t) * n_v;
@@ -118,9 +118,9 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
     int size_d = pitch_d * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n_v, pitch_v, size_v,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n_v, pitch_v, size_v,
                                       std::make_pair(-5.0f, 5.0f));
     InitializeDensityVolume(sim_cuda.density_.get(), sim_glsl.density_.get(),
                             size_d, std::make_pair(0.0f, 3.0f));
@@ -150,25 +150,25 @@ void FluidUnittest::TestDivergenceCalculation(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n = 4;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n, pitch, size,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
     sim_cuda.ComputeDivergence();
     sim_glsl.ComputeDivergence();
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           2, sim_cuda.general4a_.get(),
-                                           sim_glsl.general4a_.get(),
+                                           2, sim_cuda.general1a_.get(),
+                                           sim_glsl.general1a_.get(),
                                            __FUNCTION__);
 }
 
@@ -181,20 +181,20 @@ void FluidUnittest::TestGradientSubtraction(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n = 4;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n, pitch, size,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
-    UnittestCommon::InitializeVolume4(sim_cuda.general4a_.get(),
-                                      sim_glsl.general4a_.get(), width, height,
+    UnittestCommon::InitializeVolume4(sim_cuda.general1a_.get(),
+                                      sim_glsl.general1a_.get(), width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-4.0f, 4.0f));
 
@@ -202,8 +202,8 @@ void FluidUnittest::TestGradientSubtraction(int random_seed)
     sim_glsl.SubtractGradient();
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           7, sim_cuda.velocity_.get(),
-                                           sim_glsl.velocity_.get(),
+                                           7, sim_cuda.velocity_.x().get(),
+                                           sim_glsl.velocity_.x().get(),
                                            __FUNCTION__);
 }
 
@@ -216,9 +216,9 @@ void FluidUnittest::TestTemperatureAdvection(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n_4 = 4;
     int n_1 = 1;
     int pitch_4 = width * sizeof(uint16_t) * n_4;
@@ -227,9 +227,9 @@ void FluidUnittest::TestTemperatureAdvection(int random_seed)
     int size_1 = pitch_1 * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n_4, pitch_4, size_4,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n_4, pitch_4, size_4,
                                       std::make_pair(-5.0f, 5.0f));
     UnittestCommon::InitializeVolume1(sim_cuda.temperature_.get(),
                                       sim_glsl.temperature_.get(), width,
@@ -255,24 +255,24 @@ void FluidUnittest::TestVelocityAdvection(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.velocity_->GetWidth();
-    int height = sim_cuda.velocity_->GetHeight();
-    int depth = sim_cuda.velocity_->GetDepth();
+    int width = sim_cuda.velocity_.x()->GetWidth();
+    int height = sim_cuda.velocity_.x()->GetHeight();
+    int depth = sim_cuda.velocity_.x()->GetDepth();
     int n = 4;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.get(),
-                                      sim_glsl.velocity_.get(), width, height,
-                                      depth, n, pitch, size,
+    UnittestCommon::InitializeVolume4(sim_cuda.velocity_.x().get(),
+                                      sim_glsl.velocity_.x().get(), width,
+                                      height, depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
     sim_cuda.AdvectVelocity(kTimeStep);
     sim_glsl.AdvectVelocity(kTimeStep);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           7, sim_cuda.velocity_.get(),
-                                           sim_glsl.velocity_.get(),
+                                           7, sim_cuda.velocity_.x().get(),
+                                           sim_glsl.velocity_.x().get(),
                                            __FUNCTION__);
 }

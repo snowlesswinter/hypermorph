@@ -51,8 +51,7 @@ FluidSimulator::FluidSimulator()
     , num_full_multigrid_iterations_(2)
     , volume_byte_width_(2)
     , diagnosis_(false)
-    , velocity_()
-    , velocity2_(GRAPHICS_LIB_CUDA)
+    , velocity_(GRAPHICS_LIB_CUDA)
     , vorticity_(GRAPHICS_LIB_CUDA)
     , aux_(GRAPHICS_LIB_CUDA)
     , vort_conf_(GRAPHICS_LIB_CUDA)
@@ -63,8 +62,7 @@ FluidSimulator::FluidSimulator()
     , general1b_()
     , general1c_()
     , general1d_()
-    , general4a_()
-    , general4b_()
+    , general1e_()
     , diagnosis_volume_()
     , manual_impulse_()
 {
@@ -76,7 +74,6 @@ FluidSimulator::~FluidSimulator()
 
 bool FluidSimulator::Init()
 {
-    velocity_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     density_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     temperature_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     pressure_ = std::make_shared<GraphicsVolume>(graphics_lib_);
@@ -84,8 +81,6 @@ bool FluidSimulator::Init()
     general1b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1c_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1d_ = std::make_shared<GraphicsVolume>(graphics_lib_);
-    general4a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
-    general4b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
 
     // A hard lesson had told us: locality is a vital factor of the performance
     // of raycast. Even a trivial-like adjustment that packing the temperature
@@ -107,13 +102,7 @@ bool FluidSimulator::Init()
     if (!result)
         return false;
 
-    result = velocity_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
-                               2);
-    assert(result);
-    if (!result)
-        return false;
-
-    result = velocity2_.Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 1,
+    result = velocity_.Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 1,
                                2);
     assert(result);
     if (!result)
@@ -146,18 +135,6 @@ bool FluidSimulator::Init()
         return false;
 
     result = general1d_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
-    assert(result);
-    if (!result)
-        return false;
-
-    result = general4a_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
-                                2);
-    assert(result);
-    if (!result)
-        return false;
-
-    result = general4b_->Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 4,
-                                2);
     assert(result);
     if (!result)
         return false;
@@ -199,20 +176,17 @@ bool FluidSimulator::Init()
 
 void FluidSimulator::Reset()
 {
-    velocity_->Clear();
     density_->Clear();
     temperature_->Clear();
     general1a_->Clear();
     general1b_->Clear();
     general1c_->Clear();
     general1d_->Clear();
-    general4a_->Clear();
-    general4b_->Clear();
 
-    if (velocity2_) {
-        velocity2_.x()->Clear();
-        velocity2_.y()->Clear();
-        velocity2_.z()->Clear();
+    if (velocity_) {
+        velocity_.x()->Clear();
+        velocity_.y()->Clear();
+        velocity_.z()->Clear();
     }
 
     if (vorticity_) {
@@ -265,7 +239,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     ApplyImpulse(seconds_elapsed, proper_delta_time);
     Metrics::Instance()->OnImpulseApplied();
 
-    // TODO: Try to slightly optimize the calculation by pre-multiplying 1/h^2.
+    // Calculate divergence.
     ComputeDivergence();
     Metrics::Instance()->OnDivergenceComputed();
 
@@ -327,9 +301,9 @@ void FluidSimulator::AdvectDensity(float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->AdvectField(general1a_->cuda_volume(),
                                           density_->cuda_volume(),
-                                          velocity2_.x()->cuda_volume(),
-                                          velocity2_.y()->cuda_volume(),
-                                          velocity2_.z()->cuda_volume(),
+                                          velocity_.x()->cuda_volume(),
+                                          velocity_.y()->cuda_volume(),
+                                          velocity_.z()->cuda_volume(),
                                           general1b_->cuda_volume(), delta_time,
                                           density_dissipation);
     } else {
@@ -352,7 +326,7 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
     glBindFramebuffer(GL_FRAMEBUFFER,
                       general1a_->gl_volume()->frame_buffer());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+    glBindTexture(GL_TEXTURE_3D, velocity_.x()->gl_volume()->texture_handle());
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, source->gl_volume()->texture_handle());
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
@@ -367,9 +341,9 @@ void FluidSimulator::AdvectTemperature(float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->AdvectField(general1a_->cuda_volume(),
                                           temperature_->cuda_volume(),
-                                          velocity2_.x()->cuda_volume(),
-                                          velocity2_.y()->cuda_volume(),
-                                          velocity2_.z()->cuda_volume(),
+                                          velocity_.x()->cuda_volume(),
+                                          velocity_.y()->cuda_volume(),
+                                          velocity_.z()->cuda_volume(),
                                           general1b_->cuda_volume(), delta_time,
                                           temperature_dissipation);
     } else {
@@ -389,34 +363,36 @@ void FluidSimulator::AdvectVelocity(float delta_time)
         CudaMain::Instance()->AdvectVelocity(general1a_->cuda_volume(),
                                              general1b_->cuda_volume(),
                                              general1c_->cuda_volume(),
-                                             velocity2_.x()->cuda_volume(),
-                                             velocity2_.y()->cuda_volume(),
-                                             velocity2_.z()->cuda_volume(),
-                                             general4b_->cuda_volume(),
+                                             velocity_.x()->cuda_volume(),
+                                             velocity_.y()->cuda_volume(),
+                                             velocity_.z()->cuda_volume(),
+                                             general1d_->cuda_volume(),
                                              delta_time, velocity_dissipation,
                                              method);
-        velocity2_.Swap(GraphicsVolume3(general1a_, general1b_, general1c_));
+        velocity_.Swap(GraphicsVolume3(general1a_, general1b_, general1c_));
     } else {
         glUseProgram(Programs.Advect);
 
         SetUniform("InverseSize",
-                   CalculateInverseSize(*velocity_->gl_volume()));
+                   CalculateInverseSize(*velocity_.x()->gl_volume()));
         SetUniform("TimeStep", delta_time);
         SetUniform("Dissipation", velocity_dissipation);
         SetUniform("SourceTexture", 1);
         SetUniform("Obstacles", 2);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4a_->gl_volume()->frame_buffer());
+                          general1a_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D,
+                      velocity_.x()->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D,
+                      velocity_.x()->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4a_->gl_volume()->depth());
+                              general1a_->gl_volume()->depth());
         ResetState();
 
-        std::swap(velocity_, general4a_);
+        //std::swap(velocity2_.x(), general4a_);
     }
 
 }
@@ -426,9 +402,9 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
     float smoke_weight = FluidConfig::Instance()->smoke_weight();
     float ambient_temperature = FluidConfig::Instance()->ambient_temperature();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyBuoyancy(velocity2_.x()->cuda_volume(),
-                                            velocity2_.y()->cuda_volume(),
-                                            velocity2_.z()->cuda_volume(),
+        CudaMain::Instance()->ApplyBuoyancy(velocity_.x()->cuda_volume(),
+                                            velocity_.y()->cuda_volume(),
+                                            velocity_.z()->cuda_volume(),
                                             temperature_->cuda_volume(),
                                             density_->cuda_volume(), delta_time,
                                             ambient_temperature,
@@ -444,16 +420,17 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
         SetUniform("Kappa", smoke_weight);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          general4a_->gl_volume()->frame_buffer());
+                          general1a_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D,
+                      velocity_.x()->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_3D, temperature_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              general4a_->gl_volume()->depth());
+                              general1a_->gl_volume()->depth());
         ResetState();
 
-        std::swap(velocity_, general4a_);
+        //std::swap(velocity_, general4a_);
     }
 
 }
@@ -492,8 +469,8 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         (1.0f + v_coef) * FluidConfig::Instance()->impulse_velocity(),
         0.0f
     );
-    Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
-            initial_velocity, 7);
+    //Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
+    //        initial_velocity, 7);
 }
 
 void FluidSimulator::ComputeCurl(const GraphicsVolume3* vorticity,
@@ -514,9 +491,9 @@ void FluidSimulator::ComputeDivergence()
     float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeDivergence(general1a_->cuda_volume(),
-                                                velocity2_.x()->cuda_volume(),
-                                                velocity2_.y()->cuda_volume(),
-                                                velocity2_.z()->cuda_volume(),
+                                                velocity_.x()->cuda_volume(),
+                                                velocity_.y()->cuda_volume(),
+                                                velocity_.z()->cuda_volume(),
                                                 half_inverse_cell_size);
     } else {
         glUseProgram(Programs.ComputeDivergence);
@@ -528,7 +505,8 @@ void FluidSimulator::ComputeDivergence()
         glBindFramebuffer(GL_FRAMEBUFFER,
                           general1a_->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D,
+                      velocity_.x()->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               general1a_->gl_volume()->depth());
         ResetState();
@@ -805,9 +783,9 @@ void FluidSimulator::SubtractGradient()
 
     const float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->SubtractGradient(velocity2_.x()->cuda_volume(),
-                                               velocity2_.y()->cuda_volume(),
-                                               velocity2_.z()->cuda_volume(),
+        CudaMain::Instance()->SubtractGradient(velocity_.x()->cuda_volume(),
+                                               velocity_.y()->cuda_volume(),
+                                               velocity_.z()->cuda_volume(),
                                                pressure_->cuda_volume(),
                                                half_inverse_cell_size);
     } else {
@@ -818,13 +796,14 @@ void FluidSimulator::SubtractGradient()
         SetUniform("packed_tex", 1);
 
         glBindFramebuffer(GL_FRAMEBUFFER,
-                          velocity_->gl_volume()->frame_buffer());
+                          velocity_.x()->gl_volume()->frame_buffer());
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, velocity_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D,
+                      velocity_.x()->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_3D, pressure_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                              velocity_->gl_volume()->depth());
+                              velocity_.x()->gl_volume()->depth());
         ResetState();
     }
 }
@@ -836,7 +815,7 @@ void FluidSimulator::AddCurlPsi()
         return;
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AddCurlPsi(velocity_->cuda_volume(),
+        CudaMain::Instance()->AddCurlPsi(velocity_.x()->cuda_volume(),
                                          psi.x()->cuda_volume(),
                                          psi.y()->cuda_volume(),
                                          psi.z()->cuda_volume(), CellSize);
@@ -850,12 +829,13 @@ void FluidSimulator::AdvectVortices(float delta_time)
         return;
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectVorticityFields(
+        CudaMain::Instance()->AdvectVorticity(
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
             vorticity.z()->cuda_volume(), general1a_->cuda_volume(),
             general1b_->cuda_volume(), general1c_->cuda_volume(),
-            general1d_->cuda_volume(), general4a_->cuda_volume(), delta_time,
-            0.0f);
+            velocity_.x()->cuda_volume(), velocity_.y()->cuda_volume(),
+            velocity_.z()->cuda_volume(), general1d_->cuda_volume(), delta_time,
+            0.0f, CudaMain::MACCORMACK_SEMI_LAGRANGIAN);
     }
 }
 
@@ -869,12 +849,12 @@ void FluidSimulator::ApplyVorticityConfinemnet()
     float inverse_cell_size = 1.0f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyVorticityConfinement(
-            general4a_->cuda_volume(), velocity_->cuda_volume(),
+            general1a_->cuda_volume(), velocity_.x()->cuda_volume(),
             vort_conf.x()->cuda_volume(), vort_conf.y()->cuda_volume(),
             vort_conf.z()->cuda_volume());
     }
 
-    std::swap(velocity_, general4a_);
+    //std::swap(velocity_, general4a_);
 }
 
 void FluidSimulator::BuildVorticityConfinemnet(float delta_time)
@@ -921,7 +901,7 @@ void FluidSimulator::DecayVortices(float delta_time, float cell_size)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeDivergenceForVort(
-            general1d_->cuda_volume(), general4a_->cuda_volume(), cell_size);
+            general1d_->cuda_volume(), general1a_->cuda_volume(), cell_size);
         CudaMain::Instance()->DecayVortices(
             general1a_->cuda_volume(), general1b_->cuda_volume(),
             general1c_->cuda_volume(), general1d_->cuda_volume(), delta_time);
@@ -969,7 +949,7 @@ void FluidSimulator::StretchVortices(float delta_time, float cell_size)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->StretchVortices(
             general1a_->cuda_volume(), general1b_->cuda_volume(),
-            general1c_->cuda_volume(), general4a_->cuda_volume(),
+            general1c_->cuda_volume(), general1e_->cuda_volume(),
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
             vorticity.z()->cuda_volume(), CellSize, delta_time);
     }
@@ -1013,7 +993,7 @@ void FluidSimulator::RestoreVorticity(float delta_time)
             return;
 
         // Please note that the nth velocity in still within |general4a_|.
-        ComputeCurl(&vorticity, general4a_);
+        ComputeCurl(&vorticity, general1e_);
         BuildVorticityConfinemnet(delta_time);
 
         StretchVortices(delta_time, CellSize);
@@ -1024,7 +1004,7 @@ void FluidSimulator::RestoreVorticity(float delta_time)
         if (!aux)
             return;
 
-        ComputeCurl(&aux, velocity_);
+        ComputeCurl(&aux, velocity_.x());
         ComputeDeltaVorticity();
         SolvePsi();
         AddCurlPsi();

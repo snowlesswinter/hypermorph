@@ -556,37 +556,3 @@ void LaunchAdvectVelocityMacCormack(cudaArray_t dest_array,
 
     AdvectVelocityMacCormackKernel<<<grid, block>>>(time_step, dissipation);
 }
-
-void LaunchAdvectVelocity(cudaArray_t dest_array, cudaArray_t velocity_array,
-                          cudaArray_t intermediate_array, float time_step,
-                          float time_step_prev, float dissipation,
-                          uint3 volume_size, AdvectionMethod method)
-{
-    if (method == MACCORMACK_SEMI_LAGRANGIAN) {
-        LaunchAdvectVelocityMacCormack(dest_array, velocity_array,
-                                       intermediate_array, time_step,
-                                       time_step_prev, dissipation,
-                                       volume_size);
-        return;
-    } else if (method == BFECC_SEMI_LAGRANGIAN) {
-        LaunchAdvectVelocityBfecc(dest_array, velocity_array,
-                                  intermediate_array, time_step, time_step_prev,
-                                  dissipation, volume_size);
-        return;
-    }
-
-    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
-        return;
-
-    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    AdvectVelocitySemiLagrangianKernel<<<grid, block>>>(time_step,
-                                                        dissipation);
-}

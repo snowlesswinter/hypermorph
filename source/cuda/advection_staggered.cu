@@ -768,43 +768,6 @@ void LaunchAdvectVelocityMacCormackStaggered(cudaArray* dest_array,
                                                              dissipation);
 }
 
-void LaunchAdvectVelocityStaggered(cudaArray* dest_array,
-                                   cudaArray* velocity_array,
-                                   cudaArray* intermediate_array,
-                                   float time_step, float time_step_prev,
-                                   float dissipation, uint3 volume_size,
-                                   AdvectionMethod method)
-{
-    if (method == MACCORMACK_SEMI_LAGRANGIAN) {
-        LaunchAdvectVelocityMacCormackStaggered(dest_array, velocity_array,
-                                                intermediate_array, time_step,
-                                                time_step_prev, dissipation,
-                                                volume_size);
-        return;
-    } else if (method == BFECC_SEMI_LAGRANGIAN) {
-        LaunchAdvectVelocityBfeccStaggered(dest_array, velocity_array,
-                                           intermediate_array, time_step,
-                                           time_step_prev, dissipation,
-                                           volume_size);
-        return;
-    }
-
-    if (BindCudaSurfaceToArray(&advect_dest, dest_array) != cudaSuccess)
-        return;
-
-    auto bound_vel = BindHelper::Bind(&advect_velocity, velocity_array, false,
-                                      cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
-        return;
-
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    AdvectVelocitySemiLagrangianStaggeredKernel<<<grid, block>>>(time_step,
-                                                                 dissipation);
-}
-
 void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                     cudaArray* fnp1_z, cudaArray* fn_x,
                                     cudaArray* fn_y, cudaArray* fn_z,
@@ -920,6 +883,11 @@ void AdvectFieldsMacCormackStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
     if (bound_vz.error() != cudaSuccess)
         return;
 
+    auto bound_a = BindHelper::Bind(&tex_aux, aux, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_a.error() != cudaSuccess)
+        return;
+
     for (int i = 0; i < num_of_fields; i++) {
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
@@ -938,21 +906,25 @@ void AdvectFieldsMacCormackStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
-        auto bound_s = BindHelper::Bind(&tex, fn[i], false,
-                                        cudaFilterModeLinear,
-                                        cudaAddressModeClamp);
-        if (bound_s.error() != cudaSuccess)
-            return;
-
-        auto bound_a = BindHelper::Bind(&tex_aux, aux, false,
-                                        cudaFilterModeLinear,
-                                        cudaAddressModeClamp);
-        if (bound_a.error() != cudaSuccess)
-            return;
-
         AdvectFieldMacCormackStaggeredOffsetKernel2<<<grid, block>>>(
             offset[i], time_step, dissipation);
     }
+}
+
+void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
+                                      cudaArray* vel_x, cudaArray* vel_y,
+                                      cudaArray* vel_z, cudaArray* aux,
+                                      float time_step, float dissipation,
+                                      AdvectionMethod method,
+                                      uint3 volume_size, BlockArrangement* ba)
+{
+    cudaArray* fnp1s[] = {fnp1};
+    cudaArray* fns[] = {fn};
+    float3 offsets[] = {make_float3(0.0f)};
+    int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
+    AdvectFieldsMacCormackStaggeredOffset(fnp1s, fns, offsets, num_of_fields,
+                                          vel_x, vel_y, vel_z, aux, time_step,
+                                          dissipation, volume_size, ba);
 }
 
 void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
@@ -977,16 +949,22 @@ void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                           dissipation, volume_size, ba);
 }
 
-void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
-                                      cudaArray* vel_x, cudaArray* vel_y,
-                                      cudaArray* vel_z, cudaArray* aux,
-                                      float time_step, float dissipation,
-                                      AdvectionMethod method,
-                                      uint3 volume_size, BlockArrangement* ba)
+void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                                    cudaArray* fnp1_z, cudaArray* fn_x,
+                                    cudaArray* fn_y, cudaArray* fn_z,
+                                    cudaArray* vel_x, cudaArray* vel_y,
+                                    cudaArray* vel_z, cudaArray* aux,
+                                    float time_step, float dissipation,
+                                    AdvectionMethod method,
+                                    uint3 volume_size, BlockArrangement* ba)
 {
-    cudaArray* fnp1s[] = {fnp1};
-    cudaArray* fns[] = {fn};
-    float3 offsets[] = {make_float3(0.0f)};
+    cudaArray* fnp1s[] = {fnp1_x, fnp1_y, fnp1_z};
+    cudaArray* fns[] = {fn_x, fn_y, fn_z};
+    float3 offsets[] = {
+        -GetOffsetVorticityField(0),
+        -GetOffsetVorticityField(1),
+        -GetOffsetVorticityField(2)
+    };
     int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
     AdvectFieldsMacCormackStaggeredOffset(fnp1s, fns, offsets, num_of_fields,
                                           vel_x, vel_y, vel_z, aux, time_step,

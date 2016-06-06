@@ -297,19 +297,19 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     float grad_x = (base - west) * inverse_cell_size;
     float new_x = old_x - grad_x;
     auto r_x = __float2half_rn(new_x * mask);
-    surf3Dwrite(r_x, surf, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
 
     float old_y = tex3D(tex_y, coord.x, coord.y, coord.z);
     float grad_y = (base - south) * inverse_cell_size;
     float new_y = old_y - grad_y;
     auto r_y = __float2half_rn(new_y * mask);
-    surf3Dwrite(r_y, surf, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
 
     float old_z = tex3D(tex_z, coord.x, coord.y, coord.z);
     float grad_z = (base - near) * inverse_cell_size;
     float new_z = old_z - grad_z;
     auto r_z = __float2half_rn(new_z * mask);
-    surf3Dwrite(r_z, surf, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -586,7 +586,7 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
     if (bound_d.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 1, 8);
+    dim3 block(16, 1, 16);
     dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
     ApplyBuoyancyStaggeredKernel2<<<grid, block>>>(time_step,
                                                    ambient_temperature,
