@@ -116,8 +116,10 @@ public:
                      std::shared_ptr<CudaVolume> dest_z,
                      std::shared_ptr<CudaVolume> velocity,
                      float inverse_cell_size);
-    void ComputeDivergence(std::shared_ptr<CudaVolume> dest,
-                           std::shared_ptr<CudaVolume> velocity,
+    void ComputeDivergence(std::shared_ptr<CudaVolume> div,
+                           std::shared_ptr<CudaVolume> vel_x,
+                           std::shared_ptr<CudaVolume> vel_y,
+                           std::shared_ptr<CudaVolume> vel_z,
                            float half_inverse_cell_size);
     void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                   std::shared_ptr<CudaVolume> u,
@@ -129,7 +131,9 @@ public:
     void ReviseDensity(std::shared_ptr<CudaVolume> density,
                        const glm::vec3& center_point, float radius,
                        float value);
-    void SubtractGradient(std::shared_ptr<CudaVolume> velocity,
+    void SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
+                          std::shared_ptr<CudaVolume> vel_y,
+                          std::shared_ptr<CudaVolume> vel_z,
                           std::shared_ptr<CudaVolume> pressure,
                           float half_inverse_cell_size);
 

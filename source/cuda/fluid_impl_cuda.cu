@@ -8,8 +8,14 @@
 #include "cuda_common.h"
 
 surface<void, cudaSurfaceType3D> surf;
+surface<void, cudaSurfaceType3D> surf_x;
+surface<void, cudaSurfaceType3D> surf_y;
+surface<void, cudaSurfaceType3D> surf_z;
 surface<void, cudaSurfaceType3D> buoyancy_dest;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
@@ -134,24 +140,26 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
-    float4 base =   tex3D(divergence_velocity, coord.x,        coord.y,        coord.z);
-    float  east =   tex3D(divergence_velocity, coord.x + 1.0f, coord.y,        coord.z).x;
-    float  north =  tex3D(divergence_velocity, coord.x,        coord.y + 1.0f, coord.z).y;
-    float  far =    tex3D(divergence_velocity, coord.x,        coord.y,        coord.z + 1.0f).z;
+    float base_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
+    float base_y = tex3D(tex_y, coord.x,        coord.y,        coord.z);
+    float base_z = tex3D(tex_z, coord.x,        coord.y,        coord.z);
+    float east =   tex3D(tex_x, coord.x + 1.0f, coord.y,        coord.z);
+    float north =  tex3D(tex_y, coord.x,        coord.y + 1.0f, coord.z);
+    float far =    tex3D(tex_z, coord.x,        coord.y,        coord.z + 1.0f);
 
-    float diff_ew = east  - base.x;
-    float diff_ns = north - base.y;
-    float diff_fn = far   - base.z;
+    float diff_ew = east  - base_x;
+    float diff_ns = north - base_y;
+    float diff_fn = far   - base_z;
 
     // Handle boundary problem
     if (x >= volume_size.x - 1)
-        diff_ew = -base.x;
+        diff_ew = -base_x;
 
     if (y >= volume_size.y - 1)
-        diff_ns = -base.y;
+        diff_ns = -base_y;
 
     if (z >= volume_size.z - 1)
-        diff_fn = -base.z;
+        diff_fn = -base_z;
 
     float div = inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     auto r = __float2half_rn(div);
@@ -274,31 +282,34 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     float west =  tex3D(tex, coord.x - 1.0f, coord.y,          coord.z);
     float base =  tex3D(tex, coord.x,        coord.y,          coord.z);
 
-    float diff_ew = base - west;
-    float diff_ns = base - south;
-    float diff_fn = base - near;
-
-    // Handle boundary problem
-    float3 mask = make_float3(1.0f);
+    // Handle boundary problem.
+    float mask = 1.0f;
     if (x <= 0)
-        mask.x = 0;
+        mask = 0;
 
     if (y <= 0)
-        mask.y = 0;
+        mask = 0;
 
     if (z <= 0)
-        mask.z = 0;
+        mask = 0;
 
-    float3 old_v =
-        make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));
-    float3 grad = make_float3(diff_ew, diff_ns, diff_fn) * inverse_cell_size;
-    float3 new_v = old_v - grad;
-    float3 result = mask * new_v; // The mask makes sense in staggered grid.
-    auto raw = make_ushort4(__float2half_rn(result.x),
-                            __float2half_rn(result.y),
-                            __float2half_rn(result.z),
-                            0);
-    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
+    float old_x = tex3D(tex_x, coord.x, coord.y, coord.z);
+    float grad_x = (base - west) * inverse_cell_size;
+    float new_x = old_x - grad_x;
+    auto r_x = __float2half_rn(new_x * mask);
+    surf3Dwrite(r_x, surf, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+
+    float old_y = tex3D(tex_y, coord.x, coord.y, coord.z);
+    float grad_y = (base - south) * inverse_cell_size;
+    float new_y = old_y - grad_y;
+    auto r_y = __float2half_rn(new_y * mask);
+    surf3Dwrite(r_y, surf, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+
+    float old_z = tex3D(tex_z, coord.x, coord.y, coord.z);
+    float grad_z = (base - near) * inverse_cell_size;
+    float new_z = old_z - grad_z;
+    auto r_z = __float2half_rn(new_z * mask);
+    surf3Dwrite(r_z, surf, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
@@ -392,18 +403,27 @@ void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
                                              volume_size);
 }
 
-void LaunchComputeDivergenceStaggered(cudaArray* dest_array,
-                                      cudaArray* velocity_array,
+void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
+                                      cudaArray* vel_y, cudaArray* vel_z,
                                       float inverse_cell_size,
                                       uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
-                                      false, cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -467,17 +487,33 @@ void LaunchSubtractGradient(cudaArray* velocity, cudaArray* pressure,
                                             volume_size);
 }
 
-void LaunchSubtractGradientStaggered(cudaArray* velocity, cudaArray* pressure,
+void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y,
+                                     cudaArray* vel_z, cudaArray* pressure,
                                      float inverse_cell_size, uint3 volume_size,
                                      BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, velocity) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&gradient_velocity, velocity,
-                                      false, cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
         return;
 
     auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModeLinear,
@@ -491,7 +527,6 @@ void LaunchSubtractGradientStaggered(cudaArray* velocity, cudaArray* pressure,
     SubtractGradientStaggeredKernel<<<grid, block>>>(inverse_cell_size,
                                                      volume_size);
 }
-
 
 // =============================================================================
 

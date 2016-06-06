@@ -285,13 +285,15 @@ void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
                              dest_x->size());
 }
 
-void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> dest,
-                                 std::shared_ptr<CudaVolume> velocity,
+void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,
+                                 std::shared_ptr<CudaVolume> vel_x,
+                                 std::shared_ptr<CudaVolume> vel_y,
+                                 std::shared_ptr<CudaVolume> vel_z,
                                  float half_inverse_cell_size)
 {
-    fluid_impl_->ComputeDivergence(dest->dev_array(),
-                                   velocity->dev_array(),
-                                   half_inverse_cell_size, dest->size());
+    fluid_impl_->ComputeDivergence(div->dev_array(), vel_x->dev_array(),
+                                   vel_y->dev_array(), vel_z->dev_array(),
+                                   half_inverse_cell_size, div->size());
 }
 
 void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
@@ -357,13 +359,16 @@ void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
                                value, density->size());
 }
 
-void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> velocity,
+void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
+                                std::shared_ptr<CudaVolume> vel_y,
+                                std::shared_ptr<CudaVolume> vel_z,
                                 std::shared_ptr<CudaVolume> pressure,
                                 float half_inverse_cell_size)
 {
     // NOTE: The pressure's volume size should be used instead of the
     //       velocity's.
-    fluid_impl_->SubtractGradient(velocity->dev_array(), pressure->dev_array(),
+    fluid_impl_->SubtractGradient(vel_x->dev_array(), vel_y->dev_array(),
+                                  vel_z->dev_array(), pressure->dev_array(),
                                   half_inverse_cell_size, pressure->size());
 }
 

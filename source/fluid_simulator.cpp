@@ -514,7 +514,9 @@ void FluidSimulator::ComputeDivergence()
     float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeDivergence(general1a_->cuda_volume(),
-                                                velocity_->cuda_volume(),
+                                                velocity2_.x()->cuda_volume(),
+                                                velocity2_.y()->cuda_volume(),
+                                                velocity2_.z()->cuda_volume(),
                                                 half_inverse_cell_size);
     } else {
         glUseProgram(Programs.ComputeDivergence);
@@ -803,7 +805,9 @@ void FluidSimulator::SubtractGradient()
 
     const float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->SubtractGradient(velocity_->cuda_volume(),
+        CudaMain::Instance()->SubtractGradient(velocity2_.x()->cuda_volume(),
+                                               velocity2_.y()->cuda_volume(),
+                                               velocity2_.z()->cuda_volume(),
                                                pressure_->cuda_volume(),
                                                half_inverse_cell_size);
     } else {
