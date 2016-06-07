@@ -53,10 +53,11 @@ void MultigridCoreCuda::Prolongate(const GraphicsVolume& fine,
     CudaMain::Instance()->Prolongate(fine.cuda_volume(), coarse.cuda_volume());
 }
 
-void MultigridCoreCuda::ProlongateResidual(const GraphicsVolume& fine,
-                                           const GraphicsVolume& coarse)
+void MultigridCoreCuda::ProlongateError(const GraphicsVolume& fine,
+                                        const GraphicsVolume& coarse)
 {
-    CudaMain::Instance()->Prolongate(fine.cuda_volume(), coarse.cuda_volume());
+    CudaMain::Instance()->ProlongateError(fine.cuda_volume(),
+                                          coarse.cuda_volume());
 }
 
 void MultigridCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,

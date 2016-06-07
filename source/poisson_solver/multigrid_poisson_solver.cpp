@@ -117,38 +117,42 @@ void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u,
     int times_to_iterate = num_finest_level_iteration_per_pass_;
 
     const int num_of_levels = static_cast<int>(volumes.size());
+    float level_cell_size = cell_size;
     for (int i = 0; i < num_of_levels - 1; i++) {
         std::shared_ptr<GraphicsVolume3> fine_volumes = volumes[i];
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[i + 1]->y();
 
         if (i || as_precondition)
             core_->RelaxWithZeroGuess(*fine_volumes->x(), *fine_volumes->y(),
-                                      cell_size);
+                                      level_cell_size);
         else
-            core_->Relax(*fine_volumes->x(), *fine_volumes->y(), cell_size, 2);
+            core_->Relax(*fine_volumes->x(), *fine_volumes->y(),
+                         level_cell_size, 2);
 
-        core_->Relax(*fine_volumes->x(), *fine_volumes->y(), cell_size,
+        core_->Relax(*fine_volumes->x(), *fine_volumes->y(), level_cell_size,
                      times_to_iterate - 2);
         core_->ComputeResidual(*fine_volumes->z(), *fine_volumes->x(),
-                               *fine_volumes->y(), cell_size);
+                               *fine_volumes->y(), level_cell_size);
         core_->Restrict(*coarse_volume, *fine_volumes->z());
 
         times_to_iterate *= 2;
+        level_cell_size *= 2.0f;
     }
 
     std::shared_ptr<GraphicsVolume3> coarsest = volumes[num_of_levels - 1];
-    core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y(), cell_size);
-    core_->Relax(*coarsest->x(), *coarsest->y(), cell_size,
+    core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y(), level_cell_size);
+    core_->Relax(*coarsest->x(), *coarsest->y(), level_cell_size,
                  times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[j + 1]->x();
         std::shared_ptr<GraphicsVolume3> fine_volume = volumes[j];
 
+        level_cell_size *= 0.5f;
         times_to_iterate /= 2;
 
-        core_->ProlongateResidual(*fine_volume->x(), *coarse_volume);
-        core_->Relax(*fine_volume->x(), *fine_volume->y(), cell_size,
+        core_->ProlongateError(*fine_volume->x(), *coarse_volume);
+        core_->Relax(*fine_volume->x(), *fine_volume->y(), level_cell_size,
                      times_to_iterate);
     }
 }

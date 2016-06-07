@@ -26,8 +26,8 @@ public:
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) override;
 
-    virtual void ProlongateResidual(const GraphicsVolume& fine,
-                                    const GraphicsVolume& coarse) override;
+    virtual void ProlongateError(const GraphicsVolume& fine,
+                                 const GraphicsVolume& coarse) override;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                        float cell_size, int num_of_iterations) override;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,

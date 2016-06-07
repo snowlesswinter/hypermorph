@@ -122,6 +122,8 @@ public:
                          std::shared_ptr<CudaVolume> b, float cell_size);
     void Prolongate(std::shared_ptr<CudaVolume> fine,
                     std::shared_ptr<CudaVolume> coarse);
+    void ProlongateError(std::shared_ptr<CudaVolume> fine,
+                         std::shared_ptr<CudaVolume> coarse);
     void RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
                             std::shared_ptr<CudaVolume> b,
                             float cell_size);

@@ -337,6 +337,13 @@ void CudaMain::Prolongate(std::shared_ptr<CudaVolume> fine,
                                 fine->size());
 }
 
+void CudaMain::ProlongateError(std::shared_ptr<CudaVolume> fine,
+                               std::shared_ptr<CudaVolume> coarse)
+{
+    multigrid_impl_->ProlongateError(fine->dev_array(), coarse->dev_array(),
+                                     fine->size());
+}
+
 void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
                                   std::shared_ptr<CudaVolume> b,
                                   float cell_size)

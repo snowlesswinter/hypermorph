@@ -90,8 +90,8 @@ void MultigridCoreGlsl::Prolongate(const GraphicsVolume& fine,
     ResetState();
 }
 
-void MultigridCoreGlsl::ProlongateResidual(const GraphicsVolume& fine,
-                                           const GraphicsVolume& coarse)
+void MultigridCoreGlsl::ProlongateError(const GraphicsVolume& fine,
+                                        const GraphicsVolume& coarse)
 {
     GetProlongatePackedProgram()->Use();
 

@@ -47,8 +47,6 @@ FluidSimulator::FluidSimulator()
     , multigrid_core_()
     , pressure_solver_()
     , psi_solver_()
-    , num_multigrid_iterations_(5)
-    , num_full_multigrid_iterations_(2)
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_(GRAPHICS_LIB_CUDA)
@@ -58,7 +56,6 @@ FluidSimulator::FluidSimulator()
     , vort_conf_(GRAPHICS_LIB_CUDA)
     , density_()
     , temperature_()
-    , pressure_()
     , general1a_()
     , general1b_()
     , general1c_()
@@ -76,7 +73,6 @@ bool FluidSimulator::Init()
 {
     density_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     temperature_ = std::make_shared<GraphicsVolume>(graphics_lib_);
-    pressure_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1c_ = std::make_shared<GraphicsVolume>(graphics_lib_);
@@ -115,12 +111,6 @@ bool FluidSimulator::Init()
         return false;
 
     result = temperature_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
-    assert(result);
-    if (!result)
-        return false;
-
-    result = pressure_->Create(GridWidth, GridHeight, GridDepth, 1,
-                               volume_byte_width_);
     assert(result);
     if (!result)
         return false;
@@ -228,7 +218,6 @@ void FluidSimulator::NotifyConfigChanged()
     CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
     CudaMain::Instance()->SetAdvectionMethod(
         FluidConfig::Instance()->advection_method());
-    
 }
 
 void FluidSimulator::StartImpulsing(float x, float y)
@@ -543,7 +532,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
     float inverse_h_square = 1.0f / (cell_size * cell_size);
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualDiagnosis(
-            diagnosis_volume_->cuda_volume(), pressure_->cuda_volume(),
+            diagnosis_volume_->cuda_volume(), general1b_->cuda_volume(),
             general1a_->cuda_volume(), inverse_h_square);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         glUseProgram(Programs.diagnose_);
@@ -553,7 +542,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
         diagnosis_volume_->gl_volume()->BindFrameBuffer();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, pressure_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D, general1b_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               diagnosis_volume_->gl_volume()->depth());
         ResetState();
@@ -602,8 +591,8 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->Relax(pressure_->cuda_volume(),
-                                    pressure_->cuda_volume(),
+        CudaMain::Instance()->Relax(general1b_->cuda_volume(),
+                                    general1b_->cuda_volume(),
                                     general1a_->cuda_volume(), cell_size,
                                     num_of_iterations);
     } else {
@@ -620,11 +609,11 @@ void FluidSimulator::DampedJacobi(float cell_size, int num_of_iterations)
             SetUniform("packed_tex", 0);
 
             glBindFramebuffer(GL_FRAMEBUFFER,
-                              pressure_->gl_volume()->frame_buffer());
+                              general1b_->gl_volume()->frame_buffer());
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_3D, pressure_->gl_volume()->texture_handle());
+            glBindTexture(GL_TEXTURE_3D, general1b_->gl_volume()->texture_handle());
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
-                                  pressure_->gl_volume()->depth());
+                                  general1b_->gl_volume()->depth());
             ResetState();
         }
     }
@@ -704,6 +693,10 @@ void FluidSimulator::SolvePressure()
 
     int num_jacobi_iterations =
         FluidConfig::Instance()->num_jacobi_iterations();
+    int num_multigrid_iterations =
+        FluidConfig::Instance()->num_multigrid_iterations();
+    int num_full_multigrid_iterations =
+        FluidConfig::Instance()->num_full_multigrid_iterations();
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
@@ -721,9 +714,9 @@ void FluidSimulator::SolvePressure()
             if (!pressure_solver_) {
                 pressure_solver_.reset(
                     new MultigridPoissonSolver(multigrid_core_.get()));
-                pressure_solver_->Initialize(pressure_->GetWidth(),
-                                             pressure_->GetHeight(),
-                                             pressure_->GetDepth(),
+                pressure_solver_->Initialize(general1b_->GetWidth(),
+                                             general1b_->GetHeight(),
+                                             general1b_->GetDepth(),
                                              volume_byte_width_);
             }
 
@@ -738,8 +731,8 @@ void FluidSimulator::SolvePressure()
             // (using a constant iteration time of 40) is stabilized at 0.025.
             // That's a pretty good score!
 
-            for (int i = 0; i < num_multigrid_iterations_; i++)
-                pressure_solver_->Solve(pressure_, general1a_, CellSize, !i);
+            for (int i = 0; i < num_multigrid_iterations; i++)
+                pressure_solver_->Solve(general1b_, general1a_, CellSize, !i);
 
             break;
         }
@@ -747,28 +740,14 @@ void FluidSimulator::SolvePressure()
             if (!pressure_solver_) {
                 pressure_solver_.reset(
                     new FullMultigridPoissonSolver(multigrid_core_.get()));
-                pressure_solver_->Initialize(pressure_->GetWidth(),
-                                             pressure_->GetHeight(),
-                                             pressure_->GetDepth(),
+                pressure_solver_->Initialize(general1b_->GetWidth(),
+                                             general1b_->GetHeight(),
+                                             general1b_->GetDepth(),
                                              volume_byte_width_);
             }
 
-            // The reason why the prolongation in FMG taking the last result 
-            // into account would produce a better solution remains a mystery.
-            // Recently I found that in a new time step the pressure must be
-            // reinitialized to 0 before iteration, or the FMG is going to
-            // blow the velocity. This would kind of reveal that the current
-            // prolongation scheme is not providing an accurate answer(go to
-            // chaos when the iteration times is set to above 3).
-            //
-            // Also note that, the result of the first iteration in the V-cycle
-            // is the error of the 0 guess.
-
-            pressure_->Clear();
-
-            // Chaos occurs if the iteration times is set to a value above 2.
-            for (int i = 0; i < num_full_multigrid_iterations_; i++)
-                pressure_solver_->Solve(pressure_, general1a_, CellSize, !i);
+            for (int i = 0; i < num_full_multigrid_iterations; i++)
+                pressure_solver_->Solve(general1b_, general1a_, CellSize, !i);
 
             break;
         }
@@ -798,7 +777,7 @@ void FluidSimulator::SubtractGradient()
         CudaMain::Instance()->SubtractGradient(velocity_.x()->cuda_volume(),
                                                velocity_.y()->cuda_volume(),
                                                velocity_.z()->cuda_volume(),
-                                               pressure_->cuda_volume(),
+                                               general1b_->cuda_volume(),
                                                half_inverse_cell_size);
     } else {
         glUseProgram(Programs.SubtractGradient);
@@ -813,7 +792,7 @@ void FluidSimulator::SubtractGradient()
         glBindTexture(GL_TEXTURE_3D,
                       velocity_.x()->gl_volume()->texture_handle());
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_3D, pressure_->gl_volume()->texture_handle());
+        glBindTexture(GL_TEXTURE_3D, general1b_->gl_volume()->texture_handle());
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                               velocity_.x()->gl_volume()->depth());
         ResetState();
@@ -937,6 +916,8 @@ void FluidSimulator::SolvePsi()
     if (!delta_vort)
         return;
 
+    int num_multigrid_iterations =
+        FluidConfig::Instance()->num_multigrid_iterations();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         if (!psi_solver_) {
             psi_solver_.reset(
@@ -946,7 +927,7 @@ void FluidSimulator::SolvePsi()
         }
 
         for (int i = 0; i < psi.num_of_volumes(); i++) {
-            for (int j = 0; j < num_multigrid_iterations_; j++)
+            for (int j = 0; j < num_multigrid_iterations; j++)
                 psi_solver_->Solve(psi[i], delta_vort[i], CellSize);
         }
     }

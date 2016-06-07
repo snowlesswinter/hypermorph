@@ -19,6 +19,8 @@ public:
                          float cell_size, const glm::ivec3& volume_size);
     void Prolongate(cudaArray* fine, cudaArray* coarse,
                     const glm::ivec3& volume_size);
+    void ProlongateError(cudaArray* fine, cudaArray* coarse,
+                         const glm::ivec3& volume_size);
     void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,
                             const glm::ivec3& volume_size);
     void Restrict(cudaArray* coarse, cudaArray* fine,

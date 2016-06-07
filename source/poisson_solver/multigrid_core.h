@@ -24,8 +24,8 @@ public:
                                  const GraphicsVolume& b, float cell_size) = 0;
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) = 0;
-    virtual void ProlongateResidual(const GraphicsVolume& fine,
-                                    const GraphicsVolume& coarse) = 0;
+    virtual void ProlongateError(const GraphicsVolume& fine,
+                                 const GraphicsVolume& coarse) = 0;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
                        float cell_size, int num_of_iterations) = 0;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,

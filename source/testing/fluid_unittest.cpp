@@ -76,16 +76,16 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
     if (!UnittestCommon::InitializeSimulators(&sim_cuda, &sim_glsl))
         return;
 
-    int width = sim_cuda.pressure_->GetWidth();
-    int height = sim_cuda.pressure_->GetHeight();
-    int depth = sim_cuda.pressure_->GetDepth();
+    int width = sim_cuda.general1b_->GetWidth();
+    int height = sim_cuda.general1b_->GetHeight();
+    int depth = sim_cuda.general1b_->GetDepth();
     int n = 2;
     int pitch = width * sizeof(uint16_t) * n;
     int size = pitch * height * depth;
 
     // Copy the initialized data to GPU.
-    UnittestCommon::InitializeVolume2(sim_cuda.pressure_.get(),
-                                      sim_glsl.pressure_.get(), width, height,
+    UnittestCommon::InitializeVolume2(sim_cuda.general1b_.get(),
+                                      sim_glsl.general1b_.get(), width, height,
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
@@ -93,8 +93,8 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
     sim_glsl.DampedJacobi(CellSize, 1);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
-                                           1, sim_cuda.pressure_.get(),
-                                           sim_glsl.pressure_.get(),
+                                           1, sim_cuda.general1b_.get(),
+                                           sim_glsl.general1b_.get(),
                                            __FUNCTION__);
 }
 

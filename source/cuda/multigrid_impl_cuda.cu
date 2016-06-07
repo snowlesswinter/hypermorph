@@ -41,6 +41,17 @@ __global__ void ProlongateLerpKernel()
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
+    auto raw = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
+    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void ProlongateErrorLerpKernel()
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
 
     float coarse = tex3D(tex, coord.x, coord.y, coord.z);
     float fine = tex3D(tex_fine, x, y, z);
@@ -124,6 +135,24 @@ void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
     if (bound_coarse.error() != cudaSuccess)
         return;
 
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
+    ProlongateLerpKernel<<<grid, block>>>();
+}
+
+void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
+                           uint3 volume_size_fine, BlockArrangement* ba)
+{
+    if (BindCudaSurfaceToArray(&surf, fine) != cudaSuccess)
+        return;
+
+    auto bound_coarse = BindHelper::Bind(&tex, coarse, false,
+                                         cudaFilterModeLinear,
+                                         cudaAddressModeClamp);
+    if (bound_coarse.error() != cudaSuccess)
+        return;
+
     auto bound_fine = BindHelper::Bind(&tex_fine, fine, false,
                                        cudaFilterModePoint,
                                        cudaAddressModeClamp);
@@ -133,7 +162,7 @@ void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateLerpKernel<<<grid, block>>>();
+    ProlongateErrorLerpKernel<<<grid, block>>>();
 }
 
 void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,

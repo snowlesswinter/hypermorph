@@ -104,7 +104,7 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
 
         times_to_iterate /= 2;
 
-        core_->ProlongateResidual(*fine_volume->x(), *coarse_volume);
+        core_->ProlongateError(*fine_volume->x(), *coarse_volume);
         Relax(fine_volume->x(), fine_volume->y(), cell_size, times_to_iterate);
     }
 }

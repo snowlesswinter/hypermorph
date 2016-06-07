@@ -37,10 +37,6 @@ public:
     void UpdateImpulsing(float x, float y);
 
     void set_solver_choice(PoissonMethod method) { solver_choice_ = method; }
-    void set_num_multigrid_iterations(int n) { num_multigrid_iterations_ = n; }
-    void set_num_full_multigrid_iterations(int n) {
-        num_full_multigrid_iterations_ = n;
-    }
     void set_diagnosis(bool diagnosis) { diagnosis_ = diagnosis; }
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
@@ -90,8 +86,6 @@ private:
     std::unique_ptr<MultigridCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<OpenBoundaryMultigridPoissonSolver> psi_solver_;
-    int num_multigrid_iterations_;
-    int num_full_multigrid_iterations_;
     int volume_byte_width_;
     bool diagnosis_;
 
@@ -102,7 +96,6 @@ private:
     GraphicsVolume3 vort_conf_;
     std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
-    std::shared_ptr<GraphicsVolume> pressure_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;
     std::shared_ptr<GraphicsVolume> general1c_;

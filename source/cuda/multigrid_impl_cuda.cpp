@@ -19,6 +19,8 @@ extern void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
                                   BlockArrangement* ba);
 extern void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
                              uint3 volume_size_fine, BlockArrangement* ba);
+extern void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
+                                  uint3 volume_size_fine, BlockArrangement* ba);
 extern void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b,
                                      float cell_size, uint3 volume_size,
                                      BlockArrangement* ba);
@@ -53,6 +55,12 @@ void MultigridImplCuda::Prolongate(cudaArray* fine, cudaArray* coarse,
                                    const glm::ivec3& volume_size)
 {
     LaunchProlongate(fine, coarse, FromGlmVector(volume_size), ba_);
+}
+
+void MultigridImplCuda::ProlongateError(cudaArray* fine, cudaArray* coarse,
+                                        const glm::ivec3& volume_size)
+{
+    LaunchProlongateError(fine, coarse, FromGlmVector(volume_size), ba_);
 }
 
 void MultigridImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
