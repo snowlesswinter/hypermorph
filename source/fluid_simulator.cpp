@@ -34,7 +34,7 @@ static struct
     GLuint diagnose_;
 } Programs;
 
-int size_tweak = 1;
+int size_tweak = 0;
 const int kVelGridWidth = GridWidth + size_tweak;
 const int kVelGridHeight = GridHeight + size_tweak;
 const int kVelGridDepth = GridDepth + size_tweak;
@@ -52,6 +52,7 @@ FluidSimulator::FluidSimulator()
     , volume_byte_width_(2)
     , diagnosis_(false)
     , velocity_(GRAPHICS_LIB_CUDA)
+    , velocity_prime_(GRAPHICS_LIB_CUDA)
     , vorticity_(GRAPHICS_LIB_CUDA)
     , aux_(GRAPHICS_LIB_CUDA)
     , vort_conf_(GRAPHICS_LIB_CUDA)
@@ -62,7 +63,6 @@ FluidSimulator::FluidSimulator()
     , general1b_()
     , general1c_()
     , general1d_()
-    , general1e_()
     , diagnosis_volume_()
     , manual_impulse_()
 {
@@ -103,7 +103,13 @@ bool FluidSimulator::Init()
         return false;
 
     result = velocity_.Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 1,
-                               2);
+                              2);
+    assert(result);
+    if (!result)
+        return false;
+
+    result = velocity_prime_.Create(kVelGridWidth, kVelGridHeight,
+                                    kVelGridDepth, 1, 2);
     assert(result);
     if (!result)
         return false;
@@ -187,6 +193,12 @@ void FluidSimulator::Reset()
         velocity_.x()->Clear();
         velocity_.y()->Clear();
         velocity_.z()->Clear();
+    }
+
+    if (velocity_prime_) {
+        velocity_prime_.x()->Clear();
+        velocity_prime_.y()->Clear();
+        velocity_prime_.z()->Clear();
     }
 
     if (vorticity_) {
@@ -360,16 +372,17 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::AdvectionMethod method =
             FluidConfig::Instance()->advection_method();
-        CudaMain::Instance()->AdvectVelocity(general1a_->cuda_volume(),
-                                             general1b_->cuda_volume(),
-                                             general1c_->cuda_volume(),
+        CudaMain::Instance()->AdvectVelocity(velocity_prime_.x()->cuda_volume(),
+                                             velocity_prime_.y()->cuda_volume(),
+                                             velocity_prime_.z()->cuda_volume(),
                                              velocity_.x()->cuda_volume(),
                                              velocity_.y()->cuda_volume(),
                                              velocity_.z()->cuda_volume(),
-                                             general1d_->cuda_volume(),
+                                             general1a_->cuda_volume(),
                                              delta_time, velocity_dissipation,
                                              method);
-        velocity_.Swap(GraphicsVolume3(general1a_, general1b_, general1c_));
+        velocity_.Swap(velocity_prime_);
+        //velocity_.Swap(&general1a_, &general1b_, &general1c_);
     } else {
         glUseProgram(Programs.Advect);
 
@@ -432,7 +445,6 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
 
         //std::swap(velocity_, general4a_);
     }
-
 }
 
 void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
@@ -949,7 +961,7 @@ void FluidSimulator::StretchVortices(float delta_time, float cell_size)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->StretchVortices(
             general1a_->cuda_volume(), general1b_->cuda_volume(),
-            general1c_->cuda_volume(), general1e_->cuda_volume(),
+            general1c_->cuda_volume(), general1d_->cuda_volume(),
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
             vorticity.z()->cuda_volume(), CellSize, delta_time);
     }
@@ -993,7 +1005,7 @@ void FluidSimulator::RestoreVorticity(float delta_time)
             return;
 
         // Please note that the nth velocity in still within |general4a_|.
-        ComputeCurl(&vorticity, general1e_);
+        ComputeCurl(&vorticity, general1d_);
         BuildVorticityConfinemnet(delta_time);
 
         StretchVortices(delta_time, CellSize);

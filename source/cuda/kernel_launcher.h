@@ -9,14 +9,12 @@
 class BlockArrangement;
 enum AdvectionMethod;
 
-extern void LaunchAdvectFieldsStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux, cudaArray* velocity, float time_step, float dissipation, uint3 volume_size, BlockArrangement* ba, AdvectionMethod method);
 extern void LaunchAdvectScalar(cudaArray_t dest_array, cudaArray_t velocity_array, cudaArray_t source_array, cudaArray_t intermediate_array, float time_step, float dissipation, bool quadratic_dissipation, uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectScalarStaggered(cudaArray_t dest_array, cudaArray_t velocity_array, cudaArray_t source_array, cudaArray_t intermediate_array, float time_step, float dissipation, bool quadratic_dissipation, uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array, cudaArray* temperature_array, cudaArray* density_array, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
-extern void LaunchApplyBuoyancyStaggered(cudaArray* dest_array, cudaArray* velocity_array, cudaArray* temperature_array, cudaArray* density_array, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
 extern void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
 extern void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array, float3 center_point, float3 hotspot, float radius, float3 value, uint32_t mask, uint3 volume_size);
 extern void LaunchApplyVorticityConfinementStaggered(cudaArray* dest, cudaArray* velocity, cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, uint3 volume_size, BlockArrangement* ba);
@@ -35,7 +33,6 @@ extern void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y, 
 
 // Vorticity.
 extern void LaunchAddCurlPsi(cudaArray* velocity, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* aux, cudaArray* velocity, float time_step, float dissipation, uint3 volume_size, BlockArrangement* ba, AdvectionMethod method);
 extern void LaunchComputeDivergenceStaggeredForVort(cudaArray* div, cudaArray* velocity, float cell_size, uint3 volume_size);
 extern void LaunchComputeDeltaVorticity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* div, float time_step, uint3 volume_size, BlockArrangement* ba);

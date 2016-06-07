@@ -92,6 +92,20 @@ void GraphicsVolume3::Swap(GraphicsVolume3& obj)
     Assign(x, y, z);
 }
 
+void GraphicsVolume3::Swap(std::shared_ptr<GraphicsVolume>* x,
+                           std::shared_ptr<GraphicsVolume>* y,
+                           std::shared_ptr<GraphicsVolume>* z)
+{
+    std::shared_ptr<GraphicsVolume> ¦Á = *x;
+    std::shared_ptr<GraphicsVolume> ¦Â = *y;
+    std::shared_ptr<GraphicsVolume> ¦Ã = *z;
+
+    *x = x_;
+    *y = y_;
+    *z = z_;
+    Assign(¦Á, ¦Â, ¦Ã);
+}
+
 const std::shared_ptr<GraphicsVolume>& GraphicsVolume3::operator[](int n) const
 {
     assert(n < sizeof(v_) / sizeof(v_[0]));

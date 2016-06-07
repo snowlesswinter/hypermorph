@@ -184,21 +184,6 @@ void CudaMain::AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                                     ToCudaAdvectionMethod(method));
 }
 
-void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> dest,
-                             std::shared_ptr<CudaVolume> velocity,
-                             std::shared_ptr<CudaVolume> temperature,
-                             std::shared_ptr<CudaVolume> density,
-                             float time_step, float ambient_temperature,
-                             float accel_factor, float gravity)
-{
-    // NOTE: The temperature's volume size should be used instead of the
-    //       velocity's.
-    fluid_impl_->ApplyBuoyancy(dest->dev_array(), velocity->dev_array(),
-                               temperature->dev_array(), density->dev_array(),
-                               time_step, ambient_temperature, accel_factor,
-                               gravity, temperature->size());
-}
-
 void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
                              std::shared_ptr<CudaVolume> vel_y,
                              std::shared_ptr<CudaVolume> vel_z,

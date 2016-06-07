@@ -69,19 +69,6 @@ void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
                            method);
 }
 
-void FluidImplCuda::AdvectFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                                 cudaArray* fnp1_z, cudaArray* fn_x,
-                                 cudaArray* fn_y, cudaArray* fn_z,
-                                 cudaArray* aux, cudaArray* velocity,
-                                 float time_step, float dissipation,
-                                 const glm::ivec3& volume_size)
-{
-    LaunchAdvectFieldsStaggered(fnp1_x,  fnp1_y, fnp1_z,  fn_x, fn_y,  fn_z,
-                                aux, velocity, time_step, dissipation,
-                                FromGlmVector(volume_size), ba_,
-                                MACCORMACK_SEMI_LAGRANGIAN);
-}
-
 void FluidImplCuda::AdvectScalarField(cudaArray* fnp1, cudaArray* fn,
                                       cudaArray* vel_x, cudaArray* vel_y,
                                       cudaArray* vel_z, cudaArray* aux,
@@ -115,23 +102,6 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                        dissipation, MACCORMACK_SEMI_LAGRANGIAN,
                                        FromGlmVector(volume_size), ba_);
     }
-}
-
-void FluidImplCuda::ApplyBuoyancy(cudaArray* dest, cudaArray* velocity,
-                                  cudaArray* temperature, cudaArray* density,
-                                  float time_step, float ambient_temperature,
-                                  float accel_factor, float gravity,
-                                  const glm::ivec3& volume_size)
-{
-    if (staggered_)
-        LaunchApplyBuoyancyStaggered(dest, velocity, temperature, density,
-                                     time_step, ambient_temperature,
-                                     accel_factor, gravity,
-                                     FromGlmVector(volume_size));
-    else
-        LaunchApplyBuoyancy(dest, velocity, temperature, density, time_step,
-                            ambient_temperature, accel_factor, gravity,
-                            FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
