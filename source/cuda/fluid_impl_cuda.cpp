@@ -29,6 +29,7 @@ extern int sphere;
 FluidImplCuda::FluidImplCuda(BlockArrangement* ba)
     : ba_(ba)
     , staggered_(true)
+    , advect_method_(MACCORMACK_SEMI_LAGRANGIAN)
 {
 
 }
@@ -46,11 +47,11 @@ void FluidImplCuda::AdvectScalarField(cudaArray* fnp1, cudaArray* fn,
     if (staggered_)
         LaunchAdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z, aux,
                                          time_step, dissipation,
-                                         MACCORMACK_SEMI_LAGRANGIAN,
+                                         advect_method_,
                                          FromGlmVector(volume_size), ba_);
     else
         LaunchAdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux, time_step,
-                                dissipation, MACCORMACK_SEMI_LAGRANGIAN,
+                                dissipation, advect_method_,
                                 FromGlmVector(volume_size), ba_);
 }
 
@@ -61,28 +62,27 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                        cudaArray* vel_z, cudaArray* aux,
                                        float time_step, float dissipation,
                                        const glm::ivec3& volume_size,
-                                       VectorField field,
-                                       AdvectionMethod method)
+                                       VectorField field)
 {
     if (staggered_) {
         if (field == VECTOR_FIELD_VELOCITY) {
             LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
                                           fn_z, vel_x, vel_y, vel_z, aux,
                                           time_step, dissipation,
-                                          MACCORMACK_SEMI_LAGRANGIAN,
+                                          advect_method_,
                                           FromGlmVector(volume_size), ba_);
         } else if (field == VECTOR_FIELD_VORTICITY) {
             LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
                                            fn_z, vel_x, vel_y, vel_z, aux,
                                            time_step, dissipation,
-                                           MACCORMACK_SEMI_LAGRANGIAN,
+                                           advect_method_,
                                            FromGlmVector(volume_size), ba_);
         }
     } else {
         LaunchAdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z, vel_x,
                                 vel_y, vel_z, aux, time_step, dissipation,
-                                MACCORMACK_SEMI_LAGRANGIAN,
-                                FromGlmVector(volume_size), ba_);
+                                advect_method_, FromGlmVector(volume_size),
+                                ba_);
     }
 }
 
@@ -92,9 +92,15 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
                                   float ambient_temperature, float accel_factor,
                                   float gravity, const glm::ivec3& volume_size)
 {
-    LaunchApplyBuoyancyStaggered(vel_x, vel_y, vel_z, temperature, density,
-                                 time_step, ambient_temperature, accel_factor,
-                                 gravity, FromGlmVector(volume_size));
+    if (staggered_)
+        LaunchApplyBuoyancyStaggered(vel_x, vel_y, vel_z, temperature, density,
+                                     time_step, ambient_temperature,
+                                     accel_factor, gravity,
+                                     FromGlmVector(volume_size));
+    else
+        LaunchApplyBuoyancy(vel_x, vel_y, vel_z, temperature, density,
+                            time_step, ambient_temperature, accel_factor,
+                            gravity, FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
@@ -184,9 +190,10 @@ void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
         LaunchComputeDivergenceStaggered(div, vel_x, vel_y, vel_z,
                                          2.0f * half_inverse_cell_size,
                                          FromGlmVector(volume_size));
-    //else
-    //    LaunchComputeDivergence(dest, velocity, half_inverse_cell_size,
-    //                            FromGlmVector(volume_size));
+    else
+        LaunchComputeDivergence(div, vel_x, vel_y, vel_z,
+                                half_inverse_cell_size,
+                                FromGlmVector(volume_size));
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
@@ -231,9 +238,10 @@ void FluidImplCuda::SubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
         LaunchSubtractGradientStaggered(vel_x, vel_y, vel_z, pressure,
                                         2.0f * half_inverse_cell_size,
                                         FromGlmVector(volume_size), ba_);
-    //else
-    //    LaunchSubtractGradient(velocity, pressure, half_inverse_cell_size,
-    //                           FromGlmVector(volume_size), ba_);
+    else
+        LaunchSubtractGradient(vel_x, vel_y, vel_z, pressure,
+                               half_inverse_cell_size,
+                               FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::AddCurlPsi(cudaArray* velocity, cudaArray* psi_x,

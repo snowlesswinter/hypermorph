@@ -197,8 +197,12 @@ bool ResetSimulator()
     sim_->set_num_full_multigrid_iterations(
         FluidConfig::Instance()->num_full_multigrid_iterations());
     sim_->set_diagnosis(!!g_diagnosis);
-    sim_->SetStaggered(FluidConfig::Instance()->staggered());
-    return sim_->Init();
+
+    bool r = sim_->Init();
+    if (r)
+        sim_->NotifyConfigChanged();
+
+    return r;
 }
 
 void Display()
@@ -216,7 +220,7 @@ void Display()
         FluidConfig::Instance()->Reload();
         watcher_->ResetState();
 
-        sim_->SetStaggered(FluidConfig::Instance()->staggered());
+        sim_->NotifyConfigChanged();
     }
 
     UpdateFrame(static_cast<unsigned int>(deltaTime));

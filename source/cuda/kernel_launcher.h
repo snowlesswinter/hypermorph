@@ -14,10 +14,10 @@ extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cud
 extern void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array, cudaArray* temperature_array, cudaArray* density_array, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
+extern void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
 extern void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);
 extern void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array, float3 center_point, float3 hotspot, float radius, float3 value, uint32_t mask, uint3 volume_size);
-extern void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array, float half_inverse_cell_size, uint3 volume_size);
+extern void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float half_inverse_cell_size, uint3 volume_size);
 extern void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float inverse_cell_size, uint3 volume_size);
 extern void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b, float inverse_h_square, uint3 volume_size);
 extern void LaunchGenerateHeatSphere(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float3 value, uint3 volume_size, BlockArrangement* ba);
@@ -25,7 +25,7 @@ extern void LaunchImpulseDensity(cudaArray* dest_array, cudaArray* original_arra
 extern void LaunchImpulseDensitySphere(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float3 value, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size, int num_of_iterations, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
-extern void LaunchSubtractGradient(cudaArray* velocity, cudaArray* pressure, float half_inverse_cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float half_inverse_cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float inverse_cell_size, uint3 volume_size, BlockArrangement* ba);
 
 // Vorticity.

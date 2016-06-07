@@ -85,13 +85,15 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
 
     float3 coord = make_float3(x, y, z); // Careful: Non-interpolation version.
 
-    float  near =   tex3D(divergence_velocity, coord.x,        coord.y,        coord.z - 1.0f).z;
-    float  south =  tex3D(divergence_velocity, coord.x,        coord.y - 1.0f, coord.z).y;
-    float  west =   tex3D(divergence_velocity, coord.x - 1.0f, coord.y,        coord.z).x;
-    float4 center = tex3D(divergence_velocity, coord.x,        coord.y,        coord.z);
-    float  east =   tex3D(divergence_velocity, coord.x + 1.0f, coord.y,        coord.z).x;
-    float  north =  tex3D(divergence_velocity, coord.x,        coord.y + 1.0f, coord.z).y;
-    float  far =    tex3D(divergence_velocity, coord.x,        coord.y,        coord.z + 1.0f).z;
+    float west =     tex3D(tex_x, coord.x - 1.0f, coord.y,        coord.z);
+    float center_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
+    float east =     tex3D(tex_x, coord.x + 1.0f, coord.y,        coord.z);
+    float south =    tex3D(tex_y, coord.x,        coord.y - 1.0f, coord.z);
+    float center_y = tex3D(tex_y, coord.x,        coord.y,        coord.z);
+    float north =    tex3D(tex_y, coord.x,        coord.y + 1.0f, coord.z);
+    float near =     tex3D(tex_z, coord.x,        coord.y,        coord.z - 1.0f);
+    float center_z = tex3D(tex_z, coord.x,        coord.y,        coord.z);
+    float far =      tex3D(tex_z, coord.x,        coord.y,        coord.z + 1.0f);
 
     float diff_ew = east - west;
     float diff_ns = north - south;
@@ -99,22 +101,22 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
 
     // Handle boundary problem.
     if (x >= volume_size.x - 1)
-        diff_ew = -center.x - west;
+        diff_ew = -center_x - west;
 
     if (x <= 0)
-        diff_ew = east + center.x;
+        diff_ew = east + center_x;
 
     if (y >= volume_size.y - 1)
-        diff_ns = -center.y - south;
+        diff_ns = -center_y - south;
 
     if (y <= 0)
-        diff_ns = north + center.y;
+        diff_ns = north + center_y;
 
     if (z >= volume_size.z - 1)
-        diff_fn = -center.z - near;
+        diff_fn = -center_z - near;
 
     if (z <= 0)
-        diff_fn = far + center.z;
+        diff_fn = far + center_z;
 
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     auto r = __float2half_rn(div);
@@ -244,18 +246,23 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
     if (z <= 0)
         mask.z = 0.0f;
 
-    float3 old_v =
-        make_float3(tex3D(gradient_velocity, coord.x, coord.y, coord.z));
-    float3 grad =
-        make_float3(diff_ew, diff_ns, diff_fn) * half_inverse_cell_size;
-    float3 new_v = old_v - grad;
-    float3 result = mask * new_v; // Velocity goes to 0 when hit ???
-    ushort4 raw = make_ushort4(__float2half_rn(result.x),
-                               __float2half_rn(result.y),
-                               __float2half_rn(result.z),
-                               0);
-    surf3Dwrite(raw, surf, x * sizeof(ushort4), y, z,
-                cudaBoundaryModeTrap);
+    float old_x = tex3D(tex_x, coord.x, coord.y, coord.z);
+    float grad_x = diff_ew * half_inverse_cell_size;
+    float new_x = old_x - grad_x;
+    auto r_x = __float2half_rn(new_x * mask.x);
+    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+
+    float old_y = tex3D(tex_y, coord.x, coord.y, coord.z);
+    float grad_y = diff_ns * half_inverse_cell_size;
+    float new_y = old_y - grad_y;
+    auto r_y = __float2half_rn(new_y * mask.y);
+    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+
+    float old_z = tex3D(tex_z, coord.x, coord.y, coord.z);
+    float grad_z = diff_fn * half_inverse_cell_size;
+    float new_z = old_z - grad_z;
+    auto r_z = __float2half_rn(new_z * mask.z);
+    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
@@ -304,27 +311,27 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 
 // =============================================================================
 
-void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array,
-                         cudaArray* temperature_array, cudaArray* density_array,
+void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                         cudaArray* temperature, cudaArray* density,
                          float time_step, float ambient_temperature,
                          float accel_factor, float gravity, uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
+
+    if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&tex, velocity_array, false,
-                                      cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    auto bound_v = BindHelper::Bind(&tex, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_v.error() != cudaSuccess)
         return;
 
-    auto bound_temp = BindHelper::Bind(&tex_t, temperature_array,
+    auto bound_temp = BindHelper::Bind(&tex_t, temperature,
                                        false, cudaFilterModeLinear,
                                        cudaAddressModeClamp);
     if (bound_temp.error() != cudaSuccess)
         return;
 
-    auto bound_density = BindHelper::Bind(&tex_d, density_array,
+    auto bound_density = BindHelper::Bind(&tex_d, density,
                                           false, cudaFilterModeLinear,
                                           cudaAddressModeClamp);
     if (bound_density.error() != cudaSuccess)
@@ -369,16 +376,26 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
                                                   volume_size);
 }
 
-void LaunchComputeDivergence(cudaArray* dest_array, cudaArray* velocity_array,
-                             float half_inverse_cell_size, uint3 volume_size)
+void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
+                             cudaArray* vel_z, float half_inverse_cell_size,
+                             uint3 volume_size)
 {
-    if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&divergence_velocity, velocity_array,
-                                      false, cudaFilterModePoint,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
         return;
 
     dim3 block(8, 8, 8);
@@ -447,21 +464,37 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
 }
 
-void LaunchSubtractGradient(cudaArray* velocity, cudaArray* pressure,
+void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
+                            cudaArray* vel_z, cudaArray* pressure,
                             float half_inverse_cell_size, uint3 volume_size,
                             BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, velocity) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&gradient_velocity, velocity,
-                                      false, cudaFilterModePoint,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, pressure, false,
-                                  cudaFilterModePoint, cudaAddressModeClamp);
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
+        return;
+
+    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModePoint,
+                                  cudaAddressModeClamp);
     if (bound.error() != cudaSuccess)
         return;
 

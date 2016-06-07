@@ -32,7 +32,7 @@ public:
                             cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y,
                             cudaArray* vel_z, cudaArray* aux, float time_step,
                             float dissipation, const glm::ivec3& volume_size,
-                            VectorField field, AdvectionMethod method);
+                            VectorField field);
     void ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
                        cudaArray* vel_z, cudaArray* temperature,
                        cudaArray* density, float time_step,
@@ -99,10 +99,12 @@ public:
     void RoundPassed(int round);
 
     void set_staggered(bool staggered) { staggered_ = staggered; }
+    void set_advect_method(AdvectionMethod m) { advect_method_ = m; }
 
 private:
     BlockArrangement* ba_;
     bool staggered_;
+    AdvectionMethod advect_method_;
 };
 
 #endif // _FLUID_IMPL_CUDA_H_

@@ -50,8 +50,7 @@ public:
                         std::shared_ptr<CudaVolume> vn_y,
                         std::shared_ptr<CudaVolume> vn_z,
                         std::shared_ptr<CudaVolume> aux,
-                        float time_step, float dissipation,
-                        AdvectionMethod method);
+                        float time_step, float dissipation);
     void AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                          std::shared_ptr<CudaVolume> vnp1_y,
                          std::shared_ptr<CudaVolume> vnp1_z,
@@ -62,8 +61,7 @@ public:
                          std::shared_ptr<CudaVolume> vel_y,
                          std::shared_ptr<CudaVolume> vel_z,
                          std::shared_ptr<CudaVolume> aux,
-                         float time_step, float dissipation,
-                         AdvectionMethod method);
+                         float time_step, float dissipation);
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
                        std::shared_ptr<CudaVolume> vel_y,
                        std::shared_ptr<CudaVolume> vel_z,
@@ -167,6 +165,7 @@ public:
                  float absorption, float density_factor,
                  float occlusion_factor);
 
+    void SetAdvectionMethod(AdvectionMethod method);
     void SetStaggered(bool staggered);
 
     // For diagnosis

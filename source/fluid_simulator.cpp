@@ -223,9 +223,12 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
     return density_;
 }
 
-void FluidSimulator::SetStaggered(bool staggered)
+void FluidSimulator::NotifyConfigChanged()
 {
-    CudaMain::Instance()->SetStaggered(staggered);
+    CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
+    CudaMain::Instance()->SetAdvectionMethod(
+        FluidConfig::Instance()->advection_method());
+    
 }
 
 void FluidSimulator::StartImpulsing(float x, float y)
@@ -370,8 +373,6 @@ void FluidSimulator::AdvectVelocity(float delta_time)
     float velocity_dissipation =
         FluidConfig::Instance()->velocity_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::AdvectionMethod method =
-            FluidConfig::Instance()->advection_method();
         CudaMain::Instance()->AdvectVelocity(velocity_prime_.x()->cuda_volume(),
                                              velocity_prime_.y()->cuda_volume(),
                                              velocity_prime_.z()->cuda_volume(),
@@ -379,8 +380,7 @@ void FluidSimulator::AdvectVelocity(float delta_time)
                                              velocity_.y()->cuda_volume(),
                                              velocity_.z()->cuda_volume(),
                                              general1a_->cuda_volume(),
-                                             delta_time, velocity_dissipation,
-                                             method);
+                                             delta_time, velocity_dissipation);
         velocity_.Swap(velocity_prime_);
         //velocity_.Swap(&general1a_, &general1b_, &general1c_);
     } else {
@@ -847,7 +847,7 @@ void FluidSimulator::AdvectVortices(float delta_time)
             general1b_->cuda_volume(), general1c_->cuda_volume(),
             velocity_.x()->cuda_volume(), velocity_.y()->cuda_volume(),
             velocity_.z()->cuda_volume(), general1d_->cuda_volume(), delta_time,
-            0.0f, CudaMain::MACCORMACK_SEMI_LAGRANGIAN);
+            0.0f);
     }
 }
 

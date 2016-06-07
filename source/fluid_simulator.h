@@ -30,7 +30,7 @@ public:
     bool Init();
     void Reset();
     std::shared_ptr<GraphicsVolume> GetDensityField() const;
-    void SetStaggered(bool staggered);
+    void NotifyConfigChanged();
     void StartImpulsing(float x, float y);
     void StopImpulsing();
     void Update(float delta_time, double seconds_elapsed, int frame_count);
