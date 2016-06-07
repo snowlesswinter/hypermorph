@@ -255,11 +255,6 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
     if (bound_vz.error() != cudaSuccess)
         return;
 
-    auto bound_a = BindHelper::Bind(&tex_aux, aux, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_a.error() != cudaSuccess)
-        return;
-
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
@@ -279,10 +274,24 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
 
-        BfeccRemoveErrorKernel<<<grid, block>>>(time_step);
+        {
+            auto bound_a = BindHelper::Bind(&tex_aux, fnp1[i], false,
+                                            cudaFilterModeLinear,
+                                            cudaAddressModeClamp);
+            if (bound_a.error() != cudaSuccess)
+                return;
+
+            BfeccRemoveErrorKernel<<<grid, block>>>(time_step);
+        }
 
         // Pass 3: Calculate the final result.
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
+            return;
+
+        auto bound_a = BindHelper::Bind(&tex_aux, aux, false,
+                                        cudaFilterModeLinear,
+                                        cudaAddressModeClamp);
+        if (bound_a.error() != cudaSuccess)
             return;
 
         AdvectFieldBfeccKernel<<<grid, block>>>(time_step, dissipation);
