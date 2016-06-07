@@ -37,48 +37,21 @@ FluidImplCuda::~FluidImplCuda()
 {
 }
 
-void FluidImplCuda::Advect(cudaArray* dest, cudaArray* velocity,
-                           cudaArray* source, cudaArray* intermediate,
-                           float time_step, float dissipation,
-                           const glm::ivec3& volume_size,
-                           AdvectionMethod method)
-{
-    if (staggered_)
-        LaunchAdvectScalarStaggered(dest, velocity, source, intermediate,
-                                    time_step, dissipation, false,
-                                    FromGlmVector(volume_size), method);
-    else
-        LaunchAdvectScalar(dest, velocity, source, intermediate, time_step,
-                           dissipation, false, FromGlmVector(volume_size),
-                           method);
-}
-
-void FluidImplCuda::AdvectDensity(cudaArray* dest, cudaArray* velocity,
-                                  cudaArray* density, cudaArray* intermediate,
-                                  float time_step, float dissipation,
-                                  const glm::ivec3& volume_size,
-                                  AdvectionMethod method)
-{
-    if (staggered_)
-        LaunchAdvectScalarStaggered(dest, velocity, density, intermediate,
-                                    time_step, dissipation, true,
-                                    FromGlmVector(volume_size), method);
-    else
-        LaunchAdvectScalar(dest, velocity, density, intermediate, time_step,
-                           dissipation, true, FromGlmVector(volume_size),
-                           method);
-}
-
 void FluidImplCuda::AdvectScalarField(cudaArray* fnp1, cudaArray* fn,
                                       cudaArray* vel_x, cudaArray* vel_y,
                                       cudaArray* vel_z, cudaArray* aux,
                                       float time_step, float dissipation,
                                       const glm::ivec3& volume_size)
 {
-    LaunchAdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z, aux,
-                                     time_step, dissipation,
-                                     MACCORMACK_SEMI_LAGRANGIAN,
-                                     FromGlmVector(volume_size), ba_);
+    if (staggered_)
+        LaunchAdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z, aux,
+                                         time_step, dissipation,
+                                         MACCORMACK_SEMI_LAGRANGIAN,
+                                         FromGlmVector(volume_size), ba_);
+    else
+        LaunchAdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux, time_step,
+                                dissipation, MACCORMACK_SEMI_LAGRANGIAN,
+                                FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
@@ -91,16 +64,25 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                        VectorField field,
                                        AdvectionMethod method)
 {
-    if (field == VECTOR_FIELD_VELOCITY) {
-        LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z,
-                                      vel_x, vel_y, vel_z, aux, time_step,
-                                      dissipation, MACCORMACK_SEMI_LAGRANGIAN,
-                                      FromGlmVector(volume_size), ba_);
-    } else if (field == VECTOR_FIELD_VORTICITY) {
-        LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z,
-                                       vel_x, vel_y, vel_z, aux, time_step,
-                                       dissipation, MACCORMACK_SEMI_LAGRANGIAN,
-                                       FromGlmVector(volume_size), ba_);
+    if (staggered_) {
+        if (field == VECTOR_FIELD_VELOCITY) {
+            LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
+                                          fn_z, vel_x, vel_y, vel_z, aux,
+                                          time_step, dissipation,
+                                          MACCORMACK_SEMI_LAGRANGIAN,
+                                          FromGlmVector(volume_size), ba_);
+        } else if (field == VECTOR_FIELD_VORTICITY) {
+            LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
+                                           fn_z, vel_x, vel_y, vel_z, aux,
+                                           time_step, dissipation,
+                                           MACCORMACK_SEMI_LAGRANGIAN,
+                                           FromGlmVector(volume_size), ba_);
+        }
+    } else {
+        LaunchAdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z, vel_x,
+                                vel_y, vel_z, aux, time_step, dissipation,
+                                MACCORMACK_SEMI_LAGRANGIAN,
+                                FromGlmVector(volume_size), ba_);
     }
 }
 

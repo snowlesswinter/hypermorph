@@ -9,9 +9,10 @@
 class BlockArrangement;
 enum AdvectionMethod;
 
-extern void LaunchAdvectScalar(cudaArray_t dest_array, cudaArray_t velocity_array, cudaArray_t source_array, cudaArray_t intermediate_array, float time_step, float dissipation, bool quadratic_dissipation, uint3 volume_size, AdvectionMethod method);
+extern void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectScalarStaggered(cudaArray_t dest_array, cudaArray_t velocity_array, cudaArray_t source_array, cudaArray_t intermediate_array, float time_step, float dissipation, bool quadratic_dissipation, uint3 volume_size, AdvectionMethod method);
 extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchApplyBuoyancy(cudaArray* dest_array, cudaArray* velocity_array, cudaArray* temperature_array, cudaArray* density_array, float time_step, float ambient_temperature, float accel_factor, float gravity, uint3 volume_size);

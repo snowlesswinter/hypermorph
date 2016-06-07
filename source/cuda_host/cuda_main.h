@@ -36,17 +36,6 @@ public:
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
 
-    void Advect(std::shared_ptr<CudaVolume> dest,
-                std::shared_ptr<CudaVolume> velocity,
-                std::shared_ptr<CudaVolume> source,
-                std::shared_ptr<CudaVolume> intermediate, float time_step,
-                float dissipation, AdvectionMethod method);
-    void AdvectDensity(std::shared_ptr<CudaVolume> dest,
-                       std::shared_ptr<CudaVolume> velocity,
-                       std::shared_ptr<CudaVolume> density,
-                       std::shared_ptr<CudaVolume> intermediate,
-                       float time_step, float dissipation,
-                       AdvectionMethod method);
     void AdvectField(std::shared_ptr<CudaVolume> fnp1,
                      std::shared_ptr<CudaVolume> fn,
                      std::shared_ptr<CudaVolume> vel_x,

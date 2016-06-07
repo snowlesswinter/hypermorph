@@ -23,13 +23,6 @@ public:
     explicit FluidImplCuda(BlockArrangement* ba);
     ~FluidImplCuda();
 
-    void Advect(cudaArray* dest, cudaArray* velocity, cudaArray* source,
-                cudaArray* intermediate, float time_step, float dissipation,
-                const glm::ivec3& volume_size, AdvectionMethod method);
-    void AdvectDensity(cudaArray* dest, cudaArray* velocity, cudaArray* density,
-                       cudaArray* intermediate, float time_step,
-                       float dissipation, const glm::ivec3& volume_size,
-                       AdvectionMethod method);
     void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x,
                            cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
                            float time_step, float dissipation,

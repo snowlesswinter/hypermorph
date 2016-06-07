@@ -102,31 +102,6 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
     registerd_textures_.erase(i);
 }
 
-void CudaMain::Advect(std::shared_ptr<CudaVolume> dest,
-                      std::shared_ptr<CudaVolume> velocity,
-                      std::shared_ptr<CudaVolume> source,
-                      std::shared_ptr<CudaVolume> intermediate, float time_step,
-                      float dissipation, AdvectionMethod method)
-{
-    fluid_impl_->Advect(dest->dev_array(), velocity->dev_array(),
-                        source->dev_array(), intermediate->dev_array(),
-                        time_step, dissipation, dest->size(),
-                        ToCudaAdvectionMethod(method));
-}
-
-void CudaMain::AdvectDensity(std::shared_ptr<CudaVolume> dest,
-                             std::shared_ptr<CudaVolume> velocity,
-                             std::shared_ptr<CudaVolume> density,
-                             std::shared_ptr<CudaVolume> intermediate,
-                             float time_step, float dissipation,
-                             AdvectionMethod method)
-{
-    fluid_impl_->AdvectDensity(dest->dev_array(), velocity->dev_array(),
-                               density->dev_array(), intermediate->dev_array(),
-                               time_step, dissipation, dest->size(),
-                               ToCudaAdvectionMethod(method));
-}
-
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
                            std::shared_ptr<CudaVolume> fn,
                            std::shared_ptr<CudaVolume> vel_x,
