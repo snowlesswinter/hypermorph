@@ -246,6 +246,7 @@ FluidConfig::FluidConfig()
     , advection_method_(CudaMain::MACCORMACK_SEMI_LAGRANGIAN,
                         "advection method")
     , light_color_(glm::vec3(171, 160, 139), "light color")
+    , grid_size_(glm::vec3(128, 128, 128), "grid size")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
     , impulse_density_(0.5f, "impulse density")
@@ -321,6 +322,11 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         return;
     }
 
+    if (lower_trimmed == grid_size_.desc_) {
+        value_stream >> grid_size_;
+        return;
+    }
+
     ConfigField<std::string>* string_fields[] = {
         &preset_file_,
     };
@@ -384,6 +390,7 @@ void FluidConfig::Store(std::ostream& stream)
     stream << poisson_method_ << std::endl;
     stream << advection_method_ << std::endl;
     stream << light_color_ << std::endl;
+    stream << grid_size_ << std::endl;
 
     ConfigField<std::string> string_fields[] = {
         preset_file_,

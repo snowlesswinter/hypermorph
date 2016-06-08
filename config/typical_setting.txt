@@ -1,21 +1,22 @@
 graphics library = cuda
-poisson method = full multigrid
+poisson method = fmg
 advection method = mcsl
+grid size = (128,128,128)
 ambient temperature = 0
 smoke buoyancy = 1
-smoke weight = 1
+smoke weight = 0.1
 
-impulse temperature = 1
-impulse density = 1
+impulse temperature = 5
+impulse density = 0.4
 
-temperature dissipation = 0.2
-velocity dissipation = 0.005
-density dissipation = 0.03
+temperature dissipation = 0.1
+velocity dissipation = 0.008
+density dissipation = 0.05
 
 splat radius factor = 0.45
 number of jacobi iterations = 60
 num multigrid iterations = 5
-num full multigrid iterations = 2
+num full multigrid iterations = 1
 fixed time step = 0.3
 auto impulse = 1
 staggered = 1
@@ -25,4 +26,17 @@ num raycast light samples = 90
 light absorption = 10
 raycast density factor = 40
 raycast occlusion factor = 16
-time stretch = 4
+time stretch = 5
+vorticity confinement = -0.12
+
+impulse temperature = 0
+velocity dissipation = 0.
+impulse density = 0
+density dissipation = 0.0
+fixed time step = 0.3
+splat radius factor = 0.25
+
+
+fixed time step = 0.1
+impulse temperature = 5
+impulse density = 2

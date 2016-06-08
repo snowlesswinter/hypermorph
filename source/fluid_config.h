@@ -34,6 +34,7 @@ public:
         return advection_method_.value_;
     }
     glm::vec3 light_color() const { return light_color_.value_; }
+    glm::vec3 grid_size() const { return grid_size_.value_; }
     float ambient_temperature() const { return ambient_temperature_.value_; }
     float impulse_temperature() const { return impulse_temperature_.value_; }
     float impulse_density() const { return impulse_density_.value_; }
@@ -91,6 +92,7 @@ private:
     ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
     ConfigField<CudaMain::AdvectionMethod> advection_method_;
     ConfigField<glm::vec3> light_color_;
+    ConfigField<glm::vec3> grid_size_;
     ConfigField<float> ambient_temperature_;
     ConfigField<float> impulse_temperature_;
     ConfigField<float> impulse_density_;

@@ -20,11 +20,15 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 
 __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
-                                    float accel_factor, float gravity)
+                                    float accel_factor, float gravity,
+                                    uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float t = tex3D(tex_t, coord.x, coord.y, coord.z);
@@ -44,6 +48,9 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, 0, z) + 0.5f;
     float t_prev = tex3D(tex_t, coord.x, coord.y, coord.z);
@@ -75,6 +82,9 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -123,6 +133,9 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
     float3 coord = make_float3(x, y, z) + 0.5f;
 
     float base_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
@@ -157,6 +170,9 @@ __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z);
 
@@ -204,6 +220,9 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -265,6 +284,9 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
     float3 coord = make_float3(x, y, z) + 0.5f;
     
     float near =  tex3D(tex, coord.x,        coord.y,          coord.z - 1.0f);
@@ -307,7 +329,8 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                          cudaArray* temperature, cudaArray* density,
                          float time_step, float ambient_temperature,
-                         float accel_factor, float gravity, uint3 volume_size)
+                         float accel_factor, float gravity, uint3 volume_size,
+                         BlockArrangement* ba)
 {
 
     if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
@@ -330,18 +353,19 @@ void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     if (bound_density.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
-                                         accel_factor, gravity);
+                                         accel_factor, gravity, volume_size);
 }
 
 void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
                                   cudaArray* vel_z, cudaArray* temperature,
                                   cudaArray* density, float time_step,
                                   float ambient_temperature, float accel_factor,
-                                  float gravity, uint3 volume_size)
+                                  float gravity, uint3 volume_size,
+                                  BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
         return;
@@ -363,6 +387,8 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
 
     dim3 block(16, 1, 16);
     dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
+    ba->ArrangeGrid(&grid, block, volume_size);
+    grid.y = 1;
     ApplyBuoyancyStaggeredKernel<<<grid, block>>>(time_step,
                                                   ambient_temperature,
                                                   accel_factor, gravity,
@@ -371,7 +397,7 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
 
 void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
                              cudaArray* vel_z, float half_inverse_cell_size,
-                             uint3 volume_size)
+                             uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
@@ -391,9 +417,9 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ComputeDivergenceKernel<<<grid, block>>>(half_inverse_cell_size,
                                              volume_size);
 }
@@ -401,7 +427,7 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
 void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
                                       cudaArray* vel_y, cudaArray* vel_z,
                                       float inverse_cell_size,
-                                      uint3 volume_size)
+                                      uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
@@ -421,16 +447,16 @@ void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ComputeDivergenceStaggeredKernel<<<grid, block>>>(inverse_cell_size,
                                                       volume_size);
 }
 
 void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
                                     cudaArray* b, float inverse_h_square,
-                                    uint3 volume_size)
+                                    uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, residual) != cudaSuccess)
         return;
@@ -445,9 +471,9 @@ void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
     if (bound_b.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, volume_size.x / 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ComputeResidualDiagnosisKernel<<<grid, block>>>(inverse_h_square,
                                                     volume_size);
 }

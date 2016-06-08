@@ -460,7 +460,8 @@ void LaunchBuildVorticityConfinementStaggered(cudaArray* dest_x,
 
 void LaunchComputeDivergenceStaggeredForVort(cudaArray* div,
                                              cudaArray* velocity,
-                                             float cell_size, uint3 volume_size)
+                                             float cell_size, uint3 volume_size,
+                                             BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
@@ -471,9 +472,9 @@ void LaunchComputeDivergenceStaggeredForVort(cudaArray* div,
     if (bound_vel.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ComputeDivergenceStaggeredKernelForVort<<<grid, block>>>(1.0f / cell_size,
                                                              volume_size);
 }

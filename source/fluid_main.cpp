@@ -120,7 +120,6 @@ void UpdateFrame(unsigned int microseconds)
     if (simulate_fluid_) {
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
-        glViewport(0, 0, GridWidth, GridHeight);
         sim_->Update(delta_time, time_elapsed, frame_count);
     }
 }
@@ -291,7 +290,7 @@ bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
         return false;
     }
 
-    float hot_plane_y = -1.0f + (2.0f / GridHeight) * 2.0f;
+    float hot_plane_y = -1.0f + 0.015625f * 2.0f;
     float r = (hot_plane_y - eye_position.y) / diff.y;
     result->x = r * diff.x + eye_position.x;
     result->y = r * diff.z + eye_position.z;

@@ -5,7 +5,7 @@
 
 #include "graphics_lib_enum.h"
 #include "graphics_volume_group.h"
-#include "third_party/glm/fwd.hpp"
+#include "third_party/glm/vec3.hpp"
 
 class FluidUnittest;
 class GraphicsVolume;
@@ -81,6 +81,7 @@ private:
     const GraphicsVolume3& GetAuxField();
     const GraphicsVolume3& GetVorticityConfinementField();
 
+    glm::vec3 grid_size_;
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;

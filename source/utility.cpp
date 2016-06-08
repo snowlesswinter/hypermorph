@@ -20,11 +20,9 @@ const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
                              // set it to 1.0f. It seems that a huge
                              // improvement in quality, but actually it's just
                              // a change on |r|'s scale.
-const int GridWidth = 128;
-const int GridHeight = GridWidth;
-const int GridDepth = GridWidth;
+
 const float kMaxTimeStep = 0.33f;
-const glm::vec3 kImpulsePosition(GridWidth / 2.0f, 10.0f, GridDepth / 2.0f);
+const glm::vec3 kImpulsePosition(0.5f, 0.1f, 0.5f);
 const float kBuoyancyCoef = 1.0f;
 
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,

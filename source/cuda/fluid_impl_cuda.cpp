@@ -100,11 +100,11 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
         LaunchApplyBuoyancyStaggered(vel_x, vel_y, vel_z, temperature, density,
                                      time_step, ambient_temperature,
                                      accel_factor, gravity,
-                                     FromGlmVector(volume_size));
+                                     FromGlmVector(volume_size), ba_);
     else
         LaunchApplyBuoyancy(vel_x, vel_y, vel_z, temperature, density,
                             time_step, ambient_temperature, accel_factor,
-                            gravity, FromGlmVector(volume_size));
+                            gravity, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
@@ -125,7 +125,7 @@ void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
             make_float3(center_point.x, center_point.y, center_point.z),
             make_float3(hotspot.x, hotspot.y, hotspot.z),
             radius, make_float3(value.x, value.y, value.z), mask,
-            FromGlmVector(volume_size));
+            FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
@@ -145,7 +145,8 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
             density, density,
             make_float3(center_point.x, center_point.y, center_point.z),
             make_float3(hotspot.x, hotspot.y, hotspot.z),
-            radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size));
+            radius, make_float3(value, 0, 0), 1, FromGlmVector(volume_size),
+            ba_);
 }
 
 void FluidImplCuda::ApplyVorticityConfinement(cudaArray* dest,
@@ -193,11 +194,11 @@ void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
     if (staggered_)
         LaunchComputeDivergenceStaggered(div, vel_x, vel_y, vel_z,
                                          2.0f * half_inverse_cell_size,
-                                         FromGlmVector(volume_size));
+                                         FromGlmVector(volume_size), ba_);
     else
         LaunchComputeDivergence(div, vel_x, vel_y, vel_z,
                                 half_inverse_cell_size,
-                                FromGlmVector(volume_size));
+                                FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
@@ -206,7 +207,7 @@ void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
                                              const glm::ivec3& volume_size)
 {
     LaunchComputeResidualDiagnosis(residual, u, b, inverse_h_square,
-                                   FromGlmVector(volume_size));
+                                   FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
@@ -230,7 +231,7 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
         LaunchImpulseDensity(
             density, density,
             make_float3(center_point.x, center_point.y, center_point.z),
-            radius, make_float3(value, 0, 0), FromGlmVector(volume_size));
+            radius, make_float3(value, 0, 0), FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::SubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
@@ -274,7 +275,7 @@ void FluidImplCuda::ComputeDivergenceForVort(cudaArray* div,
                                              const glm::ivec3& volume_size)
 {
     LaunchComputeDivergenceStaggeredForVort(div, velocity, cell_size,
-                                            FromGlmVector(volume_size));
+                                            FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::DecayVortices(cudaArray* vort_x, cudaArray* vort_y,

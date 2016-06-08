@@ -557,10 +557,9 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
                     volume_size.z, volume_size);
             
         } else if (smem) {
-            dim3 block(8, 8, 8);
-            dim3 grid((volume_size.x + block.x - 1) / block.x,
-                      (volume_size.y + block.y - 1) / block.y,
-                      (volume_size.z + block.z - 1) / block.z);
+            dim3 block;
+            dim3 grid;
+            ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
             DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
                 minus_square_cell_size, omega_over_beta);
         } else {

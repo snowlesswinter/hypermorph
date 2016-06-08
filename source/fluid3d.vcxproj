@@ -113,7 +113,6 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="trackball.h" />
     <ClInclude Include="utility.h" />
-    <ClInclude Include="vmath.hpp" />
     <ClInclude Include="volume_renderer.h" />
   </ItemGroup>
   <ItemGroup>

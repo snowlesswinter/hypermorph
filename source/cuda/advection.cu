@@ -134,7 +134,8 @@ __device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_ste
 }
 
 template <bool MidPoint>
-__global__ void AdvectFieldBfeccKernel(float time_step, float dissipation)
+__global__ void AdvectFieldBfeccKernel(float time_step, float dissipation,
+                                       uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -167,7 +168,8 @@ __global__ void AdvectFieldBfeccKernel(float time_step, float dissipation)
 }
 
 template <bool MidPoint>
-__global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation)
+__global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation,
+                                            uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -209,7 +211,8 @@ __global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation)
 
 template <bool MidPoint>
 __global__ void AdvectFieldSemiLagrangianKernel(float time_step,
-                                                float dissipation)
+                                                float dissipation,
+                                                uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -227,7 +230,7 @@ __global__ void AdvectFieldSemiLagrangianKernel(float time_step,
 }
 
 template <bool MidPoint>
-__global__ void BfeccRemoveErrorKernel(float time_step)
+__global__ void BfeccRemoveErrorKernel(float time_step, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -283,11 +286,11 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
             return;
 
         if (mid_point)
-            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(time_step,
-                                                                   0.0f);
+            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
         else
-            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(time_step,
-                                                                    0.0f);
+            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
 
         // Pass 2: Calculate ¦Õ_n_hat, and store in |aux|.
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
@@ -301,9 +304,11 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
                 return;
 
             if (mid_point)
-                BfeccRemoveErrorKernel<true><<<grid, block>>>(time_step);
+                BfeccRemoveErrorKernel<true><<<grid, block>>>(time_step,
+                                                              volume_size);
             else
-                BfeccRemoveErrorKernel<false><<<grid, block>>>(time_step);
+                BfeccRemoveErrorKernel<false><<<grid, block>>>(time_step,
+                                                               volume_size);
         }
 
         // Pass 3: Calculate the final result.
@@ -318,10 +323,12 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
 
         if (mid_point)
             AdvectFieldBfeccKernel<true><<<grid, block>>>(time_step,
-                                                          dissipation);
+                                                          dissipation,
+                                                          volume_size);
         else
             AdvectFieldBfeccKernel<false><<<grid, block>>>(time_step,
-                                                           dissipation);
+                                                           dissipation,
+                                                           volume_size);
     }
 }
 
@@ -368,21 +375,23 @@ void AdvectFieldsMacCormack(cudaArray** fnp1, cudaArray** fn,
             return;
 
         if (mid_point)
-            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(time_step,
-                                                                   0.0f);
+            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
         else
-            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(time_step,
-                                                                    0.0f);
+            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
 
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
         if (mid_point)
             AdvectFieldMacCormackKernel<true><<<grid, block>>>(time_step,
-                                                               dissipation);
+                                                               dissipation,
+                                                               volume_size);
         else
             AdvectFieldMacCormackKernel<false><<<grid, block>>>(time_step,
-                                                                dissipation);
+                                                                dissipation,
+                                                                volume_size);
     }
 }
 
@@ -424,11 +433,11 @@ void AdvectFieldsSemiLagrangian(cudaArray** fnp1, cudaArray** fn,
             return;
 
         if (mid_point)
-            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(time_step,
-                                                                   0.0f);
+            AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
         else
-            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(time_step,
-                                                                    0.0f);
+            AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
+                time_step, 0.0f, volume_size);
     }
 }
 

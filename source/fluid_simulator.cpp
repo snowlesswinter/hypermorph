@@ -37,7 +37,8 @@ static struct
 int sphere = 0;
 
 FluidSimulator::FluidSimulator()
-    : graphics_lib_(GRAPHICS_LIB_CUDA)
+    : grid_size_(128.0f)
+    , graphics_lib_(GRAPHICS_LIB_CUDA)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
     , pressure_solver_()
@@ -88,42 +89,48 @@ bool FluidSimulator::Init()
     // cache miss in GPU during raycast. So, it's a problem all about the cache
     // shortage in graphic cards.
 
-    bool result = density_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    grid_size_ = FluidConfig::Instance()->grid_size();
+
+    int width = static_cast<int>(grid_size_.x);
+    int height = static_cast<int>(grid_size_.y);
+    int depth = static_cast<int>(grid_size_.z);
+
+    bool result = density_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = velocity_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = velocity_.Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = velocity_prime_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = velocity_prime_.Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = temperature_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = temperature_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1a_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = general1a_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1b_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = general1b_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1c_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = general1c_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1d_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+    result = general1d_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
@@ -432,30 +439,30 @@ void FluidSimulator::ApplyBuoyancy(float delta_time)
 
 void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
 {
+    glm::vec3 pos = kImpulsePosition * grid_size_;
     double ¦Ð = 3.1415926;
     float splat_radius =
-        GridWidth * FluidConfig::Instance()->splat_radius_factor();
+        grid_size_.x * FluidConfig::Instance()->splat_radius_factor();
     float time_stretch = FluidConfig::Instance()->time_stretch() + 0.00001f;
     float sin_factor = static_cast<float>(sin(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
-    float hotspot_x = cos_factor * splat_radius * 0.8f + kImpulsePosition.x;
-    float hotspot_z = sin_factor * splat_radius * 0.8f + kImpulsePosition.z;
+    float hotspot_x = cos_factor * splat_radius * 0.8f + pos.x;
+    float hotspot_z = sin_factor * splat_radius * 0.8f + pos.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     if (manual_impulse_)
-        hotspot = glm::vec3(0.5f * GridWidth * (manual_impulse_->x + 1.0f),
+        hotspot = glm::vec3(0.5f * grid_size_.x * (manual_impulse_->x + 1.0f),
                             0.0f,
-                            0.5f * GridDepth * (manual_impulse_->y + 1.0f));
+                            0.5f * grid_size_.z * (manual_impulse_->y + 1.0f));
     else if (!FluidConfig::Instance()->auto_impulse())
         return;
 
-    ImpulseDensity(kImpulsePosition, hotspot, splat_radius,
+    ImpulseDensity(pos, hotspot, splat_radius,
                    FluidConfig::Instance()->impulse_density());
 
     glm::vec3 temperature(FluidConfig::Instance()->impulse_temperature(), 0.0f,
                           0.0f);
-    Impulse(temperature_, kImpulsePosition, hotspot, splat_radius, temperature,
-            1);
+    Impulse(temperature_, pos, hotspot, splat_radius, temperature, 1);
 
     return; // Not necessary for this scene.
     float v_coef = static_cast<float>(sin(seconds_elapsed * 3.0 * 2.0 * ¦Ð));
@@ -464,7 +471,7 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
         (1.0f + v_coef) * FluidConfig::Instance()->impulse_velocity(),
         0.0f
     );
-    //Impulse(velocity_, kImpulsePosition, hotspot, splat_radius,
+    //Impulse(velocity_, pos, hotspot, splat_radius,
     //        initial_velocity, 7);
 }
 
@@ -514,8 +521,11 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
         return;
 
     if (!diagnosis_volume_) {
+        int width = static_cast<int>(grid_size_.x);
+        int height = static_cast<int>(grid_size_.y);
+        int depth = static_cast<int>(grid_size_.z);
         std::shared_ptr<GraphicsVolume> v(new GraphicsVolume(graphics_lib_));
-        bool result = v->Create(GridWidth, GridHeight, GridDepth, 1, 4, 0);
+        bool result = v->Create(width, height, depth, 1, 4, 0);
         assert(result);
         if (!result)
             return;
@@ -668,11 +678,11 @@ void FluidSimulator::ImpulseDensity(const glm::vec3& position,
 
 void FluidSimulator::ReviseDensity()
 {
+    glm::vec3 pos = kImpulsePosition * grid_size_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         if (!sphere)
             CudaMain::Instance()->ReviseDensity(
-                density_->cuda_volume(), kImpulsePosition, GridWidth * 0.5f,
-                0.1f);
+            density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
     }
 }
 
@@ -945,7 +955,10 @@ void FluidSimulator::StretchVortices(float delta_time, float cell_size)
 const GraphicsVolume3& FluidSimulator::GetVorticityField()
 {
     if (!vorticity_) {
-        bool r = vorticity_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+        int width = static_cast<int>(grid_size_.x);
+        int height = static_cast<int>(grid_size_.y);
+        int depth = static_cast<int>(grid_size_.z);
+        bool r = vorticity_.Create(width, height, depth, 1, 2, 0);
         assert(r);
     }
 
@@ -955,7 +968,10 @@ const GraphicsVolume3& FluidSimulator::GetVorticityField()
 const GraphicsVolume3& FluidSimulator::GetAuxField()
 {
     if (!aux_) {
-        bool r = aux_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+        int width = static_cast<int>(grid_size_.x);
+        int height = static_cast<int>(grid_size_.y);
+        int depth = static_cast<int>(grid_size_.z);
+        bool r = aux_.Create(width, height, depth, 1, 2, 0);
         assert(r);
     }
 
@@ -965,7 +981,10 @@ const GraphicsVolume3& FluidSimulator::GetAuxField()
 const GraphicsVolume3& FluidSimulator::GetVorticityConfinementField()
 {
     if (!vort_conf_) {
-        bool r = vort_conf_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
+        int width = static_cast<int>(grid_size_.x);
+        int height = static_cast<int>(grid_size_.y);
+        int depth = static_cast<int>(grid_size_.z);
+        bool r = vort_conf_.Create(width, height, depth, 1, 2, 0);
         assert(r);
     }
 

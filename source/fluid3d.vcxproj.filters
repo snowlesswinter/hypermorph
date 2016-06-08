@@ -16,7 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="vmath.hpp" />
     <ClInclude Include="overlay_content.h" />
     <ClInclude Include="metrics.h" />
     <ClInclude Include="shader\overlay_shader.h">

@@ -20,6 +20,19 @@ void BlockArrangement::Init(int dev_id)
     cudaGetDeviceProperties(dev_prop_.get(), dev_id);
 }
 
+void BlockArrangement::ArrangeGrid(dim3* grid, const dim3& block,
+                                   const uint3& volume_size)
+{
+    if (!grid || !block.x || !block.y || !block.z)
+        return;
+
+    int bw = block.x;
+    int bh = block.y;
+    int bd = block.z;
+    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
+                 (volume_size.z + bd - 1) / bd);
+}
+
 void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
                                       const uint3& volume_size)
 {

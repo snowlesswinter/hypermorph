@@ -12,11 +12,14 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_fine;
 
-__global__ void ComputeResidualKernel(float inverse_h_square)
+__global__ void ComputeResidualKernel(float inverse_h_square, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float near =   tex3D(tex, x, y, z - 1.0f);
     float south =  tex3D(tex, x, y - 1.0f, z);
@@ -34,22 +37,28 @@ __global__ void ComputeResidualKernel(float inverse_h_square)
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ProlongateLerpKernel()
+__global__ void ProlongateLerpKernel(uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
     auto raw = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
     surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ProlongateErrorLerpKernel()
+__global__ void ProlongateErrorLerpKernel(uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
 
@@ -62,11 +71,15 @@ __global__ void ProlongateErrorLerpKernel()
 __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
                                          float one_minus_omega,
                                          float minus_h_square,
-                                         float omega_times_inverse_beta)
+                                         float omega_times_inverse_beta,
+                                         uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z);
 
@@ -86,11 +99,14 @@ __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void RestrictLerpKernel()
+__global__ void RestrictLerpKernel(uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
@@ -120,7 +136,8 @@ void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
-    ComputeResidualKernel<<<grid, block>>>(1.0f / (cell_size * cell_size));
+    ComputeResidualKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
+                                           volume_size);
 }
 
 void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
@@ -138,7 +155,7 @@ void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateLerpKernel<<<grid, block>>>();
+    ProlongateLerpKernel<<<grid, block>>>(volume_size_fine);
 }
 
 void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
@@ -162,7 +179,7 @@ void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateErrorLerpKernel<<<grid, block>>>();
+    ProlongateErrorLerpKernel<<<grid, block>>>(volume_size_fine);
 }
 
 void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,
@@ -187,10 +204,12 @@ void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,
     RelaxWithZeroGuessKernel<<<grid, block>>>(alpha_omega_over_beta,
                                               one_minus_omega,
                                               minus_h_square,
-                                              omega_times_inverse_beta);
+                                              omega_times_inverse_beta,
+                                              volume_size);
 }
 
-void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size)
+void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
+                    BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, coarse) != cudaSuccess)
         return;
@@ -200,8 +219,8 @@ void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size)
     if (bound.error() != cudaSuccess)
         return;
 
-    dim3 block(8, 8, 8);
-    dim3 grid(volume_size.x / block.x, volume_size.y / block.y,
-              volume_size.z / block.z);
-    RestrictLerpKernel<<<grid, block>>>();
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    RestrictLerpKernel<<<grid, block>>>(volume_size);
 }

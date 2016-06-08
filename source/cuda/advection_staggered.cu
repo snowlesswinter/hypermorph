@@ -49,11 +49,15 @@ __device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_ste
 template <bool MidPoint>
 __global__ void AdvectFieldBfeccStaggeredOffsetKernel(float3 offset,
                                                       float time_step,
-                                                      float dissipation)
+                                                      float dissipation,
+                                                      uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocityStaggeredOffset(coord + offset);
@@ -84,11 +88,15 @@ __global__ void AdvectFieldBfeccStaggeredOffsetKernel(float3 offset,
 template <bool MidPoint>
 __global__ void AdvectFieldMacCormackStaggeredOffsetKernel(float3 offset,
                                                            float time_step,
-                                                           float dissipation)
+                                                           float dissipation,
+                                                           uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -126,11 +134,14 @@ __global__ void AdvectFieldMacCormackStaggeredOffsetKernel(float3 offset,
 
 template <bool MidPoint>
 __global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel(
-    float3 offset, float time_step, float dissipation)
+    float3 offset, float time_step, float dissipation, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -144,11 +155,15 @@ __global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel(
 
 template <bool MidPoint>
 __global__ void BfeccRemoveErrorStaggeredOffsetKernel(float3 offset,
-                                                      float time_step)
+                                                      float time_step,
+                                                      uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocityStaggeredOffset(coord + offset);
@@ -202,10 +217,10 @@ void AdvectFieldsBfeccStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<true><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
         else
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<false><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
 
         // Pass 2: Calculate ¦Õ_n_hat, and store in |aux|.
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
@@ -220,10 +235,10 @@ void AdvectFieldsBfeccStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
 
             if (mid_point)
                 BfeccRemoveErrorStaggeredOffsetKernel<true><<<grid, block>>>(
-                    offset[i], time_step);
+                    offset[i], time_step, volume_size);
             else
                 BfeccRemoveErrorStaggeredOffsetKernel<false><<<grid, block>>>(
-                    offset[i], time_step);
+                    offset[i], time_step, volume_size);
         }
 
         // Pass 3: Calculate the final result.
@@ -238,10 +253,10 @@ void AdvectFieldsBfeccStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldBfeccStaggeredOffsetKernel<true><<<grid, block>>>(
-                offset[i], time_step, dissipation);
+                offset[i], time_step, dissipation, volume_size);
         else
             AdvectFieldBfeccStaggeredOffsetKernel<false><<<grid, block>>>(
-                offset[i], time_step, dissipation);
+                offset[i], time_step, dissipation, volume_size);
     }
 }
 
@@ -290,20 +305,20 @@ void AdvectFieldsMacCormackStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<true><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
         else
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<false><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
 
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
         if (mid_point)
             AdvectFieldMacCormackStaggeredOffsetKernel<true><<<grid, block>>>(
-                offset[i], time_step, dissipation);
+                offset[i], time_step, dissipation, volume_size);
         else
             AdvectFieldMacCormackStaggeredOffsetKernel<false><<<grid, block>>>(
-                offset[i], time_step, dissipation);
+                offset[i], time_step, dissipation, volume_size);
     }
 }
 
@@ -351,10 +366,10 @@ void AdvectFieldsSemiLagrangianStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<true><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
         else
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<false><<<grid, block>>>(
-                offset[i], time_step, 0.0f);
+                offset[i], time_step, 0.0f, volume_size);
     }
 }
 

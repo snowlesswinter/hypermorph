@@ -54,9 +54,6 @@ void SetFatalError(const char* content, ...);
 void CheckCondition(int condition, ...);
 
 extern const float CellSize;
-extern const int GridWidth;
-extern const int GridHeight;
-extern const int GridDepth;
 extern const float kMaxTimeStep;
 extern const float kBuoyancyCoef;
 extern const glm::vec3 kImpulsePosition;

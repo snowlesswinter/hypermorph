@@ -25,7 +25,7 @@ extern void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b,
                                      float cell_size, uint3 volume_size,
                                      BlockArrangement* ba);
 extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine,
-                           uint3 volume_size);
+                           uint3 volume_size, BlockArrangement* ba);
 
 namespace
 {
@@ -73,5 +73,5 @@ void MultigridImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
 void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
                                  const glm::ivec3& volume_size)
 {
-    LaunchRestrict(coarse, fine, FromGlmVector(volume_size));
+    LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
 }
