@@ -18,13 +18,6 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_velocity;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_temperature;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> buoyancy_density;
-surface<void, cudaSurfaceType3D> impulse_dest1;
-surface<void, cudaSurfaceType3D> impulse_dest4;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> divergence_velocity;
-texture<ushort4, cudaTextureType3D, cudaReadModeNormalizedFloat> gradient_velocity;
 
 __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
                                     float accel_factor, float gravity)
@@ -83,7 +76,7 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    float3 coord = make_float3(x, y, z); // Careful: Non-interpolation version.
+    float3 coord = make_float3(x, y, z) + 0.5f;
 
     float west =     tex3D(tex_x, coord.x - 1.0f, coord.y,        coord.z);
     float center_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
@@ -212,7 +205,7 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    float3 coord = make_float3(x, y, z); // Careful: Non-interpolation version.
+    float3 coord = make_float3(x, y, z) + 0.5f;
 
     float near =   tex3D(tex, coord.x, coord.y, coord.z - 1.0f);
     float south =  tex3D(tex, coord.x, coord.y - 1.0f, coord.z);
@@ -228,7 +221,7 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
 
     // Handle boundary problem
     float3 mask = make_float3(1.0f);
-    if (x >= volume_size.x - 1) // Careful: Non-interpolation version.
+    if (x >= volume_size.x - 1)
         mask.x = 0.0f;
 
     if (x <= 0)
@@ -478,22 +471,22 @@ void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
     if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
         return;
 
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModePoint,
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_x.error() != cudaSuccess)
         return;
 
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModePoint,
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_y.error() != cudaSuccess)
         return;
 
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModePoint,
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_z.error() != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModePoint,
+    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModeLinear,
                                   cudaAddressModeClamp);
     if (bound.error() != cudaSuccess)
         return;

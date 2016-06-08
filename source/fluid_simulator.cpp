@@ -216,6 +216,7 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
 void FluidSimulator::NotifyConfigChanged()
 {
     CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
+    CudaMain::Instance()->SetMidPoint(FluidConfig::Instance()->mid_point());
     CudaMain::Instance()->SetAdvectionMethod(
         FluidConfig::Instance()->advection_method());
 }

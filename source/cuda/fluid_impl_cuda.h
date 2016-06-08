@@ -99,11 +99,13 @@ public:
     void RoundPassed(int round);
 
     void set_staggered(bool staggered) { staggered_ = staggered; }
+    void set_mid_point(bool mid_point) { mid_point_ = mid_point; }
     void set_advect_method(AdvectionMethod m) { advect_method_ = m; }
 
 private:
     BlockArrangement* ba_;
     bool staggered_;
+    bool mid_point_;
     AdvectionMethod advect_method_;
 };
 

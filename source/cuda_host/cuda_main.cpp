@@ -443,6 +443,11 @@ void CudaMain::SetAdvectionMethod(AdvectionMethod method)
     fluid_impl_->set_advect_method(ToCudaAdvectionMethod(method));
 }
 
+void CudaMain::SetMidPoint(bool mid_point)
+{
+    fluid_impl_->set_mid_point(mid_point);
+}
+
 void CudaMain::SetStaggered(bool staggered)
 {
     fluid_impl_->set_staggered(staggered);

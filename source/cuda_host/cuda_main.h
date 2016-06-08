@@ -168,6 +168,7 @@ public:
                  float occlusion_factor);
 
     void SetAdvectionMethod(AdvectionMethod method);
+    void SetMidPoint(bool mid_point);
     void SetStaggered(bool staggered);
 
     // For diagnosis
