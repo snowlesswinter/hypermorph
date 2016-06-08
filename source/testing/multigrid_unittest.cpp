@@ -9,6 +9,8 @@
 #include "unittest_common.h"
 #include "utility.h"
 
+const float kCellSize = 0.15f;
+
 void MultigridUnittest::TestProlongation(int random_seed)
 {
     srand(random_seed);
@@ -78,11 +80,11 @@ void MultigridUnittest::TestResidualCalculation(int random_seed)
 
     MultigridCoreCuda cuda_core;
     cuda_core.ComputeResidual(cuda_volume, cuda_volume, cuda_residual,
-                              CellSize);
+                              kCellSize);
 
     MultigridCoreGlsl glsl_core;
     glsl_core.ComputeResidual(glsl_volume, glsl_volume, glsl_residual,
-                              CellSize);
+                              kCellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size_1,
                                            pitch_1, n_1, 1, &cuda_residual,
@@ -193,10 +195,10 @@ void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     MultigridCoreCuda cuda_core;
-    cuda_core.RelaxWithZeroGuess(cuda_volume, cuda_volume, CellSize);
+    cuda_core.RelaxWithZeroGuess(cuda_volume, cuda_volume, kCellSize);
 
     MultigridCoreGlsl glsl_core;
-    glsl_core.RelaxWithZeroGuess(glsl_volume, glsl_volume, CellSize);
+    glsl_core.RelaxWithZeroGuess(glsl_volume, glsl_volume, kCellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, &cuda_volume, &glsl_volume,

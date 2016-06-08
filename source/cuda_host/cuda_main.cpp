@@ -238,20 +238,20 @@ void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,
                                  std::shared_ptr<CudaVolume> vel_x,
                                  std::shared_ptr<CudaVolume> vel_y,
                                  std::shared_ptr<CudaVolume> vel_z,
-                                 float half_inverse_cell_size)
+                                 float cell_size)
 {
     fluid_impl_->ComputeDivergence(div->dev_array(), vel_x->dev_array(),
                                    vel_y->dev_array(), vel_z->dev_array(),
-                                   half_inverse_cell_size, div->size());
+                                   cell_size, div->size());
 }
 
 void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                         std::shared_ptr<CudaVolume> u,
                                         std::shared_ptr<CudaVolume> b,
-                                        float inverse_h_square)
+                                        float cell_size)
 {
     fluid_impl_->ComputeResidualDiagnosis(residual->dev_array(), u->dev_array(),
-                                          b->dev_array(), inverse_h_square,
+                                          b->dev_array(), cell_size,
                                           residual->size());
 
     // =========================================================================
@@ -312,11 +312,11 @@ void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
                                 std::shared_ptr<CudaVolume> vel_y,
                                 std::shared_ptr<CudaVolume> vel_z,
                                 std::shared_ptr<CudaVolume> pressure,
-                                float half_inverse_cell_size)
+                                float cell_size)
 {
     fluid_impl_->SubtractGradient(vel_x->dev_array(), vel_y->dev_array(),
                                   vel_z->dev_array(), pressure->dev_array(),
-                                  half_inverse_cell_size, vel_x->size());
+                                  cell_size, vel_x->size());
 }
 
 void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,

@@ -13,14 +13,6 @@
 #include "third_party/glm/mat4x4.hpp"
 #include "third_party/glm/vec3.hpp"
 
-const float CellSize = 0.15f; // By far I hadn't figured out how the cell size
-                             // should be transformed between levels in
-                             // Multigrid V-Cycle. So I just temporarily
-                             // discard the original value 0.15f, and simply
-                             // set it to 1.0f. It seems that a huge
-                             // improvement in quality, but actually it's just
-                             // a change on |r|'s scale.
-
 const float kMaxTimeStep = 0.33f;
 const glm::vec3 kImpulsePosition(0.5f, 0.1f, 0.5f);
 const float kBuoyancyCoef = 1.0f;

@@ -396,7 +396,7 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
 }
 
 void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, float half_inverse_cell_size,
+                             cudaArray* vel_z, float cell_size,
                              uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
@@ -420,13 +420,12 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeDivergenceKernel<<<grid, block>>>(half_inverse_cell_size,
-                                             volume_size);
+    ComputeDivergenceKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
 }
 
 void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
                                       cudaArray* vel_y, cudaArray* vel_z,
-                                      float inverse_cell_size,
+                                      float cell_size,
                                       uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
@@ -450,12 +449,12 @@ void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeDivergenceStaggeredKernel<<<grid, block>>>(inverse_cell_size,
+    ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
                                                       volume_size);
 }
 
 void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
-                                    cudaArray* b, float inverse_h_square,
+                                    cudaArray* b, float cell_size,
                                     uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, residual) != cudaSuccess)
@@ -474,8 +473,8 @@ void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeResidualDiagnosisKernel<<<grid, block>>>(inverse_h_square,
-                                                    volume_size);
+    ComputeResidualDiagnosisKernel<<<grid, block>>>(
+        1.0f / (cell_size * cell_size), volume_size);
 }
 
 void LaunchRoundPassed(int* dest_array, int round, int x)
@@ -485,7 +484,7 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
 
 void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                             cudaArray* vel_z, cudaArray* pressure,
-                            float half_inverse_cell_size, uint3 volume_size,
+                            float cell_size, uint3 volume_size,
                             BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
@@ -520,13 +519,12 @@ void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientKernel<<<grid, block>>>(half_inverse_cell_size,
-                                            volume_size);
+    SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
 }
 
 void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y,
                                      cudaArray* vel_z, cudaArray* pressure,
-                                     float inverse_cell_size, uint3 volume_size,
+                                     float cell_size, uint3 volume_size,
                                      BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
@@ -561,6 +559,6 @@ void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientStaggeredKernel<<<grid, block>>>(inverse_cell_size,
+    SubtractGradientStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
                                                      volume_size);
 }

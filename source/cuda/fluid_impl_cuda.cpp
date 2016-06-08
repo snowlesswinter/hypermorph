@@ -188,25 +188,24 @@ void FluidImplCuda::ComputeCurl(cudaArray* dest_x, cudaArray* dest_y,
 
 void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
                                       cudaArray* vel_y, cudaArray* vel_z,
-                                      float half_inverse_cell_size,
+                                      float cell_size,
                                       const glm::ivec3& volume_size)
 {
     if (staggered_)
         LaunchComputeDivergenceStaggered(div, vel_x, vel_y, vel_z,
-                                         2.0f * half_inverse_cell_size,
+                                         cell_size,
                                          FromGlmVector(volume_size), ba_);
     else
-        LaunchComputeDivergence(div, vel_x, vel_y, vel_z,
-                                half_inverse_cell_size,
+        LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size,
                                 FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
                                              cudaArray* b,
-                                             float inverse_h_square,
+                                             float cell_size,
                                              const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualDiagnosis(residual, u, b, inverse_h_square,
+    LaunchComputeResidualDiagnosis(residual, u, b, cell_size,
                                    FromGlmVector(volume_size), ba_);
 }
 
@@ -236,17 +235,16 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
 
 void FluidImplCuda::SubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                                      cudaArray* vel_z, cudaArray* pressure,
-                                     float half_inverse_cell_size,
+                                     float cell_size,
                                      const glm::ivec3& volume_size)
 {
     if (staggered_)
         LaunchSubtractGradientStaggered(vel_x, vel_y, vel_z, pressure,
-                                        2.0f * half_inverse_cell_size,
-                                        FromGlmVector(volume_size), ba_);
+                                        cell_size, FromGlmVector(volume_size),
+                                        ba_);
     else
         LaunchSubtractGradient(vel_x, vel_y, vel_z, pressure,
-                               half_inverse_cell_size,
-                               FromGlmVector(volume_size), ba_);
+                               cell_size, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::AddCurlPsi(cudaArray* velocity, cudaArray* psi_x,

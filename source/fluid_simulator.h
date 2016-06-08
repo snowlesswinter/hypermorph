@@ -82,6 +82,7 @@ private:
     const GraphicsVolume3& GetVorticityConfinementField();
 
     glm::vec3 grid_size_;
+    float cell_size_;
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;

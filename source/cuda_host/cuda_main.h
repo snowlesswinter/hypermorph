@@ -98,12 +98,11 @@ public:
     void ComputeDivergence(std::shared_ptr<CudaVolume> div,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
-                           std::shared_ptr<CudaVolume> vel_z,
-                           float half_inverse_cell_size);
+                           std::shared_ptr<CudaVolume> vel_z, float cell_size);
     void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                   std::shared_ptr<CudaVolume> u,
                                   std::shared_ptr<CudaVolume> b,
-                                  float inverse_h_square);
+                                  float cell_size);
     void Relax(std::shared_ptr<CudaVolume> unp1, std::shared_ptr<CudaVolume> un,
                std::shared_ptr<CudaVolume> b, float cell_size,
                int num_of_iterations);
@@ -114,7 +113,7 @@ public:
                           std::shared_ptr<CudaVolume> vel_y,
                           std::shared_ptr<CudaVolume> vel_z,
                           std::shared_ptr<CudaVolume> pressure,
-                          float half_inverse_cell_size);
+                          float cell_size);
 
     // Multigrid.
     void ComputeResidual(std::shared_ptr<CudaVolume> r,

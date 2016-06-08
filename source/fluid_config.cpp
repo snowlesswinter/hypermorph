@@ -247,6 +247,7 @@ FluidConfig::FluidConfig()
                         "advection method")
     , light_color_(glm::vec3(171, 160, 139), "light color")
     , grid_size_(glm::vec3(128, 128, 128), "grid size")
+    , cell_size_(0.15f, "cell size")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
     , impulse_density_(0.5f, "impulse density")
@@ -339,6 +340,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
     }
 
     ConfigField<float>* float_fields[] = {
+        &cell_size_,
         &ambient_temperature_,
         &impulse_temperature_,
         &impulse_density_,
@@ -400,6 +402,7 @@ void FluidConfig::Store(std::ostream& stream)
         stream << f << std::endl;
 
     ConfigField<float> float_fields[] = {
+        cell_size_,
         ambient_temperature_,
         impulse_temperature_,
         impulse_density_,

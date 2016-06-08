@@ -13,6 +13,7 @@
 namespace
 {
 const float kTimeStep = 0.33f;
+const float kCellSize = 0.15f;
 
 void InitializeDensityVolume(GraphicsVolume* cuda_volume,
                              GraphicsVolume* glsl_volume, int size,
@@ -89,8 +90,8 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
-    sim_cuda.DampedJacobi(CellSize, 1);
-    sim_glsl.DampedJacobi(CellSize, 1);
+    sim_cuda.DampedJacobi(kCellSize, 1);
+    sim_glsl.DampedJacobi(kCellSize, 1);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, sim_cuda.general1b_.get(),

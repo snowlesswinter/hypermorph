@@ -38,6 +38,7 @@ int sphere = 0;
 
 FluidSimulator::FluidSimulator()
     : grid_size_(128.0f)
+    , cell_size_(0.15f)
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
@@ -90,6 +91,7 @@ bool FluidSimulator::Init()
     // shortage in graphic cards.
 
     grid_size_ = FluidConfig::Instance()->grid_size();
+    cell_size_ = FluidConfig::Instance()->cell_size();
 
     int width = static_cast<int>(grid_size_.x);
     int height = static_cast<int>(grid_size_.y);
@@ -478,7 +480,7 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
 void FluidSimulator::ComputeCurl(const GraphicsVolume3* vorticity,
                                  std::shared_ptr<GraphicsVolume> velocity)
 {
-    float inverse_cell_size = 1.0f / CellSize;
+    float inverse_cell_size = 1.0f / cell_size_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeCurl(vorticity->x()->cuda_volume(),
                                           vorticity->y()->cuda_volume(),
@@ -490,14 +492,15 @@ void FluidSimulator::ComputeCurl(const GraphicsVolume3* vorticity,
 
 void FluidSimulator::ComputeDivergence()
 {
-    float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeDivergence(general1a_->cuda_volume(),
                                                 velocity_.x()->cuda_volume(),
                                                 velocity_.y()->cuda_volume(),
                                                 velocity_.z()->cuda_volume(),
-                                                half_inverse_cell_size);
+                                                cell_size_);
     } else {
+        float half_inverse_cell_size = 0.5f / cell_size_;
+
         glUseProgram(Programs.ComputeDivergence);
 
         SetUniform("HalfInverseCellSize", half_inverse_cell_size);
@@ -533,12 +536,13 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
         diagnosis_volume_ = v;
     }
 
-    float inverse_h_square = 1.0f / (cell_size * cell_size);
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualDiagnosis(
             diagnosis_volume_->cuda_volume(), general1b_->cuda_volume(),
-            general1a_->cuda_volume(), inverse_h_square);
+            general1a_->cuda_volume(), cell_size);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
+        float inverse_h_square = 1.0f / (cell_size * cell_size);
+
         glUseProgram(Programs.diagnose_);
 
         SetUniform("packed_tex", 0);
@@ -711,7 +715,7 @@ void FluidSimulator::SolvePressure()
             // Our experiments reveals that increasing the iteration times to
             // 80 of Jacobi will NOT lead to higher accuracy.
             
-            DampedJacobi(CellSize, num_jacobi_iterations);
+            DampedJacobi(cell_size_, num_jacobi_iterations);
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
@@ -736,7 +740,7 @@ void FluidSimulator::SolvePressure()
             // That's a pretty good score!
 
             for (int i = 0; i < num_multigrid_iterations; i++)
-                pressure_solver_->Solve(general1b_, general1a_, CellSize, !i);
+                pressure_solver_->Solve(general1b_, general1a_, cell_size_, !i);
 
             break;
         }
@@ -751,7 +755,7 @@ void FluidSimulator::SolvePressure()
             }
 
             for (int i = 0; i < num_full_multigrid_iterations; i++)
-                pressure_solver_->Solve(general1b_, general1a_, CellSize, !i);
+                pressure_solver_->Solve(general1b_, general1a_, cell_size_, !i);
 
             break;
         }
@@ -760,7 +764,7 @@ void FluidSimulator::SolvePressure()
         }
     }
 
-    ComputeResidualDiagnosis(CellSize);
+    ComputeResidualDiagnosis(cell_size_);
 }
 
 void FluidSimulator::SubtractGradient()
@@ -775,15 +779,15 @@ void FluidSimulator::SubtractGradient()
     // found this coefficient should be the same as that in divergence
     // calculation. This mistake was introduced at the first day the project
     // was created.
-
-    const float half_inverse_cell_size = 0.5f / CellSize;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->SubtractGradient(velocity_.x()->cuda_volume(),
                                                velocity_.y()->cuda_volume(),
                                                velocity_.z()->cuda_volume(),
                                                general1b_->cuda_volume(),
-                                               half_inverse_cell_size);
+                                               cell_size_);
     } else {
+        const float half_inverse_cell_size = 0.5f / cell_size_;
+
         glUseProgram(Programs.SubtractGradient);
 
         SetUniform("GradientScale", half_inverse_cell_size);
@@ -813,7 +817,7 @@ void FluidSimulator::AddCurlPsi()
         CudaMain::Instance()->AddCurlPsi(velocity_.x()->cuda_volume(),
                                          psi.x()->cuda_volume(),
                                          psi.y()->cuda_volume(),
-                                         psi.z()->cuda_volume(), CellSize);
+                                         psi.z()->cuda_volume(), cell_size_);
     }
 }
 
@@ -841,7 +845,7 @@ void FluidSimulator::ApplyVorticityConfinemnet()
         return;
 
     // Please note that the nth velocity in still within |general4a_|.
-    float inverse_cell_size = 1.0f / CellSize;
+    float inverse_cell_size = 1.0f / cell_size_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyVorticityConfinement(
             general1a_->cuda_volume(), velocity_.x()->cuda_volume(),
@@ -863,14 +867,14 @@ void FluidSimulator::BuildVorticityConfinemnet(float delta_time)
         return;
 
     // Please note that the nth velocity in still within |general4a_|.
-    float inverse_cell_size = 1.0f / CellSize;
+    float inverse_cell_size = 1.0f / cell_size_;
     float vort_conf_coef = FluidConfig::Instance()->vorticity_confinement();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->BuildVorticityConfinement(
             vort_conf.x()->cuda_volume(), vort_conf.y()->cuda_volume(),
             vort_conf.z()->cuda_volume(), vorticity.x()->cuda_volume(),
             vorticity.y()->cuda_volume(), vorticity.z()->cuda_volume(),
-            vort_conf_coef * delta_time, CellSize);
+            vort_conf_coef * delta_time, cell_size_);
     }
 }
 
@@ -932,7 +936,7 @@ void FluidSimulator::SolvePsi()
 
         for (int i = 0; i < psi.num_of_volumes(); i++) {
             for (int j = 0; j < num_multigrid_iterations; j++)
-                psi_solver_->Solve(psi[i], delta_vort[i], CellSize);
+                psi_solver_->Solve(psi[i], delta_vort[i], cell_size_);
         }
     }
 }
@@ -948,7 +952,7 @@ void FluidSimulator::StretchVortices(float delta_time, float cell_size)
             general1a_->cuda_volume(), general1b_->cuda_volume(),
             general1c_->cuda_volume(), general1d_->cuda_volume(),
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
-            vorticity.z()->cuda_volume(), CellSize, delta_time);
+            vorticity.z()->cuda_volume(), cell_size_, delta_time);
     }
 }
 
@@ -1002,8 +1006,8 @@ void FluidSimulator::RestoreVorticity(float delta_time)
         ComputeCurl(&vorticity, general1d_);
         BuildVorticityConfinemnet(delta_time);
 
-        StretchVortices(delta_time, CellSize);
-        DecayVortices(delta_time, CellSize);
+        StretchVortices(delta_time, cell_size_);
+        DecayVortices(delta_time, cell_size_);
         AdvectVortices(delta_time);
 
         const GraphicsVolume3& aux = GetAuxField();

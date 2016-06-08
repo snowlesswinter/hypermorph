@@ -60,11 +60,10 @@ public:
                      cudaArray* curl_z, float inverse_cell_size,
                      const glm::ivec3& volume_size);
     void ComputeDivergence(cudaArray* div, cudaArray* vel_x,
-                           cudaArray* vel_y, cudaArray* vel_z,
-                           float half_inverse_cell_size,
+                           cudaArray* vel_y, cudaArray* vel_z, float cell_size,
                            const glm::ivec3& volume_size);
     void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
-                                  cudaArray* b, float inverse_h_square,
+                                  cudaArray* b, float cell_size,
                                   const glm::ivec3& volume_size);
     void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
                int num_of_iterations, const glm::ivec3& volume_size);
@@ -72,7 +71,7 @@ public:
                        float radius, float value,
                        const glm::ivec3& volume_size);
     void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                          cudaArray* pressure, float gradient_scale,
+                          cudaArray* pressure, float cell_size,
                           const glm::ivec3& volume_size);
 
     // Vorticity.
