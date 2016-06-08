@@ -312,14 +312,17 @@ void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
                               coarse->size());
 }
 
-void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> velocity,
+void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,
+                          std::shared_ptr<CudaVolume> vel_y,
+                          std::shared_ptr<CudaVolume> vel_z,
                           std::shared_ptr<CudaVolume> psi_x,
                           std::shared_ptr<CudaVolume> psi_y,
                           std::shared_ptr<CudaVolume> psi_z, float cell_size)
 {
-    fluid_impl_->AddCurlPsi(velocity->dev_array(), psi_x->dev_array(),
+    fluid_impl_->AddCurlPsi(vel_x->dev_array(), vel_y->dev_array(),
+                            vel_z->dev_array(), psi_x->dev_array(),
                             psi_y->dev_array(), psi_z->dev_array(), cell_size,
-                            velocity->size());
+                            vel_x->size());
 }
 
 void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> vel_x,
@@ -368,27 +371,18 @@ void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> vort_x,
                              vort_x->size());
 }
 
-void CudaMain::ComputeDeltaVorticity(std::shared_ptr<CudaVolume> vort_np1_x,
-                                     std::shared_ptr<CudaVolume> vort_np1_y,
-                                     std::shared_ptr<CudaVolume> vort_np1_z,
+void CudaMain::ComputeDeltaVorticity(std::shared_ptr<CudaVolume> delta_x,
+                                     std::shared_ptr<CudaVolume> delta_y,
+                                     std::shared_ptr<CudaVolume> delta_z,
                                      std::shared_ptr<CudaVolume> vort_x,
                                      std::shared_ptr<CudaVolume> vort_y,
                                      std::shared_ptr<CudaVolume> vort_z)
 {
-    fluid_impl_->ComputeDeltaVorticity(vort_np1_x->dev_array(),
-                                       vort_np1_y->dev_array(),
-                                       vort_np1_z->dev_array(),
+    fluid_impl_->ComputeDeltaVorticity(delta_x->dev_array(),
+                                       delta_y->dev_array(),
+                                       delta_z->dev_array(),
                                        vort_x->dev_array(), vort_y->dev_array(),
-                                       vort_z->dev_array(), vort_np1_x->size());
-}
-
-void CudaMain::ComputeDivergenceForVort(std::shared_ptr<CudaVolume> div,
-                                        std::shared_ptr<CudaVolume> velocity,
-                                        float cell_size)
-{
-    fluid_impl_->ComputeDivergenceForVort(div->dev_array(),
-                                          velocity->dev_array(), cell_size,
-                                          div->size());
+                                       vort_z->dev_array(), delta_x->size());
 }
 
 void CudaMain::DecayVortices(std::shared_ptr<CudaVolume> vort_x,
@@ -401,21 +395,23 @@ void CudaMain::DecayVortices(std::shared_ptr<CudaVolume> vort_x,
                                vort_x->size());
 }
 
-void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vort_np1_x,
-                               std::shared_ptr<CudaVolume> vort_np1_y,
-                               std::shared_ptr<CudaVolume> vort_np1_z,
-                               std::shared_ptr<CudaVolume> velocity,
+void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
+                               std::shared_ptr<CudaVolume> vnp1_y,
+                               std::shared_ptr<CudaVolume> vnp1_z,
+                               std::shared_ptr<CudaVolume> vel_x,
+                               std::shared_ptr<CudaVolume> vel_y,
+                               std::shared_ptr<CudaVolume> vel_z,
                                std::shared_ptr<CudaVolume> vort_x,
                                std::shared_ptr<CudaVolume> vort_y,
                                std::shared_ptr<CudaVolume> vort_z,
                                float cell_size, float time_step)
 {
-    fluid_impl_->StretchVortices(vort_np1_x->dev_array(),
-                                 vort_np1_y->dev_array(),
-                                 vort_np1_z->dev_array(), velocity->dev_array(),
+    fluid_impl_->StretchVortices(vnp1_x->dev_array(), vnp1_y->dev_array(),
+                                 vnp1_z->dev_array(), vel_x->dev_array(),
+                                 vel_y->dev_array(), vel_z->dev_array(),
                                  vort_x->dev_array(), vort_y->dev_array(),
                                  vort_z->dev_array(), cell_size, time_step,
-                                 vort_np1_x->size());
+                                 vnp1_x->size());
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,

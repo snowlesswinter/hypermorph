@@ -71,16 +71,25 @@ private:
                           float cell_size);
 
     // Vorticity.
-    void AddCurlPsi(float cell_size);
-    void AdvectVortices(float delta_time);
+    void AddCurlPsi(const GraphicsVolume3& psi, float cell_size);
+    void AdvectVortices(const GraphicsVolume3& vorticity,
+                        const GraphicsVolume3& temp,
+                        std::shared_ptr<GraphicsVolume> aux, float delta_time);
     void ApplyVorticityConfinemnet();
     void BuildVorticityConfinemnet(float delta_time, float cell_size);
-    void ComputeCurl(float cell_size, const GraphicsVolume3& velocity);
-    void ComputeDeltaVorticity();
-    void DecayVortices(float delta_time, float cell_size);
+    void ComputeCurl(const GraphicsVolume3& vorticity,
+                     const GraphicsVolume3& velocity, float cell_size);
+    void ComputeDeltaVorticity(const GraphicsVolume3& aux,
+                               const GraphicsVolume3& vorticity);
+    void DecayVortices(const GraphicsVolume3& vorticity,
+                       std::shared_ptr<GraphicsVolume> aux, float delta_time,
+                       float cell_size);
     void RestoreVorticity(float delta_time, float cell_size);
-    void SolvePsi(float cell_size);
-    void StretchVortices(float delta_time, float cell_size);
+    void SolvePsi(const GraphicsVolume3& psi,
+                  const GraphicsVolume3& delta_vort, float cell_size);
+    void StretchVortices(const GraphicsVolume3& vort_np1,
+                         const GraphicsVolume3& vorticity, float delta_time,
+                         float cell_size);
 
     const GraphicsVolume3& GetVorticityField();
     const GraphicsVolume3& GetAuxField();
@@ -92,7 +101,7 @@ private:
     PoissonMethod solver_choice_;
     std::unique_ptr<MultigridCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
-    std::unique_ptr<OpenBoundaryMultigridPoissonSolver> psi_solver_;
+    std::unique_ptr<PoissonSolver> psi_solver_;
     int volume_byte_width_;
     bool diagnosis_;
 

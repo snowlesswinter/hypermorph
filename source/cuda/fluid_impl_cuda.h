@@ -74,22 +74,19 @@ public:
                           const glm::ivec3& volume_size);
 
     // Vorticity.
-    void AddCurlPsi(cudaArray* velocity, cudaArray* psi_x, cudaArray* psi_y,
-                    cudaArray* psi_z, float cell_size,
-                    const glm::ivec3& volume_size);
-    void ComputeDeltaVorticity(cudaArray* vort_np1_x, cudaArray* vort_np1_y,
-                               cudaArray* vort_np1_z, cudaArray* vort_x,
+    void AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                    cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z,
+                    float cell_size, const glm::ivec3& volume_size);
+    void ComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
+                               cudaArray* delta_z, cudaArray* vort_x,
                                cudaArray* vort_y, cudaArray* vort_z,
                                const glm::ivec3& volume_size);
-    void ComputeDivergenceForVort(cudaArray* div, cudaArray* velocity,
-                                  float cell_size,
-                                  const glm::ivec3& volume_size);
     void DecayVortices(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z,
                        cudaArray* div, float time_step,
                        const glm::ivec3& volume_size);
-    void StretchVortices(cudaArray* vort_np1_x, cudaArray* vort_np1_y,
-                         cudaArray* vort_np1_z, cudaArray* velocity,
-                         cudaArray* vort_x, cudaArray* vort_y,
+    void StretchVortices(cudaArray* vnp1_x, cudaArray* vnp1_y,
+                         cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y,
+                         cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y,
                          cudaArray* vort_z, float cell_size, float time_step,
                          const glm::ivec3& volume_size);
 

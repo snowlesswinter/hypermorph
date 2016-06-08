@@ -29,13 +29,12 @@ extern void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray
 extern void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, uint3 volume_size, BlockArrangement* ba);
 
 // Vorticity.
-extern void LaunchAddCurlPsi(cudaArray* velocity, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchAddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchApplyVorticityConfinementStaggered(cudaArray* vel_x, cudaArray* vely, cudaArray* vel_z, cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchBuildVorticityConfinementStaggered(cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float coeff, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeDivergenceStaggeredForVort(cudaArray* div, cudaArray* velocity, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeDeltaVorticity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y, cudaArray* delta_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* div, float time_step, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchStretchVorticesStaggered(cudaArray* vort_np1_x, cudaArray* vort_np1_y, cudaArray* vort_np1_z, cudaArray* velocity, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
 
 #endif // _KERNEL_LAUNCHER_H_

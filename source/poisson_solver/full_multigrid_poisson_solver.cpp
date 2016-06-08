@@ -25,9 +25,11 @@ FullMultigridPoissonSolver::~FullMultigridPoissonSolver()
 }
 
 bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
-                                            int byte_width)
+                                            int byte_width,
+                                            int minimum_grid_width)
 {
-    if (!solver_->Initialize(width, height, depth, byte_width))
+    if (!solver_->Initialize(width, height, depth, byte_width,
+                             minimum_grid_width))
         return false;
 
     // Placeholder for the solution buffer.
@@ -37,7 +39,7 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
     int min_width = std::min(std::min(width, height), depth);
 
     int scale = 2;
-    while (min_width / scale > 16) {
+    while (min_width / scale > minimum_grid_width - 1) {
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;

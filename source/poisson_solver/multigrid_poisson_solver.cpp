@@ -41,14 +41,14 @@ MultigridPoissonSolver::~MultigridPoissonSolver()
 }
 
 bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
-                                        int byte_width)
+                                        int byte_width, int minimum_grid_width)
 {
     volume_resource_.clear();
     residual_volume_ = core_->CreateVolume(width, height, depth, 1, byte_width);
 
     int min_width = std::min(std::min(width, height), depth);
     int scale = 2;
-    while (min_width / scale > 16) {
+    while (min_width / scale > minimum_grid_width - 1) {
         int w = width / scale;
         int h = height / scale;
         int d = depth / scale;

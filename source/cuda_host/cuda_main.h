@@ -113,7 +113,9 @@ public:
                   std::shared_ptr<CudaVolume> fine);
 
     // Vorticity.
-    void AddCurlPsi(std::shared_ptr<CudaVolume> velocity,
+    void AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,
+                    std::shared_ptr<CudaVolume> vel_y,
+                    std::shared_ptr<CudaVolume> vel_z,
                     std::shared_ptr<CudaVolume> psi_x,
                     std::shared_ptr<CudaVolume> psi_y,
                     std::shared_ptr<CudaVolume> psi_z,
@@ -137,23 +139,22 @@ public:
                      std::shared_ptr<CudaVolume> vel_x,
                      std::shared_ptr<CudaVolume> vel_y,
                      std::shared_ptr<CudaVolume> vel_z, float cell_size);
-    void ComputeDeltaVorticity(std::shared_ptr<CudaVolume> vort_np1_x,
-                               std::shared_ptr<CudaVolume> vort_np1_y,
-                               std::shared_ptr<CudaVolume> vort_np1_z,
+    void ComputeDeltaVorticity(std::shared_ptr<CudaVolume> delta_x,
+                               std::shared_ptr<CudaVolume> delta_y,
+                               std::shared_ptr<CudaVolume> delta_z,
                                std::shared_ptr<CudaVolume> vort_x,
                                std::shared_ptr<CudaVolume> vort_y,
                                std::shared_ptr<CudaVolume> vort_z);
-    void ComputeDivergenceForVort(std::shared_ptr<CudaVolume> div,
-                                  std::shared_ptr<CudaVolume> velocity,
-                                  float cell_size);
     void DecayVortices(std::shared_ptr<CudaVolume> vort_x,
                        std::shared_ptr<CudaVolume> vort_y,
                        std::shared_ptr<CudaVolume> vort_z,
                        std::shared_ptr<CudaVolume> div, float time_step);
-    void StretchVortices(std::shared_ptr<CudaVolume> vort_np1_x,
-                         std::shared_ptr<CudaVolume> vort_np1_y,
-                         std::shared_ptr<CudaVolume> vort_np1_z,
-                         std::shared_ptr<CudaVolume> velocity,
+    void StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
+                         std::shared_ptr<CudaVolume> vnp1_y,
+                         std::shared_ptr<CudaVolume> vnp1_z,
+                         std::shared_ptr<CudaVolume> vel_x,
+                         std::shared_ptr<CudaVolume> vel_y,
+                         std::shared_ptr<CudaVolume> vel_z,
                          std::shared_ptr<CudaVolume> vort_x,
                          std::shared_ptr<CudaVolume> vort_y,
                          std::shared_ptr<CudaVolume> vort_z,
