@@ -24,7 +24,7 @@ std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
 {
     std::shared_ptr<GraphicsVolume> r(new GraphicsVolume(GRAPHICS_LIB_CUDA));
     bool succeeded = r->Create(width, height, depth, num_of_components,
-                               byte_width);
+                               byte_width, 0);
 
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
@@ -34,7 +34,7 @@ std::shared_ptr<GraphicsVolume3> MultigridCoreCuda::CreateVolumeGroup(
 {
     std::shared_ptr<GraphicsVolume3> r(new GraphicsVolume3(GRAPHICS_LIB_CUDA));
     bool succeeded = r->Create(width, height, depth, num_of_components,
-                               byte_width);
+                               byte_width, 0);
     return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
 }
 

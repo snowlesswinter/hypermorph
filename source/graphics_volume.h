@@ -15,7 +15,7 @@ public:
 
     void Clear();
     bool Create(int width, int height, int depth, int num_of_components,
-                int byte_width);
+                int byte_width, int border);
     bool HasSameProperties(const GraphicsVolume& other) const;
 
     GraphicsLib graphics_lib() const { return graphics_lib_; }
@@ -30,6 +30,7 @@ private:
     GraphicsLib graphics_lib_;
     std::shared_ptr<GLVolume> gl_volume_;
     std::shared_ptr<CudaVolume> cuda_volume_;
+    int border_;
 };
 
 #endif // _GRAPHICS_VOLUME_H_

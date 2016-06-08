@@ -34,11 +34,6 @@ static struct
     GLuint diagnose_;
 } Programs;
 
-int size_tweak = 0;
-const int kVelGridWidth = GridWidth + size_tweak;
-const int kVelGridHeight = GridHeight + size_tweak;
-const int kVelGridDepth = GridDepth + size_tweak;
-
 int sphere = 0;
 
 FluidSimulator::FluidSimulator()
@@ -93,44 +88,42 @@ bool FluidSimulator::Init()
     // cache miss in GPU during raycast. So, it's a problem all about the cache
     // shortage in graphic cards.
 
-    bool result = density_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    bool result = density_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = velocity_.Create(kVelGridWidth, kVelGridHeight, kVelGridDepth, 1,
-                              2);
+    result = velocity_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = velocity_prime_.Create(kVelGridWidth, kVelGridHeight,
-                                    kVelGridDepth, 1, 2);
+    result = velocity_prime_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = temperature_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = temperature_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1a_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = general1a_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1b_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = general1b_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1c_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = general1c_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1d_->Create(GridWidth, GridHeight, GridDepth, 1, 2);
+    result = general1d_->Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
@@ -522,7 +515,7 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
     if (!diagnosis_volume_) {
         std::shared_ptr<GraphicsVolume> v(new GraphicsVolume(graphics_lib_));
-        bool result = v->Create(GridWidth, GridHeight, GridDepth, 1, 4);
+        bool result = v->Create(GridWidth, GridHeight, GridDepth, 1, 4, 0);
         assert(result);
         if (!result)
             return;
@@ -952,7 +945,7 @@ void FluidSimulator::StretchVortices(float delta_time, float cell_size)
 const GraphicsVolume3& FluidSimulator::GetVorticityField()
 {
     if (!vorticity_) {
-        bool r = vorticity_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
+        bool r = vorticity_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
         assert(r);
     }
 
@@ -962,7 +955,7 @@ const GraphicsVolume3& FluidSimulator::GetVorticityField()
 const GraphicsVolume3& FluidSimulator::GetAuxField()
 {
     if (!aux_) {
-        bool r = aux_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
+        bool r = aux_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
         assert(r);
     }
 
@@ -972,7 +965,7 @@ const GraphicsVolume3& FluidSimulator::GetAuxField()
 const GraphicsVolume3& FluidSimulator::GetVorticityConfinementField()
 {
     if (!vort_conf_) {
-        bool r = vort_conf_.Create(GridWidth, GridHeight, GridDepth, 1, 2);
+        bool r = vort_conf_.Create(GridWidth, GridHeight, GridDepth, 1, 2, 0);
         assert(r);
     }
 

@@ -12,6 +12,7 @@ GraphicsVolume::GraphicsVolume(GraphicsLib lib)
     : graphics_lib_(lib)
     , gl_volume_()
     , cuda_volume_()
+    , border_(0)
 {
 }
 
@@ -30,17 +31,19 @@ void GraphicsVolume::Clear()
 }
 
 bool GraphicsVolume::Create(int width, int height, int depth,
-                            int num_of_components, int byte_width)
+                            int num_of_components, int byte_width, int border)
 {
     if (byte_width != 2 && byte_width != 4)
         return false;   // Not supported yet.
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         std::shared_ptr<CudaVolume> r(new CudaVolume());
-        bool result = r->Create(width, height, depth, num_of_components,
-                                byte_width);
-        if (result)
+        bool result = r->Create(width + border, height + border, depth + border,
+                                num_of_components, byte_width);
+        if (result) {
             cuda_volume_ = r;
+            border_ = border;
+        }
 
         Clear(); // TODO
         return result;
@@ -77,6 +80,7 @@ bool GraphicsVolume::Create(int width, int height, int depth,
             }
 
             gl_volume_ = r;
+            border_ = border;
         }
 
         return result;
@@ -118,9 +122,9 @@ int GraphicsVolume::GetWidth() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->width();
+        return gl_volume_->width() - border_;
     else
-        return cuda_volume_->width();
+        return cuda_volume_->width() - border_;
 }
 
 int GraphicsVolume::GetHeight() const
@@ -130,9 +134,9 @@ int GraphicsVolume::GetHeight() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->height();
+        return gl_volume_->height() - border_;
     else
-        return cuda_volume_->height();
+        return cuda_volume_->height() - border_;
 }
 
 int GraphicsVolume::GetDepth() const
@@ -142,7 +146,7 @@ int GraphicsVolume::GetDepth() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->depth();
+        return gl_volume_->depth() - border_;
     else
-        return cuda_volume_->depth();
+        return cuda_volume_->depth() - border_;
 }

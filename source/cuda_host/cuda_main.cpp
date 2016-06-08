@@ -34,7 +34,6 @@ namespace
 }
 } // Anonymous namespace.
 
-extern int size_tweak;
 CudaMain* CudaMain::Instance()
 {
     static CudaMain* instance = nullptr;
@@ -131,7 +130,7 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
                                     vn_x->dev_array(), vn_y->dev_array(),
                                     vn_z->dev_array(), aux->dev_array(),
                                     time_step, dissipation,
-                                    vnp1_x->size() - size_tweak,
+                                    vnp1_x->size(),
                                     FluidImplCuda::VECTOR_FIELD_VELOCITY);
 }
 
@@ -167,8 +166,8 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
     fluid_impl_->ApplyBuoyancy(vel_x->dev_array(), vel_y->dev_array(),
                                vel_z->dev_array(), temperature->dev_array(),
                                density->dev_array(), time_step,
-                               ambient_temperature, accel_factor,
-                               gravity, temperature->size());
+                               ambient_temperature, accel_factor, gravity,
+                               vel_x->size());
 }
 
 void CudaMain::ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
@@ -202,7 +201,7 @@ void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> dest,
                                            vort_x->dev_array(),
                                            vort_y->dev_array(),
                                            vort_z->dev_array(),
-                                           dest->size() - size_tweak);
+                                           dest->size());
 }
 
 void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> dest_x,
@@ -315,11 +314,9 @@ void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
                                 std::shared_ptr<CudaVolume> pressure,
                                 float half_inverse_cell_size)
 {
-    // NOTE: The pressure's volume size should be used instead of the
-    //       velocity's.
     fluid_impl_->SubtractGradient(vel_x->dev_array(), vel_y->dev_array(),
                                   vel_z->dev_array(), pressure->dev_array(),
-                                  half_inverse_cell_size, pressure->size());
+                                  half_inverse_cell_size, vel_x->size());
 }
 
 void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
@@ -366,7 +363,7 @@ void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> velocity,
 {
     fluid_impl_->AddCurlPsi(velocity->dev_array(), psi_x->dev_array(),
                             psi_y->dev_array(), psi_z->dev_array(), cell_size,
-                            psi_x->size());
+                            velocity->size());
 }
 
 void CudaMain::ComputeDeltaVorticity(std::shared_ptr<CudaVolume> vort_np1_x,

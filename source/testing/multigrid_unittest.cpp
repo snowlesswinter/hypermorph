@@ -18,10 +18,10 @@ void MultigridUnittest::TestProlongation(int random_seed)
     GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
 
-    cuda_fine.Create(128, 128, 128, 2, 2);
-    glsl_fine.Create(128, 128, 128, 2, 2);
-    cuda_coarse.Create(64, 64, 64, 2, 2);
-    glsl_coarse.Create(64, 64, 64, 2, 2);
+    cuda_fine.Create(128, 128, 128, 2, 2, 0);
+    glsl_fine.Create(128, 128, 128, 2, 2, 0);
+    cuda_coarse.Create(64, 64, 64, 2, 2, 0);
+    glsl_coarse.Create(64, 64, 64, 2, 2, 0);
 
     int width = cuda_coarse.GetWidth();
     int height = cuda_coarse.GetHeight();
@@ -58,10 +58,10 @@ void MultigridUnittest::TestResidualCalculation(int random_seed)
     GraphicsVolume glsl_volume(GRAPHICS_LIB_GLSL);
     GraphicsVolume glsl_residual(GRAPHICS_LIB_GLSL);
 
-    cuda_volume.Create(128, 128, 128, 2, 2);
-    cuda_residual.Create(128, 128, 128, 1, 2);
-    glsl_volume.Create(128, 128, 128, 2, 2);
-    glsl_residual.Create(128, 128, 128, 1, 2);
+    cuda_volume.Create(128, 128, 128, 2, 2, 0);
+    cuda_residual.Create(128, 128, 128, 1, 2, 0);
+    glsl_volume.Create(128, 128, 128, 2, 2, 0);
+    glsl_residual.Create(128, 128, 128, 1, 2, 0);
 
     int width = cuda_volume.GetWidth();
     int height = cuda_volume.GetHeight();
@@ -98,10 +98,10 @@ void MultigridUnittest::TestResidualRestriction(int random_seed)
     GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
 
-    cuda_fine.Create(128, 128, 128, 1, 2);
-    glsl_fine.Create(128, 128, 128, 1, 2);
-    cuda_coarse.Create(64, 64, 64, 2, 2);
-    glsl_coarse.Create(64, 64, 64, 2, 2);
+    cuda_fine.Create(128, 128, 128, 1, 2, 0);
+    glsl_fine.Create(128, 128, 128, 1, 2, 0);
+    cuda_coarse.Create(64, 64, 64, 2, 2, 0);
+    glsl_coarse.Create(64, 64, 64, 2, 2, 0);
 
     int width = cuda_fine.GetWidth();
     int height = cuda_fine.GetHeight();
@@ -141,10 +141,10 @@ void MultigridUnittest::TestRestriction(int random_seed)
     GraphicsVolume cuda_coarse(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_coarse(GRAPHICS_LIB_GLSL);
 
-    cuda_fine.Create(128, 128, 128, 2, 2);
-    glsl_fine.Create(128, 128, 128, 2, 2);
-    cuda_coarse.Create(64, 64, 64, 2, 2);
-    glsl_coarse.Create(64, 64, 64, 2, 2);
+    cuda_fine.Create(128, 128, 128, 2, 2, 0);
+    glsl_fine.Create(128, 128, 128, 2, 2, 0);
+    cuda_coarse.Create(64, 64, 64, 2, 2, 0);
+    glsl_coarse.Create(64, 64, 64, 2, 2, 0);
 
     int width = cuda_fine.GetWidth();
     int height = cuda_fine.GetHeight();
@@ -179,8 +179,8 @@ void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
     GraphicsVolume cuda_volume(GRAPHICS_LIB_CUDA);
     GraphicsVolume glsl_volume(GRAPHICS_LIB_GLSL);
 
-    cuda_volume.Create(128, 128, 128, 2, 2);
-    glsl_volume.Create(128, 128, 128, 2, 2);
+    cuda_volume.Create(128, 128, 128, 2, 2, 0);
+    glsl_volume.Create(128, 128, 128, 2, 2, 0);
 
     int width = cuda_volume.GetWidth();
     int height = cuda_volume.GetHeight();

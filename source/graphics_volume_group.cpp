@@ -53,25 +53,26 @@ bool GraphicsVolume3::Assign(const std::shared_ptr<GraphicsVolume>& x,
 }
 
 bool GraphicsVolume3::Create(int width, int height, int depth,
-                             int num_of_components, int byte_width)
+                             int num_of_components, int byte_width, int border)
 {
     std::shared_ptr<GraphicsVolume> x =
         std::make_shared<GraphicsVolume>(graphics_lib_);
-    bool r = x->Create(width, height, depth, num_of_components, byte_width);
+    bool r = x->Create(width, height, depth, num_of_components, byte_width,
+                       border);
     assert(r);
     if (!r)
         return false;
 
     std::shared_ptr<GraphicsVolume> y =
         std::make_shared<GraphicsVolume>(graphics_lib_);
-    r = y->Create(width, height, depth, num_of_components, byte_width);
+    r = y->Create(width, height, depth, num_of_components, byte_width, border);
     assert(r);
     if (!r)
         return false;
 
     std::shared_ptr<GraphicsVolume> z =
         std::make_shared<GraphicsVolume>(graphics_lib_);
-    r = z->Create(width, height, depth, num_of_components, byte_width);
+    r = z->Create(width, height, depth, num_of_components, byte_width, border);
     assert(r);
     if (!r)
         return false;

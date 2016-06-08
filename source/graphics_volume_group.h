@@ -24,7 +24,7 @@ public:
                 const std::shared_ptr<GraphicsVolume>& y,
                 const std::shared_ptr<GraphicsVolume>& z);
     bool Create(int width, int height, int depth, int num_of_components,
-                int byte_width);
+                int byte_width, int border);
     void Swap(GraphicsVolume3& obj);
     void Swap(std::shared_ptr<GraphicsVolume>* x,
               std::shared_ptr<GraphicsVolume>* y,
