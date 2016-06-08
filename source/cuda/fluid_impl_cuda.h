@@ -46,19 +46,18 @@ public:
     void ApplyImpulseDensity(cudaArray* density, const glm::vec3& center_point,
                              const glm::vec3& hotspot, float radius,
                              float value, const glm::ivec3& volume_size);
-    void ApplyVorticityConfinement(cudaArray* dest, cudaArray* velocity,
-                                   cudaArray* conf_x, cudaArray* conf_y,
-                                   cudaArray* conf_z,
+    void ApplyVorticityConfinement(cudaArray* vel_x, cudaArray* vel_y,
+                                   cudaArray* vel_z, cudaArray* conf_x,
+                                   cudaArray* conf_y, cudaArray* conf_z,
                                    const glm::ivec3& volume_size);
-    void BuildVorticityConfinement(cudaArray* dest_x, cudaArray* dest_y,
-                                   cudaArray* dest_z, cudaArray* curl_x,
-                                   cudaArray* curl_y, cudaArray* curl_z,
+    void BuildVorticityConfinement(cudaArray* conf_x, cudaArray* conf_y,
+                                   cudaArray* conf_z, cudaArray* vort_x,
+                                   cudaArray* vort_y, cudaArray* vort_z,
                                    float coeff, float cell_size,
                                    const glm::ivec3& volume_size);
-    void ComputeCurl(cudaArray* dest_x, cudaArray* dest_y, cudaArray* dest_z,
-                     cudaArray* velocity, cudaArray* curl_x, cudaArray* curl_y,
-                     cudaArray* curl_z, float inverse_cell_size,
-                     const glm::ivec3& volume_size);
+    void ComputeCurl(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z,
+                     cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                     float cell_size, const glm::ivec3& volume_size);
     void ComputeDivergence(cudaArray* div, cudaArray* vel_x,
                            cudaArray* vel_y, cudaArray* vel_z, float cell_size,
                            const glm::ivec3& volume_size);

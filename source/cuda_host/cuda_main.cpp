@@ -190,50 +190,6 @@ void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
                               dest->size());
 }
 
-void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> dest,
-                                         std::shared_ptr<CudaVolume> velocity,
-                                         std::shared_ptr<CudaVolume> vort_x,
-                                         std::shared_ptr<CudaVolume> vort_y,
-                                         std::shared_ptr<CudaVolume> vort_z)
-{
-    fluid_impl_->ApplyVorticityConfinement(dest->dev_array(),
-                                           velocity->dev_array(),
-                                           vort_x->dev_array(),
-                                           vort_y->dev_array(),
-                                           vort_z->dev_array(),
-                                           dest->size());
-}
-
-void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> dest_x,
-                                         std::shared_ptr<CudaVolume> dest_y,
-                                         std::shared_ptr<CudaVolume> dest_z,
-                                         std::shared_ptr<CudaVolume> vort_x,
-                                         std::shared_ptr<CudaVolume> vort_y,
-                                         std::shared_ptr<CudaVolume> vort_z,
-                                         float coeff, float cell_size)
-{
-    fluid_impl_->BuildVorticityConfinement(dest_x->dev_array(),
-                                           dest_y->dev_array(),
-                                           dest_z->dev_array(),
-                                           vort_x->dev_array(),
-                                           vort_y->dev_array(),
-                                           vort_z->dev_array(), coeff,
-                                           cell_size, dest_x->size());
-}
-
-void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> dest_x,
-                           std::shared_ptr<CudaVolume> dest_y,
-                           std::shared_ptr<CudaVolume> dest_z,
-                           std::shared_ptr<CudaVolume> velocity,
-                           float inverse_cell_size)
-{
-    fluid_impl_->ComputeCurl(dest_x->dev_array(), dest_y->dev_array(),
-                             dest_z->dev_array(), velocity->dev_array(),
-                             dest_x->dev_array(), dest_y->dev_array(),
-                             dest_z->dev_array(), inverse_cell_size,
-                             dest_x->size());
-}
-
 void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,
                                  std::shared_ptr<CudaVolume> vel_x,
                                  std::shared_ptr<CudaVolume> vel_y,
@@ -364,6 +320,52 @@ void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> velocity,
     fluid_impl_->AddCurlPsi(velocity->dev_array(), psi_x->dev_array(),
                             psi_y->dev_array(), psi_z->dev_array(), cell_size,
                             velocity->size());
+}
+
+void CudaMain::ApplyVorticityConfinement(std::shared_ptr<CudaVolume> vel_x,
+                                         std::shared_ptr<CudaVolume> vel_y,
+                                         std::shared_ptr<CudaVolume> vel_z,
+                                         std::shared_ptr<CudaVolume> vort_x,
+                                         std::shared_ptr<CudaVolume> vort_y,
+                                         std::shared_ptr<CudaVolume> vort_z)
+{
+    fluid_impl_->ApplyVorticityConfinement(vel_x->dev_array(),
+                                           vel_y->dev_array(),
+                                           vel_z->dev_array(),
+                                           vort_x->dev_array(),
+                                           vort_y->dev_array(),
+                                           vort_z->dev_array(),
+                                           vel_x->size());
+}
+
+void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> conf_x,
+                                         std::shared_ptr<CudaVolume> conf_y,
+                                         std::shared_ptr<CudaVolume> conf_z,
+                                         std::shared_ptr<CudaVolume> vort_x,
+                                         std::shared_ptr<CudaVolume> vort_y,
+                                         std::shared_ptr<CudaVolume> vort_z,
+                                         float coeff, float cell_size)
+{
+    fluid_impl_->BuildVorticityConfinement(conf_x->dev_array(),
+                                           conf_y->dev_array(),
+                                           conf_z->dev_array(),
+                                           vort_x->dev_array(),
+                                           vort_y->dev_array(),
+                                           vort_z->dev_array(), coeff,
+                                           cell_size, conf_x->size());
+}
+
+void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> vort_x,
+                           std::shared_ptr<CudaVolume> vort_y,
+                           std::shared_ptr<CudaVolume> vort_z,
+                           std::shared_ptr<CudaVolume> vel_x,
+                           std::shared_ptr<CudaVolume> vel_y,
+                           std::shared_ptr<CudaVolume> vel_z, float cell_size)
+{
+    fluid_impl_->ComputeCurl(vort_x->dev_array(), vort_y->dev_array(),
+                             vort_z->dev_array(), vel_x->dev_array(),
+                             vel_y->dev_array(), vel_z->dev_array(), cell_size,
+                             vort_x->size());
 }
 
 void CudaMain::ComputeDeltaVorticity(std::shared_ptr<CudaVolume> vort_np1_x,

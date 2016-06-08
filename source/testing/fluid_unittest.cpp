@@ -90,8 +90,10 @@ void FluidUnittest::TestDampedJacobi(int random_seed)
                                       depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
-    sim_cuda.DampedJacobi(kCellSize, 1);
-    sim_glsl.DampedJacobi(kCellSize, 1);
+    sim_cuda.DampedJacobi(sim_cuda.general1b_, sim_cuda.general1a_, kCellSize,
+                          1);
+    sim_glsl.DampedJacobi(sim_glsl.general1b_, sim_glsl.general1a_, kCellSize,
+                          1);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, sim_cuda.general1b_.get(),
@@ -164,8 +166,8 @@ void FluidUnittest::TestDivergenceCalculation(int random_seed)
                                       height, depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
-    sim_cuda.ComputeDivergence();
-    sim_glsl.ComputeDivergence();
+    sim_cuda.ComputeDivergence(sim_cuda.general1a_, kCellSize);
+    sim_glsl.ComputeDivergence(sim_glsl.general1a_, kCellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            2, sim_cuda.general1a_.get(),
@@ -199,8 +201,8 @@ void FluidUnittest::TestGradientSubtraction(int random_seed)
                                       depth, n, pitch, size,
                                       std::make_pair(-4.0f, 4.0f));
 
-    sim_cuda.SubtractGradient();
-    sim_glsl.SubtractGradient();
+    sim_cuda.SubtractGradient(sim_cuda.general1b_, kCellSize);
+    sim_glsl.SubtractGradient(sim_glsl.general1b_, kCellSize);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            7, sim_cuda.velocity_.x().get(),

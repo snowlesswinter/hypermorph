@@ -149,41 +149,41 @@ void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
             ba_);
 }
 
-void FluidImplCuda::ApplyVorticityConfinement(cudaArray* dest,
-                                              cudaArray* velocity,
+void FluidImplCuda::ApplyVorticityConfinement(cudaArray* vel_x,
+                                              cudaArray* vel_y,
+                                              cudaArray* vel_z,
                                               cudaArray* conf_x,
                                               cudaArray* conf_y,
                                               cudaArray* conf_z,
                                               const glm::ivec3& volume_size)
 {
-    LaunchApplyVorticityConfinementStaggered(dest, velocity, conf_x, conf_y,
-                                             conf_z, FromGlmVector(volume_size),
-                                             ba_);
-}
-
-void FluidImplCuda::BuildVorticityConfinement(cudaArray* dest_x,
-                                              cudaArray* dest_y,
-                                              cudaArray* dest_z,
-                                              cudaArray* curl_x,
-                                              cudaArray* curl_y,
-                                              cudaArray* curl_z,
-                                              float coeff, float cell_size,
-                                              const glm::ivec3& volume_size)
-{
-    LaunchBuildVorticityConfinementStaggered(dest_x, dest_y, dest_z, curl_x,
-                                             curl_y, curl_z, coeff, cell_size,
+    LaunchApplyVorticityConfinementStaggered(vel_x, vel_y, vel_z, conf_x,
+                                             conf_y, conf_z,
                                              FromGlmVector(volume_size), ba_);
 }
 
-void FluidImplCuda::ComputeCurl(cudaArray* dest_x, cudaArray* dest_y,
-                                cudaArray* dest_z, cudaArray* velocity,
-                                cudaArray* curl_x, cudaArray* curl_y,
-                                cudaArray* curl_z, float inverse_cell_size,
-                                const glm::ivec3& volume_size)
+void FluidImplCuda::BuildVorticityConfinement(cudaArray* conf_x,
+                                              cudaArray* conf_y,
+                                              cudaArray* conf_z,
+                                              cudaArray* vort_x,
+                                              cudaArray* vort_y,
+                                              cudaArray* vort_z,
+                                              float coeff, float cell_size,
+                                              const glm::ivec3& volume_size)
 {
-    LaunchComputeCurlStaggered(dest_x, dest_y, dest_z, velocity, curl_x, curl_y,
-                               curl_z, inverse_cell_size,
-                               FromGlmVector(volume_size), ba_);
+    LaunchBuildVorticityConfinementStaggered(conf_x, conf_y, conf_z, vort_x,
+                                             vort_y, vort_z, coeff, cell_size,
+                                             FromGlmVector(volume_size), ba_);
+}
+
+void FluidImplCuda::ComputeCurl(cudaArray* vort_x, cudaArray* vort_y,
+                                cudaArray* vort_z, cudaArray* vel_x,
+                                cudaArray* vel_y, cudaArray* vel_z,
+                                float cell_size, const glm::ivec3& volume_size)
+{
+    LaunchComputeCurlStaggered(vort_x, vort_y, vort_z, vel_x, vel_y,
+                               vel_z, cell_size, FromGlmVector(volume_size),
+                               ba_);
 }
 
 void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,

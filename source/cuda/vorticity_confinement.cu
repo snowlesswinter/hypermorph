@@ -16,6 +16,9 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vx;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vy;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_vz;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_xp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_yp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
@@ -58,7 +61,7 @@ __global__ void AddCurlPsiKernel(float inverse_cell_size, uint3 volume_size)
     surf3Dwrite(result, surf, x * sizeof(result), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ApplyVorticityConfinementStaggeredKernel()
+__global__ void ApplyVorticityConfinementStaggeredKernel(uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -67,17 +70,25 @@ __global__ void ApplyVorticityConfinementStaggeredKernel()
     if (x == 0 || y == 0 || z == 0)
         return;
 
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
     float3 coord = make_float3(x, y, z) + 0.5f;
 
     float conf_x = tex3D(tex_x, coord.x - 0.5f, coord.y + 0.5f, coord.z + 0.5f);
+    float vel_x = tex3D(tex_vx, coord.x, coord.y, coord.z);
+    auto r_x = __float2half_rn(vel_x + conf_x);
+    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+
     float conf_y = tex3D(tex_y, coord.x + 0.5f, coord.y - 0.5f, coord.z + 0.5f);
+    float vel_y = tex3D(tex_vy, coord.x, coord.y, coord.z);
+    auto r_y = __float2half_rn(vel_y + conf_y);
+    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+
     float conf_z = tex3D(tex_z, coord.x + 0.5f, coord.y + 0.5f, coord.z - 0.5f);
-    float4 velocity = tex3D(tex_velocity, coord.x, coord.y, coord.z);
-    auto result = make_ushort4(__float2half_rn(velocity.x + conf_x),
-                               __float2half_rn(velocity.y + conf_y),
-                               __float2half_rn(velocity.z + conf_z),
-                               0);
-    surf3Dwrite(result, surf, x * sizeof(result), y, z, cudaBoundaryModeTrap);
+    float vel_z = tex3D(tex_vz, coord.x, coord.y, coord.z);
+    auto r_z = __float2half_rn(vel_z + conf_z);
+    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void BuildVorticityConfinementStaggeredKernel(
@@ -87,6 +98,9 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -157,18 +171,23 @@ __global__ void ComputeCurlStaggeredKernel(uint3 volume_size,
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 result;
     if (x < volume_size.x - 1 && y < volume_size.y - 1 && z < volume_size.z - 1) {
         if (x > 0 && y > 0 && z > 0) {
-            float4 v_near =  tex3D(tex_velocity, coord.x, coord.y, coord.z - 1.0f);
-            float4 v_west =  tex3D(tex_velocity, coord.x - 1.0f, coord.y, coord.z);
-            float4 v_south = tex3D(tex_velocity, coord.x, coord.y - 1.0f, coord.z);
-            float4 v =       tex3D(tex_velocity, coord.x, coord.y, coord.z);
+            float v_near =  tex3D(tex_vz, coord.x,        coord.y,        coord.z - 1.0f);
+            float v_z =     tex3D(tex_vz, coord.x,        coord.y,        coord.z);
+            float v_south = tex3D(tex_vy, coord.x,        coord.y - 1.0f, coord.z);
+            float v_y =     tex3D(tex_vy, coord.x,        coord.y,        coord.z);
+            float v_west =  tex3D(tex_vx, coord.x - 1.0f, coord.y,        coord.z);
+            float v_x =     tex3D(tex_vx, coord.x,        coord.y,        coord.z);
 
-            result.x = inverse_cell_size * (v.z - v_south.z - v.y + v_near.y);
-            result.y = inverse_cell_size * (v.x - v_near.x  - v.z + v_west.z);
-            result.z = inverse_cell_size * (v.y - v_west.y  - v.x + v_south.x);
+            result.x = inverse_cell_size * (v_z - v_south - v_y + v_near);
+            result.y = inverse_cell_size * (v_x - v_near  - v_z + v_west);
+            result.z = inverse_cell_size * (v_y - v_west  - v_x + v_south);
         } else if (x == 0) {
             result.x = tex3D(tex_x, coord.x + 1.0f, coord.y, coord.z);
             result.y = tex3D(tex_y, coord.x + 1.0f, coord.y, coord.z);
@@ -377,21 +396,40 @@ void LaunchAddCurlPsi(cudaArray* velocity, cudaArray* psi_x, cudaArray* psi_y,
     AddCurlPsiKernel<<<grid, block>>>(1.0f / cell_size, volume_size);
 }
 
-void LaunchApplyVorticityConfinementStaggered(cudaArray* dest,
-                                              cudaArray* velocity,
+void LaunchApplyVorticityConfinementStaggered(cudaArray* vel_x,
+                                              cudaArray* vel_y,
+                                              cudaArray* vel_z,
                                               cudaArray* conf_x,
                                               cudaArray* conf_y,
                                               cudaArray* conf_z,
                                               uint3 volume_size,
                                               BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&tex_velocity, velocity, false,
-                                      cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    auto bound_vx = BindHelper::Bind(&tex_vx, vel_x, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vx.error() != cudaSuccess)
+        return;
+
+    auto bound_vy = BindHelper::Bind(&tex_vy, vel_y, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vy.error() != cudaSuccess)
+        return;
+
+    auto bound_vz = BindHelper::Bind(&tex_vz, vel_z, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vz.error() != cudaSuccess)
         return;
 
     auto bound_x = BindHelper::Bind(&tex_x, conf_x, false, cudaFilterModeLinear,
@@ -412,39 +450,39 @@ void LaunchApplyVorticityConfinementStaggered(cudaArray* dest,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ApplyVorticityConfinementStaggeredKernel<<<grid, block>>>();
+    ApplyVorticityConfinementStaggeredKernel<<<grid, block>>>(volume_size);
 }
 
-void LaunchBuildVorticityConfinementStaggered(cudaArray* dest_x,
-                                              cudaArray* dest_y,
-                                              cudaArray* dest_z,
-                                              cudaArray* curl_x,
-                                              cudaArray* curl_y,
-                                              cudaArray* curl_z,
+void LaunchBuildVorticityConfinementStaggered(cudaArray* conf_x,
+                                              cudaArray* conf_y,
+                                              cudaArray* conf_z,
+                                              cudaArray* vort_x,
+                                              cudaArray* vort_y,
+                                              cudaArray* vort_z,
                                               float coeff, float cell_size,
                                               uint3 volume_size,
                                               BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf_x, dest_x) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_x, conf_x) != cudaSuccess)
         return;
 
-    if (BindCudaSurfaceToArray(&surf_y, dest_y) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_y, conf_y) != cudaSuccess)
         return;
 
-    if (BindCudaSurfaceToArray(&surf_z, dest_z) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_z, conf_z) != cudaSuccess)
         return;
 
-    auto bound_x = BindHelper::Bind(&tex_x, curl_x, false, cudaFilterModeLinear,
+    auto bound_x = BindHelper::Bind(&tex_x, vort_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_x.error() != cudaSuccess)
         return;
 
-    auto bound_y = BindHelper::Bind(&tex_y, curl_y, false, cudaFilterModeLinear,
+    auto bound_y = BindHelper::Bind(&tex_y, vort_y, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_y.error() != cudaSuccess)
         return;
 
-    auto bound_z = BindHelper::Bind(&tex_z, curl_z, false, cudaFilterModeLinear,
+    auto bound_z = BindHelper::Bind(&tex_z, vort_z, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_z.error() != cudaSuccess)
         return;
@@ -480,38 +518,50 @@ void LaunchComputeDivergenceStaggeredForVort(cudaArray* div,
 }
 
 
-void LaunchComputeCurlStaggered(cudaArray* dest_x, cudaArray* dest_y,
-                                cudaArray* dest_z, cudaArray* velocity,
-                                cudaArray* curl_x, cudaArray* curl_y,
-                                cudaArray* curl_z, float inverse_cell_size,
-                                uint3 volume_size, BlockArrangement* ba)
+void LaunchComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y,
+                                cudaArray* vort_z, cudaArray* vel_x,
+                                cudaArray* vel_y, cudaArray* vel_z,
+                                float cell_size, uint3 volume_size,
+                                BlockArrangement* ba)
 {
-    if (BindCudaSurfaceToArray(&surf_x, dest_x) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_x, vort_x) != cudaSuccess)
         return;
 
-    if (BindCudaSurfaceToArray(&surf_y, dest_y) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_y, vort_y) != cudaSuccess)
         return;
 
-    if (BindCudaSurfaceToArray(&surf_z, dest_z) != cudaSuccess)
+    if (BindCudaSurfaceToArray(&surf_z, vort_z) != cudaSuccess)
         return;
 
-    auto bound_vel = BindHelper::Bind(&tex_velocity, velocity, false,
-                                      cudaFilterModeLinear,
-                                      cudaAddressModeClamp);
-    if (bound_vel.error() != cudaSuccess)
+    auto bound_vx = BindHelper::Bind(&tex_vx, vel_x, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vx.error() != cudaSuccess)
         return;
 
-    auto bound_x = BindHelper::Bind(&tex_x, curl_x, false, cudaFilterModeLinear,
+    auto bound_vy = BindHelper::Bind(&tex_vy, vel_y, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vy.error() != cudaSuccess)
+        return;
+
+    auto bound_vz = BindHelper::Bind(&tex_vz, vel_z, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_vz.error() != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vort_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_x.error() != cudaSuccess)
         return;
 
-    auto bound_y = BindHelper::Bind(&tex_y, curl_y, false, cudaFilterModeLinear,
+    auto bound_y = BindHelper::Bind(&tex_y, vort_y, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_y.error() != cudaSuccess)
         return;
 
-    auto bound_z = BindHelper::Bind(&tex_z, curl_z, false, cudaFilterModeLinear,
+    auto bound_z = BindHelper::Bind(&tex_z, vort_z, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_z.error() != cudaSuccess)
         return;
@@ -519,7 +569,7 @@ void LaunchComputeCurlStaggered(cudaArray* dest_x, cudaArray* dest_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeCurlStaggeredKernel<<<grid, block>>>(volume_size, inverse_cell_size);
+    ComputeCurlStaggeredKernel<<<grid, block>>>(volume_size, 1.0f / cell_size);
 }
 
 void LaunchComputeDeltaVorticity(cudaArray* vnp1_x, cudaArray* vnp1_y,

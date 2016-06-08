@@ -51,11 +51,12 @@ private:
     void AdvectVelocity(float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(double seconds_elapsed, float delta_time);
-    void ComputeCurl(const GraphicsVolume3* vorticity,
-                     std::shared_ptr<GraphicsVolume> velocity);
-    void ComputeDivergence();
+    void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence,
+                           float cell_size);
     void ComputeResidualDiagnosis(float cell_size);
-    void DampedJacobi(float cell_size, int num_of_iterations);
+    void DampedJacobi(std::shared_ptr<GraphicsVolume> pressure,
+                      std::shared_ptr<GraphicsVolume> divergence,
+                      float cell_size, int num_of_iterations);
     void Impulse(std::shared_ptr<GraphicsVolume> dest,
                  const glm::vec3& position, const glm::vec3& hotspot,
                  float splat_radius, const glm::vec3& value, uint32_t mask);
@@ -63,18 +64,22 @@ private:
                         float splat_radius,
                         float value);
     void ReviseDensity();
-    void SolvePressure();
-    void SubtractGradient();
+    void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
+                       std::shared_ptr<GraphicsVolume> divergence,
+                       float cell_size);
+    void SubtractGradient(std::shared_ptr<GraphicsVolume> pressure,
+                          float cell_size);
 
     // Vorticity.
-    void AddCurlPsi();
+    void AddCurlPsi(float cell_size);
     void AdvectVortices(float delta_time);
     void ApplyVorticityConfinemnet();
-    void BuildVorticityConfinemnet(float delta_time);
+    void BuildVorticityConfinemnet(float delta_time, float cell_size);
+    void ComputeCurl(float cell_size, const GraphicsVolume3& velocity);
     void ComputeDeltaVorticity();
     void DecayVortices(float delta_time, float cell_size);
-    void RestoreVorticity(float delta_time);
-    void SolvePsi();
+    void RestoreVorticity(float delta_time, float cell_size);
+    void SolvePsi(float cell_size);
     void StretchVortices(float delta_time, float cell_size);
 
     const GraphicsVolume3& GetVorticityField();
