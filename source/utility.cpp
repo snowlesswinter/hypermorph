@@ -15,7 +15,7 @@
 
 const float kMaxTimeStep = 0.33f;
 const glm::vec3 kImpulsePosition(0.5f, 0.1f, 0.5f);
-const float kBuoyancyCoef = 1.0f;
+const float kBuoyancyCoef = 0.1f;
 
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)

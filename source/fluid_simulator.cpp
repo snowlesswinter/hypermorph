@@ -259,14 +259,14 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     Metrics::Instance()->OnVelocityRectified();
 
     // Advect density and temperature
-    AdvectTemperature(proper_delta_time);
+    AdvectTemperature(cell_size_, proper_delta_time);
     Metrics::Instance()->OnTemperatureAvected();
 
-    AdvectDensity(proper_delta_time);
+    AdvectDensity(cell_size_, proper_delta_time);
     Metrics::Instance()->OnDensityAvected();
 
     // Advect velocity
-    AdvectVelocity(proper_delta_time);
+    AdvectVelocity(cell_size_, proper_delta_time);
     Metrics::Instance()->OnVelocityAvected();
 
     // Restore vorticity
@@ -302,7 +302,7 @@ void FluidSimulator::UpdateImpulsing(float x, float y)
     }
 }
 
-void FluidSimulator::AdvectDensity(float delta_time)
+void FluidSimulator::AdvectDensity(float cell_size, float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
@@ -311,8 +311,8 @@ void FluidSimulator::AdvectDensity(float delta_time)
                                           velocity_.x()->cuda_volume(),
                                           velocity_.y()->cuda_volume(),
                                           velocity_.z()->cuda_volume(),
-                                          general1b_->cuda_volume(), delta_time,
-                                          density_dissipation);
+                                          general1b_->cuda_volume(),cell_size,
+                                          delta_time, density_dissipation);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
     }
@@ -341,7 +341,7 @@ void FluidSimulator::AdvectImpl(std::shared_ptr<GraphicsVolume> source,
     ResetState();
 }
 
-void FluidSimulator::AdvectTemperature(float delta_time)
+void FluidSimulator::AdvectTemperature(float cell_size, float delta_time)
 {
     float temperature_dissipation =
         FluidConfig::Instance()->temperature_dissipation();
@@ -351,8 +351,8 @@ void FluidSimulator::AdvectTemperature(float delta_time)
                                           velocity_.x()->cuda_volume(),
                                           velocity_.y()->cuda_volume(),
                                           velocity_.z()->cuda_volume(),
-                                          general1b_->cuda_volume(), delta_time,
-                                          temperature_dissipation);
+                                          general1b_->cuda_volume(), cell_size,
+                                          delta_time, temperature_dissipation);
     } else {
         AdvectImpl(temperature_, delta_time, temperature_dissipation);
     }
@@ -360,7 +360,7 @@ void FluidSimulator::AdvectTemperature(float delta_time)
     std::swap(temperature_, general1a_);
 }
 
-void FluidSimulator::AdvectVelocity(float delta_time)
+void FluidSimulator::AdvectVelocity(float cell_size, float delta_time)
 {
     float velocity_dissipation =
         FluidConfig::Instance()->velocity_dissipation();
@@ -372,7 +372,8 @@ void FluidSimulator::AdvectVelocity(float delta_time)
                                              velocity_.y()->cuda_volume(),
                                              velocity_.z()->cuda_volume(),
                                              general1a_->cuda_volume(),
-                                             delta_time, velocity_dissipation);
+                                             cell_size, delta_time,
+                                             velocity_dissipation);
         velocity_.Swap(velocity_prime_);
         //velocity_.Swap(&general1a_, &general1b_, &general1c_);
     } else {
@@ -816,7 +817,7 @@ void FluidSimulator::AddCurlPsi(const GraphicsVolume3& psi, float cell_size)
 void FluidSimulator::AdvectVortices(const GraphicsVolume3& vorticity,
                                     const GraphicsVolume3& temp,
                                     std::shared_ptr<GraphicsVolume> aux,
-                                    float delta_time)
+                                    float cell_size, float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->AdvectVorticity(
@@ -825,8 +826,8 @@ void FluidSimulator::AdvectVortices(const GraphicsVolume3& vorticity,
             temp.y()->cuda_volume(), temp.z()->cuda_volume(),
             velocity_prime_.x()->cuda_volume(),
             velocity_prime_.y()->cuda_volume(),
-            velocity_prime_.z()->cuda_volume(), aux->cuda_volume(), delta_time,
-            0.0f);
+            velocity_prime_.z()->cuda_volume(), aux->cuda_volume(), cell_size,
+            delta_time, 0.0f);
     }
 }
 
@@ -926,7 +927,7 @@ void FluidSimulator::RestoreVorticity(float delta_time, float cell_size)
         general1d_->Clear();
         //////////////////////////
 
-        AdvectVortices(vorticity, temp, general1d_, delta_time);
+        AdvectVortices(vorticity, temp, general1d_, cell_size, delta_time);
 
         //////////////////////////
         general1a_->Clear();

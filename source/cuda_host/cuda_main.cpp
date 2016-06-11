@@ -106,13 +106,14 @@ void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
                            std::shared_ptr<CudaVolume> vel_z,
-                           std::shared_ptr<CudaVolume> aux, float time_step,
-                           float dissipation)
+                           std::shared_ptr<CudaVolume> aux, float cell_size,
+                           float time_step, float dissipation)
 {
     fluid_impl_->AdvectScalarField(fnp1->dev_array(), fn->dev_array(),
                                    vel_x->dev_array(), vel_y->dev_array(),
                                    vel_z->dev_array(), aux->dev_array(),
-                                   time_step, dissipation, fnp1->size());
+                                   cell_size, time_step, dissipation,
+                                   fnp1->size());
 }
 
 void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
@@ -121,15 +122,15 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
                               std::shared_ptr<CudaVolume> vn_x,
                               std::shared_ptr<CudaVolume> vn_y,
                               std::shared_ptr<CudaVolume> vn_z,
-                              std::shared_ptr<CudaVolume> aux, float time_step,
-                              float dissipation)
+                              std::shared_ptr<CudaVolume> aux, float cell_size,
+                              float time_step, float dissipation)
 {
     fluid_impl_->AdvectVectorFields(vnp1_x->dev_array(), vnp1_y->dev_array(),
                                     vnp1_z->dev_array(), vn_x->dev_array(),
                                     vn_y->dev_array(), vn_z->dev_array(),
                                     vn_x->dev_array(), vn_y->dev_array(),
                                     vn_z->dev_array(), aux->dev_array(),
-                                    time_step, dissipation,
+                                    cell_size, time_step, dissipation,
                                     vnp1_x->size(),
                                     FluidImplCuda::VECTOR_FIELD_VELOCITY);
 }
@@ -144,14 +145,16 @@ void CudaMain::AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                                std::shared_ptr<CudaVolume> vel_y,
                                std::shared_ptr<CudaVolume> vel_z,
                                std::shared_ptr<CudaVolume> aux,
-                               float time_step, float dissipation)
+                               float cell_size, float time_step,
+                               float dissipation)
 {
     fluid_impl_->AdvectVectorFields(vnp1_x->dev_array(), vnp1_y->dev_array(),
                                     vnp1_z->dev_array(), vn_x->dev_array(),
                                     vn_y->dev_array(), vn_z->dev_array(),
                                     vel_x->dev_array(), vel_y->dev_array(),
                                     vel_z->dev_array(), aux->dev_array(), 
-                                    time_step, dissipation, vnp1_x->size(),
+                                    cell_size, time_step, dissipation,
+                                    vnp1_x->size(),
                                     FluidImplCuda::VECTOR_FIELD_VORTICITY);
 }
 

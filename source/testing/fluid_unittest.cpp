@@ -128,8 +128,8 @@ void FluidUnittest::TestDensityAdvection(int random_seed)
     InitializeDensityVolume(sim_cuda.density_.get(), sim_glsl.density_.get(),
                             size_d, std::make_pair(0.0f, 3.0f));
 
-    sim_cuda.AdvectDensity(kTimeStep);
-    sim_glsl.AdvectDensity(kTimeStep);
+    sim_cuda.AdvectDensity(kCellSize, kTimeStep);
+    sim_glsl.AdvectDensity(kCellSize, kTimeStep);
 
     // Copy the result back to CPU.
     glm::ivec3 volume_size(width, height, depth);
@@ -239,8 +239,8 @@ void FluidUnittest::TestTemperatureAdvection(int random_seed)
                                       height, depth, n_1, pitch_1, size_1,
                                       std::make_pair(0.0f, 40.0f));
 
-    sim_cuda.AdvectTemperature(kTimeStep);
-    sim_glsl.AdvectTemperature(kTimeStep);
+    sim_cuda.AdvectTemperature(kCellSize, kTimeStep);
+    sim_glsl.AdvectTemperature(kCellSize, kTimeStep);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size_1,
                                            pitch_1, n_1, 1,
@@ -271,8 +271,8 @@ void FluidUnittest::TestVelocityAdvection(int random_seed)
                                       height, depth, n, pitch, size,
                                       std::make_pair(-5.0f, 5.0f));
 
-    sim_cuda.AdvectVelocity(kTimeStep);
-    sim_glsl.AdvectVelocity(kTimeStep);
+    sim_cuda.AdvectVelocity(kCellSize, kTimeStep);
+    sim_glsl.AdvectVelocity(kCellSize, kTimeStep);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            7, sim_cuda.velocity_.x().get(),

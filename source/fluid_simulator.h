@@ -44,11 +44,11 @@ public:
 private:
     friend class FluidUnittest;
 
-    void AdvectDensity(float delta_time);
+    void AdvectDensity(float cell_size, float delta_time);
     void AdvectImpl(std::shared_ptr<GraphicsVolume> source, float delta_time,
                     float dissipation);
-    void AdvectTemperature(float delta_time);
-    void AdvectVelocity(float delta_time);
+    void AdvectTemperature(float cell_size, float delta_time);
+    void AdvectVelocity(float cell_size, float delta_time);
     void ApplyBuoyancy(float delta_time);
     void ApplyImpulse(double seconds_elapsed, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence,
@@ -74,7 +74,8 @@ private:
     void AddCurlPsi(const GraphicsVolume3& psi, float cell_size);
     void AdvectVortices(const GraphicsVolume3& vorticity,
                         const GraphicsVolume3& temp,
-                        std::shared_ptr<GraphicsVolume> aux, float delta_time);
+                        std::shared_ptr<GraphicsVolume> aux, float cell_size,
+                        float delta_time);
     void ApplyVorticityConfinemnet();
     void BuildVorticityConfinemnet(float delta_time, float cell_size);
     void ComputeCurl(const GraphicsVolume3& vorticity,

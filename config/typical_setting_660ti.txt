@@ -2,7 +2,7 @@ poisson method = fmg
 advection method = mcsl
 grid size = (96,96,96)
 grid size = (128,128,128)
-smoke weight = 0.1
+smoke weight = 0.02
 
 impulse temperature = 4
 impulse density = 0.4
@@ -13,7 +13,7 @@ density dissipation = 0.05
 
 splat radius factor = 0.45
 number of jacobi iterations = 60
-num multigrid iterations = 5
+num multigrid iterations = 10
 num full multigrid iterations = 1
 fixed time step = 0.3
 auto impulse = 1
@@ -33,8 +33,8 @@ velocity dissipation = 0.
 impulse density = 0
 density dissipation = 0.0
 fixed time step = 0.3
-splat radius factor = 0.25
+splat radius factor = 0.3
 
 fixed time step = 0.1
-impulse temperature = 5
+impulse temperature = 8
 impulse density = 2

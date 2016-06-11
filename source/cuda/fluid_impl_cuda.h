@@ -25,14 +25,14 @@ public:
 
     void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x,
                            cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
-                           float time_step, float dissipation,
+                           float cell_size, float time_step, float dissipation,
                            const glm::ivec3& volume_size);
     void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                             cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
                             cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y,
-                            cudaArray* vel_z, cudaArray* aux, float time_step,
-                            float dissipation, const glm::ivec3& volume_size,
-                            VectorField field);
+                            cudaArray* vel_z, cudaArray* aux, float cell_size,
+                            float time_step, float dissipation,
+                            const glm::ivec3& volume_size, VectorField field);
     void ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
                        cudaArray* vel_z, cudaArray* temperature,
                        cudaArray* density, float time_step,

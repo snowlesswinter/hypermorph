@@ -120,22 +120,21 @@ __device__ float3 GetVelocity(float3 pos)
 }
 
 template <bool MidPoint>
-__device__ inline float3 AdvectImpl(float3 vel, float3 pos, float time_step)
+__device__ inline float3 AdvectImpl(float3 vel, float3 pos, float time_step_over_cell_size)
 {
-    return pos - vel * time_step;
+    return pos - vel * time_step_over_cell_size;
 }
 
 template <>
-__device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_step)
+__device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_step_over_cell_size)
 {
-    float3 mid_point = pos - vel * 0.5f * time_step;
+    float3 mid_point = pos - vel * 0.5f * time_step_over_cell_size;
     vel = GetVelocity(mid_point);
-    return pos - vel * time_step;
+    return pos - vel * time_step_over_cell_size;
 }
 
 template <bool MidPoint>
-__global__ void AdvectFieldBfeccKernel(float time_step, float dissipation,
-                                       uint3 volume_size)
+__global__ void AdvectFieldBfeccKernel(float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -143,7 +142,7 @@ __global__ void AdvectFieldBfeccKernel(float time_step, float dissipation,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocity(coord);
-    float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step);
+    float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
     float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
     float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
@@ -163,13 +162,12 @@ __global__ void AdvectFieldBfeccKernel(float time_step, float dissipation,
                           // accurate semi-Lagrangian method.
         ¦Õ_new = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
 
-    auto r = __float2half_rn((1.0f - dissipation * time_step) * ¦Õ_new);
+    auto r = __float2half_rn(dissipation * ¦Õ_new);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 template <bool MidPoint>
-__global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation,
-                                            uint3 volume_size)
+__global__ void AdvectFieldMacCormackKernel(float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -178,7 +176,7 @@ __global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation,
     float3 coord = make_float3(x, y, z) + 0.5f;
 
     float3 vel = GetVelocity(coord);
-    float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step);
+    float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
     float ¦Õ_n = tex3D(tex, coord.x, coord.y, coord.z);
 
@@ -196,7 +194,7 @@ __global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation,
 
     float ¦Õ_np1_hat = tex3D(tex_aux, coord.x, coord.y, coord.z);
 
-    float3 forward_trace = AdvectImpl<MidPoint>(vel, coord, -time_step);
+    float3 forward_trace = AdvectImpl<MidPoint>(vel, coord, -time_step_over_cell_size);
     float ¦Õ_n_hat = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
 
     float ¦Õ_new = ¦Õ_np1_hat + 0.5f * (¦Õ_n - ¦Õ_n_hat);
@@ -204,13 +202,12 @@ __global__ void AdvectFieldMacCormackKernel(float time_step, float dissipation,
     if (clamped != ¦Õ_new)
         ¦Õ_new = ¦Õ_np1_hat;
 
-    ¦Õ_new *= (1.0f - dissipation * time_step);
-    auto r = __float2half_rn(¦Õ_new);
+    auto r = __float2half_rn(¦Õ_new * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 template <bool MidPoint>
-__global__ void AdvectFieldSemiLagrangianKernel(float time_step,
+__global__ void AdvectFieldSemiLagrangianKernel(float time_step_over_cell_size,
                                                 float dissipation,
                                                 uint3 volume_size)
 {
@@ -221,16 +218,17 @@ __global__ void AdvectFieldSemiLagrangianKernel(float time_step,
     float3 coord = make_float3(x, y, z) + 0.5f;
 
     float3 vel = GetVelocity(coord);
-    float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step);
+    float3 back_traced = AdvectImpl<MidPoint>(vel, coord,
+                                              time_step_over_cell_size);
 
     float ¦Õ = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
-    ¦Õ *= (1.0f - dissipation * time_step);
-    auto r = __float2half_rn(¦Õ);
+    auto r = __float2half_rn(¦Õ * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 template <bool MidPoint>
-__global__ void BfeccRemoveErrorKernel(float time_step, uint3 volume_size)
+__global__ void BfeccRemoveErrorKernel(float time_step_over_cell_size,
+                                       uint3 volume_size)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -238,7 +236,8 @@ __global__ void BfeccRemoveErrorKernel(float time_step, uint3 volume_size)
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocity(coord);
-    float3 forward_trace = AdvectImpl<MidPoint>(vel, coord, -time_step);
+    float3 forward_trace = AdvectImpl<MidPoint>(vel, coord,
+                                                -time_step_over_cell_size);
 
     float ¦Õ = tex3D(tex, coord.x, coord.y, coord.z);
     float r = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
@@ -251,8 +250,9 @@ __global__ void BfeccRemoveErrorKernel(float time_step, uint3 volume_size)
 
 void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
                        cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                       cudaArray* aux, float time_step, float dissipation,
-                       uint3 volume_size, bool mid_point, BlockArrangement* ba)
+                       cudaArray* aux, float cell_size, float time_step,
+                       float dissipation, uint3 volume_size, bool mid_point,
+                       BlockArrangement* ba)
 {
     auto bound_vx = BindHelper::Bind(&tex_vx, vel_x, false,
                                      cudaFilterModeLinear,
@@ -287,10 +287,10 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
 
         if (mid_point)
             AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f, volume_size);
         else
             AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f, volume_size);
 
         // Pass 2: Calculate ¦Õ_n_hat, and store in |aux|.
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
@@ -304,11 +304,11 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
                 return;
 
             if (mid_point)
-                BfeccRemoveErrorKernel<true><<<grid, block>>>(time_step,
-                                                              volume_size);
+                BfeccRemoveErrorKernel<true><<<grid, block>>>(
+                    time_step / cell_size, volume_size);
             else
-                BfeccRemoveErrorKernel<false><<<grid, block>>>(time_step,
-                                                               volume_size);
+                BfeccRemoveErrorKernel<false><<<grid, block>>>(
+                    time_step / cell_size, volume_size);
         }
 
         // Pass 3: Calculate the final result.
@@ -322,20 +322,20 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
             return;
 
         if (mid_point)
-            AdvectFieldBfeccKernel<true><<<grid, block>>>(time_step,
-                                                          dissipation,
-                                                          volume_size);
+            AdvectFieldBfeccKernel<true><<<grid, block>>>(
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
         else
-            AdvectFieldBfeccKernel<false><<<grid, block>>>(time_step,
-                                                           dissipation,
-                                                           volume_size);
+            AdvectFieldBfeccKernel<false><<<grid, block>>>(
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
     }
 }
 
 void AdvectFieldsMacCormack(cudaArray** fnp1, cudaArray** fn,
                             int num_of_fields, cudaArray* vel_x,
                             cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
-                            float time_step, float dissipation,
+                            float cell_size, float time_step, float dissipation,
                             uint3 volume_size, bool mid_point,
                             BlockArrangement* ba)
 {
@@ -376,31 +376,31 @@ void AdvectFieldsMacCormack(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f, volume_size);
         else
             AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f, volume_size);
 
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
         if (mid_point)
-            AdvectFieldMacCormackKernel<true><<<grid, block>>>(time_step,
-                                                               dissipation,
-                                                               volume_size);
+            AdvectFieldMacCormackKernel<true><<<grid, block>>>(
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
         else
-            AdvectFieldMacCormackKernel<false><<<grid, block>>>(time_step,
-                                                                dissipation,
-                                                                volume_size);
+            AdvectFieldMacCormackKernel<false><<<grid, block>>>(
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
     }
 }
 
 void AdvectFieldsSemiLagrangian(cudaArray** fnp1, cudaArray** fn,
                                 int num_of_fields, cudaArray* vel_x,
                                 cudaArray* vel_y, cudaArray* vel_z,
-                                float time_step, float dissipation,
-                                uint3 volume_size, bool mid_point,
-                                BlockArrangement* ba)
+                                float cell_size, float time_step,
+                                float dissipation, uint3 volume_size,
+                                bool mid_point, BlockArrangement* ba)
 {
     auto bound_vx = BindHelper::Bind(&tex_vx, vel_x, false,
                                      cudaFilterModeLinear,
@@ -434,16 +434,18 @@ void AdvectFieldsSemiLagrangian(cudaArray** fnp1, cudaArray** fn,
 
         if (mid_point)
             AdvectFieldSemiLagrangianKernel<true><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
         else
             AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
-                time_step, 0.0f, volume_size);
+                time_step / cell_size, 1.0f - dissipation * time_step,
+                volume_size);
     }
 }
 
 void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn,
                              cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, cudaArray* aux,
+                             cudaArray* vel_z, cudaArray* aux, float cell_size,
                              float time_step, float dissipation,
                              AdvectionMethod method,
                              uint3 volume_size, bool mid_point,
@@ -454,15 +456,16 @@ void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn,
     int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
     if (method == MACCORMACK_SEMI_LAGRANGIAN) {
         AdvectFieldsMacCormack(fnp1s, fns, num_of_fields, vel_x, vel_y, vel_z,
-                               aux, time_step, dissipation, volume_size,
-                               mid_point, ba);
+                               aux, cell_size, time_step, dissipation,
+                               volume_size, mid_point, ba);
     } else if (method == BFECC_SEMI_LAGRANGIAN) {
         AdvectFieldsBfecc(fnp1s, fns, num_of_fields, vel_x, vel_y, vel_z, aux,
-                          time_step, dissipation, volume_size, mid_point, ba);
+                          cell_size, time_step, dissipation, volume_size,
+                          mid_point, ba);
     } else {
         AdvectFieldsSemiLagrangian(fnp1s, fns, num_of_fields, vel_x, vel_y,
-                                   vel_z, time_step, dissipation, volume_size,
-                                   mid_point, ba);
+                                   vel_z, cell_size, time_step, dissipation,
+                                   volume_size, mid_point, ba);
     }
 }
 
@@ -470,7 +473,7 @@ void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y,
                              cudaArray* fnp1_z, cudaArray* fn_x,
                              cudaArray* fn_y, cudaArray* fn_z,
                              cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, cudaArray* aux,
+                             cudaArray* vel_z, cudaArray* aux, float cell_size,
                              float time_step, float dissipation,
                              AdvectionMethod method,
                              uint3 volume_size, bool mid_point,
@@ -481,14 +484,15 @@ void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y,
     int num_of_fields = sizeof(fnp1s) / sizeof(fnp1s[0]);
     if (method == MACCORMACK_SEMI_LAGRANGIAN) {
         AdvectFieldsMacCormack(fnp1s, fns, num_of_fields, vel_x, vel_y, vel_z,
-                               aux, time_step, dissipation, volume_size,
-                               mid_point, ba);
+                               aux, cell_size, time_step, dissipation,
+                               volume_size, mid_point, ba);
     } else if (method == BFECC_SEMI_LAGRANGIAN) {
         AdvectFieldsBfecc(fnp1s, fns, num_of_fields, vel_x, vel_y, vel_z, aux,
-                          time_step, dissipation, volume_size, mid_point, ba);
+                          cell_size, time_step, dissipation, volume_size,
+                          mid_point, ba);
     } else {
         AdvectFieldsSemiLagrangian(fnp1s, fns, num_of_fields, vel_x, vel_y,
-                                   vel_z, time_step, dissipation, volume_size,
-                                   mid_point, ba);
+                                   vel_z, cell_size, time_step, dissipation,
+                                   volume_size, mid_point, ba);
     }
 }
