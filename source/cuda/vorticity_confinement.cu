@@ -34,7 +34,7 @@ __global__ void AddCurlPsiKernel(float inverse_cell_size, uint3 volume_size)
             y >= volume_size.y - d || z >= volume_size.z - d)
         return;
 
-    float3 coord = make_float3(x, y, z);
+    float3 coord = make_float3(x, y, z) + 0.5f;
 
     float ¦·_y0 = tex3D(tex_y, coord.x, coord.y, coord.z);
     float ¦·_y1 = tex3D(tex_y, coord.x, coord.y, coord.z + 1.0f);
@@ -183,16 +183,19 @@ __global__ void ComputeCurlStaggeredKernel(uint3 volume_size,
     float3 result;
     if (x < volume_size.x - 1 && y < volume_size.y - 1 && z < volume_size.z - 1) {
         if (x > 0 && y > 0 && z > 0) {
-            float v_near =  tex3D(tex_vz, coord.x,        coord.y,        coord.z - 1.0f);
-            float v_z =     tex3D(tex_vz, coord.x,        coord.y,        coord.z);
-            float v_south = tex3D(tex_vy, coord.x,        coord.y - 1.0f, coord.z);
-            float v_y =     tex3D(tex_vy, coord.x,        coord.y,        coord.z);
-            float v_west =  tex3D(tex_vx, coord.x - 1.0f, coord.y,        coord.z);
-            float v_x =     tex3D(tex_vx, coord.x,        coord.y,        coord.z);
+            float v_z =       tex3D(tex_vz, coord.x,        coord.y,        coord.z);
+            float v_z_west =  tex3D(tex_vz, coord.x - 1.0f, coord.y,        coord.z);
+            float v_z_south = tex3D(tex_vz, coord.x,        coord.y - 1.0f, coord.z);
+            float v_y =       tex3D(tex_vy, coord.x,        coord.y,        coord.z);
+            float v_y_near =  tex3D(tex_vy, coord.x,        coord.y,        coord.z - 1.0f);
+            float v_y_west =  tex3D(tex_vy, coord.x - 1.0f, coord.y,        coord.z);
+            float v_x =       tex3D(tex_vx, coord.x,        coord.y,        coord.z);
+            float v_x_near =  tex3D(tex_vx, coord.x,        coord.y,        coord.z - 1.0f);
+            float v_x_south = tex3D(tex_vx, coord.x,        coord.y - 1.0f, coord.z);
 
-            result.x = inverse_cell_size * (v_z - v_south - v_y + v_near);
-            result.y = inverse_cell_size * (v_x - v_near  - v_z + v_west);
-            result.z = inverse_cell_size * (v_y - v_west  - v_x + v_south);
+            result.x = inverse_cell_size * (v_z - v_z_south - v_y + v_y_near);
+            result.y = inverse_cell_size * (v_x - v_x_near -  v_z + v_z_west);
+            result.z = inverse_cell_size * (v_y - v_y_west -  v_x + v_x_south);
         } else if (x == 0) {
             result.x = tex3D(tex_x, coord.x + 1.0f, coord.y, coord.z);
             result.y = tex3D(tex_y, coord.x + 1.0f, coord.y, coord.z);
@@ -621,6 +624,21 @@ void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
     auto bound = BindHelper::Bind(&tex, div, false, cudaFilterModeLinear,
                                   cudaAddressModeClamp);
     if (bound.error() != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vort_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vort_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vort_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
         return;
 
     dim3 block;
