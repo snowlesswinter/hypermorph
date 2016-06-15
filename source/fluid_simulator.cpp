@@ -702,12 +702,6 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
         case POISSON_SOLVER_DAMPED_JACOBI: {
-            // NOTE: If we don't clear the buffer, a lot more details are gonna
-            //       be rendered. Preconditioned?
-            //
-            // Our experiments reveals that increasing the iteration times to
-            // 80 of Jacobi will NOT lead to higher accuracy.
-            
             DampedJacobi(pressure, divergence, cell_size,
                          num_jacobi_iterations);
             break;
@@ -722,20 +716,8 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                                              volume_byte_width_, 32);
             }
 
-            // An iteration times lower than 4 will introduce significant
-            // unnatural visual effect caused by the half-convergent state of
-            // pressure. 
-            //
-            // If I change the value to 6, then the average |r| could be
-            // reduced to around 0.004.
-            //
-            // And please also note that the average |r| of Damped Jacobi
-            // (using a constant iteration time of 40) is stabilized at 0.025.
-            // That's a pretty good score!
-
-            for (int i = 0; i < num_multigrid_iterations; i++)
-                pressure_solver_->Solve(pressure, divergence, cell_size, !i);
-
+            pressure_solver_->Solve(pressure, divergence, cell_size,
+                                    num_multigrid_iterations);
             break;
         }
         case POISSON_SOLVER_FULL_MULTI_GRID: {
@@ -748,9 +730,8 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                                              volume_byte_width_, 32);
             }
 
-            for (int i = 0; i < num_full_multigrid_iterations; i++)
-                pressure_solver_->Solve(pressure, divergence, cell_size, !i);
-
+            pressure_solver_->Solve(pressure, divergence, cell_size,
+                                    num_full_multigrid_iterations);
             break;
         }
         default: {

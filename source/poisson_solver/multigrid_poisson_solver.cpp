@@ -68,12 +68,13 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
 
 void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
                                    std::shared_ptr<GraphicsVolume> b,
-                                   float cell_size, bool as_precondition)
+                                   float cell_size, int iteration_times)
 {
     if (!ValidateVolume(u) || !ValidateVolume(b))
         return;
 
-    SolveOpt(u, b, cell_size, as_precondition);
+    for (int i = 0; i < iteration_times; i++)
+        Iterate(u, b, cell_size, !i);
 }
 
 bool MultigridPoissonSolver::ValidateVolume(
@@ -90,9 +91,9 @@ bool MultigridPoissonSolver::ValidateVolume(
     return true;
 }
 
-void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u,
-                                      std::shared_ptr<GraphicsVolume> b,
-                                      float cell_size, bool as_precondition)
+void MultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
+                                     std::shared_ptr<GraphicsVolume> b,
+                                     float cell_size, bool apply_initial_guess)
 {
     auto i = volume_resource_.begin();
     auto prev = i;
@@ -122,7 +123,7 @@ void MultigridPoissonSolver::SolveOpt(std::shared_ptr<GraphicsVolume> u,
         std::shared_ptr<GraphicsVolume3> fine_volumes = volumes[i];
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[i + 1]->y();
 
-        if (i || as_precondition)
+        if (i || apply_initial_guess)
             core_->RelaxWithZeroGuess(*fine_volumes->x(), *fine_volumes->y(),
                                       level_cell_size);
         else

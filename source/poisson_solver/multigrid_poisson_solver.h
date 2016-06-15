@@ -19,16 +19,16 @@ public:
                             int byte_width, int minimum_grid_width) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
                        std::shared_ptr<GraphicsVolume> b, float cell_size,
-                       bool as_precondition) override;
+                       int iteration_times) override;
 
     void set_num_finest_level_iteration_per_pass(int n) {
         num_finest_level_iteration_per_pass_ = n;
     }
 
 private:
-    void SolveOpt(std::shared_ptr<GraphicsVolume> u,
-                  std::shared_ptr<GraphicsVolume> b, float cell_size,
-                  bool as_precondition);
+    void Iterate(std::shared_ptr<GraphicsVolume> u,
+                 std::shared_ptr<GraphicsVolume> b, float cell_size,
+                 bool apply_initial_guess);
     bool ValidateVolume(std::shared_ptr<GraphicsVolume> v);
 
     MultigridCore* core_;

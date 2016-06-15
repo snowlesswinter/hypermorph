@@ -64,13 +64,22 @@ bool FullMultigridPoissonSolver::Initialize(int width, int height, int depth,
 
 void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
                                        std::shared_ptr<GraphicsVolume> b,
-                                       float cell_size, bool as_precondition)
+                                       float cell_size, int iteration_times)
 {
     if (u->GetWidth() < 32) {
             solver_->Solve(u, b, cell_size, true);
         return;
     }
 
+    for (int i = 0; i < iteration_times; i++)
+        Iterate(u, b, cell_size, !i);
+}
+
+void FullMultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
+                                         std::shared_ptr<GraphicsVolume> b,
+                                         float cell_size,
+                                         bool apply_initial_guess)
+{
     assert(volume_resource_.size() > 1);
     if (volume_resource_.size() <= 1)
         return;
@@ -87,7 +96,7 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
         VolumePair fine_volume = volume_resource_[i];
         VolumePair coarse_volume = volume_resource_[i + 1];
 
-        if (!i && as_precondition)
+        if (!i && apply_initial_guess)
             core_->RelaxWithZeroGuess(*fine_volume.first, *fine_volume.second,
                                       level_cell_size);
         else
@@ -96,7 +105,7 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
 
         core_->Restrict(*coarse_volume.first, *fine_volume.first);
 
-        if (as_precondition)
+        if (apply_initial_guess)
             core_->Restrict(*coarse_volume.second, *fine_volume.second);
 
         level_cell_size *= 2.0f;
@@ -117,9 +126,8 @@ void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
 
         core_->Prolongate(*fine_volume.first, *coarse_volume.first);
 
-        for (int k = 0; k < times_to_iterate; k++)
-            solver_->Solve(fine_volume.first, fine_volume.second,
-                           level_cell_size, false);
+        solver_->Solve(fine_volume.first, fine_volume.second, level_cell_size,
+                       times_to_iterate);
 
         // For comparison.
         // 

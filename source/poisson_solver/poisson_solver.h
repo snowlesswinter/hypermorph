@@ -14,7 +14,7 @@ public:
                             int byte_width, int minimum_grid_width) = 0;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
                        std::shared_ptr<GraphicsVolume> b, float cell_size,
-                       bool as_precondition) = 0;
+                       int iteration_times) = 0;
 };
 
 #endif // _POISSON_SOLVER_H_
