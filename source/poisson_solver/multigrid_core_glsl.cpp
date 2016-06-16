@@ -31,6 +31,11 @@ MultigridCoreGlsl::~MultigridCoreGlsl()
 
 }
 
+std::shared_ptr<GraphicsMemPiece> MultigridCoreGlsl::CreateMemPiece(int size)
+{
+    return std::shared_ptr<GraphicsMemPiece>();
+}
+
 std::shared_ptr<GraphicsVolume> MultigridCoreGlsl::CreateVolume(
     int width, int height, int depth, int num_of_components, int byte_width)
 {
@@ -166,6 +171,13 @@ void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4,
                           coarse.gl_volume()->depth());
     ResetState();
+}
+
+void MultigridCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
+                                   const GraphicsVolume& z,
+                                   const GraphicsVolume& r)
+{
+
 }
 
 GLProgram* MultigridCoreGlsl::GetProlongatePackedProgram()

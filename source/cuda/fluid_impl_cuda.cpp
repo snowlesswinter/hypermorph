@@ -11,6 +11,7 @@
 #include <helper_math.h>
 #include <driver_types.h>
 
+#include "aux_buffer_manager.h"
 #include "graphics_resource.h"
 #include "kernel_launcher.h"
 #include "third_party/glm/vec3.hpp"

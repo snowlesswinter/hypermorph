@@ -18,6 +18,7 @@ public:
     void ArrangeRowScan(dim3* block, dim3* grid, const uint3& volume_size);
     void ArrangePrefer3dLocality(dim3* block, dim3* grid,
                                  const uint3& volume_size);
+    void ArrangeSequential(dim3* block, dim3* grid, const uint3& volume_size);
 
 private:
     std::unique_ptr<cudaDeviceProp> dev_prop_;

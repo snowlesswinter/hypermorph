@@ -6,15 +6,17 @@
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
+class AuxBufferManager;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
 class MultigridImplCuda
 {
 public:
-    explicit MultigridImplCuda(BlockArrangement* ba);
+    MultigridImplCuda(BlockArrangement* ba, AuxBufferManager* bm);
     ~MultigridImplCuda();
 
+    // Multigrid.
     void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
                          float cell_size, const glm::ivec3& volume_size);
     void Prolongate(cudaArray* fine, cudaArray* coarse,
@@ -26,8 +28,13 @@ public:
     void Restrict(cudaArray* coarse, cudaArray* fine,
                   const glm::ivec3& volume_size);
 
+    // Conjugate gradient.
+    void ComputeRho(float* rho, cudaArray* z, cudaArray* r,
+                    const glm::ivec3& volume_size);
+
 private:
     BlockArrangement* ba_;
+    AuxBufferManager* bm_;
 };
 
 #endif // _MULTIGRID_IMPL_CUDA_H_

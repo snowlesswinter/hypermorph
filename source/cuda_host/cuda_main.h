@@ -7,6 +7,7 @@
 #include "third_party/glm/fwd.hpp"
 
 class CudaCore;
+class CudaMemPiece;
 class CudaVolume;
 class FluidImplCuda;
 class GLSurface;
@@ -111,6 +112,11 @@ public:
                             float cell_size);
     void Restrict(std::shared_ptr<CudaVolume> coarse,
                   std::shared_ptr<CudaVolume> fine);
+
+    // Conjugate gradient.
+    void ComputeRho(std::shared_ptr<CudaMemPiece> rho,
+                    std::shared_ptr<CudaVolume> z,
+                    std::shared_ptr<CudaVolume> r);
 
     // Vorticity.
     void AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

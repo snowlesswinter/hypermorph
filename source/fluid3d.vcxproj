@@ -86,11 +86,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="cuda_host\cuda_mem_piece.h" />
     <ClInclude Include="fluid_config.h" />
     <ClInclude Include="cuda_host\cuda_main.h" />
     <ClInclude Include="cuda_host\cuda_volume.h" />
     <ClInclude Include="fluid_simulator.h" />
     <ClInclude Include="graphics_lib_enum.h" />
+    <ClInclude Include="graphics_mem_piece.h" />
     <ClInclude Include="graphics_volume.h" />
     <ClInclude Include="graphics_volume_group.h" />
     <ClInclude Include="metrics.h" />
@@ -106,6 +108,7 @@
     <ClInclude Include="poisson_solver\multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\open_boundary_multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\poisson_solver.h" />
+    <ClInclude Include="poisson_solver\preconditioned_conjugate_gradient.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
     <ClInclude Include="shader\overlay_shader.h" />
@@ -116,10 +119,12 @@
     <ClInclude Include="volume_renderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cuda_host\cuda_mem_piece.cpp" />
     <ClCompile Include="fluid_config.cpp" />
     <ClCompile Include="cuda_host\cuda_main.cpp" />
     <ClCompile Include="cuda_host\cuda_volume.cpp" />
     <ClCompile Include="fluid_simulator.cpp" />
+    <ClCompile Include="graphics_mem_piece.cpp" />
     <ClCompile Include="graphics_volume.cpp" />
     <ClCompile Include="graphics_volume_group.cpp" />
     <ClCompile Include="metrics.cpp" />
@@ -135,6 +140,7 @@
     <ClCompile Include="poisson_solver\multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\open_boundary_multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\poisson_solver.cpp" />
+    <ClCompile Include="poisson_solver\preconditioned_conjugate_gradient.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />

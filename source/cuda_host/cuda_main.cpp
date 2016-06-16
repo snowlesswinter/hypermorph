@@ -8,6 +8,7 @@
 #include "cuda/fluid_impl_cuda.h"
 #include "cuda/graphics_resource.h"
 #include "cuda/multigrid_impl_cuda.h"
+#include "cuda_mem_piece.h"
 #include "cuda_volume.h"
 #include "opengl/gl_surface.h"
 #include "opengl/gl_volume.h"
@@ -54,7 +55,9 @@ void CudaMain::DestroyInstance()
 CudaMain::CudaMain()
     : core_(new CudaCore())
     , fluid_impl_(new FluidImplCuda(core_->block_arrangement()))
-    , multigrid_impl_(new MultigridImplCuda(core_->block_arrangement()))
+    , multigrid_impl_(
+        new MultigridImplCuda(core_->block_arrangement(),
+                              core_->buffer_manager()))
     , registerd_textures_()
 {
 
@@ -313,6 +316,14 @@ void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
 {
     multigrid_impl_->Restrict(coarse->dev_array(), fine->dev_array(),
                               coarse->size());
+}
+
+void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
+                          std::shared_ptr<CudaVolume> z,
+                          std::shared_ptr<CudaVolume> r)
+{
+    multigrid_impl_->ComputeRho(reinterpret_cast<float*>(rho->mem()),
+                                z->dev_array(), r->dev_array(), z->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

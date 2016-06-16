@@ -12,6 +12,7 @@ public:
     MultigridCoreCuda();
     virtual ~MultigridCoreCuda();
 
+    virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) override;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
@@ -19,6 +20,7 @@ public:
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
 
+    // Multigrid.
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b,
@@ -34,6 +36,11 @@ public:
                                     float cell_size) override;
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) override;
+
+    // Conjugate gradient.
+    virtual void ComputeRho(const GraphicsMemPiece& rho,
+                            const GraphicsVolume& z,
+                            const GraphicsVolume& r) override;
 };
 
 #endif // _MULTIGRID_CORE_CUDA_H_

@@ -77,6 +77,13 @@
     <ClInclude Include="poisson_solver\open_boundary_multigrid_poisson_solver.h">
       <Filter>poisson_solver</Filter>
     </ClInclude>
+    <ClInclude Include="poisson_solver\preconditioned_conjugate_gradient.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_host\cuda_mem_piece.h">
+      <Filter>cuda_host</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics_mem_piece.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -140,5 +147,12 @@
     <ClCompile Include="poisson_solver\open_boundary_multigrid_poisson_solver.cpp">
       <Filter>poisson_solver</Filter>
     </ClCompile>
+    <ClCompile Include="poisson_solver\preconditioned_conjugate_gradient.cpp">
+      <Filter>poisson_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="cuda_host\cuda_mem_piece.cpp">
+      <Filter>cuda_host</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics_mem_piece.cpp" />
   </ItemGroup>
 </Project>

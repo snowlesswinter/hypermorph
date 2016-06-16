@@ -1,6 +1,7 @@
 #ifndef _CUDA_CORE_H_
 #define _CUDA_CORE_H_
 
+#include "aux_buffer_manager.h"
 #include "block_arrangement.h"
 #include "third_party/glm/fwd.hpp"
 
@@ -16,11 +17,13 @@ public:
 
     bool Init();
 
+    static bool AllocMemPiece(void** result, int size);
     static bool AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
                                          const glm::ivec3& extent,
                                          int num_of_components, int byte_width);
     static bool AllocVolumeMemory(cudaArray** result, const glm::ivec3& extent,
                                   int num_of_components, int byte_width);
+    static void FreeMemPiece(void* mem);
     static void FreeVolumeInPlaceMemory(cudaPitchedPtr* mem);
     static void FreeVolumeMemory(cudaArray* mem);
 
@@ -48,9 +51,11 @@ public:
     void Sync();
 
     BlockArrangement* block_arrangement() { return &block_arrangement_; }
+    AuxBufferManager* buffer_manager() { return &buffer_manager_; }
 
 private:
     BlockArrangement block_arrangement_;
+    AuxBufferManager buffer_manager_;
 };
 
 #endif // _CUDA_CORE_H_

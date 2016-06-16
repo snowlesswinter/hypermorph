@@ -12,6 +12,7 @@ public:
     MultigridCoreGlsl();
     virtual ~MultigridCoreGlsl();
 
+    virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) override;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
@@ -35,6 +36,10 @@ public:
                                     float cell_size) override;
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) override;
+
+    virtual void ComputeRho(const GraphicsMemPiece& rho,
+                            const GraphicsVolume& z,
+                            const GraphicsVolume& r) override;
 
 private:
     GLProgram* GetProlongatePackedProgram();

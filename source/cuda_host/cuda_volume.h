@@ -1,7 +1,6 @@
 #ifndef _CUDA_VOLUME_H_
 #define _CUDA_VOLUME_H_
 
-#include <map>
 #include <memory>
 
 #include "third_party/glm/fwd.hpp"

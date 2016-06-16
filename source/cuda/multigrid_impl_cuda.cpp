@@ -12,20 +12,8 @@
 #include <driver_types.h>
 
 #include "graphics_resource.h"
+#include "kernel_launcher.h"
 #include "third_party/glm/vec3.hpp"
-
-extern void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
-                                  float cell_size, uint3 volume_size,
-                                  BlockArrangement* ba);
-extern void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
-                             uint3 volume_size_fine, BlockArrangement* ba);
-extern void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
-                                  uint3 volume_size_fine, BlockArrangement* ba);
-extern void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b,
-                                     float cell_size, uint3 volume_size,
-                                     BlockArrangement* ba);
-extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine,
-                           uint3 volume_size, BlockArrangement* ba);
 
 namespace
 {
@@ -35,8 +23,9 @@ uint3 FromGlmVector(const glm::ivec3& v)
 }
 } // Anonymous namespace.
 
-MultigridImplCuda::MultigridImplCuda(BlockArrangement* ba)
-    :ba_(ba)
+MultigridImplCuda::MultigridImplCuda(BlockArrangement* ba, AuxBufferManager* bm)
+    : ba_(ba)
+    , bm_(bm)
 {
 }
 
@@ -74,4 +63,11 @@ void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
                                  const glm::ivec3& volume_size)
 {
     LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
+}
+
+void MultigridImplCuda::ComputeRho(float* rho, cudaArray* z, cudaArray* r,
+                                   const glm::ivec3& volume_size)
+{
+    LaunchComputeDotProductOfVectors(rho, z, r, FromGlmVector(volume_size),
+                                     ba_, bm_);
 }

@@ -40,6 +40,7 @@ uint3 FromGlmVector(const glm::ivec3& v)
 
 CudaCore::CudaCore()
     : block_arrangement_()
+    , buffer_manager_()
 {
 
 }
@@ -91,6 +92,11 @@ int CudaCore::RegisterGLBuffer(unsigned int buffer,
 void CudaCore::UnregisterGLResource(GraphicsResource* graphics_res)
 {
     cudaGraphicsUnregisterResource(graphics_res->resource());
+}
+
+bool CudaCore::AllocMemPiece(void** result, int size)
+{
+    return cudaMalloc(result, size) == cudaSuccess;
 }
 
 bool CudaCore::AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
@@ -229,6 +235,13 @@ bool CudaCore::AllocVolumeMemory(cudaArray** result, const glm::ivec3& extent,
     }
 
     return false;
+}
+
+void CudaCore::FreeMemPiece(void* mem)
+{
+    if (mem) {
+        cudaFree(mem);
+    }
 }
 
 void CudaCore::FreeVolumeInPlaceMemory(cudaPitchedPtr* mem)
