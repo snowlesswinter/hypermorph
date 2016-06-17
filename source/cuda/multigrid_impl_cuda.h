@@ -31,8 +31,15 @@ public:
     // Conjugate gradient.
     void ApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
                       const glm::ivec3& volume_size);
+    void ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
+                      cudaArray* search, const glm::ivec3& volume_size);
     void ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
                     const glm::ivec3& volume_size);
+    void ComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
+                           cudaArray* aux, cudaArray* residual,
+                           const glm::ivec3& volume_size);
+    void UpdateVector(cudaArray* dest, cudaArray* v, float* alpha,
+                      float sign, const glm::ivec3& volume_size);
 
 private:
     BlockArrangement* ba_;

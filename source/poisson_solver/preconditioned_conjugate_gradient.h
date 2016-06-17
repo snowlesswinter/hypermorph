@@ -24,7 +24,11 @@ public:
 private:
     MultigridCore* core_;
     std::unique_ptr<MultigridPoissonSolver> preconditioner_;
+    std::shared_ptr<GraphicsMemPiece> alpha_;
+    std::shared_ptr<GraphicsMemPiece> beta_;
     std::shared_ptr<GraphicsMemPiece> rho_;
+    std::shared_ptr<GraphicsMemPiece> rho_new_;
+    std::shared_ptr<GraphicsVolume> residual_;
     std::shared_ptr<GraphicsVolume> aux_;
     std::shared_ptr<GraphicsVolume> search_;
 };

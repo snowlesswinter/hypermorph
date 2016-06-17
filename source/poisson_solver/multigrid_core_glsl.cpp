@@ -180,9 +180,33 @@ void MultigridCoreGlsl::ApplyStencil(const GraphicsVolume& aux,
 
 }
 
+void MultigridCoreGlsl::ComputeAlpha(const GraphicsMemPiece& alpha,
+                                     const GraphicsMemPiece& rho,
+                                     const GraphicsVolume& aux,
+                                     const GraphicsVolume& search)
+{
+
+}
+
 void MultigridCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& r)
+{
+
+}
+
+void MultigridCoreGlsl::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                          const GraphicsMemPiece& rho_new,
+                                          const GraphicsMemPiece& rho,
+                                          const GraphicsVolume& aux,
+                                          const GraphicsVolume& residual)
+{
+
+}
+
+void MultigridCoreGlsl::UpdateVector(const GraphicsVolume& dest,
+                                     const GraphicsVolume& v,
+                                     const GraphicsMemPiece& alpha, float sign)
 {
 
 }

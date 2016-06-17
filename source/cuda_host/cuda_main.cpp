@@ -325,12 +325,45 @@ void CudaMain::ApplyStencil(std::shared_ptr<CudaVolume> aux,
                                   cell_size, aux->size());
 }
 
+void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
+                            std::shared_ptr<CudaMemPiece> rho,
+                            std::shared_ptr<CudaVolume> aux,
+                            std::shared_ptr<CudaVolume> search)
+{
+    multigrid_impl_->ComputeAlpha(reinterpret_cast<float*>(alpha->mem()),
+                                  reinterpret_cast<float*>(rho->mem()),
+                                  aux->dev_array(), search->dev_array(),
+                                  aux->size());
+}
+
 void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
                           std::shared_ptr<CudaVolume> aux,
                           std::shared_ptr<CudaVolume> r)
 {
     multigrid_impl_->ComputeRho(reinterpret_cast<float*>(rho->mem()),
                                 aux->dev_array(), r->dev_array(), aux->size());
+}
+
+void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
+                                 std::shared_ptr<CudaMemPiece> rho_new,
+                                 std::shared_ptr<CudaMemPiece> rho,
+                                 std::shared_ptr<CudaVolume> aux,
+                                 std::shared_ptr<CudaVolume> residual)
+{
+    multigrid_impl_->ComputeRhoAndBeta(reinterpret_cast<float*>(beta->mem()),
+                                       reinterpret_cast<float*>(rho_new->mem()),
+                                       reinterpret_cast<float*>(rho->mem()),
+                                       aux->dev_array(), residual->dev_array(),
+                                       aux->size());
+}
+
+void CudaMain::UpdateVector(std::shared_ptr<CudaVolume> dest,
+                            std::shared_ptr<CudaVolume> v,
+                            std::shared_ptr<CudaMemPiece> alpha, float sign)
+{
+    multigrid_impl_->UpdateVector(dest->dev_array(), v->dev_array(),
+                                  reinterpret_cast<float*>(alpha->mem()), sign,
+                                  dest->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

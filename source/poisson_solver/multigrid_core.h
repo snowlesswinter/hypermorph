@@ -41,9 +41,21 @@ public:
     virtual void ApplyStencil(const GraphicsVolume& aux,
                               const GraphicsVolume& search,
                               float cell_size) = 0;
+    virtual void ComputeAlpha(const GraphicsMemPiece& alpha,
+                              const GraphicsMemPiece& rho,
+                              const GraphicsVolume& aux,
+                              const GraphicsVolume& search) = 0;
     virtual void ComputeRho(const GraphicsMemPiece& rho,
                             const GraphicsVolume& aux,
                             const GraphicsVolume& r) = 0;
+    virtual void ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                   const GraphicsMemPiece& rho_new,
+                                   const GraphicsMemPiece& rho,
+                                   const GraphicsVolume& aux,
+                                   const GraphicsVolume& residual) = 0;
+    virtual void UpdateVector(const GraphicsVolume& dest,
+                              const GraphicsVolume& v,
+                              const GraphicsMemPiece& alpha, float sign) = 0;
 };
 
 #endif // _MULTIGRID_CORE_H_

@@ -65,6 +65,21 @@ void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
     LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
 }
 
+void MultigridImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
+                                     float cell_size,
+                                     const glm::ivec3& volume_size)
+{
+    LaunchApplyStencil(aux, search, cell_size, FromGlmVector(volume_size), ba_);
+}
+
+void MultigridImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
+                                     cudaArray* search,
+                                     const glm::ivec3& volume_size)
+{
+    LaunchComputeAlpha(alpha, rho, aux, search, FromGlmVector(volume_size), ba_,
+                       bm_);
+}
+
 void MultigridImplCuda::ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
                                    const glm::ivec3& volume_size)
 {
@@ -72,9 +87,18 @@ void MultigridImplCuda::ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
                                      ba_, bm_);
 }
 
-void MultigridImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
-                                     float cell_size,
+void MultigridImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
+                                          float* rho, cudaArray* aux,
+                                          cudaArray* residual,
+                                          const glm::ivec3& volume_size)
+{
+    LaunchComputeRhoAndBeta(beta, rho_new, rho, aux, residual,
+                            FromGlmVector(volume_size), ba_, bm_);
+}
+
+void MultigridImplCuda::UpdateVector(cudaArray* dest, cudaArray* v,
+                                     float* alpha, float sign,
                                      const glm::ivec3& volume_size)
 {
-    LaunchApplyStencil(aux, search, cell_size, FromGlmVector(volume_size), ba_);
+    LaunchUpdateVector(dest, v, alpha, sign, FromGlmVector(volume_size), ba_);
 }

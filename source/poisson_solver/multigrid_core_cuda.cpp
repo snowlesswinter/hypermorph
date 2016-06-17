@@ -99,10 +99,41 @@ void MultigridCoreCuda::ApplyStencil(const GraphicsVolume& aux,
                                        cell_size);
 }
 
+void MultigridCoreCuda::ComputeAlpha(const GraphicsMemPiece& alpha,
+                                     const GraphicsMemPiece& rho,
+                                     const GraphicsVolume& aux,
+                                     const GraphicsVolume& search)
+{
+    CudaMain::Instance()->ComputeAlpha(alpha.cuda_mem_piece(),
+                                       rho.cuda_mem_piece(), aux.cuda_volume(),
+                                       search.cuda_volume());
+}
+
 void MultigridCoreCuda::ComputeRho(const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& r)
 {
     CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), aux.cuda_volume(),
                                      r.cuda_volume());
+}
+
+void MultigridCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                          const GraphicsMemPiece& rho_new,
+                                          const GraphicsMemPiece& rho,
+                                          const GraphicsVolume& aux,
+                                          const GraphicsVolume& residual)
+{
+    CudaMain::Instance()->ComputeRhoAndBeta(beta.cuda_mem_piece(),
+                                            rho_new.cuda_mem_piece(),
+                                            rho.cuda_mem_piece(),
+                                            aux.cuda_volume(),
+                                            residual.cuda_volume());
+}
+
+void MultigridCoreCuda::UpdateVector(const GraphicsVolume& dest,
+                                     const GraphicsVolume& v,
+                                     const GraphicsMemPiece& alpha, float sign)
+{
+    CudaMain::Instance()->UpdateVector(dest.cuda_volume(), v.cuda_volume(),
+                                       alpha.cuda_mem_piece(), sign);
 }

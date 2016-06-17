@@ -116,9 +116,21 @@ public:
     // Conjugate gradient.
     void ApplyStencil(std::shared_ptr<CudaVolume> aux,
                       std::shared_ptr<CudaVolume> search, float cell_size);
+    void ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
+                      std::shared_ptr<CudaMemPiece> rho,
+                      std::shared_ptr<CudaVolume> aux,
+                      std::shared_ptr<CudaVolume> search);
     void ComputeRho(std::shared_ptr<CudaMemPiece> rho,
                     std::shared_ptr<CudaVolume> aux,
                     std::shared_ptr<CudaVolume> r);
+    void ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
+                           std::shared_ptr<CudaMemPiece> rho_new,
+                           std::shared_ptr<CudaMemPiece> rho,
+                           std::shared_ptr<CudaVolume> aux,
+                           std::shared_ptr<CudaVolume> residual);
+    void UpdateVector(std::shared_ptr<CudaVolume> dest,
+                      std::shared_ptr<CudaVolume> v,
+                      std::shared_ptr<CudaMemPiece> alpha, float sign);
 
     // Vorticity.
     void AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

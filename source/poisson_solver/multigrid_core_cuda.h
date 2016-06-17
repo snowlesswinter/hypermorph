@@ -41,9 +41,22 @@ public:
     virtual void ApplyStencil(const GraphicsVolume& aux,
                               const GraphicsVolume& search,
                               float cell_size) override;
+    virtual void ComputeAlpha(const GraphicsMemPiece& alpha,
+                              const GraphicsMemPiece& rho,
+                              const GraphicsVolume& aux,
+                              const GraphicsVolume& search) override;
     virtual void ComputeRho(const GraphicsMemPiece& rho,
                             const GraphicsVolume& aux,
                             const GraphicsVolume& r) override;
+    virtual void ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                   const GraphicsMemPiece& rho_new,
+                                   const GraphicsMemPiece& rho,
+                                   const GraphicsVolume& aux,
+                                   const GraphicsVolume& residual) override;
+    virtual void UpdateVector(const GraphicsVolume& dest,
+                              const GraphicsVolume& v,
+                              const GraphicsMemPiece& alpha,
+                              float sign) override;
 };
 
 #endif // _MULTIGRID_CORE_CUDA_H_
