@@ -14,6 +14,7 @@
 #include "poisson_solver/multigrid_core_glsl.h"
 #include "poisson_solver/multigrid_poisson_solver.h"
 #include "poisson_solver/open_boundary_multigrid_poisson_solver.h"
+#include "poisson_solver/preconditioned_conjugate_gradient.h"
 #include "shader/fluid_shader.h"
 #include "shader/multigrid_shader.h"
 #include "third_party/glm/vec2.hpp"
@@ -698,6 +699,8 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
         FluidConfig::Instance()->num_multigrid_iterations();
     int num_full_multigrid_iterations =
         FluidConfig::Instance()->num_full_multigrid_iterations();
+    int num_mgpcg_iterations =
+        FluidConfig::Instance()->num_mgpcg_iterations();
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
@@ -732,6 +735,20 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
 
             pressure_solver_->Solve(pressure, divergence, cell_size,
                                     num_full_multigrid_iterations);
+            break;
+        }
+        case POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT: {
+            if (!pressure_solver_) {
+                pressure_solver_.reset(
+                    new PreconditionedConjugateGradient(multigrid_core_.get()));
+                pressure_solver_->Initialize(pressure->GetWidth(),
+                                             pressure->GetHeight(),
+                                             pressure->GetDepth(),
+                                             volume_byte_width_, 32);
+            }
+
+            pressure_solver_->Solve(pressure, divergence, cell_size,
+                                    num_mgpcg_iterations);
             break;
         }
         default: {

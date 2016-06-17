@@ -45,16 +45,17 @@ public:
                               const GraphicsVolume& aux,
                               const GraphicsVolume& search) override;
     virtual void ComputeRho(const GraphicsMemPiece& rho,
-                            const GraphicsVolume& aux,
-                            const GraphicsVolume& r) override;
+                            const GraphicsVolume& search,
+                            const GraphicsVolume& residual) override;
     virtual void ComputeRhoAndBeta(const GraphicsMemPiece& beta,
                                    const GraphicsMemPiece& rho_new,
                                    const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& residual) override;
     virtual void UpdateVector(const GraphicsVolume& dest,
-                              const GraphicsVolume& v,
-                              const GraphicsMemPiece& alpha,
+                              const GraphicsVolume& v0,
+                              const GraphicsVolume& v1,
+                              const GraphicsMemPiece& coef,
                               float sign) override;
 
 private:

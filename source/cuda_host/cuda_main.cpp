@@ -337,11 +337,12 @@ void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
 }
 
 void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
-                          std::shared_ptr<CudaVolume> aux,
-                          std::shared_ptr<CudaVolume> r)
+                          std::shared_ptr<CudaVolume> search,
+                          std::shared_ptr<CudaVolume> residual)
 {
-    multigrid_impl_->ComputeRho(reinterpret_cast<float*>(rho->mem()),
-                                aux->dev_array(), r->dev_array(), aux->size());
+    multigrid_impl_->ComputeRho(
+        reinterpret_cast<float*>(rho->mem()), search->dev_array(),
+        residual->dev_array(), search->size());
 }
 
 void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
@@ -358,11 +359,13 @@ void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
 }
 
 void CudaMain::UpdateVector(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> v,
-                            std::shared_ptr<CudaMemPiece> alpha, float sign)
+                            std::shared_ptr<CudaVolume> v0,
+                            std::shared_ptr<CudaVolume> v1,
+                            std::shared_ptr<CudaMemPiece> coef, float sign)
 {
-    multigrid_impl_->UpdateVector(dest->dev_array(), v->dev_array(),
-                                  reinterpret_cast<float*>(alpha->mem()), sign,
+    multigrid_impl_->UpdateVector(dest->dev_array(), v0->dev_array(),
+                                  v1->dev_array(),
+                                  reinterpret_cast<float*>(coef->mem()), sign,
                                   dest->size());
 }
 

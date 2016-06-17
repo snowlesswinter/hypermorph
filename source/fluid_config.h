@@ -65,6 +65,9 @@ public:
     int num_full_multigrid_iterations() const {
         return num_full_multigrid_iterations_.value_;
     }
+    int num_mgpcg_iterations() const {
+        return num_mgpcg_iterations_.value_;
+    }
     bool auto_impulse() const { return !!auto_impulse_.value_; }
     bool staggered() const { return !!staggered_.value_; }
     bool mid_point() const { return !!mid_point_.value_; }
@@ -115,6 +118,7 @@ private:
     ConfigField<int> num_jacobi_iterations_;
     ConfigField<int> num_multigrid_iterations_;
     ConfigField<int> num_full_multigrid_iterations_;
+    ConfigField<int> num_mgpcg_iterations_;
     ConfigField<int> auto_impulse_;
     ConfigField<int> staggered_;
     ConfigField<int> mid_point_;

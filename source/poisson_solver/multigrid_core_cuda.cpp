@@ -110,11 +110,11 @@ void MultigridCoreCuda::ComputeAlpha(const GraphicsMemPiece& alpha,
 }
 
 void MultigridCoreCuda::ComputeRho(const GraphicsMemPiece& rho,
-                                   const GraphicsVolume& aux,
-                                   const GraphicsVolume& r)
+                                   const GraphicsVolume& search,
+                                   const GraphicsVolume& residual)
 {
-    CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), aux.cuda_volume(),
-                                     r.cuda_volume());
+    CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), search.cuda_volume(),
+                                     residual.cuda_volume());
 }
 
 void MultigridCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
@@ -131,9 +131,11 @@ void MultigridCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
 }
 
 void MultigridCoreCuda::UpdateVector(const GraphicsVolume& dest,
-                                     const GraphicsVolume& v,
-                                     const GraphicsMemPiece& alpha, float sign)
+                                     const GraphicsVolume& v0,
+                                     const GraphicsVolume& v1,
+                                     const GraphicsMemPiece& coef, float sign)
 {
-    CudaMain::Instance()->UpdateVector(dest.cuda_volume(), v.cuda_volume(),
-                                       alpha.cuda_mem_piece(), sign);
+    CudaMain::Instance()->UpdateVector(dest.cuda_volume(), v0.cuda_volume(),
+                                       v1.cuda_volume(), coef.cuda_mem_piece(),
+                                       sign);
 }

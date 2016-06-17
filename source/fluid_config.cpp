@@ -60,6 +60,7 @@ struct { FluidSimulator::PoissonMethod m_; char* desc_; } method_enum_desc[] = {
     {FluidSimulator::POISSON_SOLVER_DAMPED_JACOBI, "dj"},
     {FluidSimulator::POISSON_SOLVER_MULTI_GRID, "mg"},
     {FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID, "fmg"},
+    {FluidSimulator::POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT, "mgpcg"},
 };
 
 struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
@@ -268,6 +269,7 @@ FluidConfig::FluidConfig()
     , num_jacobi_iterations_(40, "number of jacobi iterations")
     , num_multigrid_iterations_(5, "num multigrid iterations")
     , num_full_multigrid_iterations_(2, "num full multigrid iterations")
+    , num_mgpcg_iterations_(2, "num mgpcg iterations")
     , auto_impulse_(1, "auto impulse")
     , staggered_(1, "staggered")
     , mid_point_(0, "mid point")
@@ -371,6 +373,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &num_jacobi_iterations_,
         &num_multigrid_iterations_,
         &num_full_multigrid_iterations_,
+        &num_mgpcg_iterations_,
         &auto_impulse_,
         &staggered_,
         &mid_point_,
@@ -429,6 +432,7 @@ void FluidConfig::Store(std::ostream& stream)
         num_jacobi_iterations_,
         num_multigrid_iterations_,
         num_full_multigrid_iterations_,
+        num_mgpcg_iterations_,
         auto_impulse_,
         staggered_,
         mid_point_,

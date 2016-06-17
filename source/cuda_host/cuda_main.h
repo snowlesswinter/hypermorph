@@ -121,16 +121,17 @@ public:
                       std::shared_ptr<CudaVolume> aux,
                       std::shared_ptr<CudaVolume> search);
     void ComputeRho(std::shared_ptr<CudaMemPiece> rho,
-                    std::shared_ptr<CudaVolume> aux,
-                    std::shared_ptr<CudaVolume> r);
+                    std::shared_ptr<CudaVolume> search,
+                    std::shared_ptr<CudaVolume> residual);
     void ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
                            std::shared_ptr<CudaMemPiece> rho_new,
                            std::shared_ptr<CudaMemPiece> rho,
                            std::shared_ptr<CudaVolume> aux,
                            std::shared_ptr<CudaVolume> residual);
     void UpdateVector(std::shared_ptr<CudaVolume> dest,
-                      std::shared_ptr<CudaVolume> v,
-                      std::shared_ptr<CudaMemPiece> alpha, float sign);
+                      std::shared_ptr<CudaVolume> v0,
+                      std::shared_ptr<CudaVolume> v1,
+                      std::shared_ptr<CudaMemPiece> coef, float sign);
 
     // Vorticity.
     void AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

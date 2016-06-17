@@ -46,16 +46,17 @@ public:
                               const GraphicsVolume& aux,
                               const GraphicsVolume& search) = 0;
     virtual void ComputeRho(const GraphicsMemPiece& rho,
-                            const GraphicsVolume& aux,
-                            const GraphicsVolume& r) = 0;
+                            const GraphicsVolume& search,
+                            const GraphicsVolume& residual) = 0;
     virtual void ComputeRhoAndBeta(const GraphicsMemPiece& beta,
                                    const GraphicsMemPiece& rho_new,
                                    const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& residual) = 0;
     virtual void UpdateVector(const GraphicsVolume& dest,
-                              const GraphicsVolume& v,
-                              const GraphicsMemPiece& alpha, float sign) = 0;
+                              const GraphicsVolume& v0,
+                              const GraphicsVolume& v1,
+                              const GraphicsMemPiece& coef, float sign) = 0;
 };
 
 #endif // _MULTIGRID_CORE_H_

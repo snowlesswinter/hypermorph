@@ -54,43 +54,50 @@ __global__ void UpdateVectorKernel(float* coef, float sign, uint3 volume_size)
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__device__ float ReadFromTexture(uint i, uint row_stride, uint slice_stride)
-{
-    uint z = i / slice_stride;
-    uint y = (i % slice_stride) / row_stride;
-    uint x = i % row_stride;
-
-    float ¦Õ0 = tex3D(tex_0, static_cast<float>(x), static_cast<float>(y),
-                     static_cast<float>(z));
-    float ¦Õ1 = tex3D(tex_1, static_cast<float>(x), static_cast<float>(y),
-                     static_cast<float>(z));
-    return ¦Õ0 * ¦Õ1;
-}
-
 struct SchemeDefault
 {
+    __device__ float Load(uint i, uint row_stride, uint slice_stride)
+    {
+        uint z = i / slice_stride;
+        uint y = (i % slice_stride) / row_stride;
+        uint x = i % row_stride;
+
+        float ¦Õ0 = tex3D(tex_0, static_cast<float>(x), static_cast<float>(y),
+                         static_cast<float>(z));
+        float ¦Õ1 = tex3D(tex_1, static_cast<float>(x), static_cast<float>(y),
+                         static_cast<float>(z));
+        return ¦Õ0 * ¦Õ1;
+    }
     __device__ void Save(float* dest, float result)
     {
         *dest = result;
     }
 };
 
-struct SchemeAlpha
+struct SchemeAlpha : public SchemeDefault
 {
     __device__ void Save(float* dest, float result)
     {
-        *dest = *rho_ / result;
+        if (result > 0.00000001f || result < -0.00000001f)
+            *dest = *rho_ / result;
+        else
+            *dest = 0.0f;
     }
 
     float* rho_;
 };
 
-struct SchemeBeta
+struct SchemeBeta : public SchemeDefault
 {
     __device__ void Save(float* dest, float result)
     {
         *dest = result;
-        *beta_ = result / *rho_;
+
+        float t = *rho_;
+        if (t > 0.00000001f || t < -0.00000001f)
+            *beta_ = result / t;
+        else
+            *beta_ = 0;
     }
 
     float* rho_;
@@ -138,6 +145,27 @@ void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,
     ReduceVolume(alpha, scheme, volume_size, ba, bm);
 }
 
+void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
+                      uint3 volume_size, BlockArrangement* ba,
+                      AuxBufferManager* bm)
+{
+    if (BindCudaSurfaceToArray(&surf, search) != cudaSuccess)
+        return;
+
+    auto bound_0 = BindHelper::Bind(&tex_0, search, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp);
+    if (bound_0.error() != cudaSuccess)
+        return;
+
+    auto bound_1 = BindHelper::Bind(&tex_1, residual, false,
+                                    cudaFilterModePoint, cudaAddressModeClamp);
+    if (bound_1.error() != cudaSuccess)
+        return;
+
+    SchemeDefault scheme;
+    ReduceVolume(rho, scheme, volume_size, ba, bm);
+}
+
 void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
                              cudaArray* vec0, cudaArray* vec1,
                              uint3 volume_size, BlockArrangement* ba,
@@ -160,38 +188,19 @@ void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
     ReduceVolume(rho_new, scheme, volume_size, ba, bm);
 }
 
-void LaunchComputeDotProductOfVectors(float* rho, cudaArray* vec0,
-                                      cudaArray* vec1, uint3 volume_size,
-                                      BlockArrangement* ba,
-                                      AuxBufferManager* bm)
+void LaunchUpdateVector(cudaArray* dest, cudaArray* v0, cudaArray* v1,
+                        float* coef, float sign, uint3 volume_size,
+                        BlockArrangement* ba)
 {
-    auto bound_0 = BindHelper::Bind(&tex_0, vec0, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_0.error() != cudaSuccess)
-        return;
-
-    auto bound_1 = BindHelper::Bind(&tex_1, vec1, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_1.error() != cudaSuccess)
-        return;
-
-    SchemeDefault scheme;
-    ReduceVolume(rho, scheme, volume_size, ba, bm);
-}
-
-void LaunchUpdateVector(cudaArray* dest, cudaArray* v, float* coef, float sign,
-                        uint3 volume_size, BlockArrangement* ba)
-{
-
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    auto bound_0 = BindHelper::Bind(&tex_0, dest, false, cudaFilterModePoint,
+    auto bound_0 = BindHelper::Bind(&tex_0, v0, false, cudaFilterModePoint,
                                     cudaAddressModeClamp);
     if (bound_0.error() != cudaSuccess)
         return;
 
-    auto bound_1 = BindHelper::Bind(&tex_1, v, false, cudaFilterModePoint,
+    auto bound_1 = BindHelper::Bind(&tex_1, v1, false, cudaFilterModePoint,
                                     cudaAddressModeClamp);
     if (bound_1.error() != cudaSuccess)
         return;

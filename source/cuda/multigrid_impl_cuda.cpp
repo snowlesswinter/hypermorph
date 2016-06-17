@@ -80,11 +80,12 @@ void MultigridImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
                        bm_);
 }
 
-void MultigridImplCuda::ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
+void MultigridImplCuda::ComputeRho(float* rho, cudaArray* search,
+                                   cudaArray* residual,
                                    const glm::ivec3& volume_size)
 {
-    LaunchComputeDotProductOfVectors(rho, aux, r, FromGlmVector(volume_size),
-                                     ba_, bm_);
+    LaunchComputeRho(rho, search, residual, FromGlmVector(volume_size), ba_,
+                     bm_);
 }
 
 void MultigridImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
@@ -96,9 +97,10 @@ void MultigridImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
                             FromGlmVector(volume_size), ba_, bm_);
 }
 
-void MultigridImplCuda::UpdateVector(cudaArray* dest, cudaArray* v,
-                                     float* alpha, float sign,
+void MultigridImplCuda::UpdateVector(cudaArray* dest, cudaArray* v0,
+                                     cudaArray* v1, float* coef, float sign,
                                      const glm::ivec3& volume_size)
 {
-    LaunchUpdateVector(dest, v, alpha, sign, FromGlmVector(volume_size), ba_);
+    LaunchUpdateVector(dest, v0, v1, coef, sign, FromGlmVector(volume_size),
+                       ba_);
 }

@@ -76,9 +76,10 @@ __device__ void ReduceBlock(volatile float *sdata, float my_sum, const uint tid)
     }
 }
 
-template <uint BlockSize, bool IsPow2>
+template <uint BlockSize, bool IsPow2, typename DataScheme>
 __device__ void ReduceBlocks(float* block_results, uint total_elements,
-                             uint row_stride, uint slice_stride)
+                             uint row_stride, uint slice_stride,
+                             DataScheme scheme)
 {
     extern __shared__ float sdata[];
 
@@ -88,9 +89,9 @@ __device__ void ReduceBlocks(float* block_results, uint total_elements,
     float my_sum = 0.0f;
 
     while (i < total_elements) {
-        my_sum += ReadFromTexture(i, row_stride, slice_stride);
+        my_sum += scheme.Load(i, row_stride, slice_stride);
         if (IsPow2 || i + BlockSize < total_elements)
-            my_sum += ReadFromTexture(i + BlockSize, row_stride, slice_stride);
+            my_sum += scheme.Load(i + BlockSize, row_stride, slice_stride);
 
         i += grid_size;
     }
@@ -109,7 +110,7 @@ __global__ void ReduceVolumeKernel(float* dest, float* block_results,
                                    uint slice_stride, DataScheme scheme)
 {
     ReduceBlocks<BlockSize, IsPow2>(block_results, total_elements, row_stride,
-                                    slice_stride);
+                                    slice_stride, scheme);
 
     const uint tid = threadIdx.x;
     __shared__ bool last_block;

@@ -189,8 +189,8 @@ void MultigridCoreGlsl::ComputeAlpha(const GraphicsMemPiece& alpha,
 }
 
 void MultigridCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
-                                   const GraphicsVolume& aux,
-                                   const GraphicsVolume& r)
+                                   const GraphicsVolume& search,
+                                   const GraphicsVolume& residual)
 {
 
 }
@@ -205,8 +205,9 @@ void MultigridCoreGlsl::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
 }
 
 void MultigridCoreGlsl::UpdateVector(const GraphicsVolume& dest,
-                                     const GraphicsVolume& v,
-                                     const GraphicsMemPiece& alpha, float sign)
+                                     const GraphicsVolume& v0,
+                                     const GraphicsVolume& v1,
+                                     const GraphicsMemPiece& coef, float sign)
 {
 
 }
