@@ -91,10 +91,18 @@ void MultigridCoreCuda::Restrict(const GraphicsVolume& coarse,
     CudaMain::Instance()->Restrict(coarse.cuda_volume(), fine.cuda_volume());
 }
 
+void MultigridCoreCuda::ApplyStencil(const GraphicsVolume& aux,
+                                     const GraphicsVolume& search,
+                                     float cell_size)
+{
+    CudaMain::Instance()->ApplyStencil(aux.cuda_volume(), search.cuda_volume(),
+                                       cell_size);
+}
+
 void MultigridCoreCuda::ComputeRho(const GraphicsMemPiece& rho,
-                                   const GraphicsVolume& z,
+                                   const GraphicsVolume& aux,
                                    const GraphicsVolume& r)
 {
-    CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), z.cuda_volume(),
+    CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), aux.cuda_volume(),
                                      r.cuda_volume());
 }

@@ -61,8 +61,7 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
 
     core_->ComputeRho(*rho_, *r, *aux_);
     for (int i = 0; i < iteration_times; i++) {
-        // Apply matrix A to |aux|
-        // d <- A(aux)
+        core_->ApplyStencil(*aux_, *search_, cell_size);
 
         // alpha <- rho / dot(aux, r)
         // r <- r - alpha * aux

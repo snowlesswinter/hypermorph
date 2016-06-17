@@ -38,8 +38,11 @@ public:
                           const GraphicsVolume& fine) = 0;
 
     // Conjugate gradient.
+    virtual void ApplyStencil(const GraphicsVolume& aux,
+                              const GraphicsVolume& search,
+                              float cell_size) = 0;
     virtual void ComputeRho(const GraphicsMemPiece& rho,
-                            const GraphicsVolume& z,
+                            const GraphicsVolume& aux,
                             const GraphicsVolume& r) = 0;
 };
 

@@ -318,12 +318,19 @@ void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
                               coarse->size());
 }
 
+void CudaMain::ApplyStencil(std::shared_ptr<CudaVolume> aux,
+                            std::shared_ptr<CudaVolume> search, float cell_size)
+{
+    multigrid_impl_->ApplyStencil(aux->dev_array(), search->dev_array(),
+                                  cell_size, aux->size());
+}
+
 void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
-                          std::shared_ptr<CudaVolume> z,
+                          std::shared_ptr<CudaVolume> aux,
                           std::shared_ptr<CudaVolume> r)
 {
     multigrid_impl_->ComputeRho(reinterpret_cast<float*>(rho->mem()),
-                                z->dev_array(), r->dev_array(), z->size());
+                                aux->dev_array(), r->dev_array(), aux->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

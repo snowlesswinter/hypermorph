@@ -114,8 +114,10 @@ public:
                   std::shared_ptr<CudaVolume> fine);
 
     // Conjugate gradient.
+    void ApplyStencil(std::shared_ptr<CudaVolume> aux,
+                      std::shared_ptr<CudaVolume> search, float cell_size);
     void ComputeRho(std::shared_ptr<CudaMemPiece> rho,
-                    std::shared_ptr<CudaVolume> z,
+                    std::shared_ptr<CudaVolume> aux,
                     std::shared_ptr<CudaVolume> r);
 
     // Vorticity.

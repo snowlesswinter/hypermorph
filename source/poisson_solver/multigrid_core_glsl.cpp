@@ -173,8 +173,15 @@ void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
     ResetState();
 }
 
+void MultigridCoreGlsl::ApplyStencil(const GraphicsVolume& aux,
+                                     const GraphicsVolume& search,
+                                     float cell_size)
+{
+
+}
+
 void MultigridCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
-                                   const GraphicsVolume& z,
+                                   const GraphicsVolume& aux,
                                    const GraphicsVolume& r)
 {
 

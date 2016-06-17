@@ -36,6 +36,7 @@ extern void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size
 extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size, BlockArrangement* ba);
 
 // Conjugate gradient.
+extern void LaunchApplyStencil(cudaArray* aux, cudaArray* search, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchComputeDotProductOfVectors(float* rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
 
 // Vorticity.

@@ -29,7 +29,9 @@ public:
                   const glm::ivec3& volume_size);
 
     // Conjugate gradient.
-    void ComputeRho(float* rho, cudaArray* z, cudaArray* r,
+    void ApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
+                      const glm::ivec3& volume_size);
+    void ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
                     const glm::ivec3& volume_size);
 
 private:

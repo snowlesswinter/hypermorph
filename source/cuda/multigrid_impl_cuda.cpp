@@ -65,9 +65,16 @@ void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
     LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::ComputeRho(float* rho, cudaArray* z, cudaArray* r,
+void MultigridImplCuda::ComputeRho(float* rho, cudaArray* aux, cudaArray* r,
                                    const glm::ivec3& volume_size)
 {
-    LaunchComputeDotProductOfVectors(rho, z, r, FromGlmVector(volume_size),
+    LaunchComputeDotProductOfVectors(rho, aux, r, FromGlmVector(volume_size),
                                      ba_, bm_);
+}
+
+void MultigridImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
+                                     float cell_size,
+                                     const glm::ivec3& volume_size)
+{
+    LaunchApplyStencil(aux, search, cell_size, FromGlmVector(volume_size), ba_);
 }
