@@ -1,11 +1,11 @@
-poisson method = fmg
+poisson method = mgpcg
 advection method = mcsl
 grid size = (96,96,96)
 grid size = (128,128,128)
-smoke weight = 0.02
+smoke weight = 0.005
 
 impulse temperature = 4
-impulse density = 0.4
+impulse density = 0.6
 
 temperature dissipation = 0.1
 velocity dissipation = 0.008
@@ -15,6 +15,7 @@ splat radius factor = 0.45
 number of jacobi iterations = 60
 num multigrid iterations = 10
 num full multigrid iterations = 1
+num mgpcg iterations = 1
 fixed time step = 0.3
 auto impulse = 1
 staggered = 1

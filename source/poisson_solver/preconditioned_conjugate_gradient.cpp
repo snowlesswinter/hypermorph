@@ -52,10 +52,6 @@ bool PreconditionedConjugateGradient::Initialize(int width, int height,
     if (!rho_new_)
         return false;
 
-    residual_ = core_->CreateVolume(width, height, depth, 1, byte_width);
-    if (!residual_)
-        return false;
-
     aux_ = core_->CreateVolume(width, height, depth, 1, byte_width);
     if (!aux_)
         return false;
@@ -73,23 +69,45 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
                                             int iteration_times)
 {
     u->Clear();
-    core_->ComputeResidual(*residual_, *u, *b, cell_size);
+    std::shared_ptr<GraphicsVolume> r = b;
+
+    // |residual_| is actually not necessary in solving the pressure. It is
+    // diagnosing that require an extra buffer to store the temporary data so
+    // that |b| can be used to compute residual later.
+    bool diagnosis = false;
+    if (diagnosis && iteration_times > 1) {
+        if (!residual_) {
+            residual_ = core_->CreateVolume(b->GetWidth(), b->GetHeight(),
+                                            b->GetDepth(), 1,
+                                            b->GetByteWidth());
+            if (!residual_)
+                return;
+        }
+
+        // Copy |b| to |residual_|.
+        core_->ComputeResidual(*residual_, *u, *b, cell_size);
+        r = residual_;
+    }
 
     preconditioner_->set_num_finest_level_iteration_per_pass(2);
-    preconditioner_->Solve(search_, residual_, cell_size, 1);
-    core_->ComputeRho(*rho_, *search_, *residual_);
-    for (int i = 0; i < iteration_times; i++) {
+    preconditioner_->Solve(search_, r, cell_size, 1);
+    core_->ComputeRho(*rho_, *search_, *r);
+    for (int i = 0; i < iteration_times - 1; i++) {
         core_->ApplyStencil(*aux_, *search_, cell_size);
 
         core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
-        core_->UpdateVector(*residual_, *residual_, *aux_, *alpha_, -1.0f);
+        core_->UpdateVector(*r, *r, *aux_, *alpha_, -1.0f);
 
-        preconditioner_->Solve(aux_, residual_, cell_size, 1);
+        preconditioner_->Solve(aux_, r, cell_size, 1);
 
-        core_->ComputeRhoAndBeta(*beta_, *rho_new_, *rho_, *aux_, *residual_);
+        core_->ComputeRhoAndBeta(*beta_, *rho_new_, *rho_, *aux_, *r);
         std::swap(rho_new_, rho_);
 
         core_->UpdateVector(*u, *u, *search_, *alpha_, 1.0f);
         core_->UpdateVector(*search_, *aux_, *search_, *beta_, 1.0f);
     }
+
+    core_->ApplyStencil(*aux_, *search_, cell_size);
+    core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
+    core_->UpdateVector(*u, *u, *search_, *alpha_, 1.0f);
 }

@@ -150,3 +150,15 @@ int GraphicsVolume::GetDepth() const
     else
         return cuda_volume_->depth() - border_;
 }
+
+int GraphicsVolume::GetByteWidth() const
+{
+    assert(gl_volume_ || cuda_volume_);
+    if (!gl_volume_ && !cuda_volume_)
+        return 0;
+
+    if (gl_volume_)
+        return gl_volume_->byte_width();
+    else
+        return cuda_volume_->byte_width();
+}

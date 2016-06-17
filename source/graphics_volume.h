@@ -22,6 +22,7 @@ public:
     int GetWidth() const;
     int GetHeight() const;
     int GetDepth() const;
+    int GetByteWidth() const;
 
     std::shared_ptr<GLVolume> gl_volume() const;
     std::shared_ptr<CudaVolume> cuda_volume() const;
