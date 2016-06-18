@@ -51,7 +51,7 @@ __global__ void ApplyImpulse1Kernel2(float3 center_point, float3 hotspot,
     float2 diff =
         make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
     float d = hypotf(diff.x, diff.y);
-    if (d < 2.0f) {
+    if (d < radius) {
         surf3Dwrite(__float2half_rn(value), surf, x * sizeof(ushort), y, z,
                     cudaBoundaryModeTrap);
         return;
@@ -122,7 +122,7 @@ __global__ void GenerateHeatSphereKernel(float3 center_point, float radius,
     float3 diff = make_float3(coord.x, coord.y, coord.z) -
         make_float3(center_point.x, center_point.y, center_point.z);
     float d = norm3df(diff.x, diff.y, diff.z);
-    if (d < radius && d > radius * 0.9f) {
+    if (d < radius && d > radius * 0.5f) {
         surf3Dwrite(__float2half_rn(value), surf,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
         return;
@@ -143,7 +143,7 @@ __global__ void ImpulseDensitySphereKernel(float3 center_point, float radius,
     float3 diff = make_float3(coord.x, coord.y, coord.z) -
         make_float3(center_point.x, center_point.y, center_point.z);
     float d = norm3df(diff.x, diff.y, diff.z);
-    if (d < radius && d > radius * 0.9f) {
+    if (d < radius && d > radius * 0.5f) {
         surf3Dwrite(__float2half_rn(value), surf,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
         return;
@@ -163,7 +163,10 @@ void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
 
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, dest_array);
-    dim3 block(volume_size.x, 2, 1);
+
+    const int heat_layer_thickness = 3;
+
+    dim3 block(volume_size.x, heat_layer_thickness, 1);
     dim3 grid;
     ba->ArrangeGrid(&grid, block, volume_size);
     grid.y = 1;
@@ -171,7 +174,7 @@ void LaunchApplyImpulse(cudaArray* dest_array, cudaArray* original_array,
         if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)
             return;
 
-        ApplyImpulse1Kernel<<<grid, block>>>(center_point, hotspot, radius,
+        ApplyImpulse1Kernel2<<<grid, block>>>(center_point, hotspot, radius,
                                              value.x, volume_size);
     } else if (mask == 7) {
         if (BindCudaSurfaceToArray(&surf, dest_array) != cudaSuccess)

@@ -250,6 +250,11 @@ void Keyboard(unsigned char key, int x, int y)
             g_diagnosis++;
             sim_->set_diagnosis(g_diagnosis);
             break;
+        case 'h':
+        case 'H':
+            g_diagnosis = 0;
+            sim_->set_diagnosis(g_diagnosis);
+            break;
         case 'r':
         case 'R':
             FluidConfig::Instance()->Reload();

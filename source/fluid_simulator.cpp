@@ -38,6 +38,7 @@ static struct
 enum DiagnosisTarget
 {
     DIAG_NONE,
+    DIAG_VELOCITY,
     DIAG_PRESSURE,
     DIAG_CURL,
     DIAG_DELTA_VORT,
@@ -392,7 +393,15 @@ void FluidSimulator::AdvectVelocity(float cell_size, float delta_time)
                                              cell_size, delta_time,
                                              velocity_dissipation);
         velocity_.Swap(velocity_prime_);
-        //velocity_.Swap(&general1a_, &general1b_, &general1c_);
+
+        if (diagnosis_ == DIAG_VELOCITY) {
+            CudaMain::Instance()->PrintVolume(velocity_.x()->cuda_volume(),
+                                              "VelocityX");
+            CudaMain::Instance()->PrintVolume(velocity_.y()->cuda_volume(),
+                                              "VelocityY");
+            CudaMain::Instance()->PrintVolume(velocity_.z()->cuda_volume(),
+                                              "VelocityZ");
+        }
     } else {
         glUseProgram(Programs.Advect);
 
@@ -694,7 +703,7 @@ void FluidSimulator::ReviseDensity()
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         if (!sphere)
             CudaMain::Instance()->ReviseDensity(
-            density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
+                density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
     }
 }
 

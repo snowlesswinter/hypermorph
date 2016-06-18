@@ -2,12 +2,10 @@ poisson method = mgpcg
 advection method = mcsl
 grid size = (96,96,96)
 grid size = (128,128,128)
-smoke weight = 0.005
-
+smoke weight = 0.01
 impulse temperature = 4
 impulse density = 0.6
-
-temperature dissipation = 0.1
+temperature dissipation = 0.3
 velocity dissipation = 0.008
 density dissipation = 0.05
 
@@ -15,9 +13,9 @@ splat radius factor = 0.45
 number of jacobi iterations = 60
 num multigrid iterations = 10
 num full multigrid iterations = 1
-num mgpcg iterations = 1
+num mgpcg iterations = 3
 fixed time step = 0.3
-auto impulse = 1
+auto impulse = 0
 staggered = 1
 light intensity = 18
 num raycast samples = 210
@@ -26,7 +24,7 @@ light absorption = 10
 raycast density factor = 40
 raycast occlusion factor = 16
 time stretch = 5
-vorticity confinement = -0.02
+vorticity confinement = -0.48
 
 
 impulse temperature = 0
@@ -34,8 +32,8 @@ velocity dissipation = 0.
 impulse density = 0
 density dissipation = 0.0
 fixed time step = 0.3
-splat radius factor = 0.3
+splat radius factor = 0.24
 
 fixed time step = 0.1
-impulse temperature = 8
-impulse density = 2
+impulse temperature = 100
+impulse density = 0.3
