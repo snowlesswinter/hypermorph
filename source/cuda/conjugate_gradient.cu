@@ -149,9 +149,6 @@ void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
                       uint3 volume_size, BlockArrangement* ba,
                       AuxBufferManager* bm)
 {
-    if (BindCudaSurfaceToArray(&surf, search) != cudaSuccess)
-        return;
-
     auto bound_0 = BindHelper::Bind(&tex_0, search, false, cudaFilterModePoint,
                                     cudaAddressModeClamp);
     if (bound_0.error() != cudaSuccess)

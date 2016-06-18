@@ -83,10 +83,6 @@ public:
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
                            std::shared_ptr<CudaVolume> vel_z, float cell_size);
-    void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
-                                  std::shared_ptr<CudaVolume> u,
-                                  std::shared_ptr<CudaVolume> b,
-                                  float cell_size);
     void Relax(std::shared_ptr<CudaVolume> unp1, std::shared_ptr<CudaVolume> un,
                std::shared_ptr<CudaVolume> b, float cell_size,
                int num_of_iterations);
@@ -195,6 +191,12 @@ public:
     void SetStaggered(bool staggered);
 
     // For diagnosis
+    void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
+                                  std::shared_ptr<CudaVolume> u,
+                                  std::shared_ptr<CudaVolume> b,
+                                  float cell_size);
+    void PrintVolume(std::shared_ptr<CudaVolume> volume,
+                     const std::string& name);
     void RoundPassed(int round);
     void Sync();
 

@@ -38,7 +38,7 @@ public:
     void UpdateImpulsing(float x, float y);
 
     void set_solver_choice(PoissonMethod method) { solver_choice_ = method; }
-    void set_diagnosis(bool diagnosis) { diagnosis_ = diagnosis; }
+    void set_diagnosis(int diagnosis);
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
 
@@ -105,7 +105,7 @@ private:
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<PoissonSolver> psi_solver_;
     int volume_byte_width_;
-    bool diagnosis_;
+    int diagnosis_;
 
     GraphicsVolume3 velocity_;
     GraphicsVolume3 velocity_prime_;

@@ -25,6 +25,7 @@ public:
     int width() const { return width_; }
     int height() const { return height_; }
     int depth() const { return depth_; }
+    int num_of_components() const { return num_of_components_; }
     int byte_width() const { return byte_width_; }
     glm::ivec3 size() const;
 

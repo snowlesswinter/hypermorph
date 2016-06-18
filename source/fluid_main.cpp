@@ -191,7 +191,7 @@ bool ResetSimulator()
     sim_ = new FluidSimulator();
     sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
     sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
-    sim_->set_diagnosis(!!g_diagnosis);
+    sim_->set_diagnosis(g_diagnosis);
 
     bool r = sim_->Init();
     if (r)
@@ -247,8 +247,8 @@ void Keyboard(unsigned char key, int x, int y)
             break;
         case 'g':
         case 'G':
-            g_diagnosis = 1 - g_diagnosis;
-            sim_->set_diagnosis(!!g_diagnosis);
+            g_diagnosis++;
+            sim_->set_diagnosis(g_diagnosis);
             break;
         case 'r':
         case 'R':

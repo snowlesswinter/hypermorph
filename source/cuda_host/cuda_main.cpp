@@ -207,52 +207,6 @@ void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,
                                    cell_size, div->size());
 }
 
-void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
-                                        std::shared_ptr<CudaVolume> u,
-                                        std::shared_ptr<CudaVolume> b,
-                                        float cell_size)
-{
-    fluid_impl_->ComputeResidualDiagnosis(residual->dev_array(), u->dev_array(),
-                                          b->dev_array(), cell_size,
-                                          residual->size());
-
-    // =========================================================================
-    int w = residual->width();
-    int h = residual->height();
-    int d = residual->depth();
-    int n = 1;
-    int element_size = sizeof(float);
-
-    static char* buf = nullptr;
-    if (!buf)
-        buf = new char[w * h * d * element_size * n];
-
-    memset(buf, 0, w * h * d * element_size * n);
-    CudaCore::CopyFromVolume(buf, w * element_size * n, residual->dev_array(),
-                             residual->size());
-
-    float* f = (float*)buf;
-    double sum = 0.0;
-    double q = 0.0;
-    double m = 0.0;
-    for (int i = 0; i < d; i++) {
-        for (int j = 0; j < h; j++) {
-            for (int k = 0; k < w; k++) {
-                for (int l = 0; l < n; l++) {
-                    q = f[i * w * h * n + j * w * n + k * n + l];
-                    //if (i == 30 && j == 0 && k == 56)
-                    //if (q > 1)
-                    sum += q;
-                    m = std::max(q, m);
-                }
-            }
-        }
-    }
-
-    double avg = sum / (w * h * d);
-    PrintDebugString("(CUDA) avg ||r||: %.8f,    max ||r||: %.8f\n", avg, m);
-}
-
 void CudaMain::Relax(std::shared_ptr<CudaVolume> unp1,
                      std::shared_ptr<CudaVolume> un,
                      std::shared_ptr<CudaVolume> b, float cell_size,
@@ -503,6 +457,75 @@ void CudaMain::SetMidPoint(bool mid_point)
 void CudaMain::SetStaggered(bool staggered)
 {
     fluid_impl_->set_staggered(staggered);
+}
+
+void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
+                                        std::shared_ptr<CudaVolume> u,
+                                        std::shared_ptr<CudaVolume> b,
+                                        float cell_size)
+{
+    fluid_impl_->ComputeResidualDiagnosis(residual->dev_array(), u->dev_array(),
+                                          b->dev_array(), cell_size,
+                                          residual->size());
+
+    PrintVolume(residual, "||residual||");
+}
+
+void CudaMain::PrintVolume(std::shared_ptr<CudaVolume> volume,
+                           const std::string& name)
+{
+    int w = volume->width();
+    int h = volume->height();
+    int d = volume->depth();
+    int n = volume->num_of_components();
+    int element_size = sizeof(float);
+
+    static char* buf = nullptr;
+    static int size[3] = {w, h, d};
+    if (!buf) {
+        buf = new char[w * h * d * element_size * n];
+    } else {
+        if (size[0] != w || size[1] != h || size[2] != d) {
+            delete[] buf;
+
+            buf = new char[w * h * d * element_size * n];
+            size[0] = w;
+            size[1] = h;
+            size[2] = d;
+        }
+    }
+
+    memset(buf, 0, w * h * d * element_size * n);
+    CudaCore::CopyFromVolume(buf, w * element_size * n, volume->dev_array(),
+                             volume->size());
+
+    float* f = (float*)buf;
+    double sum = 0.0;
+    double q = 0.0;
+    double m = 0.0;
+    int c = 0;
+    for (int i = 0; i < d; i++) {
+        for (int j = 0; j < h; j++) {
+            for (int k = 0; k < w; k++) {
+                for (int l = 0; l < n; l++) {
+                    q = f[i * w * h * n + j * w * n + k * n + l];
+                    //if (i == 30 && j == 0 && k == 56)
+                    //if (q > 1)
+                    if (q > 0.0f) {
+                        sum += q;
+                        c++;
+                    }
+
+                    m = std::max(q, m);
+                }
+            }
+        }
+    }
+
+    c = std::max(1, c);
+    double avg = sum / c;
+    PrintDebugString("(CUDA) avg %s: %.8f,    max %s: %.8f\n", name.c_str(),
+                     avg, name.c_str(), m);
 }
 
 void CudaMain::RoundPassed(int round)

@@ -35,6 +35,17 @@ static struct
     GLuint diagnose_;
 } Programs;
 
+enum DiagnosisTarget
+{
+    DIAG_NONE,
+    DIAG_PRESSURE,
+    DIAG_CURL,
+    DIAG_DELTA_VORT,
+    DIAG_PSI,
+
+    NUM_DIAG_TARGETS
+};
+
 int sphere = 0;
 
 FluidSimulator::FluidSimulator()
@@ -46,7 +57,7 @@ FluidSimulator::FluidSimulator()
     , pressure_solver_()
     , psi_solver_()
     , volume_byte_width_(2)
-    , diagnosis_(false)
+    , diagnosis_(0)
     , velocity_(GRAPHICS_LIB_CUDA)
     , velocity_prime_(GRAPHICS_LIB_CUDA)
     , vorticity_(GRAPHICS_LIB_CUDA)
@@ -303,6 +314,11 @@ void FluidSimulator::UpdateImpulsing(float x, float y)
     }
 }
 
+void FluidSimulator::set_diagnosis(int diagnosis)
+{
+    diagnosis_ = diagnosis % NUM_DIAG_TARGETS;
+}
+
 void FluidSimulator::AdvectDensity(float cell_size, float delta_time)
 {
     float density_dissipation = FluidConfig::Instance()->density_dissipation();
@@ -510,7 +526,7 @@ void FluidSimulator::ComputeDivergence(
 
 void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 {
-    if (!diagnosis_)
+    if (diagnosis_ != DIAG_PRESSURE)
         return;
 
     if (!diagnosis_volume_) {
@@ -878,7 +894,16 @@ void FluidSimulator::ComputeCurl(const GraphicsVolume3& vorticity,
                                           velocity.y()->cuda_volume(),
                                           velocity.z()->cuda_volume(),
                                           cell_size);
+        if (diagnosis_ == DIAG_CURL) {
+            CudaMain::Instance()->PrintVolume(vorticity.x()->cuda_volume(),
+                                              "CurlX");
+            CudaMain::Instance()->PrintVolume(vorticity.y()->cuda_volume(),
+                                              "CurlY");
+            CudaMain::Instance()->PrintVolume(vorticity.z()->cuda_volume(),
+                                              "CurlZ");
+        }
     }
+
 }
 
 void FluidSimulator::ComputeDeltaVorticity(const GraphicsVolume3& aux,
@@ -889,7 +914,17 @@ void FluidSimulator::ComputeDeltaVorticity(const GraphicsVolume3& aux,
             aux.x()->cuda_volume(), aux.y()->cuda_volume(),
             aux.z()->cuda_volume(), vorticity.x()->cuda_volume(),
             vorticity.y()->cuda_volume(), vorticity.z()->cuda_volume());
+
+        if (diagnosis_ == DIAG_DELTA_VORT) {
+            CudaMain::Instance()->PrintVolume(aux.x()->cuda_volume(),
+                                              "DeltaVortX");
+            CudaMain::Instance()->PrintVolume(aux.y()->cuda_volume(),
+                                              "DeltaVortY");
+            CudaMain::Instance()->PrintVolume(aux.z()->cuda_volume(),
+                                              "DeltaVortZ");
+        }
     }
+
 }
 
 void FluidSimulator::DecayVortices(const GraphicsVolume3& vorticity,
@@ -967,6 +1002,12 @@ void FluidSimulator::SolvePsi(const GraphicsVolume3& psi,
             psi[i]->Clear();
             for (int j = 0; j < num_multigrid_iterations; j++)
                 pressure_solver_->Solve(psi[i], delta_vort[i], cell_size, !j);
+        }
+
+        if (diagnosis_ == DIAG_PSI) {
+            CudaMain::Instance()->PrintVolume(psi.x()->cuda_volume(), "PsiX");
+            CudaMain::Instance()->PrintVolume(psi.y()->cuda_volume(), "PsiY");
+            CudaMain::Instance()->PrintVolume(psi.z()->cuda_volume(), "PsiZ");
         }
     }
 }
