@@ -66,6 +66,17 @@ bool MultigridPoissonSolver::Initialize(int width, int height, int depth,
     return true;
 }
 
+void MultigridPoissonSolver::SetAuxiliaryVolumes(
+    const std::vector<std::shared_ptr<GraphicsVolume>>& volumes)
+{
+
+}
+
+void MultigridPoissonSolver::SetDiagnosis(bool diagnosis)
+{
+
+}
+
 void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
                                    std::shared_ptr<GraphicsVolume> b,
                                    float cell_size, int iteration_times)

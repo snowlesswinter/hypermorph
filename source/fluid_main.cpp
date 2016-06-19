@@ -82,7 +82,7 @@ glm::ivec2 CalculateViewportSize()
         int x = result.x;
         result.x = static_cast<int>(max_width);
 
-        result.y = static_cast<int>(result.y * x / max_width);
+        result.y = static_cast<int>(result.y * max_width / x);
     }
 
     float max_height = glutGet(GLUT_SCREEN_HEIGHT) * 0.9f;
@@ -90,7 +90,7 @@ glm::ivec2 CalculateViewportSize()
         int y = result.y;
         result.y = static_cast<int>(max_height);
 
-        result.x = static_cast<int>(result.x * y / max_height);
+        result.x = static_cast<int>(result.x * max_height / y);
     }
 
     return result;

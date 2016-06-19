@@ -19,6 +19,7 @@ PreconditionedConjugateGradient::PreconditionedConjugateGradient(
     , residual_()
     , aux_()
     , search_()
+    , diagnosis_(false)
 {
 
 }
@@ -52,15 +53,34 @@ bool PreconditionedConjugateGradient::Initialize(int width, int height,
     if (!rho_new_)
         return false;
 
-    aux_ = core_->CreateVolume(width, height, depth, 1, byte_width);
-    if (!aux_)
-        return false;
+    if (!aux_) {
+        aux_ = core_->CreateVolume(width, height, depth, 1, byte_width);
+        if (!aux_)
+            return false;
+    }
 
-    search_ = core_->CreateVolume(width, height, depth, 1, byte_width);
-    if (!search_)
-        return false;
+    if (!search_) {
+        search_ = core_->CreateVolume(width, height, depth, 1, byte_width);
+        if (!search_)
+            return false;
+    }
 
     return true;
+}
+
+void PreconditionedConjugateGradient::SetAuxiliaryVolumes(
+    const std::vector<std::shared_ptr<GraphicsVolume>>& volumes)
+{
+    if (volumes.size() >= 1)
+        aux_ = volumes[0];
+
+    if (volumes.size() >= 2)
+        search_ = volumes[1];
+}
+
+void PreconditionedConjugateGradient::SetDiagnosis(bool diagnosis)
+{
+    diagnosis_ = diagnosis;
 }
 
 void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
@@ -74,8 +94,7 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
     // |residual_| is actually not necessary in solving the pressure. It is
     // diagnosing that require an extra buffer to store the temporary data so
     // that |b| can be used to compute residual later.
-    bool diagnosis = false;
-    if (diagnosis && iteration_times > 1) {
+    if (diagnosis_ && iteration_times > 1) {
         if (!residual_) {
             residual_ = core_->CreateVolume(b->GetWidth(), b->GetHeight(),
                                             b->GetDepth(), 1,

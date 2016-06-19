@@ -728,20 +728,15 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
             multigrid_core_.reset(new MultigridCoreGlsl());
     }
 
-    int num_jacobi_iterations =
-        FluidConfig::Instance()->num_jacobi_iterations();
-    int num_multigrid_iterations =
-        FluidConfig::Instance()->num_multigrid_iterations();
-    int num_full_multigrid_iterations =
-        FluidConfig::Instance()->num_full_multigrid_iterations();
-    int num_mgpcg_iterations =
-        FluidConfig::Instance()->num_mgpcg_iterations();
+    int num_iterations = 0;
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
         case POISSON_SOLVER_DAMPED_JACOBI: {
+            num_iterations =
+                FluidConfig::Instance()->num_jacobi_iterations();
             DampedJacobi(pressure, divergence, cell_size,
-                         num_jacobi_iterations);
+                         num_iterations);
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
@@ -753,9 +748,8 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                                              pressure->GetDepth(),
                                              volume_byte_width_, 32);
             }
-
-            pressure_solver_->Solve(pressure, divergence, cell_size,
-                                    num_multigrid_iterations);
+            num_iterations =
+                FluidConfig::Instance()->num_multigrid_iterations();
             break;
         }
         case POISSON_SOLVER_FULL_MULTI_GRID: {
@@ -767,9 +761,8 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                                              pressure->GetDepth(),
                                              volume_byte_width_, 32);
             }
-
-            pressure_solver_->Solve(pressure, divergence, cell_size,
-                                    num_full_multigrid_iterations);
+            num_iterations =
+                FluidConfig::Instance()->num_full_multigrid_iterations();
             break;
         }
         case POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT: {
@@ -781,14 +774,19 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                                              pressure->GetDepth(),
                                              volume_byte_width_, 32);
             }
-
-            pressure_solver_->Solve(pressure, divergence, cell_size,
-                                    num_mgpcg_iterations);
+            num_iterations =
+                FluidConfig::Instance()->num_mgpcg_iterations();
             break;
         }
         default: {
             break;
         }
+    }
+
+    if (pressure_solver_) {
+        pressure_solver_->SetDiagnosis(diagnosis_ == DIAG_PRESSURE);
+        pressure_solver_->Solve(pressure, divergence, cell_size,
+                                num_iterations);
     }
 
     ComputeResidualDiagnosis(cell_size);
