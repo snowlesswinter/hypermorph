@@ -71,6 +71,7 @@ public:
     bool auto_impulse() const { return !!auto_impulse_.value_; }
     bool staggered() const { return !!staggered_.value_; }
     bool mid_point() const { return !!mid_point_.value_; }
+    bool outflow() const { return !!outflow_.value_; }
     float vorticity_confinement() const {
         return vorticity_confinement_.value_;
     }
@@ -121,6 +122,7 @@ private:
     ConfigField<int> auto_impulse_;
     ConfigField<int> staggered_;
     ConfigField<int> mid_point_;
+    ConfigField<int> outflow_;
     ConfigField<int> num_raycast_samples_;
     ConfigField<int> num_raycast_light_samples_;
     int initial_viewport_width_;

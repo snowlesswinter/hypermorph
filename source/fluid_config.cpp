@@ -273,6 +273,7 @@ FluidConfig::FluidConfig()
     , auto_impulse_(1, "auto impulse")
     , staggered_(1, "staggered")
     , mid_point_(0, "mid point")
+    , outflow_(0, "outflow")
     , num_raycast_samples_(224, "num raycast samples")
     , num_raycast_light_samples_(64, "num raycast light samples")
     , initial_viewport_width_(512)
@@ -376,6 +377,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &auto_impulse_,
         &staggered_,
         &mid_point_,
+        &outflow_,
         &num_raycast_samples_,
         &num_raycast_light_samples_,
     };
@@ -435,6 +437,7 @@ void FluidConfig::Store(std::ostream& stream)
         auto_impulse_,
         staggered_,
         mid_point_,
+        outflow_,
         num_raycast_samples_,
         num_raycast_light_samples_,
     };

@@ -188,6 +188,7 @@ public:
 
     void SetAdvectionMethod(AdvectionMethod method);
     void SetMidPoint(bool mid_point);
+    void SetOutflow(bool outflow);
     void SetStaggered(bool staggered);
 
     // For diagnosis

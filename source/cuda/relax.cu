@@ -12,6 +12,30 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_u;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 
+struct UpperBoundaryHandlerNeumann
+{
+    __device__ void HandleUpperBoundary(float* north, float center, int y,
+                                        int height)
+    {
+    }
+};
+
+struct UpperBoundaryHandlerOutflow
+{
+    __device__ void HandleUpperBoundary(float* north, float center, int y,
+                                        int height)
+    {
+        if (y == height - 1) {
+            if (center > 0.0f)
+                *north = -center;
+            else
+                *north = 0.0f;
+        }
+    }
+};
+
+// =============================================================================
+
 __global__ void DampedJacobiKernel(float minus_square_cell_size,
                                    float omega_over_beta, uint3 volume_size)
 {
@@ -481,10 +505,12 @@ __global__ void DampedJacobiKernel_smem_no_halo_storage(
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
+template <typename UpperBoundaryHandler>
 __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
                                                float one_minus_omega,
                                                float omega_over_beta,
-                                               uint3 volume_size, uint offset)
+                                               uint3 volume_size, uint offset,
+                                               UpperBoundaryHandler handler)
 {
     uint x = blockIdx.x * blockDim.x + threadIdx.x;
     uint y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -495,14 +521,16 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =   tex3D(tex_u, x, y, z - 1.0f);
-    float south =  tex3D(tex_u, x, y - 1.0f, z);
-    float west =   tex3D(tex_u, x - 1.0f, y, z);
-    float center = tex3D(tex_u, x, y, z);
-    float east =   tex3D(tex_u, x + 1.0f, y, z);
-    float north =  tex3D(tex_u, x, y + 1.0f, z);
-    float far =    tex3D(tex_u, x, y, z + 1.0f);
-    float b =      tex3D(tex_b, x, y, z);
+    float near =   tex3D(tex_u, x,        y,        z - 1.0f);
+    float south =  tex3D(tex_u, x,        y - 1.0f, z);
+    float west =   tex3D(tex_u, x - 1.0f, y,        z);
+    float center = tex3D(tex_u, x,        y,        z);
+    float east =   tex3D(tex_u, x + 1.0f, y,        z);
+    float north =  tex3D(tex_u, x,        y + 1.0f, z);
+    float far =    tex3D(tex_u, x,        y,        z + 1.0f);
+    float b =      tex3D(tex_b, x,        y,        z);
+
+    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     float u = one_minus_omega * center +
         (west + east + south + north + far + near + minus_square_cell_size *
@@ -573,8 +601,9 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
 }
 
 void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                               float cell_size, int num_of_iterations,
-                               uint3 volume_size, BlockArrangement* ba)
+                              float cell_size, bool outflow,
+                              int num_of_iterations, uint3 volume_size,
+                              BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
@@ -598,26 +627,39 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, half_size);
-    for (int i = 0; i < num_of_iterations; i++) {
-        RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(minus_square_cell_size,
-                                                        one_minus_omega,
-                                                        omega_over_beta,
-                                                        volume_size, 0);
-        RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(minus_square_cell_size,
-                                                        one_minus_omega,
-                                                        omega_over_beta,
-                                                        volume_size, 1);
+
+    UpperBoundaryHandlerOutflow outflow_handler;
+    UpperBoundaryHandlerNeumann neumann_handler;
+    if (outflow) {
+        for (int i = 0; i < num_of_iterations; i++) {
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
+                minus_square_cell_size, one_minus_omega, omega_over_beta,
+                volume_size, 0, outflow_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
+                minus_square_cell_size, one_minus_omega, omega_over_beta,
+                volume_size, 1, outflow_handler);
+        }
+    } else {
+        for (int i = 0; i < num_of_iterations; i++) {
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
+                minus_square_cell_size, one_minus_omega, omega_over_beta,
+                volume_size, 0, neumann_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
+                minus_square_cell_size, one_minus_omega, omega_over_beta,
+                volume_size, 1, neumann_handler);
+        }
     }
 }
 
 void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
-                 int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
+                 bool outflow, int num_of_iterations, uint3 volume_size,
+                 BlockArrangement* ba)
 {
     bool jacobi = false;
     if (jacobi)
         RelaxDampedJacobi(unp1, un, b, cell_size, num_of_iterations,
                           volume_size, ba);
     else
-        RelaxRedBlackGaussSeidel(unp1, un, b, cell_size, num_of_iterations,
-                                 volume_size, ba);
+        RelaxRedBlackGaussSeidel(unp1, un, b, cell_size, outflow,
+                                 num_of_iterations, volume_size, ba);
 }

@@ -454,6 +454,11 @@ void CudaMain::SetMidPoint(bool mid_point)
     fluid_impl_->set_mid_point(mid_point);
 }
 
+void CudaMain::SetOutflow(bool outflow)
+{
+    fluid_impl_->set_outflow(outflow);
+}
+
 void CudaMain::SetStaggered(bool staggered)
 {
     fluid_impl_->set_staggered(staggered);

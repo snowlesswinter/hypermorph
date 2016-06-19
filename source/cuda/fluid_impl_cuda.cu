@@ -19,6 +19,27 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 
+struct UpperBoundaryHandlerNeumann
+{
+    __device__ void HandleUpperBoundary(float* diff_ns, float base_y)
+    {
+        *diff_ns = -base_y;
+    }
+};
+
+struct UpperBoundaryHandlerOutflow
+{
+    __device__ void HandleUpperBoundary(float* diff_ns, float base_y)
+    {
+        if (base_y < 0.0f)
+            *diff_ns = -base_y;
+        else
+            *diff_ns = 0.0f;
+    }
+};
+
+// =============================================================================
+
 __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
                                     float accel_factor, float gravity,
                                     uint3 volume_size)
@@ -76,8 +97,10 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
     }
 }
 
+template <typename UpperBoundaryHandler>
 __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
-                                        uint3 volume_size)
+                                        uint3 volume_size,
+                                        UpperBoundaryHandler handler)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -104,30 +127,32 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
 
     // Handle boundary problem.
     if (x >= volume_size.x - 1)
-        diff_ew = -center_x - west;
+        diff_ew = (center_x + west) * -0.5f;
 
     if (x <= 0)
-        diff_ew = east + center_x;
+        diff_ew = (east + center_x) * 0.5f;
 
     if (y >= volume_size.y - 1)
-        diff_ns = -center_y - south;
+        handler.HandleUpperBoundary(&diff_ns, (center_y + south) * 0.5f);
 
     if (y <= 0)
-        diff_ns = north + center_y;
+        diff_ns = (north + center_y) * 0.5f;
 
     if (z >= volume_size.z - 1)
-        diff_fn = -center_z - near;
+        diff_fn = (center_z + near) * -0.5f;
 
     if (z <= 0)
-        diff_fn = far + center_z;
+        diff_fn = (far + center_z) * 0.5f;
 
     float div = half_inverse_cell_size * (diff_ew + diff_ns + diff_fn);
     auto r = __float2half_rn(div);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
+template <typename UpperBoundaryHandler>
 __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
-                                                 uint3 volume_size)
+                                                 uint3 volume_size,
+                                                 UpperBoundaryHandler handler)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -154,7 +179,7 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
         diff_ew = -base_x;
 
     if (y >= volume_size.y - 1)
-        diff_ns = -base_y;
+        handler.HandleUpperBoundary(&diff_ns, base_y);
 
     if (z >= volume_size.z - 1)
         diff_fn = -base_z;
@@ -396,8 +421,9 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
 }
 
 void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, float cell_size,
-                             uint3 volume_size, BlockArrangement* ba)
+                             cudaArray* vel_z, float cell_size, bool outflow,
+                             bool staggered, uint3 volume_size,
+                             BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
         return;
@@ -420,37 +446,30 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeDivergenceKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
-}
 
-void LaunchComputeDivergenceStaggered(cudaArray* div, cudaArray* vel_x,
-                                      cudaArray* vel_y, cudaArray* vel_z,
-                                      float cell_size,
-                                      uint3 volume_size, BlockArrangement* ba)
-{
-    if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
-        return;
-
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_x.error() != cudaSuccess)
-        return;
-
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_y.error() != cudaSuccess)
-        return;
-
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_z.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
-                                                      volume_size);
+    UpperBoundaryHandlerOutflow outflow_handler;
+    UpperBoundaryHandlerNeumann neumann_handler;
+    if (staggered) {
+        if (outflow) {
+            ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
+                                                              volume_size,
+                                                              outflow_handler);
+        } else {
+            ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
+                                                              volume_size,
+                                                              neumann_handler);
+        }
+    } else {
+        if (outflow) {
+            ComputeDivergenceKernel<<<grid, block>>>(0.5f / cell_size,
+                                                     volume_size,
+                                                     outflow_handler);
+        } else {
+            ComputeDivergenceKernel<<<grid, block>>>(0.5f / cell_size,
+                                                     volume_size,
+                                                     neumann_handler);
+        }
+    }
 }
 
 void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,

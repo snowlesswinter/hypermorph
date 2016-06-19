@@ -232,6 +232,7 @@ void FluidSimulator::NotifyConfigChanged()
 {
     CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
     CudaMain::Instance()->SetMidPoint(FluidConfig::Instance()->mid_point());
+    CudaMain::Instance()->SetOutflow(FluidConfig::Instance()->outflow());
     CudaMain::Instance()->SetAdvectionMethod(
         FluidConfig::Instance()->advection_method());
 }

@@ -31,6 +31,7 @@ FluidImplCuda::FluidImplCuda(BlockArrangement* ba)
     : ba_(ba)
     , staggered_(true)
     , mid_point_(false)
+    , outflow_(false)
     , advect_method_(MACCORMACK_SEMI_LAGRANGIAN)
 {
 
@@ -194,13 +195,8 @@ void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
                                       float cell_size,
                                       const glm::ivec3& volume_size)
 {
-    if (staggered_)
-        LaunchComputeDivergenceStaggered(div, vel_x, vel_y, vel_z,
-                                         cell_size,
-                                         FromGlmVector(volume_size), ba_);
-    else
-        LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size,
-                                FromGlmVector(volume_size), ba_);
+    LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size, outflow_,
+                            staggered_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
@@ -216,7 +212,7 @@ void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
                           float cell_size, int num_of_iterations,
                           const glm::ivec3& volume_size)
 {
-    LaunchRelax(unp1, un, b, cell_size, num_of_iterations,
+    LaunchRelax(unp1, un, b, cell_size, outflow_, num_of_iterations,
                 FromGlmVector(volume_size), ba_);
 }
 
