@@ -65,15 +65,56 @@ void Cleanup(int exit_code)
     exit(EXIT_SUCCESS);
 }
 
+glm::ivec2 CalculateViewportSize()
+{
+    glm::vec3 grid_size = FluidConfig::Instance()->grid_size();
+    float ref = std::min(grid_size.x, grid_size.y);
+
+    glm::ivec2 result;
+    result.x = FluidConfig::Instance()->initial_viewport_width();
+    result.y = FluidConfig::Instance()->initial_viewport_width();
+
+    result.x = static_cast<int>(result.x * grid_size.x / ref);
+    result.y = static_cast<int>(result.y * grid_size.y / ref);
+
+    float max_width = glutGet(GLUT_SCREEN_WIDTH) * 0.9f;
+    if (result.x > max_width) {
+        int x = result.x;
+        result.x = static_cast<int>(max_width);
+
+        result.y = static_cast<int>(result.y * x / max_width);
+    }
+
+    float max_height = glutGet(GLUT_SCREEN_HEIGHT) * 0.9f;
+    if (result.y > max_height) {
+        int y = result.y;
+        result.y = static_cast<int>(max_height);
+
+        result.x = static_cast<int>(result.x * y / max_height);
+    }
+
+    return result;
+}
+
+glm::ivec2 CalculateWindowPosition(const glm::ivec2& viewport_size)
+{
+    glm::ivec2 result;
+    result.x = (glutGet(GLUT_SCREEN_WIDTH) - viewport_size.x) / 2;
+    result.y = (glutGet(GLUT_SCREEN_HEIGHT) - 80 - viewport_size.y) / 2;
+    return result;
+}
+
 bool InitGraphics(int* argc, char** argv)
 {
     // Create GL context
     glutInit(argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE | GLUT_DEPTH);
+
+    viewport_size_ = CalculateViewportSize();
     glutInitWindowSize(viewport_size_.x, viewport_size_.y);
-    glutInitWindowPosition(
-        (glutGet(GLUT_SCREEN_WIDTH) - viewport_size_.x) / 2,
-        (glutGet(GLUT_SCREEN_HEIGHT) - viewport_size_.y) / 2);
+
+    glm::ivec2 position = CalculateWindowPosition(viewport_size_);
+    glutInitWindowPosition(position.x, position.y);
     main_frame_handle_ = glutCreateWindow("Fluid Simulation");
 
     // initialize necessary OpenGL extensions
@@ -231,6 +272,15 @@ void Reshape(int w, int h)
     trackball_->OnViewportSized(viewport_size_);
 }
 
+void UpdateWindowPlacement()
+{
+    glm::ivec2 viewport_size = CalculateViewportSize();
+    glutReshapeWindow(viewport_size.x, viewport_size.y);
+
+    glm::ivec2 position = CalculateWindowPosition(viewport_size);
+    glutPositionWindow(position.x, position.y);
+}
+
 void Keyboard(unsigned char key, int x, int y)
 {
     switch (key) {
@@ -257,6 +307,7 @@ void Keyboard(unsigned char key, int x, int y)
             break;
         case 'r':
         case 'R':
+            UpdateWindowPlacement();
             FluidConfig::Instance()->Reload();
             ResetSimulator();
             ResetRenderer();
@@ -270,13 +321,6 @@ void Keyboard(unsigned char key, int x, int y)
 
 bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
 {
-    int width = glm::min(viewport_size_.x, viewport_size_.y);
-    if (x < (viewport_size_.x - width) / 2 ||
-            x >= (viewport_size_.x + width) / 2 ||
-            y < (viewport_size_.y - width) / 2 ||
-            y >= (viewport_size_.y + width) / 2)
-        return false;
-
     glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
@@ -403,8 +447,6 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
 
     char* command_line = GetCommandLineA();
     int argc = 1;
-    viewport_size_.x = FluidConfig::Instance()->initial_viewport_width();
-    viewport_size_.y = FluidConfig::Instance()->initial_viewport_height();
 
     if (!InitGraphics(&argc, &command_line))
         return -1;

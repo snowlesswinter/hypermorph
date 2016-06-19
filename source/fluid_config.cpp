@@ -276,7 +276,6 @@ FluidConfig::FluidConfig()
     , num_raycast_samples_(224, "num raycast samples")
     , num_raycast_light_samples_(64, "num raycast light samples")
     , initial_viewport_width_(512)
-    , initial_viewport_height_(512)
 {
 }
 

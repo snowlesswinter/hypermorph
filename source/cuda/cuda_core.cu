@@ -467,13 +467,13 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
     if (bound_density.error() != cudaSuccess)
         return;
 
-    int t = min(surface_size.x, surface_size.y);
-    glm::vec2 viewport_size(static_cast<float>(t));
-    glm::ivec2 offset((surface_size.x - t) / 2, (surface_size.y - t) / 2);
+    glm::vec2 viewport_size = surface_size;
+    glm::ivec2 offset(0);
     glm::mat3 m(model_view);
 
     dim3 block(32, 8, 1);
-    dim3 grid((t + block.x - 1) / block.x, (t + block.y - 1) / block.y, 1);
+    dim3 grid((viewport_size.x + block.x - 1) / block.x,
+              (viewport_size.y + block.y - 1) / block.y, 1);
 
     glm::vec3 intensity = glm::normalize(light_color);
     intensity *= light_intensity;
