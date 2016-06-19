@@ -1,0 +1,13 @@
+#ifndef _FLUID_IMPULSE_H_
+#define _FLUID_IMPULSE_H_
+
+enum FluidImpulse
+{
+    IMPULSE_NONE,
+    IMPULSE_HOT_FLOOR,
+    IMPULSE_SPHERE,
+    IMPULSE_BUOYANT_JET,
+    IMPULSE_FLYING_BALL,
+};
+
+#endif // _FLUID_IMPULSE_H_

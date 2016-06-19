@@ -33,6 +33,24 @@ namespace
 
     return ::INVALID_ADVECTION_METHOD;
 }
+
+::FluidImpulse ToCudaFluidImpulse(CudaMain::FluidImpulse impulse)
+{
+    switch (impulse) {
+        case CudaMain::IMPULSE_HOT_FLOOR:
+            return ::IMPULSE_HOT_FLOOR;
+        case CudaMain::IMPULSE_SPHERE:
+            return ::IMPULSE_SPHERE;
+        case CudaMain::IMPULSE_BUOYANT_JET:
+            return ::IMPULSE_BUOYANT_JET;
+        case CudaMain::IMPULSE_FLYING_BALL:
+            return ::IMPULSE_FLYING_BALL;
+        default:
+            break;
+    }
+
+    return ::IMPULSE_NONE;
+}
 } // Anonymous namespace.
 
 CudaMain* CudaMain::Instance()
@@ -188,11 +206,10 @@ void CudaMain::ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
 void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
                             std::shared_ptr<CudaVolume> source,
                             const glm::vec3& center_point,
-                            const glm::vec3& hotspot, float radius,
-                            const glm::vec3& value, uint32_t mask)
+                            const glm::vec3& hotspot, float radius, float value)
 {
     fluid_impl_->ApplyImpulse(dest->dev_array(), source->dev_array(),
-                              center_point, hotspot, radius, value, mask,
+                              center_point, hotspot, radius, value,
                               dest->size());
 }
 
@@ -428,9 +445,9 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                        std::shared_ptr<CudaVolume> density,
                        const glm::mat4& model_view, const glm::vec3& eye_pos,
-                       const glm::vec3& light_color, float light_intensity,
-                       float focal_length, int num_samples,
-                       int num_light_samples, float absorption,
+                       const glm::vec3& light_color, const glm::vec3& light_pos,
+                       float light_intensity, float focal_length,
+                       int num_samples, int num_light_samples, float absorption,
                        float density_factor, float occlusion_factor)
 {
     auto i = registerd_textures_.find(dest);
@@ -439,9 +456,10 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
         return;
 
     core_->Raycast(i->second.get(), density->dev_array(), model_view,
-                   dest->size(), eye_pos, light_color, light_intensity,
-                   focal_length, num_samples, num_light_samples, absorption,
-                   density_factor, occlusion_factor);
+                   dest->size(), eye_pos, light_color, light_pos,
+                   light_intensity, focal_length, num_samples,
+                   num_light_samples, absorption, density_factor,
+                   occlusion_factor);
 }
 
 void CudaMain::SetAdvectionMethod(AdvectionMethod method)
@@ -452,6 +470,11 @@ void CudaMain::SetAdvectionMethod(AdvectionMethod method)
 void CudaMain::SetMidPoint(bool mid_point)
 {
     fluid_impl_->set_mid_point(mid_point);
+}
+
+void CudaMain::SetFluidImpulse(FluidImpulse impulse)
+{
+    fluid_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
 }
 
 void CudaMain::SetOutflow(bool outflow)

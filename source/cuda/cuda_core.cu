@@ -124,14 +124,12 @@ __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
 
 __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                               glm::vec3 eye_pos, float focal_length,
-                              glm::vec2 offset, glm::vec3 light_intensity,
-                              int num_samples, float step_size,
-                              int num_light_samples, float light_scale,
-                              float step_absorption, float density_factor,
-                              float occlusion_factor)
+                              glm::vec2 offset, glm::vec3 light_pos,
+                              glm::vec3 light_intensity, int num_samples,
+                              float step_size, int num_light_samples,
+                              float light_scale, float step_absorption,
+                              float density_factor, float occlusion_factor)
 {
-    const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
-
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -453,10 +451,10 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                          const glm::mat4& model_view,
                          const glm::ivec2& surface_size,
                          const glm::vec3& eye_pos, const glm::vec3& light_color,
-                         float light_intensity, float focal_length,
-                         int num_samples, int num_light_samples,
-                         float absorption, float density_factor,
-                         float occlusion_factor)
+                         const glm::vec3& light_pos, float light_intensity,
+                         float focal_length, int num_samples,
+                         int num_light_samples, float absorption,
+                         float density_factor, float occlusion_factor)
 {
     if (BindCudaSurfaceToArray(&raycast_dest, dest_array) != cudaSuccess)
         return;
@@ -472,8 +470,8 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
     glm::mat3 m(model_view);
 
     dim3 block(32, 8, 1);
-    dim3 grid((viewport_size.x + block.x - 1) / block.x,
-              (viewport_size.y + block.y - 1) / block.y, 1);
+    dim3 grid((static_cast<int>(viewport_size.x) + block.x - 1) / block.x,
+              (static_cast<int>(viewport_size.y) + block.y - 1) / block.y, 1);
 
     glm::vec3 intensity = glm::normalize(light_color);
     intensity *= light_intensity;
@@ -493,8 +491,9 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                            density_factor, occlusion_factor);
     else
         RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                       offset, intensity, num_samples,
-                                       kStepSize, num_light_samples,
-                                       kLightScale, kAbsorptionTimesStepSize,
-                                       density_factor, occlusion_factor);
+                                       offset, light_pos, intensity,
+                                       num_samples, kStepSize,
+                                       num_light_samples, kLightScale,
+                                       kAbsorptionTimesStepSize, density_factor,
+                                       occlusion_factor);
 }

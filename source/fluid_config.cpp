@@ -69,6 +69,13 @@ struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
     {CudaMain::BFECC_SEMI_LAGRANGIAN, "bfeccsl"},
 };
 
+struct { CudaMain::FluidImpulse i_; char* desc_; } impulse_enum_desc[] = {
+    {CudaMain::IMPULSE_HOT_FLOOR, "hf"},
+    {CudaMain::IMPULSE_SPHERE, "s"},
+    {CudaMain::IMPULSE_BUOYANT_JET, "bj"},
+    {CudaMain::IMPULSE_FLYING_BALL, "fb"},
+};
+
 template <typename T>
 std::istream& operator >>(std::istream& is, FluidConfig::ConfigField<T>& field)
 {
@@ -120,14 +127,32 @@ std::istream& operator >> <CudaMain::AdvectionMethod>(
 }
 
 template <>
+std::istream& operator >> <CudaMain::FluidImpulse>(
+    std::istream& is,
+    FluidConfig::ConfigField<CudaMain::FluidImpulse>& field)
+{
+    std::string impulse;
+    std::getline(is, impulse);
+    std::string lower_trimmed = to_lower(trimmed(impulse));
+    for (auto i : impulse_enum_desc)
+        if (lower_trimmed == i.desc_)
+            field.value_ = i.i_;
+
+    return is;
+}
+
+template <>
 std::istream& operator >> <glm::vec3>(
     std::istream& is, FluidConfig::ConfigField<glm::vec3>& field)
 {
     std::string color;
     std::getline(is, color);
     std::string trimmed_color = trimmed(color);
+
+    std::string number_scheme = "[0-9]+\\.*[0-9]*";
     std::regex re(
-        "\\(\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*\\)");
+        "\\(\\s*(" + number_scheme + ")\\s*,\\s*(" + number_scheme +
+        ")\\s*,\\s*(" + number_scheme + ")\\s*\\)");
     std::smatch matched;
     if (std::regex_match(trimmed_color, matched, re)) {
         if (matched.size() == 4) {
@@ -180,6 +205,19 @@ std::ostream& operator << <CudaMain::AdvectionMethod>(
     os << field.desc_ << " = ";
     for (auto i : advect_enum_desc)
         if (field.value_ == i.m_)
+            os << i.desc_;
+
+    return os;
+}
+
+template <>
+std::ostream& operator << <CudaMain::FluidImpulse>(
+    std::ostream& os,
+    FluidConfig::ConfigField<CudaMain::FluidImpulse>& field)
+{
+    os << field.desc_ << " = ";
+    for (auto i : impulse_enum_desc)
+        if (field.value_ == i.i_)
             os << i.desc_;
 
     return os;
@@ -246,7 +284,9 @@ FluidConfig::FluidConfig()
                       "poisson method")
     , advection_method_(CudaMain::MACCORMACK_SEMI_LAGRANGIAN,
                         "advection method")
+    , fluid_impluse_(CudaMain::IMPULSE_HOT_FLOOR, "fluid impulse")
     , light_color_(glm::vec3(171, 160, 139), "light color")
+    , light_position_(glm::vec3(1.5f, 0.7f, 0.0f), "light position")
     , grid_size_(glm::vec3(128, 128, 128), "grid size")
     , cell_size_(0.15f, "cell size")
     , ambient_temperature_(0.0f, "ambient temperature")
@@ -320,8 +360,18 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         return;
     }
 
+    if (lower_trimmed == fluid_impluse_.desc_) {
+        value_stream >> fluid_impluse_;
+        return;
+    }
+
     if (lower_trimmed == light_color_.desc_) {
         value_stream >> light_color_;
+        return;
+    }
+
+    if (lower_trimmed == light_position_.desc_) {
+        value_stream >> light_position_;
         return;
     }
 
@@ -395,7 +445,9 @@ void FluidConfig::Store(std::ostream& stream)
     stream << graphics_lib_ << std::endl;
     stream << poisson_method_ << std::endl;
     stream << advection_method_ << std::endl;
+    stream << fluid_impluse_ << std::endl;
     stream << light_color_ << std::endl;
+    stream << light_position_ << std::endl;
     stream << grid_size_ << std::endl;
 
     ConfigField<std::string> string_fields[] = {

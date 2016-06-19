@@ -47,8 +47,6 @@ enum DiagnosisTarget
     NUM_DIAG_TARGETS
 };
 
-int sphere = 0;
-
 FluidSimulator::FluidSimulator()
     : grid_size_(128.0f)
     , cell_size_(0.15f)
@@ -228,6 +226,11 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
     return density_;
 }
 
+bool FluidSimulator::IsImpulsing() const
+{
+    return !!manual_impulse_;
+}
+
 void FluidSimulator::NotifyConfigChanged()
 {
     CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
@@ -235,6 +238,8 @@ void FluidSimulator::NotifyConfigChanged()
     CudaMain::Instance()->SetOutflow(FluidConfig::Instance()->outflow());
     CudaMain::Instance()->SetAdvectionMethod(
         FluidConfig::Instance()->advection_method());
+    CudaMain::Instance()->SetFluidImpulse(
+        FluidConfig::Instance()->fluid_impluse());
 }
 
 void FluidSimulator::StartImpulsing(float x, float y)
@@ -487,22 +492,25 @@ void FluidSimulator::ApplyImpulse(double seconds_elapsed, float delta_time)
     else if (!FluidConfig::Instance()->auto_impulse())
         return;
 
+    CudaMain::FluidImpulse impulse = FluidConfig::Instance()->fluid_impluse();
+    if (impulse == CudaMain::IMPULSE_BUOYANT_JET) {
+        pos.x = pos.y;
+        pos.y = splat_radius + 2;
+    }
+
     ImpulseDensity(pos, hotspot, splat_radius,
                    FluidConfig::Instance()->impulse_density());
 
-    glm::vec3 temperature(FluidConfig::Instance()->impulse_temperature(), 0.0f,
-                          0.0f);
-    Impulse(temperature_, pos, hotspot, splat_radius, temperature, 1);
+    Impulse(temperature_, pos, hotspot, splat_radius,
+            FluidConfig::Instance()->impulse_temperature());
 
-    return; // Not necessary for this scene.
-    float v_coef = static_cast<float>(sin(seconds_elapsed * 3.0 * 2.0 * ¦Ð));
-    glm::vec3 initial_velocity(
-        0.0f,
-        (1.0f + v_coef) * FluidConfig::Instance()->impulse_velocity(),
-        0.0f
-    );
-    //Impulse(velocity_, pos, hotspot, splat_radius,
-    //        initial_velocity, 7);
+    int t = static_cast<int>(seconds_elapsed / time_stretch);
+    if (t % 2 && impulse == CudaMain::IMPULSE_BUOYANT_JET) {
+        float coef = static_cast<float>(sin(seconds_elapsed * 2.0 * 2.0 * ¦Ð));
+        float initial_velocity =
+            (1.0f + coef * 0.5f) * FluidConfig::Instance()->impulse_velocity();
+        Impulse(velocity_.x(), pos, hotspot, splat_radius, initial_velocity);
+    }
 }
 
 void FluidSimulator::ComputeDivergence(
@@ -648,21 +656,21 @@ void FluidSimulator::DampedJacobi(std::shared_ptr<GraphicsVolume> pressure,
 void FluidSimulator::Impulse(std::shared_ptr<GraphicsVolume> dest,
                              const glm::vec3& position,
                              const glm::vec3& hotspot, float splat_radius,
-                             const glm::vec3& value, uint32_t mask)
+                             float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulse(dest->cuda_volume(),
                                            dest->cuda_volume(),
                                            position, hotspot, splat_radius,
-                                           value, mask);
+                                           value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
         SetUniform("center_point", position);
         SetUniform("hotspot", hotspot);
         SetUniform("radius", splat_radius);
-        SetUniform("fill_color_r", value[0]);
-        SetUniform("fill_color_g", value[1]);
+        SetUniform("fill_color_r", value);
+        SetUniform("fill_color_g", value);
 
         glBindFramebuffer(GL_FRAMEBUFFER, dest->gl_volume()->frame_buffer());
         glEnable(GL_BLEND);
@@ -702,7 +710,8 @@ void FluidSimulator::ReviseDensity()
 {
     glm::vec3 pos = kImpulsePosition * grid_size_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        if (!sphere)
+        if (CudaMain::IMPULSE_HOT_FLOOR ==
+                FluidConfig::Instance()->fluid_impluse())
             CudaMain::Instance()->ReviseDensity(
                 density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
     }

@@ -371,7 +371,8 @@ void Wheel(int button, int state, int x, int y)
 
 void Motion(int x, int y)
 {
-    trackball_->MouseMove(x, y);
+    if (!sim_->IsImpulsing())
+        trackball_->MouseMove(x, y);
 
     glm::vec2 hotspot;
     if (CalculateImpulseSpot(x, y, &hotspot))

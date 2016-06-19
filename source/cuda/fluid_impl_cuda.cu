@@ -354,44 +354,10 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                          cudaArray* temperature, cudaArray* density,
                          float time_step, float ambient_temperature,
-                         float accel_factor, float gravity, uint3 volume_size,
-                         BlockArrangement* ba)
+                         float accel_factor, float gravity, bool staggered,
+                         uint3 volume_size, BlockArrangement* ba)
 {
 
-    if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
-        return;
-
-    auto bound_v = BindHelper::Bind(&tex, vel_y, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_v.error() != cudaSuccess)
-        return;
-
-    auto bound_temp = BindHelper::Bind(&tex_t, temperature,
-                                       false, cudaFilterModeLinear,
-                                       cudaAddressModeClamp);
-    if (bound_temp.error() != cudaSuccess)
-        return;
-
-    auto bound_density = BindHelper::Bind(&tex_d, density,
-                                          false, cudaFilterModeLinear,
-                                          cudaAddressModeClamp);
-    if (bound_density.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
-                                         accel_factor, gravity, volume_size);
-}
-
-void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
-                                  cudaArray* vel_z, cudaArray* temperature,
-                                  cudaArray* density, float time_step,
-                                  float ambient_temperature, float accel_factor,
-                                  float gravity, uint3 volume_size,
-                                  BlockArrangement* ba)
-{
     if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
         return;
 
@@ -410,14 +376,23 @@ void LaunchApplyBuoyancyStaggered(cudaArray* vel_x, cudaArray* vel_y,
     if (bound_d.error() != cudaSuccess)
         return;
 
-    dim3 block(16, 1, 16);
-    dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
-    ba->ArrangeGrid(&grid, block, volume_size);
-    grid.y = 1;
-    ApplyBuoyancyStaggeredKernel<<<grid, block>>>(time_step,
-                                                  ambient_temperature,
-                                                  accel_factor, gravity,
-                                                  volume_size);
+    if (staggered) {
+        dim3 block(16, 1, 16);
+        dim3 grid(volume_size.x / block.x, 1, volume_size.z / block.z);
+        ba->ArrangeGrid(&grid, block, volume_size);
+        grid.y = 1;
+        ApplyBuoyancyStaggeredKernel<<<grid, block>>>(time_step,
+                                                      ambient_temperature,
+                                                      accel_factor, gravity,
+                                                      volume_size);
+    } else {
+        dim3 block;
+        dim3 grid;
+        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+        ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
+                                             accel_factor, gravity,
+                                             volume_size);
+    }
 }
 
 void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
@@ -503,7 +478,7 @@ void LaunchRoundPassed(int* dest_array, int round, int x)
 
 void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                             cudaArray* vel_z, cudaArray* pressure,
-                            float cell_size, uint3 volume_size,
+                            float cell_size, bool staggered, uint3 volume_size,
                             BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
@@ -538,46 +513,10 @@ void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
-}
 
-void LaunchSubtractGradientStaggered(cudaArray* vel_x, cudaArray* vel_y,
-                                     cudaArray* vel_z, cudaArray* pressure,
-                                     float cell_size, uint3 volume_size,
-                                     BlockArrangement* ba)
-{
-    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
-        return;
-
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_x.error() != cudaSuccess)
-        return;
-
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_y.error() != cudaSuccess)
-        return;
-
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_z.error() != cudaSuccess)
-        return;
-
-    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModeLinear,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    SubtractGradientStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
-                                                     volume_size);
+    if (staggered)
+        SubtractGradientStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
+                                                         volume_size);
+    else
+        SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
 }

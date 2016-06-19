@@ -35,10 +35,10 @@ public:
                         const glm::mat4& model_view,
                         const glm::ivec2& surface_size,
                         const glm::vec3& eye_pos, const glm::vec3& light_color,
-                        float light_intensity, float focal_length,
-                        int num_samples, int num_light_samples,
-                        float absorption, float density_factor,
-                        float occlusion_factor);
+                        const glm::vec3& light_pos, float light_intensity,
+                        float focal_length, int num_samples,
+                        int num_light_samples, float absorption,
+                        float density_factor, float occlusion_factor);
 
     void ClearVolume(cudaArray* dest, const glm::vec4& value,
                      const glm::ivec3& volume_size);

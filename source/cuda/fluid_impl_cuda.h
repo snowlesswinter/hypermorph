@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "advection_method.h"
+#include "fluid_impulse.h"
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
@@ -40,8 +41,7 @@ public:
                        float gravity, const glm::ivec3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const glm::vec3& center_point,
-                      const glm::vec3& hotspot, float radius,
-                      const glm::vec3& value, uint32_t mask,
+                      const glm::vec3& hotspot, float radius, float value,
                       const glm::ivec3& volume_size);
     void ApplyImpulseDensity(cudaArray* density, const glm::vec3& center_point,
                              const glm::vec3& hotspot, float radius,
@@ -93,10 +93,11 @@ public:
     // For debugging.
     void RoundPassed(int round);
 
-    void set_staggered(bool staggered) { staggered_ = staggered; }
+    void set_advect_method(AdvectionMethod m) { advect_method_ = m; }
+    void set_fluid_impulse(FluidImpulse i) { impulse_ = i; }
     void set_mid_point(bool mid_point) { mid_point_ = mid_point; }
     void set_outflow(bool outflow) { outflow_ = outflow; }
-    void set_advect_method(AdvectionMethod m) { advect_method_ = m; }
+    void set_staggered(bool staggered) { staggered_ = staggered; }
 
 private:
     BlockArrangement* ba_;
@@ -104,6 +105,7 @@ private:
     bool mid_point_;
     bool outflow_;
     AdvectionMethod advect_method_;
+    FluidImpulse impulse_;
 };
 
 #endif // _FLUID_IMPL_CUDA_H_

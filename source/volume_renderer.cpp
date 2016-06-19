@@ -97,6 +97,7 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
         CudaMain::Instance()->Raycast(
             surf_, density_volume->cuda_volume(), model_view_, eye_position_,
             FluidConfig::Instance()->light_color(),
+            FluidConfig::Instance()->light_position(),
             FluidConfig::Instance()->light_intensity(), focal_length,
             FluidConfig::Instance()->num_raycast_samples(),
             FluidConfig::Instance()->num_raycast_light_samples(),

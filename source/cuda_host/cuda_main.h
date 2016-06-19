@@ -24,6 +24,15 @@ public:
         BFECC_SEMI_LAGRANGIAN,
     };
 
+    enum FluidImpulse
+    {
+        IMPULSE_NONE,
+        IMPULSE_HOT_FLOOR,
+        IMPULSE_SPHERE,
+        IMPULSE_BUOYANT_JET,
+        IMPULSE_FLYING_BALL,
+    };
+
     static CudaMain* Instance();
     static void DestroyInstance();
 
@@ -77,8 +86,7 @@ public:
     void ApplyImpulse(std::shared_ptr<CudaVolume> dest,
                       std::shared_ptr<CudaVolume> source,
                       const glm::vec3& center_point,
-                      const glm::vec3& hotspot, float radius,
-                      const glm::vec3& value, uint32_t mask);
+                      const glm::vec3& hotspot, float radius, float value);
     void ComputeDivergence(std::shared_ptr<CudaVolume> div,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
@@ -181,12 +189,13 @@ public:
     void Raycast(std::shared_ptr<GLSurface> dest,
                  std::shared_ptr<CudaVolume> density,
                  const glm::mat4& model_view, const glm::vec3& eye_pos,
-                 const glm::vec3& light_color, float light_intensity,
-                 float focal_length, int num_samples, int num_light_samples,
-                 float absorption, float density_factor,
+                 const glm::vec3& light_color, const glm::vec3& light_pos,
+                 float light_intensity, float focal_length, int num_samples,
+                 int num_light_samples, float absorption, float density_factor,
                  float occlusion_factor);
 
     void SetAdvectionMethod(AdvectionMethod method);
+    void SetFluidImpulse(FluidImpulse impulse);
     void SetMidPoint(bool mid_point);
     void SetOutflow(bool outflow);
     void SetStaggered(bool staggered);

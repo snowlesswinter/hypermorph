@@ -31,6 +31,7 @@ public:
     bool Init();
     void Reset();
     std::shared_ptr<GraphicsVolume> GetDensityField() const;
+    bool IsImpulsing() const;
     void NotifyConfigChanged();
     void StartImpulsing(float x, float y);
     void StopImpulsing();
@@ -60,7 +61,7 @@ private:
                       float cell_size, int num_of_iterations);
     void Impulse(std::shared_ptr<GraphicsVolume> dest,
                  const glm::vec3& position, const glm::vec3& hotspot,
-                 float splat_radius, const glm::vec3& value, uint32_t mask);
+                 float splat_radius, float value);
     void ImpulseDensity(const glm::vec3& position, const glm::vec3& hotspot,
                         float splat_radius,
                         float value);

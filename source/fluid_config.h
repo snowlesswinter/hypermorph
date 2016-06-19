@@ -33,7 +33,11 @@ public:
     CudaMain::AdvectionMethod advection_method() const {
         return advection_method_.value_;
     }
+    CudaMain::FluidImpulse fluid_impluse() const {
+        return fluid_impluse_.value_;
+    }
     glm::vec3 light_color() const { return light_color_.value_; }
+    glm::vec3 light_position() const { return light_position_.value_; }
     glm::vec3 grid_size() const { return grid_size_.value_; }
     float cell_size() const { return cell_size_.value_; }
     float ambient_temperature() const { return ambient_temperature_.value_; }
@@ -95,7 +99,9 @@ private:
     ConfigField<GraphicsLib> graphics_lib_;
     ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
     ConfigField<CudaMain::AdvectionMethod> advection_method_;
+    ConfigField<CudaMain::FluidImpulse> fluid_impluse_;
     ConfigField<glm::vec3> light_color_;
+    ConfigField<glm::vec3> light_position_;
     ConfigField<glm::vec3> grid_size_;
     ConfigField<float> cell_size_;
     ConfigField<float> ambient_temperature_;
