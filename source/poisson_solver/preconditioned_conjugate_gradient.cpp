@@ -5,8 +5,8 @@
 
 #include "graphics_mem_piece.h"
 #include "graphics_volume.h"
-#include "multigrid_core.h"
 #include "multigrid_poisson_solver.h"
+#include "poisson_core.h"
 
 PreconditionedConjugateGradient::PreconditionedConjugateGradient(
         PoissonCore* core)

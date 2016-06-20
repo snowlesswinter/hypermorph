@@ -7,7 +7,7 @@
 #include "graphics_volume.h"
 #include "graphics_volume_group.h"
 #include "metrics.h"
-#include "multigrid_core.h"
+#include "poisson_core.h"
 #include "utility.h"
 
 // A summary for lately experiments:

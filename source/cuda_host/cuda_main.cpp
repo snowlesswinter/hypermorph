@@ -7,7 +7,7 @@
 #include "cuda/cuda_core.h"
 #include "cuda/fluid_impl_cuda.h"
 #include "cuda/graphics_resource.h"
-#include "cuda/multigrid_impl_cuda.h"
+#include "cuda/poisson_impl_cuda.h"
 #include "cuda_mem_piece.h"
 #include "cuda_volume.h"
 #include "opengl/gl_surface.h"

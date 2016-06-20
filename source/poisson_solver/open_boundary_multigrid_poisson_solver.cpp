@@ -5,7 +5,7 @@
 #include <tuple>
 
 #include "graphics_volume.h"
-#include "multigrid_core.h"
+#include "poisson_core.h"
 
 OpenBoundaryMultigridPoissonSolver::OpenBoundaryMultigridPoissonSolver(
         PoissonCore* core)

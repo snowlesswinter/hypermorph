@@ -1,4 +1,4 @@
-#include "multigrid_impl_cuda.h"
+#include "poisson_impl_cuda.h"
 
 #include <cassert>
 

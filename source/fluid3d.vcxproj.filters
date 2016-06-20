@@ -46,9 +46,6 @@
     <ClInclude Include="opengl\gl_program.h">
       <Filter>opengl</Filter>
     </ClInclude>
-    <ClInclude Include="poisson_solver\multigrid_core_glsl.h">
-      <Filter>poisson_solver</Filter>
-    </ClInclude>
     <ClInclude Include="poisson_solver\multigrid_poisson_solver.h">
       <Filter>poisson_solver</Filter>
     </ClInclude>
@@ -56,12 +53,6 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="poisson_solver\full_multigrid_poisson_solver.h">
-      <Filter>poisson_solver</Filter>
-    </ClInclude>
-    <ClInclude Include="poisson_solver\multigrid_core.h">
-      <Filter>poisson_solver</Filter>
-    </ClInclude>
-    <ClInclude Include="poisson_solver\multigrid_core_cuda.h">
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="fluid_config.h" />
@@ -84,6 +75,15 @@
       <Filter>cuda_host</Filter>
     </ClInclude>
     <ClInclude Include="graphics_mem_piece.h" />
+    <ClInclude Include="poisson_solver\poisson_core_glsl.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="poisson_solver\poisson_core.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="poisson_solver\poisson_core_cuda.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -117,9 +117,6 @@
     <ClCompile Include="opengl\gl_program.cpp">
       <Filter>opengl</Filter>
     </ClCompile>
-    <ClCompile Include="poisson_solver\multigrid_core_glsl.cpp">
-      <Filter>poisson_solver</Filter>
-    </ClCompile>
     <ClCompile Include="poisson_solver\multigrid_poisson_solver.cpp">
       <Filter>poisson_solver</Filter>
     </ClCompile>
@@ -127,12 +124,6 @@
       <Filter>poisson_solver</Filter>
     </ClCompile>
     <ClCompile Include="poisson_solver\full_multigrid_poisson_solver.cpp">
-      <Filter>poisson_solver</Filter>
-    </ClCompile>
-    <ClCompile Include="poisson_solver\multigrid_core.cpp">
-      <Filter>poisson_solver</Filter>
-    </ClCompile>
-    <ClCompile Include="poisson_solver\multigrid_core_cuda.cpp">
       <Filter>poisson_solver</Filter>
     </ClCompile>
     <ClCompile Include="fluid_config.cpp" />
@@ -154,5 +145,14 @@
       <Filter>cuda_host</Filter>
     </ClCompile>
     <ClCompile Include="graphics_mem_piece.cpp" />
+    <ClCompile Include="poisson_solver\poisson_core_glsl.cpp">
+      <Filter>poisson_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="poisson_solver\poisson_core.cpp">
+      <Filter>poisson_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="poisson_solver\poisson_core_cuda.cpp">
+      <Filter>poisson_solver</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

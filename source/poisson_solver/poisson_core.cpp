@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "multigrid_core.h"
+#include "poisson_core.h"
 
 PoissonCore::PoissonCore()
 {

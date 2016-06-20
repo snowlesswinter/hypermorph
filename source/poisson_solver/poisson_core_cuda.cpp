@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "multigrid_core_cuda.h"
+#include "poisson_core_cuda.h"
 
 #include <cassert>
 

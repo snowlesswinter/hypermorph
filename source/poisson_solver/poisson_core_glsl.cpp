@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "multigrid_core_glsl.h"
+#include "poisson_core_glsl.h"
 
 #include <cassert>
 

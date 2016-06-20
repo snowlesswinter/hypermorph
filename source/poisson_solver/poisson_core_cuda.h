@@ -1,16 +1,16 @@
-#ifndef _POISSON_CORE_GLSL_H_
-#define _POISSON_CORE_GLSL_H_
+#ifndef _MULTIGRID_CORE_CUDA_H_
+#define _MULTIGRID_CORE_CUDA_H_
 
 #include <memory>
 
-#include "multigrid_core.h"
+#include "poisson_core.h"
 
 class GLProgram;
-class PoissonCoreGlsl : public PoissonCore
+class PoissonCoreCuda : public PoissonCore
 {
 public:
-    PoissonCoreGlsl();
-    virtual ~PoissonCoreGlsl();
+    PoissonCoreCuda();
+    virtual ~PoissonCoreCuda();
 
     virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) override;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(
@@ -20,13 +20,13 @@ public:
         int width, int height, int depth, int num_of_components,
         int byte_width) override;
 
+    // Multigrid.
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
                                  const GraphicsVolume& b,
                                  float cell_size) override;
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) override;
-
     virtual void ProlongateError(const GraphicsVolume& fine,
                                  const GraphicsVolume& coarse) override;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
@@ -37,6 +37,7 @@ public:
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) override;
 
+    // Conjugate gradient.
     virtual void ApplyStencil(const GraphicsVolume& aux,
                               const GraphicsVolume& search,
                               float cell_size) override;
@@ -44,36 +45,19 @@ public:
                               const GraphicsMemPiece& rho,
                               const GraphicsVolume& aux,
                               const GraphicsVolume& search) override;
-    virtual void ComputeRho(const GraphicsMemPiece& rho,
-                            const GraphicsVolume& search,
-                            const GraphicsVolume& residual) override;
     virtual void ComputeRhoAndBeta(const GraphicsMemPiece& beta,
                                    const GraphicsMemPiece& rho_new,
                                    const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& residual) override;
+    virtual void ComputeRho(const GraphicsMemPiece& rho,
+                            const GraphicsVolume& search,
+                            const GraphicsVolume& residual) override;
     virtual void UpdateVector(const GraphicsVolume& dest,
                               const GraphicsVolume& v0,
                               const GraphicsVolume& v1,
                               const GraphicsMemPiece& coef,
                               float sign) override;
-
-private:
-    GLProgram* GetProlongatePackedProgram();
-    GLProgram* GetRelaxPackedProgram();
-    GLProgram* GetRelaxZeroGuessPackedProgram();
-    GLProgram* GetResidualPackedProgram();
-    GLProgram* GetRestrictPackedProgram();
-    GLProgram* GetRestrictResidualPackedProgram();
-
-    // Optimization.
-    std::unique_ptr<GLProgram> prolongate_and_relax_program_;
-    std::unique_ptr<GLProgram> prolongate_packed_program_;
-    std::unique_ptr<GLProgram> relax_packed_program_;
-    std::unique_ptr<GLProgram> relax_zero_guess_packed_program_;
-    std::unique_ptr<GLProgram> residual_packed_program_;
-    std::unique_ptr<GLProgram> restrict_packed_program_;
-    std::unique_ptr<GLProgram> restrict_residual_packed_program_;
 };
 
-#endif // _POISSON_CORE_GLSL_H_
+#endif // _MULTIGRID_CORE_CUDA_H_

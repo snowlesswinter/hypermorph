@@ -4,8 +4,8 @@
 #include "cuda_host/cuda_volume.h"
 #include "graphics_volume.h"
 #include "opengl/gl_texture.h"
-#include "poisson_solver/multigrid_core_cuda.h"
-#include "poisson_solver/multigrid_core_glsl.h"
+#include "poisson_solver/poisson_core_cuda.h"
+#include "poisson_solver/poisson_core_glsl.h"
 #include "unittest_common.h"
 #include "utility.h"
 

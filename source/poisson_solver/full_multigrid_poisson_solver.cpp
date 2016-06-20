@@ -5,8 +5,8 @@
 #include <algorithm>
 
 #include "graphics_volume.h"
-#include "multigrid_core.h"
 #include "multigrid_poisson_solver.h"
+#include "poisson_core.h"
 #include "utility.h"
 
 const int kWidthOfCoarsestLevel = 32;

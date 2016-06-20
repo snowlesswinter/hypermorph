@@ -194,7 +194,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
-    <CudaCompile Include="multigrid_impl_cuda.cu">
+    <CudaCompile Include="poisson_impl_cuda.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
@@ -218,7 +218,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="fluid_impulse.h" />
     <ClInclude Include="graphics_resource.h" />
     <ClInclude Include="kernel_launcher.h" />
-    <ClInclude Include="multigrid_impl_cuda.h" />
+    <ClInclude Include="poisson_impl_cuda.h" />
     <ClInclude Include="volume_reduction.cuh" />
   </ItemGroup>
   <ItemGroup>
@@ -227,7 +227,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
-    <ClCompile Include="multigrid_impl_cuda.cpp" />
+    <ClCompile Include="poisson_impl_cuda.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
