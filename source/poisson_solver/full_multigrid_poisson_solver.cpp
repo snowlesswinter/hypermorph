@@ -11,10 +11,11 @@
 
 const int kWidthOfCoarsestLevel = 32;
 
-FullMultigridPoissonSolver::FullMultigridPoissonSolver(MultigridCore* core)
+FullMultigridPoissonSolver::FullMultigridPoissonSolver(PoissonCore* core)
     : core_(core)
     , solver_(new MultigridPoissonSolver(core))
     , volume_resource_()
+    , num_nested_iterations_(2)
 {
 
 }
@@ -73,6 +74,11 @@ void FullMultigridPoissonSolver::SetDiagnosis(bool diagnosis)
 
 }
 
+void FullMultigridPoissonSolver::SetNestedSolverIterations(int num_iterations)
+{
+    num_nested_iterations_ = num_iterations;
+}
+
 void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
                                        std::shared_ptr<GraphicsVolume> b,
                                        float cell_size, int iteration_times)
@@ -98,7 +104,7 @@ void FullMultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
     // With less iterations in each level but more iterating in every V-Cycle
     // will out perform the case visa versa(less time cost, lower avg/max |r|),
     // especially in high divergence cases.
-    solver_->set_num_finest_level_iteration_per_pass(2);
+    solver_->set_num_finest_level_iteration_per_pass(num_nested_iterations_);
     volume_resource_[0] = std::make_pair(u, b);
 
     const int num_of_levels = static_cast<int>(volume_resource_.size());

@@ -542,15 +542,17 @@ void FluidSimulator::ComputeDivergence(
     }
 }
 
-void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
+void FluidSimulator::ComputeResidualDiagnosis(
+    std::shared_ptr<GraphicsVolume> pressure,
+    std::shared_ptr<GraphicsVolume> divergence, float cell_size)
 {
     if (diagnosis_ != DIAG_PRESSURE)
         return;
 
     if (!diagnosis_volume_) {
-        int width = static_cast<int>(grid_size_.x);
-        int height = static_cast<int>(grid_size_.y);
-        int depth = static_cast<int>(grid_size_.z);
+        int width = pressure->GetWidth();
+        int height = pressure->GetHeight();
+        int depth = pressure->GetDepth();
         std::shared_ptr<GraphicsVolume> v(new GraphicsVolume(graphics_lib_));
         bool result = v->Create(width, height, depth, 1, 4, 0);
         assert(result);
@@ -562,8 +564,8 @@ void FluidSimulator::ComputeResidualDiagnosis(float cell_size)
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualDiagnosis(
-            diagnosis_volume_->cuda_volume(), general1b_->cuda_volume(),
-            general1a_->cuda_volume(), cell_size);
+            diagnosis_volume_->cuda_volume(), pressure->cuda_volume(),
+            divergence->cuda_volume(), cell_size);
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         float inverse_h_square = 1.0f / (cell_size * cell_size);
 
@@ -723,12 +725,14 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
 {
     if (!multigrid_core_) {
         if (graphics_lib_ == GRAPHICS_LIB_CUDA)
-            multigrid_core_.reset(new MultigridCoreCuda());
+            multigrid_core_.reset(new PoissonCoreCuda());
         else
-            multigrid_core_.reset(new MultigridCoreGlsl());
+            multigrid_core_.reset(new PoissonCoreGlsl());
     }
 
     int num_iterations = 0;
+    int num_nested_iterations =
+        FluidConfig::Instance()->num_multigrid_iterations();
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
@@ -785,11 +789,12 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
 
     if (pressure_solver_) {
         pressure_solver_->SetDiagnosis(diagnosis_ == DIAG_PRESSURE);
+        pressure_solver_->SetNestedSolverIterations(num_nested_iterations);
         pressure_solver_->Solve(pressure, divergence, cell_size,
                                 num_iterations);
     }
 
-    ComputeResidualDiagnosis(cell_size);
+    ComputeResidualDiagnosis(pressure, divergence, cell_size);
 }
 
 void FluidSimulator::SubtractGradient(std::shared_ptr<GraphicsVolume> pressure,
@@ -1000,9 +1005,9 @@ void FluidSimulator::SolvePsi(const GraphicsVolume3& psi,
 {
     if (!multigrid_core_) {
         if (graphics_lib_ == GRAPHICS_LIB_CUDA)
-            multigrid_core_.reset(new MultigridCoreCuda());
+            multigrid_core_.reset(new PoissonCoreCuda());
         else
-            multigrid_core_.reset(new MultigridCoreGlsl());
+            multigrid_core_.reset(new PoissonCoreGlsl());
     }
 
     int num_multigrid_iterations =

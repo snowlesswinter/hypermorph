@@ -8,7 +8,7 @@
 #include "multigrid_core.h"
 
 OpenBoundaryMultigridPoissonSolver::OpenBoundaryMultigridPoissonSolver(
-        MultigridCore* core)
+        PoissonCore* core)
     : core_(core)
     , volume_resource_()
     , residual_volume_()

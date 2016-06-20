@@ -1,12 +1,12 @@
 #include "stdafx.h"
 #include "multigrid_core.h"
 
-MultigridCore::MultigridCore()
+PoissonCore::PoissonCore()
 {
 
 }
 
-MultigridCore::~MultigridCore()
+PoissonCore::~PoissonCore()
 {
 
 }

@@ -1,16 +1,16 @@
-#ifndef _MULTIGRID_CORE_H_
-#define _MULTIGRID_CORE_H_
+#ifndef _POISSON_CORE_H_
+#define _POISSON_CORE_H_
 
 #include <memory>
 
 class GraphicsMemPiece;
 class GraphicsVolume;
 class GraphicsVolume3;
-class MultigridCore
+class PoissonCore
 {
 public:
-    MultigridCore();
-    virtual ~MultigridCore();
+    PoissonCore();
+    virtual ~PoissonCore();
 
     virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) = 0;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(int width, int height,
@@ -59,4 +59,4 @@ public:
                               const GraphicsMemPiece& coef, float sign) = 0;
 };
 
-#endif // _MULTIGRID_CORE_H_
+#endif // _POISSON_CORE_H_

@@ -23,83 +23,83 @@ uint3 FromGlmVector(const glm::ivec3& v)
 }
 } // Anonymous namespace.
 
-MultigridImplCuda::MultigridImplCuda(BlockArrangement* ba, AuxBufferManager* bm)
+PoissonImplCuda::PoissonImplCuda(BlockArrangement* ba, AuxBufferManager* bm)
     : ba_(ba)
     , bm_(bm)
 {
 }
 
-MultigridImplCuda::~MultigridImplCuda()
+PoissonImplCuda::~PoissonImplCuda()
 {
 }
 
-void MultigridImplCuda::ComputeResidual(cudaArray* r, cudaArray* u,
-                                        cudaArray* b, float cell_size,
-                                        const glm::ivec3& volume_size)
+void PoissonImplCuda::ComputeResidual(cudaArray* r, cudaArray* u,
+                                      cudaArray* b, float cell_size,
+                                      const glm::ivec3& volume_size)
 {
     LaunchComputeResidual(r, u, b, cell_size, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::Prolongate(cudaArray* fine, cudaArray* coarse,
-                                   const glm::ivec3& volume_size)
+void PoissonImplCuda::Prolongate(cudaArray* fine, cudaArray* coarse,
+                                 const glm::ivec3& volume_size)
 {
     LaunchProlongate(fine, coarse, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::ProlongateError(cudaArray* fine, cudaArray* coarse,
-                                        const glm::ivec3& volume_size)
+void PoissonImplCuda::ProlongateError(cudaArray* fine, cudaArray* coarse,
+                                      const glm::ivec3& volume_size)
 {
     LaunchProlongateError(fine, coarse, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
-                                           float cell_size,
-                                           const glm::ivec3& volume_size)
+void PoissonImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
+                                         float cell_size,
+                                         const glm::ivec3& volume_size)
 {
     LaunchRelaxWithZeroGuess(u, b, cell_size, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
-                                 const glm::ivec3& volume_size)
+void PoissonImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
+                               const glm::ivec3& volume_size)
 {
     LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
-                                     float cell_size,
-                                     const glm::ivec3& volume_size)
+void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
+                                   float cell_size,
+                                   const glm::ivec3& volume_size)
 {
     LaunchApplyStencil(aux, search, cell_size, FromGlmVector(volume_size), ba_);
 }
 
-void MultigridImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
-                                     cudaArray* search,
-                                     const glm::ivec3& volume_size)
+void PoissonImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
+                                   cudaArray* search,
+                                   const glm::ivec3& volume_size)
 {
     LaunchComputeAlpha(alpha, rho, aux, search, FromGlmVector(volume_size), ba_,
                        bm_);
 }
 
-void MultigridImplCuda::ComputeRho(float* rho, cudaArray* search,
-                                   cudaArray* residual,
-                                   const glm::ivec3& volume_size)
+void PoissonImplCuda::ComputeRho(float* rho, cudaArray* search,
+                                 cudaArray* residual,
+                                 const glm::ivec3& volume_size)
 {
     LaunchComputeRho(rho, search, residual, FromGlmVector(volume_size), ba_,
                      bm_);
 }
 
-void MultigridImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
-                                          float* rho, cudaArray* aux,
-                                          cudaArray* residual,
-                                          const glm::ivec3& volume_size)
+void PoissonImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
+                                        float* rho, cudaArray* aux,
+                                        cudaArray* residual,
+                                        const glm::ivec3& volume_size)
 {
     LaunchComputeRhoAndBeta(beta, rho_new, rho, aux, residual,
                             FromGlmVector(volume_size), ba_, bm_);
 }
 
-void MultigridImplCuda::UpdateVector(cudaArray* dest, cudaArray* v0,
-                                     cudaArray* v1, float* coef, float sign,
-                                     const glm::ivec3& volume_size)
+void PoissonImplCuda::UpdateVector(cudaArray* dest, cudaArray* v0,
+                                   cudaArray* v1, float* coef, float sign,
+                                   const glm::ivec3& volume_size)
 {
     LaunchUpdateVector(dest, v0, v1, coef, sign, FromGlmVector(volume_size),
                        ba_);

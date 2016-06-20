@@ -9,18 +9,18 @@
 #include "graphics_volume_group.h"
 #include "utility.h"
 
-MultigridCoreCuda::MultigridCoreCuda()
-    : MultigridCore()
+PoissonCoreCuda::PoissonCoreCuda()
+    : PoissonCore()
 {
 
 }
 
-MultigridCoreCuda::~MultigridCoreCuda()
+PoissonCoreCuda::~PoissonCoreCuda()
 {
 
 }
 
-std::shared_ptr<GraphicsMemPiece> MultigridCoreCuda::CreateMemPiece(int size)
+std::shared_ptr<GraphicsMemPiece> PoissonCoreCuda::CreateMemPiece(int size)
 {
     std::shared_ptr<GraphicsMemPiece> r =
         std::make_shared<GraphicsMemPiece>(GRAPHICS_LIB_CUDA);
@@ -28,7 +28,7 @@ std::shared_ptr<GraphicsMemPiece> MultigridCoreCuda::CreateMemPiece(int size)
     return succeeded ? r : std::shared_ptr<GraphicsMemPiece>();
 }
 
-std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
+std::shared_ptr<GraphicsVolume> PoissonCoreCuda::CreateVolume(
     int width, int height, int depth, int num_of_components, int byte_width)
 {
     std::shared_ptr<GraphicsVolume> r =
@@ -39,7 +39,7 @@ std::shared_ptr<GraphicsVolume> MultigridCoreCuda::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
-std::shared_ptr<GraphicsVolume3> MultigridCoreCuda::CreateVolumeGroup(
+std::shared_ptr<GraphicsVolume3> PoissonCoreCuda::CreateVolumeGroup(
     int width, int height, int depth, int num_of_components, int byte_width)
 {
     std::shared_ptr<GraphicsVolume3> r(new GraphicsVolume3(GRAPHICS_LIB_CUDA));
@@ -48,80 +48,80 @@ std::shared_ptr<GraphicsVolume3> MultigridCoreCuda::CreateVolumeGroup(
     return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
 }
 
-void MultigridCoreCuda::ComputeResidual(const GraphicsVolume& r,
-                                        const GraphicsVolume& u,
-                                        const GraphicsVolume& b,
-                                        float cell_size)
+void PoissonCoreCuda::ComputeResidual(const GraphicsVolume& r,
+                                      const GraphicsVolume& u,
+                                      const GraphicsVolume& b,
+                                      float cell_size)
 {
     CudaMain::Instance()->ComputeResidual(r.cuda_volume(), u.cuda_volume(),
                                           b.cuda_volume(), cell_size);
 }
 
-void MultigridCoreCuda::Prolongate(const GraphicsVolume& fine,
-                                   const GraphicsVolume& coarse)
+void PoissonCoreCuda::Prolongate(const GraphicsVolume& fine,
+                                 const GraphicsVolume& coarse)
 {
     CudaMain::Instance()->Prolongate(fine.cuda_volume(), coarse.cuda_volume());
 }
 
-void MultigridCoreCuda::ProlongateError(const GraphicsVolume& fine,
-                                        const GraphicsVolume& coarse)
+void PoissonCoreCuda::ProlongateError(const GraphicsVolume& fine,
+                                      const GraphicsVolume& coarse)
 {
     CudaMain::Instance()->ProlongateError(fine.cuda_volume(),
                                           coarse.cuda_volume());
 }
 
-void MultigridCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                              float cell_size, int num_of_iterations)
+void PoissonCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
+                            float cell_size, int num_of_iterations)
 {
     CudaMain::Instance()->Relax(u.cuda_volume(), u.cuda_volume(),
                                 b.cuda_volume(), cell_size, num_of_iterations);
 }
 
-void MultigridCoreCuda::RelaxWithZeroGuess(const GraphicsVolume& u,
-                                           const GraphicsVolume& b,
-                                           float cell_size)
+void PoissonCoreCuda::RelaxWithZeroGuess(const GraphicsVolume& u,
+                                         const GraphicsVolume& b,
+                                         float cell_size)
 {
     CudaMain::Instance()->RelaxWithZeroGuess(u.cuda_volume(), b.cuda_volume(),
                                              cell_size);
 }
 
-void MultigridCoreCuda::Restrict(const GraphicsVolume& coarse,
-                                 const GraphicsVolume& fine)
+void PoissonCoreCuda::Restrict(const GraphicsVolume& coarse,
+                               const GraphicsVolume& fine)
 {
     CudaMain::Instance()->Restrict(coarse.cuda_volume(), fine.cuda_volume());
 }
 
-void MultigridCoreCuda::ApplyStencil(const GraphicsVolume& aux,
-                                     const GraphicsVolume& search,
-                                     float cell_size)
+void PoissonCoreCuda::ApplyStencil(const GraphicsVolume& aux,
+                                   const GraphicsVolume& search,
+                                   float cell_size)
 {
     CudaMain::Instance()->ApplyStencil(aux.cuda_volume(), search.cuda_volume(),
                                        cell_size);
 }
 
-void MultigridCoreCuda::ComputeAlpha(const GraphicsMemPiece& alpha,
-                                     const GraphicsMemPiece& rho,
-                                     const GraphicsVolume& aux,
-                                     const GraphicsVolume& search)
+void PoissonCoreCuda::ComputeAlpha(const GraphicsMemPiece& alpha,
+                                   const GraphicsMemPiece& rho,
+                                   const GraphicsVolume& aux,
+                                   const GraphicsVolume& search)
 {
     CudaMain::Instance()->ComputeAlpha(alpha.cuda_mem_piece(),
                                        rho.cuda_mem_piece(), aux.cuda_volume(),
                                        search.cuda_volume());
 }
 
-void MultigridCoreCuda::ComputeRho(const GraphicsMemPiece& rho,
-                                   const GraphicsVolume& search,
-                                   const GraphicsVolume& residual)
+void PoissonCoreCuda::ComputeRho(const GraphicsMemPiece& rho,
+                                 const GraphicsVolume& search,
+                                 const GraphicsVolume& residual)
 {
     CudaMain::Instance()->ComputeRho(rho.cuda_mem_piece(), search.cuda_volume(),
                                      residual.cuda_volume());
 }
 
-void MultigridCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
-                                          const GraphicsMemPiece& rho_new,
-                                          const GraphicsMemPiece& rho,
-                                          const GraphicsVolume& aux,
-                                          const GraphicsVolume& residual)
+void PoissonCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                        const GraphicsMemPiece& rho_new,
+                                        const GraphicsMemPiece& rho,
+                                        const GraphicsVolume& aux,
+                                        const GraphicsVolume& residual)
 {
     CudaMain::Instance()->ComputeRhoAndBeta(beta.cuda_mem_piece(),
                                             rho_new.cuda_mem_piece(),
@@ -130,10 +130,10 @@ void MultigridCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
                                             residual.cuda_volume());
 }
 
-void MultigridCoreCuda::UpdateVector(const GraphicsVolume& dest,
-                                     const GraphicsVolume& v0,
-                                     const GraphicsVolume& v1,
-                                     const GraphicsMemPiece& coef, float sign)
+void PoissonCoreCuda::UpdateVector(const GraphicsVolume& dest,
+                                   const GraphicsVolume& v0,
+                                   const GraphicsVolume& v1,
+                                   const GraphicsMemPiece& coef, float sign)
 {
     CudaMain::Instance()->UpdateVector(dest.cuda_volume(), v0.cuda_volume(),
                                        v1.cuda_volume(), coef.cuda_mem_piece(),

@@ -6,11 +6,11 @@
 
 #include "graphics_volume_group.h"
 
-class MultigridCore;
+class PoissonCore;
 class OpenBoundaryMultigridPoissonSolver
 {
 public:
-    explicit OpenBoundaryMultigridPoissonSolver(MultigridCore* core);
+    explicit OpenBoundaryMultigridPoissonSolver(PoissonCore* core);
     virtual ~OpenBoundaryMultigridPoissonSolver();
 
     bool Initialize(int width, int height, int depth,
@@ -26,7 +26,7 @@ private:
     void Relax(std::shared_ptr<GraphicsVolume> u,
                std::shared_ptr<GraphicsVolume> b, float cell_size, int times);
 
-    MultigridCore* core_;
+    PoissonCore* core_;
     std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource_;
     std::shared_ptr<GraphicsVolume> residual_volume_;
     int num_finest_level_iteration_per_pass_;

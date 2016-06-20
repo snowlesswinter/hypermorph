@@ -73,9 +73,9 @@ void CudaMain::DestroyInstance()
 CudaMain::CudaMain()
     : core_(new CudaCore())
     , fluid_impl_(new FluidImplCuda(core_->block_arrangement()))
-    , multigrid_impl_(
-        new MultigridImplCuda(core_->block_arrangement(),
-                              core_->buffer_manager()))
+    , poisson_impl_(
+        new PoissonImplCuda(core_->block_arrangement(),
+                            core_->buffer_manager()))
     , registerd_textures_()
 {
 
@@ -256,44 +256,44 @@ void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
                                std::shared_ptr<CudaVolume> u,
                                std::shared_ptr<CudaVolume> b, float cell_size)
 {
-    multigrid_impl_->ComputeResidual(r->dev_array(), u->dev_array(),
-                                     b->dev_array(), cell_size, r->size());
+    poisson_impl_->ComputeResidual(r->dev_array(), u->dev_array(),
+                                   b->dev_array(), cell_size, r->size());
 }
 
 void CudaMain::Prolongate(std::shared_ptr<CudaVolume> fine,
                           std::shared_ptr<CudaVolume> coarse)
 {
-    multigrid_impl_->Prolongate(fine->dev_array(), coarse->dev_array(),
-                                fine->size());
+    poisson_impl_->Prolongate(fine->dev_array(), coarse->dev_array(),
+                              fine->size());
 }
 
 void CudaMain::ProlongateError(std::shared_ptr<CudaVolume> fine,
                                std::shared_ptr<CudaVolume> coarse)
 {
-    multigrid_impl_->ProlongateError(fine->dev_array(), coarse->dev_array(),
-                                     fine->size());
+    poisson_impl_->ProlongateError(fine->dev_array(), coarse->dev_array(),
+                                   fine->size());
 }
 
 void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
                                   std::shared_ptr<CudaVolume> b,
                                   float cell_size)
 {
-    multigrid_impl_->RelaxWithZeroGuess(u->dev_array(), b->dev_array(),
-                                        cell_size, u->size());
+    poisson_impl_->RelaxWithZeroGuess(u->dev_array(), b->dev_array(),
+                                      cell_size, u->size());
 }
 
 void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
                         std::shared_ptr<CudaVolume> fine)
 {
-    multigrid_impl_->Restrict(coarse->dev_array(), fine->dev_array(),
-                              coarse->size());
+    poisson_impl_->Restrict(coarse->dev_array(), fine->dev_array(),
+                            coarse->size());
 }
 
 void CudaMain::ApplyStencil(std::shared_ptr<CudaVolume> aux,
                             std::shared_ptr<CudaVolume> search, float cell_size)
 {
-    multigrid_impl_->ApplyStencil(aux->dev_array(), search->dev_array(),
-                                  cell_size, aux->size());
+    poisson_impl_->ApplyStencil(aux->dev_array(), search->dev_array(),
+                                cell_size, aux->size());
 }
 
 void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
@@ -301,17 +301,17 @@ void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
                             std::shared_ptr<CudaVolume> aux,
                             std::shared_ptr<CudaVolume> search)
 {
-    multigrid_impl_->ComputeAlpha(reinterpret_cast<float*>(alpha->mem()),
-                                  reinterpret_cast<float*>(rho->mem()),
-                                  aux->dev_array(), search->dev_array(),
-                                  aux->size());
+    poisson_impl_->ComputeAlpha(reinterpret_cast<float*>(alpha->mem()),
+                                reinterpret_cast<float*>(rho->mem()),
+                                aux->dev_array(), search->dev_array(),
+                                aux->size());
 }
 
 void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
                           std::shared_ptr<CudaVolume> search,
                           std::shared_ptr<CudaVolume> residual)
 {
-    multigrid_impl_->ComputeRho(
+    poisson_impl_->ComputeRho(
         reinterpret_cast<float*>(rho->mem()), search->dev_array(),
         residual->dev_array(), search->size());
 }
@@ -322,11 +322,11 @@ void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
                                  std::shared_ptr<CudaVolume> aux,
                                  std::shared_ptr<CudaVolume> residual)
 {
-    multigrid_impl_->ComputeRhoAndBeta(reinterpret_cast<float*>(beta->mem()),
-                                       reinterpret_cast<float*>(rho_new->mem()),
-                                       reinterpret_cast<float*>(rho->mem()),
-                                       aux->dev_array(), residual->dev_array(),
-                                       aux->size());
+    poisson_impl_->ComputeRhoAndBeta(reinterpret_cast<float*>(beta->mem()),
+                                     reinterpret_cast<float*>(rho_new->mem()),
+                                     reinterpret_cast<float*>(rho->mem()),
+                                     aux->dev_array(), residual->dev_array(),
+                                     aux->size());
 }
 
 void CudaMain::UpdateVector(std::shared_ptr<CudaVolume> dest,
@@ -334,10 +334,10 @@ void CudaMain::UpdateVector(std::shared_ptr<CudaVolume> dest,
                             std::shared_ptr<CudaVolume> v1,
                             std::shared_ptr<CudaMemPiece> coef, float sign)
 {
-    multigrid_impl_->UpdateVector(dest->dev_array(), v0->dev_array(),
-                                  v1->dev_array(),
-                                  reinterpret_cast<float*>(coef->mem()), sign,
-                                  dest->size());
+    poisson_impl_->UpdateVector(dest->dev_array(), v0->dev_array(),
+                                v1->dev_array(),
+                                reinterpret_cast<float*>(coef->mem()), sign,
+                                dest->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

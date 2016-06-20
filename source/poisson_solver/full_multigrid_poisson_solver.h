@@ -6,12 +6,12 @@
 
 #include "poisson_solver.h"
 
-class MultigridCore;
 class MultigridPoissonSolver;
+class PoissonCore;
 class FullMultigridPoissonSolver : public PoissonSolver
 {
 public:
-    explicit FullMultigridPoissonSolver(MultigridCore* core);
+    explicit FullMultigridPoissonSolver(PoissonCore* core);
     virtual ~FullMultigridPoissonSolver();
 
     virtual bool Initialize(int width, int height, int depth,
@@ -19,6 +19,7 @@ public:
     virtual void SetAuxiliaryVolumes(
         const std::vector<std::shared_ptr<GraphicsVolume>>& volumes) override;
     virtual void SetDiagnosis(bool diagnosis) override;
+    virtual void SetNestedSolverIterations(int num_iterations) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
                        std::shared_ptr<GraphicsVolume> b, float cell_size,
                        int iteration_times) override;
@@ -31,9 +32,10 @@ private:
                  std::shared_ptr<GraphicsVolume> b, float cell_size,
                  bool apply_initial_guess);
 
-    MultigridCore* core_;
+    PoissonCore* core_;
     std::unique_ptr<MultigridPoissonSolver> solver_;
     std::vector<VolumePair> volume_resource_;
+    int num_nested_iterations_;
 };
 
 #endif // _FULL_MULTIGRID_POISSON_SOLVER_H_

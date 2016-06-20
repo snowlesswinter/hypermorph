@@ -6,11 +6,11 @@
 #include "multigrid_core.h"
 
 class GLProgram;
-class MultigridCoreCuda : public MultigridCore
+class PoissonCoreCuda : public PoissonCore
 {
 public:
-    MultigridCoreCuda();
-    virtual ~MultigridCoreCuda();
+    PoissonCoreCuda();
+    virtual ~PoissonCoreCuda();
 
     virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) override;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(

@@ -9,8 +9,8 @@
 
 class FluidUnittest;
 class GraphicsVolume;
-class MultigridCore;
 class OpenBoundaryMultigridPoissonSolver;
+class PoissonCore;
 class PoissonSolver;
 class FluidSimulator
 {
@@ -55,7 +55,9 @@ private:
     void ApplyImpulse(double seconds_elapsed, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence,
                            float cell_size);
-    void ComputeResidualDiagnosis(float cell_size);
+    void ComputeResidualDiagnosis(std::shared_ptr<GraphicsVolume> pressure,
+                                  std::shared_ptr<GraphicsVolume> divergence,
+                                  float cell_size);
     void DampedJacobi(std::shared_ptr<GraphicsVolume> pressure,
                       std::shared_ptr<GraphicsVolume> divergence,
                       float cell_size, int num_of_iterations);
@@ -102,7 +104,7 @@ private:
     float cell_size_;
     GraphicsLib graphics_lib_;
     PoissonMethod solver_choice_;
-    std::unique_ptr<MultigridCore> multigrid_core_;
+    std::unique_ptr<PoissonCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<PoissonSolver> psi_solver_;
     int volume_byte_width_;

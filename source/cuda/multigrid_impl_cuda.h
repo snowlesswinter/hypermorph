@@ -1,5 +1,5 @@
-#ifndef _MULTIGRID_IMPL_CUDA_H_
-#define _MULTIGRID_IMPL_CUDA_H_
+#ifndef _POISSON_IMPL_CUDA_H_
+#define _POISSON_IMPL_CUDA_H_
 
 #include <memory>
 
@@ -10,11 +10,11 @@ class AuxBufferManager;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
-class MultigridImplCuda
+class PoissonImplCuda
 {
 public:
-    MultigridImplCuda(BlockArrangement* ba, AuxBufferManager* bm);
-    ~MultigridImplCuda();
+    PoissonImplCuda(BlockArrangement* ba, AuxBufferManager* bm);
+    ~PoissonImplCuda();
 
     // Multigrid.
     void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
@@ -46,4 +46,4 @@ private:
     AuxBufferManager* bm_;
 };
 
-#endif // _MULTIGRID_IMPL_CUDA_H_
+#endif // _POISSON_IMPL_CUDA_H_

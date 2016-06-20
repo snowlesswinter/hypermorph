@@ -13,8 +13,8 @@
 #include "third_party/glm/vec3.hpp"
 #include "utility.h"
 
-MultigridCoreGlsl::MultigridCoreGlsl()
-    : MultigridCore()
+PoissonCoreGlsl::PoissonCoreGlsl()
+    : PoissonCore()
     , prolongate_and_relax_program_()
     , prolongate_packed_program_()
     , relax_packed_program_()
@@ -26,17 +26,17 @@ MultigridCoreGlsl::MultigridCoreGlsl()
 
 }
 
-MultigridCoreGlsl::~MultigridCoreGlsl()
+PoissonCoreGlsl::~PoissonCoreGlsl()
 {
 
 }
 
-std::shared_ptr<GraphicsMemPiece> MultigridCoreGlsl::CreateMemPiece(int size)
+std::shared_ptr<GraphicsMemPiece> PoissonCoreGlsl::CreateMemPiece(int size)
 {
     return std::shared_ptr<GraphicsMemPiece>();
 }
 
-std::shared_ptr<GraphicsVolume> MultigridCoreGlsl::CreateVolume(
+std::shared_ptr<GraphicsVolume> PoissonCoreGlsl::CreateVolume(
     int width, int height, int depth, int num_of_components, int byte_width)
 {
     std::shared_ptr<GraphicsVolume> r(new GraphicsVolume(GRAPHICS_LIB_GLSL));
@@ -46,7 +46,7 @@ std::shared_ptr<GraphicsVolume> MultigridCoreGlsl::CreateVolume(
     return succeeded ? r : std::shared_ptr<GraphicsVolume>();
 }
 
-std::shared_ptr<GraphicsVolume3> MultigridCoreGlsl::CreateVolumeGroup(
+std::shared_ptr<GraphicsVolume3> PoissonCoreGlsl::CreateVolumeGroup(
     int width, int height, int depth, int num_of_components, int byte_width)
 {
     std::shared_ptr<GraphicsVolume3> r(new GraphicsVolume3(GRAPHICS_LIB_GLSL));
@@ -56,10 +56,9 @@ std::shared_ptr<GraphicsVolume3> MultigridCoreGlsl::CreateVolumeGroup(
     return succeeded ? r : std::shared_ptr<GraphicsVolume3>();
 }
 
-void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
-                                        const GraphicsVolume& u,
-                                        const GraphicsVolume& b,
-                                        float cell_size)
+void PoissonCoreGlsl::ComputeResidual(const GraphicsVolume& r,
+                                      const GraphicsVolume& u,
+                                      const GraphicsVolume& b, float cell_size)
 {
     GetResidualPackedProgram()->Use();
 
@@ -74,8 +73,8 @@ void MultigridCoreGlsl::ComputeResidual(const GraphicsVolume& r,
     ResetState();
 }
 
-void MultigridCoreGlsl::Prolongate(const GraphicsVolume& fine,
-                                   const GraphicsVolume& coarse)
+void PoissonCoreGlsl::Prolongate(const GraphicsVolume& fine,
+                                 const GraphicsVolume& coarse)
 {
     GetProlongatePackedProgram()->Use();
 
@@ -95,8 +94,8 @@ void MultigridCoreGlsl::Prolongate(const GraphicsVolume& fine,
     ResetState();
 }
 
-void MultigridCoreGlsl::ProlongateError(const GraphicsVolume& fine,
-                                        const GraphicsVolume& coarse)
+void PoissonCoreGlsl::ProlongateError(const GraphicsVolume& fine,
+                                      const GraphicsVolume& coarse)
 {
     GetProlongatePackedProgram()->Use();
 
@@ -116,8 +115,8 @@ void MultigridCoreGlsl::ProlongateError(const GraphicsVolume& fine,
     ResetState();
 }
 
-void MultigridCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                              float cell_size, int num_of_iterations)
+void PoissonCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
+                            float cell_size, int num_of_iterations)
 {
     for (int i = 0; i < num_of_iterations; i++) {
         GetRelaxPackedProgram()->Use();
@@ -136,9 +135,9 @@ void MultigridCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
     }
 }
 
-void MultigridCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
-                                           const GraphicsVolume& b,
-                                           float cell_size)
+void PoissonCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
+                                         const GraphicsVolume& b,
+                                         float cell_size)
 {
     GetRelaxZeroGuessPackedProgram()->Use();
 
@@ -157,8 +156,8 @@ void MultigridCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
     ResetState();
 }
 
-void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
-                                 const GraphicsVolume& fine)
+void PoissonCoreGlsl::Restrict(const GraphicsVolume& coarse,
+                               const GraphicsVolume& fine)
 {
     GetRestrictPackedProgram()->Use();
 
@@ -173,46 +172,46 @@ void MultigridCoreGlsl::Restrict(const GraphicsVolume& coarse,
     ResetState();
 }
 
-void MultigridCoreGlsl::ApplyStencil(const GraphicsVolume& aux,
-                                     const GraphicsVolume& search,
-                                     float cell_size)
-{
-
-}
-
-void MultigridCoreGlsl::ComputeAlpha(const GraphicsMemPiece& alpha,
-                                     const GraphicsMemPiece& rho,
-                                     const GraphicsVolume& aux,
-                                     const GraphicsVolume& search)
-{
-
-}
-
-void MultigridCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
+void PoissonCoreGlsl::ApplyStencil(const GraphicsVolume& aux,
                                    const GraphicsVolume& search,
-                                   const GraphicsVolume& residual)
+                                   float cell_size)
 {
 
 }
 
-void MultigridCoreGlsl::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
-                                          const GraphicsMemPiece& rho_new,
-                                          const GraphicsMemPiece& rho,
-                                          const GraphicsVolume& aux,
-                                          const GraphicsVolume& residual)
+void PoissonCoreGlsl::ComputeAlpha(const GraphicsMemPiece& alpha,
+                                   const GraphicsMemPiece& rho,
+                                   const GraphicsVolume& aux,
+                                   const GraphicsVolume& search)
 {
 
 }
 
-void MultigridCoreGlsl::UpdateVector(const GraphicsVolume& dest,
-                                     const GraphicsVolume& v0,
-                                     const GraphicsVolume& v1,
-                                     const GraphicsMemPiece& coef, float sign)
+void PoissonCoreGlsl::ComputeRho(const GraphicsMemPiece& rho,
+                                 const GraphicsVolume& search,
+                                 const GraphicsVolume& residual)
 {
 
 }
 
-GLProgram* MultigridCoreGlsl::GetProlongatePackedProgram()
+void PoissonCoreGlsl::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
+                                        const GraphicsMemPiece& rho_new,
+                                        const GraphicsMemPiece& rho,
+                                        const GraphicsVolume& aux,
+                                        const GraphicsVolume& residual)
+{
+
+}
+
+void PoissonCoreGlsl::UpdateVector(const GraphicsVolume& dest,
+                                   const GraphicsVolume& v0,
+                                   const GraphicsVolume& v1,
+                                   const GraphicsMemPiece& coef, float sign)
+{
+
+}
+
+GLProgram* PoissonCoreGlsl::GetProlongatePackedProgram()
 {
     if (!prolongate_packed_program_)
     {
@@ -225,7 +224,7 @@ GLProgram* MultigridCoreGlsl::GetProlongatePackedProgram()
     return prolongate_packed_program_.get();
 }
 
-GLProgram* MultigridCoreGlsl::GetRelaxPackedProgram()
+GLProgram* PoissonCoreGlsl::GetRelaxPackedProgram()
 {
     if (!relax_packed_program_)
     {
@@ -238,7 +237,7 @@ GLProgram* MultigridCoreGlsl::GetRelaxPackedProgram()
     return relax_packed_program_.get();
 }
 
-GLProgram* MultigridCoreGlsl::GetRelaxZeroGuessPackedProgram()
+GLProgram* PoissonCoreGlsl::GetRelaxZeroGuessPackedProgram()
 {
     if (!relax_zero_guess_packed_program_)
     {
@@ -251,7 +250,7 @@ GLProgram* MultigridCoreGlsl::GetRelaxZeroGuessPackedProgram()
     return relax_zero_guess_packed_program_.get();
 }
 
-GLProgram* MultigridCoreGlsl::GetResidualPackedProgram()
+GLProgram* PoissonCoreGlsl::GetResidualPackedProgram()
 {
     if (!residual_packed_program_)
     {
@@ -264,7 +263,7 @@ GLProgram* MultigridCoreGlsl::GetResidualPackedProgram()
     return residual_packed_program_.get();
 }
 
-GLProgram* MultigridCoreGlsl::GetRestrictPackedProgram()
+GLProgram* PoissonCoreGlsl::GetRestrictPackedProgram()
 {
     if (!restrict_packed_program_)
     {
@@ -277,7 +276,7 @@ GLProgram* MultigridCoreGlsl::GetRestrictPackedProgram()
     return restrict_packed_program_.get();
 }
 
-GLProgram* MultigridCoreGlsl::GetRestrictResidualPackedProgram()
+GLProgram* PoissonCoreGlsl::GetRestrictResidualPackedProgram()
 {
     if (!restrict_residual_packed_program_)
     {

@@ -25,7 +25,7 @@
 //   So this is also the number of iterations we choose for the finest level
 //   smoothing.
 
-MultigridPoissonSolver::MultigridPoissonSolver(MultigridCore* core)
+MultigridPoissonSolver::MultigridPoissonSolver(PoissonCore* core)
     : core_(core)
     , volume_resource_()
     , residual_volume_()
@@ -73,6 +73,11 @@ void MultigridPoissonSolver::SetAuxiliaryVolumes(
 }
 
 void MultigridPoissonSolver::SetDiagnosis(bool diagnosis)
+{
+
+}
+
+void MultigridPoissonSolver::SetNestedSolverIterations(int num_iterations)
 {
 
 }

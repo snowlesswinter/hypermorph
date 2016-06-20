@@ -9,7 +9,7 @@
 #include "multigrid_poisson_solver.h"
 
 PreconditionedConjugateGradient::PreconditionedConjugateGradient(
-        MultigridCore* core)
+        PoissonCore* core)
     : core_(core)
     , preconditioner_(new MultigridPoissonSolver(core))
     , alpha_()
@@ -19,6 +19,7 @@ PreconditionedConjugateGradient::PreconditionedConjugateGradient(
     , residual_()
     , aux_()
     , search_()
+    , num_nested_iterations_(2)
     , diagnosis_(false)
 {
 
@@ -83,6 +84,12 @@ void PreconditionedConjugateGradient::SetDiagnosis(bool diagnosis)
     diagnosis_ = diagnosis;
 }
 
+void PreconditionedConjugateGradient::SetNestedSolverIterations(
+    int num_iterations)
+{
+    num_nested_iterations_ = num_iterations;
+}
+
 void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
                                             std::shared_ptr<GraphicsVolume> b,
                                             float cell_size,
@@ -108,7 +115,8 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
         r = residual_;
     }
 
-    preconditioner_->set_num_finest_level_iteration_per_pass(2);
+    preconditioner_->set_num_finest_level_iteration_per_pass(
+        num_nested_iterations_);
     preconditioner_->Solve(search_, r, cell_size, 1);
     core_->ComputeRho(*rho_, *search_, *r);
     for (int i = 0; i < iteration_times - 1; i++) {

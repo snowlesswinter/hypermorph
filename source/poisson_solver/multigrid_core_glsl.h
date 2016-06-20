@@ -1,16 +1,16 @@
-#ifndef _MULTIGRID_CORE_GLSL_H_
-#define _MULTIGRID_CORE_GLSL_H_
+#ifndef _POISSON_CORE_GLSL_H_
+#define _POISSON_CORE_GLSL_H_
 
 #include <memory>
 
 #include "multigrid_core.h"
 
 class GLProgram;
-class MultigridCoreGlsl : public MultigridCore
+class PoissonCoreGlsl : public PoissonCore
 {
 public:
-    MultigridCoreGlsl();
-    virtual ~MultigridCoreGlsl();
+    PoissonCoreGlsl();
+    virtual ~PoissonCoreGlsl();
 
     virtual std::shared_ptr<GraphicsMemPiece> CreateMemPiece(int size) override;
     virtual std::shared_ptr<GraphicsVolume> CreateVolume(
@@ -76,4 +76,4 @@ private:
     std::unique_ptr<GLProgram> restrict_residual_packed_program_;
 };
 
-#endif // _MULTIGRID_CORE_GLSL_H_
+#endif // _POISSON_CORE_GLSL_H_
