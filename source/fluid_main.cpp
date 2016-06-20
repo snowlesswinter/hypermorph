@@ -296,10 +296,13 @@ void Reshape(int w, int h)
 void UpdateWindowPlacement()
 {
     glm::ivec2 viewport_size = CalculateViewportSize();
+    bool need_reposition = viewport_size != viewport_size_;
     glutReshapeWindow(viewport_size.x, viewport_size.y);
 
-    glm::ivec2 position = CalculateWindowPosition(viewport_size);
-    glutPositionWindow(position.x, position.y);
+    if (need_reposition) {
+        glm::ivec2 position = CalculateWindowPosition(viewport_size);
+        glutPositionWindow(position.x, position.y);
+    }
 }
 
 void Keyboard(unsigned char key, int x, int y)

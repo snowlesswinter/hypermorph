@@ -3,18 +3,13 @@ advection method = mcsl
 grid size = (96,96,96)
 grid size = (128,128,128)
 smoke weight = 0.01
-impulse temperature = 4
-impulse density = 0.6
-temperature dissipation = 0.2
-velocity dissipation = 0.008
+temperature dissipation = 0.1
 density dissipation = 0.05
 
-splat radius factor = 0.45
 number of jacobi iterations = 60
-num multigrid iterations = 10
+num multigrid iterations = 2
 num full multigrid iterations = 2
-num mgpcg iterations = 2
-fixed time step = 0.3
+num mgpcg iterations = 1
 auto impulse = 0
 staggered = 1
 outflow = 1
@@ -29,11 +24,9 @@ vorticity confinement = -0.48
 fluid impulse = hf
 
 
-impulse temperature = 0.
 velocity dissipation = 0.
 impulse density = 0.
 density dissipation = 0.
-fixed time step = 0.3
 splat radius factor = 0.24
 
 fixed time step = 0.1

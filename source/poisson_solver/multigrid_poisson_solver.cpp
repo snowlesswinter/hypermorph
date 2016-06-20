@@ -180,7 +180,7 @@ void MultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
     std::shared_ptr<GraphicsVolume3> coarsest = volumes[num_of_levels - 1];
     core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y(), level_cell_size);
     core_->Relax(*coarsest->x(), *coarsest->y(), level_cell_size,
-                 times_to_iterate - 2);
+                 times_to_iterate - 2 + 30);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[j + 1]->x();

@@ -47,6 +47,7 @@ uint3 FromGlmVector(const glm::ivec3& v)
 PoissonImplCuda::PoissonImplCuda(BlockArrangement* ba, AuxBufferManager* bm)
     : ba_(ba)
     , bm_(bm)
+    , outflow_(false)
 {
 }
 
@@ -90,7 +91,8 @@ void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
                                    float cell_size,
                                    const glm::ivec3& volume_size)
 {
-    LaunchApplyStencil(aux, search, cell_size, FromGlmVector(volume_size), ba_);
+    LaunchApplyStencil(aux, search, cell_size, outflow_,
+                       FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,

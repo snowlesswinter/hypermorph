@@ -35,8 +35,34 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_0;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_1;
 
+struct UpperBoundaryHandlerNeumann
+{
+    __device__ void HandleUpperBoundary(float* north, float center, int y,
+                                        int height)
+    {
+    }
+};
+
+struct UpperBoundaryHandlerOutflow
+{
+    __device__ void HandleUpperBoundary(float* north, float center, int y,
+                                        int height)
+    {
+        if (y == height - 1) {
+            if (center > 0.0f)
+                *north = -center;
+            else
+                *north = 0.0f;
+        }
+    }
+};
+
+// =============================================================================
+
+template <typename UpperBoundaryHandler>
 __global__ void ApplyStencilKernel(float inverse_square_cell_size,
-                                   uint3 volume_size)
+                                   uint3 volume_size,
+                                   UpperBoundaryHandler handler)
 {
     uint x = blockIdx.x * blockDim.x + threadIdx.x;
     uint y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -52,6 +78,8 @@ __global__ void ApplyStencilKernel(float inverse_square_cell_size,
     float east =   tex3D(tex, x + 1.0f, y,        z);
     float north =  tex3D(tex, x,        y + 1.0f, z);
     float far =    tex3D(tex, x,        y,        z + 1.0f);
+
+    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     float v = (north + south + east + west + far + near - 6.0f * center) *
         inverse_square_cell_size;
@@ -130,7 +158,7 @@ struct SchemeBeta : public SchemeDefault
 // =============================================================================
 
 void LaunchApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
-                        uint3 volume_size, BlockArrangement* ba)
+                        bool outflow, uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
         return;
@@ -143,8 +171,15 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
-    ApplyStencilKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
-                                        volume_size);
+
+    UpperBoundaryHandlerOutflow outflow_handler;
+    UpperBoundaryHandlerNeumann neumann_handler;
+    if (outflow)
+        ApplyStencilKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
+                                            volume_size, outflow_handler);
+    else
+        ApplyStencilKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
+                                            volume_size, neumann_handler);
 }
 
 void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,

@@ -62,9 +62,12 @@ public:
     void UpdateVector(cudaArray* dest, cudaArray* v0, cudaArray* v1,
                       float* coef, float sign, const glm::ivec3& volume_size);
 
+    void set_outflow(bool outflow) { outflow_ = outflow; }
+
 private:
     BlockArrangement* ba_;
     AuxBufferManager* bm_;
+    bool outflow_;
 };
 
 #endif // _POISSON_IMPL_CUDA_H_
