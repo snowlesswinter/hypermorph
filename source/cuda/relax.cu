@@ -26,7 +26,8 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
@@ -60,9 +61,9 @@ struct UpperBoundaryHandlerOutflow
 __global__ void DampedJacobiKernel(float minus_square_cell_size,
                                    float omega_over_beta, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -533,9 +534,9 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
                                                uint3 volume_size, uint offset,
                                                UpperBoundaryHandler handler)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     x = (x << 1) + ((offset + y + z) & 0x1);
 

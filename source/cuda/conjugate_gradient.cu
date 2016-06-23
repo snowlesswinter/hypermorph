@@ -28,7 +28,8 @@
 
 #include "aux_buffer_manager.h"
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
@@ -64,9 +65,9 @@ __global__ void ApplyStencilKernel(float inverse_square_cell_size,
                                    uint3 volume_size,
                                    UpperBoundaryHandler handler)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -87,11 +88,26 @@ __global__ void ApplyStencilKernel(float inverse_square_cell_size,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void UpdateVectorKernel(float* coef, float sign, uint3 volume_size)
+__global__ void ScaleVectorKernel(float* coef, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float e1 = tex3D(tex_1, x, y, z);
+
+    auto r = __float2half_rn(*coef * e1);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void ScaledAddKernel(float* coef, float sign, uint3 volume_size)
+{
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -241,16 +257,10 @@ void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
     ReduceVolume(rho_new, scheme, volume_size, ba, bm);
 }
 
-void LaunchUpdateVector(cudaArray* dest, cudaArray* v0, cudaArray* v1,
-                        float* coef, float sign, uint3 volume_size,
-                        BlockArrangement* ba)
+void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
+                     float sign, uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
-        return;
-
-    auto bound_0 = BindHelper::Bind(&tex_0, v0, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_0.error() != cudaSuccess)
         return;
 
     auto bound_1 = BindHelper::Bind(&tex_1, v1, false, cudaFilterModePoint,
@@ -261,5 +271,14 @@ void LaunchUpdateVector(cudaArray* dest, cudaArray* v0, cudaArray* v1,
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
-    UpdateVectorKernel<<<grid, block>>>(coef, sign, volume_size);
+    if (v0) {
+        auto bound_0 = BindHelper::Bind(&tex_0, v0, false, cudaFilterModePoint,
+                                        cudaAddressModeClamp);
+        if (bound_0.error() != cudaSuccess)
+            return;
+
+        ScaledAddKernel<<<grid, block>>>(coef, sign, volume_size);
+    } else {
+        ScaleVectorKernel<<<grid, block>>>(coef, volume_size);
+    }
 }

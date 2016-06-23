@@ -74,11 +74,13 @@ public:
     virtual void ComputeRho(const GraphicsMemPiece& rho,
                             const GraphicsVolume& search,
                             const GraphicsVolume& residual) override;
-    virtual void UpdateVector(const GraphicsVolume& dest,
-                              const GraphicsVolume& v0,
-                              const GraphicsVolume& v1,
-                              const GraphicsMemPiece& coef,
-                              float sign) override;
+    virtual void ScaledAdd(const GraphicsVolume& dest, const GraphicsVolume& v0,
+                           const GraphicsVolume& v1,
+                           const GraphicsMemPiece& coef, float sign) override;
+    virtual void ScaleVector(const GraphicsVolume& dest,
+                             const GraphicsVolume& v,
+                             const GraphicsMemPiece& coef,
+                             float sign) override;
 };
 
 #endif // _MULTIGRID_CORE_CUDA_H_

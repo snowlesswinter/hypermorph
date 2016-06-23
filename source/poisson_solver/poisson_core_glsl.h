@@ -73,11 +73,13 @@ public:
                                    const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& residual) override;
-    virtual void UpdateVector(const GraphicsVolume& dest,
-                              const GraphicsVolume& v0,
-                              const GraphicsVolume& v1,
-                              const GraphicsMemPiece& coef,
-                              float sign) override;
+    virtual void ScaledAdd(const GraphicsVolume& dest, const GraphicsVolume& v0,
+                           const GraphicsVolume& v1,
+                           const GraphicsMemPiece& coef, float sign) override;
+    virtual void ScaleVector(const GraphicsVolume& dest,
+                             const GraphicsVolume& v,
+                             const GraphicsMemPiece& coef,
+                             float sign) override;
 
 private:
     GLProgram* GetProlongatePackedProgram();

@@ -151,12 +151,21 @@ void PoissonCoreCuda::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
                                             residual.cuda_volume());
 }
 
-void PoissonCoreCuda::UpdateVector(const GraphicsVolume& dest,
-                                   const GraphicsVolume& v0,
-                                   const GraphicsVolume& v1,
-                                   const GraphicsMemPiece& coef, float sign)
+void PoissonCoreCuda::ScaledAdd(const GraphicsVolume& dest,
+                                const GraphicsVolume& v0,
+                                const GraphicsVolume& v1,
+                                const GraphicsMemPiece& coef, float sign)
 {
-    CudaMain::Instance()->UpdateVector(dest.cuda_volume(), v0.cuda_volume(),
+    CudaMain::Instance()->ScaledAdd(dest.cuda_volume(), v0.cuda_volume(),
                                        v1.cuda_volume(), coef.cuda_mem_piece(),
                                        sign);
+}
+
+void PoissonCoreCuda::ScaleVector(const GraphicsVolume& dest,
+                                  const GraphicsVolume& v,
+                                  const GraphicsMemPiece& coef,
+                                  float sign)
+{
+    CudaMain::Instance()->ScaleVector(dest.cuda_volume(), v.cuda_volume(),
+                                      coef.cuda_mem_piece(), sign);
 }

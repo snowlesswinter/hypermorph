@@ -26,7 +26,8 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -65,9 +66,9 @@ __global__ void ApplyBuoyancyKernel(float time_step, float ambient_temperature,
                                     float accel_factor, float gravity,
                                     uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -88,8 +89,8 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
                                              float accel_factor, float gravity,
                                              uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || z >= volume_size.z)
         return;
@@ -123,9 +124,9 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
                                         uint3 volume_size,
                                         UpperBoundaryHandler handler)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -175,9 +176,9 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
                                                  uint3 volume_size,
                                                  UpperBoundaryHandler handler)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -213,9 +214,9 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
 __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
                                                uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -263,9 +264,9 @@ __global__ void RoundPassedKernel(int* dest_array, int round, int x)
 __global__ void SubtractGradientKernel(float half_inverse_cell_size,
                                        uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -326,9 +327,9 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
 __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
                                                 uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;

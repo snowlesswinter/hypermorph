@@ -27,7 +27,8 @@
 
 #include "advection_method.h"
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
@@ -157,9 +158,9 @@ __device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_ste
 template <bool MidPoint>
 __global__ void AdvectFieldBfeccKernel(float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocity(coord);
@@ -190,9 +191,9 @@ __global__ void AdvectFieldBfeccKernel(float time_step_over_cell_size, float dis
 template <bool MidPoint>
 __global__ void AdvectFieldMacCormackKernel(float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -232,9 +233,9 @@ __global__ void AdvectFieldSemiLagrangianKernel(float time_step_over_cell_size,
                                                 float dissipation,
                                                 uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
@@ -251,9 +252,9 @@ template <bool MidPoint>
 __global__ void BfeccRemoveErrorKernel(float time_step_over_cell_size,
                                        uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 vel = GetVelocity(coord);

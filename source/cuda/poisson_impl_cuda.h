@@ -59,8 +59,8 @@ public:
     void ComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
                            cudaArray* aux, cudaArray* residual,
                            const glm::ivec3& volume_size);
-    void UpdateVector(cudaArray* dest, cudaArray* v0, cudaArray* v1,
-                      float* coef, float sign, const glm::ivec3& volume_size);
+    void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
+                   float sign, const glm::ivec3& volume_size);
 
     void set_outflow(bool outflow) { outflow_ = outflow; }
 

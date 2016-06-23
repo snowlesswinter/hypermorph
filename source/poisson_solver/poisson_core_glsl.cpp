@@ -224,10 +224,17 @@ void PoissonCoreGlsl::ComputeRhoAndBeta(const GraphicsMemPiece& beta,
 
 }
 
-void PoissonCoreGlsl::UpdateVector(const GraphicsVolume& dest,
-                                   const GraphicsVolume& v0,
-                                   const GraphicsVolume& v1,
-                                   const GraphicsMemPiece& coef, float sign)
+void PoissonCoreGlsl::ScaledAdd(const GraphicsVolume& dest,
+                                const GraphicsVolume& v0,
+                                const GraphicsVolume& v1,
+                                const GraphicsMemPiece& coef, float sign)
+{
+
+}
+
+void PoissonCoreGlsl::ScaleVector(const GraphicsVolume& dest,
+                                  const GraphicsVolume& v,
+                                  const GraphicsMemPiece& coef, float sign)
 {
 
 }

@@ -116,7 +116,7 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
                                             float cell_size,
                                             int iteration_times)
 {
-    u->Clear();
+    bool initialized = false;
     std::shared_ptr<GraphicsVolume> r = b;
 
     // |residual_| is actually not necessary in solving the pressure. It is
@@ -131,9 +131,12 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
                 return;
         }
 
+        u->Clear();
+
         // Copy |b| to |residual_|.
         core_->ComputeResidual(*residual_, *u, *b, cell_size);
         r = residual_;
+        initialized = true;
     }
 
     preconditioner_->set_num_finest_level_iteration_per_pass(
@@ -144,18 +147,31 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
         core_->ApplyStencil(*aux_, *search_, cell_size);
 
         core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
-        core_->UpdateVector(*r, *r, *aux_, *alpha_, -1.0f);
+        core_->ScaledAdd(*r, *r, *aux_, *alpha_, -1.0f);
 
         preconditioner_->Solve(aux_, r, cell_size, 1);
 
         core_->ComputeRhoAndBeta(*beta_, *rho_new_, *rho_, *aux_, *r);
         std::swap(rho_new_, rho_);
 
-        core_->UpdateVector(*u, *u, *search_, *alpha_, 1.0f);
-        core_->UpdateVector(*search_, *aux_, *search_, *beta_, 1.0f);
+        UpdateU(*u, *search_, *alpha_, &initialized);
+        core_->ScaledAdd(*search_, *aux_, *search_, *beta_, 1.0f);
     }
 
     core_->ApplyStencil(*aux_, *search_, cell_size);
     core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
-    core_->UpdateVector(*u, *u, *search_, *alpha_, 1.0f);
+    UpdateU(*u, *search_, *alpha_, &initialized);
+}
+
+void PreconditionedConjugateGradient::UpdateU(const GraphicsVolume& u,
+                                              const GraphicsVolume& search,
+                                              const GraphicsMemPiece& alpha,
+                                              bool* initialized)
+{
+    if (*initialized)
+        core_->ScaledAdd(u, u, search, alpha, 1.0f);
+    else
+        core_->ScaleVector(u, search, alpha, 1.0f);
+
+    *initialized = true;
 }

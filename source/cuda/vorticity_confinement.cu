@@ -26,7 +26,8 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -45,9 +46,9 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
 
 __global__ void AddCurlPsiKernel(float inverse_cell_size, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     // Keep away from the shearing boundaries.
     int d = 8;
@@ -89,9 +90,9 @@ __global__ void AddCurlPsiKernel(float inverse_cell_size, uint3 volume_size)
 
 __global__ void ApplyVorticityConfinementStaggeredKernel(uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x == 0 || y == 0 || z == 0)
         return;
@@ -121,9 +122,9 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
     float coeff, float cell_size, float half_inverse_cell_size,
     uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -193,9 +194,9 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
 __global__ void ComputeCurlStaggeredKernel(uint3 volume_size,
                                            float inverse_cell_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -256,9 +257,9 @@ __global__ void ComputeCurlStaggeredKernel(uint3 volume_size,
 
 __global__ void ComputeDeltaVorticityKernel(uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -283,9 +284,9 @@ __global__ void ComputeDeltaVorticityKernel(uint3 volume_size)
 
 __global__ void DecayVorticesStaggeredKernel(float time_step, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -316,9 +317,9 @@ __global__ void DecayVorticesStaggeredKernel(float time_step, uint3 volume_size)
 
 __global__ void StretchVorticesStaggeredKernel(float scale, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;

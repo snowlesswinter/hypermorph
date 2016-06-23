@@ -26,7 +26,8 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
@@ -35,9 +36,9 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_fine;
 
 __global__ void ComputeResidualKernel(float inverse_h_square, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -60,9 +61,9 @@ __global__ void ComputeResidualKernel(float inverse_h_square, uint3 volume_size)
 
 __global__ void ProlongateLerpKernel(uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -95,9 +96,9 @@ __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
                                          float omega_times_inverse_beta,
                                          uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -122,9 +123,9 @@ __global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
 
 __global__ void RestrictLerpKernel(uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;

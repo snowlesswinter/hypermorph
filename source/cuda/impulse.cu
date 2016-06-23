@@ -26,7 +26,8 @@
 #include <helper_math.h>
 
 #include "block_arrangement.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 #include "fluid_impulse.h"
 
 surface<void, cudaSurfaceType3D> surf;
@@ -36,9 +37,9 @@ __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
                                     float radius, float value,
                                     uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = VolumeX();
     int y = 1 + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int z = VolumeZ();
 
     if (x >= volume_size.x || z >= volume_size.z)
         return;
@@ -61,9 +62,9 @@ __global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
 __global__ void HotFloorKernel(float3 center_point, float3 hotspot,
                                float radius, float value, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = VolumeX();
     int y = 1 + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int z = VolumeZ();
 
     if (x >= volume_size.x || z >= volume_size.z)
         return;
@@ -82,9 +83,9 @@ __global__ void HotFloorKernel(float3 center_point, float3 hotspot,
 __global__ void ImpulseDensityKernel(float3 center_point, float radius,
                                      float value, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = VolumeX();
     int y = 1 + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int z = VolumeZ();
 
     if (x >= volume_size.x || z >= volume_size.z)
         return;
@@ -102,9 +103,9 @@ __global__ void ImpulseDensityKernel(float3 center_point, float radius,
 __global__ void GenerateHeatSphereKernel(float3 center_point, float radius,
                                          float value, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -123,9 +124,9 @@ __global__ void GenerateHeatSphereKernel(float3 center_point, float radius,
 __global__ void ImpulseDensitySphereKernel(float3 center_point, float radius,
                                            float value, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -145,8 +146,8 @@ __global__ void BuoyantJetKernel(float3 hotspot, float radius, float value,
                                  uint3 volume_size)
 {
     int x = 1 + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (y >= volume_size.y || z >= volume_size.z)
         return;

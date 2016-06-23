@@ -74,10 +74,12 @@ public:
                                    const GraphicsMemPiece& rho,
                                    const GraphicsVolume& aux,
                                    const GraphicsVolume& residual) = 0;
-    virtual void UpdateVector(const GraphicsVolume& dest,
-                              const GraphicsVolume& v0,
-                              const GraphicsVolume& v1,
-                              const GraphicsMemPiece& coef, float sign) = 0;
+    virtual void ScaledAdd(const GraphicsVolume& dest, const GraphicsVolume& v0,
+                           const GraphicsVolume& v1,
+                           const GraphicsMemPiece& coef, float sign) = 0;
+    virtual void ScaleVector(const GraphicsVolume& dest,
+                             const GraphicsVolume& v,
+                             const GraphicsMemPiece& coef, float sign) = 0;
 };
 
 #endif // _POISSON_CORE_H_

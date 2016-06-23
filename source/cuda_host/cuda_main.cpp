@@ -350,15 +350,24 @@ void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
                                      aux->size());
 }
 
-void CudaMain::UpdateVector(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> v0,
-                            std::shared_ptr<CudaVolume> v1,
-                            std::shared_ptr<CudaMemPiece> coef, float sign)
+void CudaMain::ScaledAdd(std::shared_ptr<CudaVolume> dest,
+                         std::shared_ptr<CudaVolume> v0,
+                         std::shared_ptr<CudaVolume> v1,
+                         std::shared_ptr<CudaMemPiece> coef, float sign)
 {
-    poisson_impl_->UpdateVector(dest->dev_array(), v0->dev_array(),
-                                v1->dev_array(),
-                                reinterpret_cast<float*>(coef->mem()), sign,
-                                dest->size());
+    poisson_impl_->ScaledAdd(dest->dev_array(), v0->dev_array(),
+                             v1->dev_array(),
+                             reinterpret_cast<float*>(coef->mem()), sign,
+                             dest->size());
+}
+
+void CudaMain::ScaleVector(std::shared_ptr<CudaVolume> dest,
+                           std::shared_ptr<CudaVolume> v,
+                           std::shared_ptr<CudaMemPiece> coef, float sign)
+{
+    poisson_impl_->ScaledAdd(dest->dev_array(), nullptr, v->dev_array(),
+                             reinterpret_cast<float*>(coef->mem()), sign,
+                             dest->size());
 }
 
 void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

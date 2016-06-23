@@ -19,8 +19,8 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_COMMON_H_
-#define _CUDA_COMMON_H_
+#ifndef _CUDA_COMMON_HOST_H_
+#define _CUDA_COMMON_HOST_H_
 
 template <typename SurfaceType>
 cudaError_t BindCudaSurfaceToArray(SurfaceType* surf, cudaArray* cuda_array)
@@ -113,4 +113,4 @@ public:
     }
 };
 
-#endif // _CUDA_COMMON_H_
+#endif // _CUDA_COMMON_HOST_H_

@@ -27,7 +27,8 @@
 
 #include <helper_math.h>
 
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 #include "third_party/glm/common.hpp"
 #include "third_party/glm/glm.hpp"
 #include "third_party/glm/mat3x3.hpp"
@@ -42,9 +43,9 @@ surface<void, cudaSurfaceType2D> raycast_dest;
 
 __global__ void ClearVolume4Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -55,9 +56,9 @@ __global__ void ClearVolume4Kernel(glm::vec4 value, uint3 volume_size)
 
 __global__ void ClearVolume2Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -68,9 +69,9 @@ __global__ void ClearVolume2Kernel(glm::vec4 value, uint3 volume_size)
 
 __global__ void ClearVolume1Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -81,9 +82,9 @@ __global__ void ClearVolume1Kernel(glm::vec4 value, uint3 volume_size)
 
 __global__ void ClearVolumeHalf4Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -98,9 +99,9 @@ __global__ void ClearVolumeHalf4Kernel(glm::vec4 value, uint3 volume_size)
 
 __global__ void ClearVolumeHalf2Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -113,9 +114,9 @@ __global__ void ClearVolumeHalf2Kernel(glm::vec4 value, uint3 volume_size)
 
 __global__ void ClearVolumeHalf1Kernel(glm::vec4 value, uint3 volume_size)
 {
-    uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint z = blockIdx.z * blockDim.z + threadIdx.z;
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -151,8 +152,8 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                               float light_scale, float step_absorption,
                               float density_factor, float occlusion_factor)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = VolumeX();
+    int y = VolumeY();
 
     if (x >= static_cast<int>(viewport_size.x) ||
             y >= static_cast<int>(viewport_size.y))
@@ -193,7 +194,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 pos = ray_start;
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
-    float transmittance = 1.0f;
+    float visibility = 1.0f;
     float luminance = 0.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
@@ -221,10 +222,10 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             l_pos += light_dir;
         }
 
-        transmittance *= __expf(-density * step_absorption);
-        luminance += light_weight * transmittance * density;
+        visibility *= __expf(-density * step_absorption);
+        luminance += light_weight * visibility * density;
 
-        if (transmittance <= 0.01f)
+        if (visibility <= 0.01f)
             break;
     }
 
@@ -232,7 +233,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
         __float2half_rn(light_intensity.x * luminance * step_size),
         __float2half_rn(light_intensity.y * luminance * step_size),
         __float2half_rn(light_intensity.z * luminance * step_size),
-        __float2half_rn(1.0f - transmittance));
+        __float2half_rn(1.0f - visibility));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
@@ -247,8 +248,8 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
 {
     const glm::vec3 light_pos(1.5f, 0.7f, 0.0f);
 
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = VolumeX();
+    int y = VolumeY();
 
     if (x >= static_cast<int>(viewport_size.x) ||
             y >= static_cast<int>(viewport_size.y))
@@ -282,7 +283,7 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 pos = ray_start;
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
-    float transmittance = 1.0f;
+    float visibility = 1.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
             i++, pos += step, travel -= step_size) {
@@ -291,15 +292,15 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
         if (density < 0.01f)
             continue;
 
-        transmittance *= 1.0f - density * step_absorption;
-        if (transmittance <= 0.01f)
+        visibility *= 1.0f - density * step_absorption;
+        if (visibility <= 0.01f)
             break;
     }
 
     auto raw = make_ushort4(__float2half_rn(light_intensity.x),
                             __float2half_rn(light_intensity.y),
                             __float2half_rn(light_intensity.z),
-                            __float2half_rn(1.0f - transmittance));
+                            __float2half_rn(1.0f - visibility));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }
@@ -319,8 +320,8 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
     smoke_color = glm::normalize(glm::vec3(140.0f, 190.0f, 154.0f)) * 15.0f;
     smoke_color = glm::normalize(glm::vec3(128.0f, 190.0f, 234.0f)) * 15.0f;
 
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = VolumeX();
+    int y = VolumeY();
 
     if (x >= static_cast<int>(viewport_size.x) ||
         y >= static_cast<int>(viewport_size.y))
@@ -354,7 +355,7 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
     glm::vec3 pos = ray_start;
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
     float travel = glm::distance(ray_stop, ray_start);
-    float transmittance = 1.0f;
+    float visibility = 1.0f;
     float luminance = 0.0f;
 
     for (int i = 0; i < num_samples && travel > 0.0f;
@@ -384,10 +385,10 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
             l_pos += light_dir;
         }
 
-        transmittance *= 1.0f - density * step_absorption;
-        luminance += light_weight * transmittance * density;
+        visibility *= 1.0f - density * step_absorption;
+        luminance += light_weight * visibility * density;
 
-        if (transmittance <= 0.01f)
+        if (visibility <= 0.01f)
             break;
     }
 
@@ -396,7 +397,7 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
         __float2half_rn(dark.x + (light_intensity.x * alpha + (1.0f - alpha) * smoke_color.x) * luminance * step_size),
         __float2half_rn(dark.y + (light_intensity.y * alpha + (1.0f - alpha) * smoke_color.y) * luminance * step_size),
         __float2half_rn(dark.z + (light_intensity.z * alpha + (1.0f - alpha) * smoke_color.z) * luminance * step_size),
-        __float2half_rn(1.0f - transmittance));
+        __float2half_rn(1.0f - visibility));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }

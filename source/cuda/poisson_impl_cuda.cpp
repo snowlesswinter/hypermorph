@@ -120,10 +120,9 @@ void PoissonImplCuda::ComputeRhoAndBeta(float* beta, float* rho_new,
                             FromGlmVector(volume_size), ba_, bm_);
 }
 
-void PoissonImplCuda::UpdateVector(cudaArray* dest, cudaArray* v0,
-                                   cudaArray* v1, float* coef, float sign,
-                                   const glm::ivec3& volume_size)
+void PoissonImplCuda::ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
+                                float* coef, float sign,
+                                const glm::ivec3& volume_size)
 {
-    LaunchUpdateVector(dest, v0, v1, coef, sign, FromGlmVector(volume_size),
-                       ba_);
+    LaunchScaledAdd(dest, v0, v1, coef, sign, FromGlmVector(volume_size), ba_);
 }

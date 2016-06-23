@@ -47,6 +47,9 @@ public:
                        int iteration_times) override;
 
 private:
+    void UpdateU(const GraphicsVolume& u, const GraphicsVolume& search,
+                 const GraphicsMemPiece& alpha, bool* initialized);
+
     PoissonCore* core_;
     std::unique_ptr<MultigridPoissonSolver> preconditioner_;
     std::shared_ptr<GraphicsMemPiece> alpha_;

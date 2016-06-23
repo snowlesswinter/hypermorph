@@ -28,7 +28,8 @@
 #include "advection_method.h"
 #include "block_arrangement.h"
 #include "field_offset.h"
-#include "cuda_common.h"
+#include "cuda_common_host.h"
+#include "cuda_common_kern.h"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -70,9 +71,9 @@ __device__ inline float3 AdvectImpl<true>(float3 vel, float3 pos, float time_ste
 template <bool MidPoint>
 __global__ void AdvectFieldBfeccStaggeredOffsetKernel(float3 offset, float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -106,9 +107,9 @@ __global__ void AdvectFieldBfeccStaggeredOffsetKernel(float3 offset, float time_
 template <bool MidPoint>
 __global__ void AdvectFieldMacCormackStaggeredOffsetKernel(float3 offset, float time_step_over_cell_size, float dissipation, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -151,9 +152,9 @@ __global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel(
     float3 offset, float time_step_over_cell_size, float dissipation,
     uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -172,9 +173,9 @@ template <bool MidPoint>
 __global__ void BfeccRemoveErrorStaggeredOffsetKernel(
     float3 offset, float time_step_over_cell_size, uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
