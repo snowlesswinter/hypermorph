@@ -995,26 +995,28 @@ void FluidSimulator::RestoreVorticity(float delta_time, float cell_size)
         ComputeCurl(vorticity, velocity_prime_, cell_size);
         BuildVorticityConfinemnet(delta_time, cell_size);
 
-        GraphicsVolume3 temp(general1a_, general1b_, general1c_);
-        StretchVortices(temp, vorticity, delta_time, cell_size);
-        DecayVortices(temp, general1d_, delta_time, cell_size);
+        if (false) {
+            GraphicsVolume3 temp(general1a_, general1b_, general1c_);
+            StretchVortices(temp, vorticity, delta_time, cell_size);
+            DecayVortices(temp, general1d_, delta_time, cell_size);
 
-        //////////////////////////
-        general1d_->Clear();
-        //////////////////////////
+            //////////////////////////
+            general1d_->Clear();
+            //////////////////////////
 
-        AdvectVortices(vorticity, temp, general1d_, cell_size, delta_time);
+            AdvectVortices(vorticity, temp, general1d_, cell_size, delta_time);
 
-        //////////////////////////
-        general1a_->Clear();
-        general1b_->Clear();
-        general1c_->Clear();
-        //////////////////////////
+            //////////////////////////
+            general1a_->Clear();
+            general1b_->Clear();
+            general1c_->Clear();
+            //////////////////////////
 
-        ComputeCurl(temp, velocity_, cell_size);
-        ComputeDeltaVorticity(temp, vorticity);
-        SolvePsi(vorticity, temp, cell_size);
-        AddCurlPsi(vorticity, cell_size);
+            ComputeCurl(temp, velocity_, cell_size);
+            ComputeDeltaVorticity(temp, vorticity);
+            SolvePsi(vorticity, temp, cell_size);
+            AddCurlPsi(vorticity, cell_size);
+        }
 
         ApplyVorticityConfinemnet();
     }
