@@ -22,6 +22,9 @@
 #ifndef _CUDA_COMMON_HOST_H_
 #define _CUDA_COMMON_HOST_H_
 
+#include <cuda_runtime.h>
+#include <helper_math.h>
+
 template <typename SurfaceType>
 cudaError_t BindCudaSurfaceToArray(SurfaceType* surf, cudaArray* cuda_array)
 {
@@ -112,5 +115,7 @@ public:
                                        addr_mode);
     }
 };
+
+bool IsPow2(uint x);
 
 #endif // _CUDA_COMMON_HOST_H_

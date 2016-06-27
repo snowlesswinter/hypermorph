@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="advection.cu" />
+    <CudaCompile Include="advection_staggered.cu" />
+    <CudaCompile Include="conjugate_gradient.cu" />
+    <CudaCompile Include="cuda_core.cu" />
+    <CudaCompile Include="fluid_impl_cuda.cu" />
+    <CudaCompile Include="impulse.cu" />
+    <CudaCompile Include="poisson_impl_cuda.cu" />
+    <CudaCompile Include="relax.cu" />
+    <CudaCompile Include="vorticity_confinement.cu" />
+    <CudaCompile Include="particle\prefix_sum.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="aux_buffer_manager.cpp" />
+    <ClCompile Include="block_arrangement.cpp" />
+    <ClCompile Include="cuda_core.cpp" />
+    <ClCompile Include="fluid_impl_cuda.cpp" />
+    <ClCompile Include="graphics_resource.cpp" />
+    <ClCompile Include="poisson_impl_cuda.cpp" />
+    <ClCompile Include="cuda_common_host.cpp" />
+    <ClCompile Include="particle\test_prefix_sum.cpp">
+      <Filter>particle</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="advection_method.h" />
+    <ClInclude Include="aux_buffer_manager.h" />
+    <ClInclude Include="block_arrangement.h" />
+    <ClInclude Include="cuda_common_host.h" />
+    <ClInclude Include="cuda_common_kern.h" />
+    <ClInclude Include="cuda_core.h" />
+    <ClInclude Include="field_offset.h" />
+    <ClInclude Include="fluid_impl_cuda.h" />
+    <ClInclude Include="fluid_impulse.h" />
+    <ClInclude Include="graphics_resource.h" />
+    <ClInclude Include="kernel_launcher.h" />
+    <ClInclude Include="poisson_impl_cuda.h" />
+    <ClInclude Include="volume_reduction.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="particle">
+      <UniqueIdentifier>{5b41ea8a-395c-4291-8ae6-32364c663aa3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

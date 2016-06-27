@@ -164,11 +164,6 @@ __global__ void ReduceVolumeKernel(float* dest, float* block_results,
 
 // =============================================================================
 
-bool IsPow2(uint x)
-{
-    return ((x & (x - 1)) == 0);
-}
-
 template <typename DataScheme>
 void ReduceVolume(float* dest, const DataScheme& scheme, uint3 volume_size,
                   BlockArrangement* ba, AuxBufferManager* bm)

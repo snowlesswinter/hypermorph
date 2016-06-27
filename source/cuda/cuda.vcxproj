@@ -194,6 +194,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
+    <CudaCompile Include="particle\prefix_sum.cu">
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
+    </CudaCompile>
     <CudaCompile Include="poisson_impl_cuda.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
@@ -225,9 +229,11 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />
     <ClCompile Include="block_arrangement.cpp" />
+    <ClCompile Include="cuda_common_host.cpp" />
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
+    <ClCompile Include="particle\test_prefix_sum.cpp" />
     <ClCompile Include="poisson_impl_cuda.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

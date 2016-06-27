@@ -25,6 +25,9 @@
 #include <cassert>
 
 #include <cuda_runtime.h>
+#include <helper_math.h>
+
+#include "cuda_common_host.h"
 
 BlockArrangement::BlockArrangement()
     : dev_prop_(new cudaDeviceProp())
@@ -55,6 +58,61 @@ void BlockArrangement::ArrangeGrid(dim3* grid, const dim3& block,
                  (volume_size.z + bd - 1) / bd);
 }
 
+void BlockArrangement::ArrangeLinear(dim3* grid, dim3* block,
+                                     int* num_of_blocks, int* np2_last_block,
+                                     int* elements_last_block,
+                                     int* threads_last_block,
+                                     int num_of_elements)
+{
+    if (!block || !grid || !num_of_blocks || !np2_last_block)
+        return;
+
+    int max_threads = dev_prop_->maxThreadsPerBlock;
+    float blocks =
+        std::ceil(static_cast<float>(num_of_elements) / (max_threads * 2.0f));
+    int num_of_blocks_temp = std::max(1, static_cast<int>(blocks));
+    int num_of_threads = max_threads;
+    if (num_of_blocks_temp == 1)
+        num_of_threads = IsPow2(num_of_elements) ?
+            num_of_elements / 2 : (1 << std::ilogb(num_of_elements));
+
+    int elements_per_block = num_of_threads * 2;
+    int elements_last_block_temp =
+        num_of_elements - (num_of_blocks_temp - 1) * elements_per_block;
+    int threads_last_block_temp = std::max(1, elements_last_block_temp / 2);
+
+    *np2_last_block = 0;
+    if (elements_last_block_temp != elements_per_block) {
+        *np2_last_block = 1;
+        if (!IsPow2(elements_last_block_temp))
+            threads_last_block_temp = 1 << std::ilogb(elements_last_block_temp);
+    }
+
+    *num_of_blocks = num_of_blocks_temp;
+    *block = dim3(num_of_threads, 1, 1);
+    *grid = dim3(std::max(1, num_of_blocks_temp - *np2_last_block), 1, 1);
+
+    if (elements_last_block)
+        *elements_last_block = elements_last_block_temp;
+
+    if (threads_last_block)
+        *threads_last_block = threads_last_block_temp;
+}
+
+void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
+                                               const uint3& volume_size)
+{
+    if (!block || !grid)
+        return;
+
+    int bw = 8;
+    int bh = 8;
+    int bd = 8;
+    *block = dim3(bw, bh, bd);
+    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
+                 (volume_size.z + bd - 1) / bd);
+}
+
 void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
                                       const uint3& volume_size)
 {
@@ -68,20 +126,6 @@ void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
     if (!bh || !bd)
         return;
 
-    *block = dim3(bw, bh, bd);
-    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
-                 (volume_size.z + bd - 1) / bd);
-}
-
-void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
-                                               const uint3& volume_size)
-{
-    if (!block || !grid)
-        return;
-
-    int bw = 8;
-    int bh = 8;
-    int bd = 8;
     *block = dim3(bw, bh, bd);
     *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
                  (volume_size.z + bd - 1) / bd);

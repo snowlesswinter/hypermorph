@@ -19,33 +19,9 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _BLOCK_ARRANGEMENT_H_
-#define _BLOCK_ARRANGEMENT_H_
+#include "cuda_common_host.h"
 
-#include <memory>
-
-struct cudaDeviceProp;
-struct dim3;
-struct uint3;
-class BlockArrangement
+bool IsPow2(uint x)
 {
-public:
-    BlockArrangement();
-    ~BlockArrangement();
-
-    void Init(int dev_id);
-
-    void ArrangeGrid(dim3* grid, const dim3& block, const uint3& volume_size);
-    void ArrangeLinear(dim3* grid, dim3* block, int* num_of_blocks,
-                       int* np2_last_block, int* elements_last_block,
-                       int* threads_last_block, int num_of_elements);
-    void ArrangePrefer3dLocality(dim3* block, dim3* grid,
-                                 const uint3& volume_size);
-    void ArrangeRowScan(dim3* block, dim3* grid, const uint3& volume_size);
-    void ArrangeSequential(dim3* block, dim3* grid, const uint3& volume_size);
-
-private:
-    std::unique_ptr<cudaDeviceProp> dev_prop_;
-};
-
-#endif // _BLOCK_ARRANGEMENT_H_
+    return ((x & (x - 1)) == 0);
+}
