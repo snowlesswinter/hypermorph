@@ -48,8 +48,8 @@ typedef std::vector<std::unique_ptr<uint, std::function<void(void*)>>>
     BlockSums;
 }
 
-template <bool StoreSum>
-__device__ uint ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
+template <bool StoreBlockSum>
+__device__ void ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
                                   uint block_index)
 {
     uint stride = 1;
@@ -70,7 +70,7 @@ __device__ uint ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
     }
 
     if (tid == 0) {
-        if (StoreSum)
+        if (StoreBlockSum)
             block_sums[block_index ? block_index : blockIdx.x] = smem[offset1];
 
         smem[offset1] = 0;
@@ -90,8 +90,6 @@ __device__ uint ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
             smem[offset1] += t;
         }
     }
-
-    return stride;
 }
 
 template <bool LastBlock>
@@ -114,7 +112,7 @@ __global__ void ApplyBlockResultsKernel(uint* prefix_sum,
         prefix_sum[index + blockDim.x] += sum;
 }
 
-template <bool StoreSum, bool NP2>
+template <bool StoreBlockSum, bool NP2>
 __global__ void BuildPrefixSumKernel(uint* prefix_sum, uint* block_sums,
                                      const uint* cell_particles_counts,
                                      uint num_of_elements, uint block_index,
@@ -140,11 +138,11 @@ __global__ void BuildPrefixSumKernel(uint* prefix_sum, uint* block_sums,
         smem[smem_index1] = cell_particles_counts[i1];
     }
 
-    ParallelPrefixSum<StoreSum>(block_sums, smem, tid, block_index);
+    ParallelPrefixSum<StoreBlockSum>(block_sums, smem, tid, block_index);
 
     __syncthreads();
 
-    // Save prefix sum into shared memory.
+    // Save prefix sum into global memory.
     prefix_sum[i0] = smem[smem_index0];
     if (NP2) {
         if (smem_index1 < num_of_elements)
@@ -166,9 +164,9 @@ void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
     int np2_last_block = 0;
     int elements_last_block = 0;
     int threads_last_block = 0;
-    ba->ArrangeLinear(&grid, &block, &num_of_blocks, &np2_last_block,
-                      &elements_last_block, &threads_last_block,
-                      num_of_elements);
+    ba->ArrangeLinearReduction(&grid, &block, &num_of_blocks, &np2_last_block,
+                               &elements_last_block, &threads_last_block,
+                               num_of_elements);
 
     int shared_size = sizeof(int) * block.x * 2;
     int shared_size_last_block = sizeof(int) * threads_last_block * 2;
@@ -215,8 +213,8 @@ void LaunchBuildCellOffsets(uint* cell_offsets,
         dim3 grid;
         int np2_last_block = 0;
         int num_of_blocks = 0;
-        ba->ArrangeLinear(&grid, &block, &num_of_blocks, &np2_last_block,
-                          nullptr, nullptr, elements);
+        ba->ArrangeLinearReduction(&grid, &block, &num_of_blocks,
+                                   &np2_last_block, nullptr, nullptr, elements);
         if (num_of_blocks > 1)
             block_sums.push_back(
                 BlockSums::value_type(

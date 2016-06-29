@@ -13,6 +13,9 @@
     <CudaCompile Include="particle\prefix_sum.cu">
       <Filter>particle</Filter>
     </CudaCompile>
+    <CudaCompile Include="particle\flip.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />

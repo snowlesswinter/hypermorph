@@ -59,10 +59,29 @@ void BlockArrangement::ArrangeGrid(dim3* grid, const dim3& block,
 }
 
 void BlockArrangement::ArrangeLinear(dim3* grid, dim3* block,
-                                     int* num_of_blocks, int* np2_last_block,
-                                     int* elements_last_block,
-                                     int* threads_last_block,
                                      int num_of_elements)
+{
+    if (!grid || !block)
+        return;
+
+    int max_threads = dev_prop_->maxThreadsPerBlock;
+    int num_of_blocks = (num_of_elements + max_threads - 1) / max_threads;
+    num_of_blocks = std::max(1, num_of_blocks);
+
+    int num_of_threads = max_threads;
+    if (num_of_blocks == 1)
+        num_of_threads = std::max(1, num_of_elements);
+
+    *block = dim3(num_of_threads, 1, 1);
+    *grid = dim3(num_of_blocks, 1, 1);
+}
+
+void BlockArrangement::ArrangeLinearReduction(dim3* grid, dim3* block,
+                                              int* num_of_blocks,
+                                              int* np2_last_block,
+                                              int* elements_last_block,
+                                              int* threads_last_block,
+                                              int num_of_elements)
 {
     if (!block || !grid || !num_of_blocks || !np2_last_block)
         return;
