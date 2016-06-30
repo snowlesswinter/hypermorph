@@ -32,6 +32,9 @@
 #include "flip.h"
 
 surface<void, cudaSurfaceType3D> surf;
+surface<void, cudaSurfaceType3D> surf_x;
+surface<void, cudaSurfaceType3D> surf_y;
+surface<void, cudaSurfaceType3D> surf_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
@@ -110,6 +113,44 @@ __device__ float3 RandomCoord(uint* random_seed, int x, int y, int z)
     return make_float3(rand_x, rand_y, rand_z);
 }
 
+__device__ float WeightKernel(float r)
+{
+    if (r >= -1.0f && r < 0.0f)
+        return 1.0f + r;
+
+    if (r < 1.0f && r > 0.0f)
+        return 1.0f - r;
+
+    return 0.0f;
+}
+
+__device__ float DistanceWeight(float x, float y, float z, float x0,
+                                float y0, float z0)
+{
+    return WeightKernel(x - x0) * WeightKernel(y - y0) * WeightKernel(z - z0);
+}
+
+__device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
+                                       const uint16_t* pos_x,
+                                       const uint16_t* pos_y,
+                                       const uint16_t* pos_z, float3 pos,
+                                       const uint16_t* field, int count)
+{
+    for (int i = 0; i < count; i++) {
+        float x = __half2float(*(pos_x + i));
+        float y = __half2float(*(pos_y + i));
+        float z = __half2float(*(pos_z + i));
+
+        float weight = DistanceWeight(x, y, z, pos.x, pos.y, pos.z);
+        *total_weight += weight;
+        *total_value += weight * __half2float(*(field + i));
+    }
+}
+
+// =============================================================================
+
+// TOTO: Need a thorough check for 1/2 voxel offset issue in position fields.
+
 __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
                                       uint16_t* pos_z, FlipParticles particles,
                                       const uint16_t* vel_x,
@@ -118,11 +159,14 @@ __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
                                       float time_step_over_cell_size)
 {
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= particles.num_of_particles_)
+    if (i >= *particles.num_of_active_particles_) // Maybe dynamic parallelism
+                                                  // is a better choice.
         return;
 
-    if (FlipParticles::IsCellUndefined(particles.cell_index_[i]))
-        return;
+    // Already constrained by |num_of_active_particles_|.
+    //
+    //if (FlipParticles::IsCellUndefined(particles.cell_index_[i]))
+    //    return;
 
     float v_x = __half2float(vel_x[i]);
     float v_y = __half2float(vel_y[i]);
@@ -138,7 +182,8 @@ __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
     float y =   __half2float(pos_y[i]);
     float z =   __half2float(pos_z[i]);
 
-    // We need a higher order scheme.
+    // TODO: We need a higher order scheme.
+    // TODO: Keep the same boundary conditions as the grid.
     pos_x[i] = __float2half_rn(x + v_x * time_step_over_cell_size);
     pos_y[i] = __float2half_rn(y + v_y * time_step_over_cell_size);
     pos_z[i] = __float2half_rn(z + v_z * time_step_over_cell_size);
@@ -194,18 +239,20 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
 // ResampleKernel().
 __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
                                                uint16_t* vel_z,
-                                               const uint* cell_index,
                                                const uint16_t* pos_x,
                                                const uint16_t* pos_y,
                                                const uint16_t* pos_z,
-                                               int num_of_particles)
+                                               int* num_of_active_particles)
 {
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= num_of_particles)
+    if (i >= *num_of_active_particles) // Maybe dynamic parallelism is a better
+                                       // choice.
         return;
 
-    if (FlipParticles::IsCellUndefined(cell_index[i]))
-        return;
+    // Already constrained by |num_of_active_particles_|.
+    //
+    //if (FlipParticles::IsCellUndefined(cell_index[i]))
+    //    return;
 
     float x = __half2float(pos_x[i]) + 0.5f;
     float y = __half2float(pos_y[i]) + 0.5f;
@@ -325,6 +372,72 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src)
         p_dst.density_    [sort_index] = p_src.density_[i];
         p_dst.temperature_[sort_index] = p_src.temperature_[i];
     }
+}
+
+__global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
+{
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    uint*     p_index = particles.particle_index_;
+    uint8_t*  p_count = particles.particle_count_;
+    uint16_t* pos_x   = particles.position_x_;
+    uint16_t* pos_y   = particles.position_y_;
+    uint16_t* pos_z   = particles.position_z_;
+    uint16_t* vel_x   = particles.velocity_x_;
+    uint16_t* vel_y   = particles.velocity_y_;
+    uint16_t* vel_z   = particles.velocity_z_;
+    uint16_t* density = particles.density_;
+
+    float weight_vel_x   = 0.0001f;
+    float weight_vel_y   = 0.0001f;
+    float weight_vel_z   = 0.0001f;
+    float weight_density = 0.0001f;
+    float avg_vel_x      = 0.0f;
+    float avg_vel_y      = 0.0f;
+    float avg_vel_z      = 0.0f;
+    float avg_density    = 0.0f;
+
+    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
+            for (int k = -1; k <= 1; k++) {
+        int3 pos = make_int3(x + k, y + j, z + i);
+        int cell = (pos.z * volume_size.y + pos.y) * volume_size.x + pos.x;
+        int index = p_index[cell];
+        int count = p_count[cell];
+        float3 coord = make_float3(x + k, y + j, z + i) + 0.5f;
+        ComputeWeightedAverage(&avg_vel_x, &weight_vel_x, pos_x + index,
+                               pos_y + index, pos_z + index,
+                               coord + make_float3(-0.5f, 0.0f, 0.0f),
+                               vel_x + index, count);
+        ComputeWeightedAverage(&avg_vel_y, &weight_vel_y, pos_x + index,
+                               pos_y + index, pos_z + index,
+                               coord + make_float3(0.0f, -0.5f, 0.0f),
+                               vel_y + index, count);
+        ComputeWeightedAverage(&avg_vel_z, &weight_vel_z, pos_x + index,
+                               pos_y + index, pos_z + index,
+                               coord + make_float3(0.0f, 0.0f, -0.5f),
+                               vel_z + index, count);
+        ComputeWeightedAverage(&avg_density, &weight_density, pos_x + index,
+                               pos_y + index, pos_z + index, coord,
+                               density + index, count);
+    }
+
+    uint16_t r_x = __float2half_rn(avg_vel_x      / weight_vel_x);
+    uint16_t r_y = __float2half_rn(avg_vel_y      / weight_vel_y);
+    uint16_t r_z = __float2half_rn(avg_vel_z      / weight_vel_z);
+    uint16_t r_d = __float2half_rn(weight_density / weight_density);
+
+    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_d, surf,   x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
+
+    // TODO: Diffuse the field if |total_weight| is too small(a hole near the
+    //       spot).
 }
 
 // =============================================================================
