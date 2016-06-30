@@ -63,6 +63,7 @@ uint3 FromGlmVector(const glm::ivec3& v)
 CudaCore::CudaCore()
     : block_arrangement_()
     , buffer_manager_()
+    , rand_helper_()
 {
 
 }

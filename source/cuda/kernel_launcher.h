@@ -27,6 +27,8 @@
 #include <cuda_runtime.h>
 #include <stdint.h>
 
+struct FlipParticles;
+class AuxBufferManager;
 class BlockArrangement;
 enum AdvectionMethod;
 enum FluidImpulse;
@@ -70,5 +72,6 @@ extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
 
 // Particles.
 extern void LaunchBuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
+extern void LaunchResample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 
 #endif // _KERNEL_LAUNCHER_H_

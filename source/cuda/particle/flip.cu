@@ -29,6 +29,7 @@
 #include "cuda/block_arrangement.h"
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
+#include "flip.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
@@ -37,50 +38,30 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
-struct FlipParticles
+__device__ bool FlipParticles::IsCellUndefined(uint cell_index)
 {
-    static const uint kCellUndefined = static_cast<uint>(-1);
-    static const uint kMaxNumParticlesPerCell = 6;
-    static const uint kMinNumParticlesPerCell = 3;
+    return cell_index == kCellUndefined;
+}
 
-    static __device__ bool IsCellUndefined(uint cell_index)
-    {
-        return cell_index == kCellUndefined;
-    }
-    static __device__ void SetUndefined(uint* cell_index)
-    {
-        *cell_index = kCellUndefined;
-    }
-    static __device__ void FreeParticle(const FlipParticles& p, uint i)
-    {
-        SetUndefined(&p.cell_index_[i]);
+__device__ void FlipParticles::SetUndefined(uint* cell_index)
+{
+    *cell_index = kCellUndefined;
+}
 
-        // Assign an invalid position value to indicate the binding kernel to
-        // treat it as a free particle.
-        p.position_x_[i] = __float2half_rn(-1.0f);
-    }
-    static __device__ bool IsStopped(float v_x, float v_y, float v_z)
-    {
-        const float v_¦Å = 0.00000001f;
-        return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
-                 v_z > v_¦Å || v_z < -v_¦Å);
-    }
+__device__ void FlipParticles::FreeParticle(const FlipParticles& p, uint i)
+{
+    SetUndefined(&p.cell_index_[i]);
 
-    uint* particle_index_;          // Cell index -> particle index.
-    uint* cell_index_;              // Particle index -> cell index.
-    uint8_t* in_cell_index_;        // Particle index -> in-cell index.
-    uint8_t* particle_count_;       // Cell index -> # particles in cell.
-    uint16_t* position_x_;
-    uint16_t* position_y_;
-    uint16_t* position_z_;
-    uint16_t* velocity_x_;
-    uint16_t* velocity_y_;
-    uint16_t* velocity_z_;
-    uint16_t* density_;
-    uint16_t* temperature_;
-    int* num_of_active_particles_;
-    int num_of_particles_;
-};
+    // Assign an invalid position value to indicate the binding kernel to
+    // treat it as a free particle.
+    p.position_x_[i] = __float2half_rn(-1.0f);
+}
+__device__ bool FlipParticles::IsStopped(float v_x, float v_y, float v_z)
+{
+    const float v_¦Å = 0.00000001f;
+    return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
+             v_z > v_¦Å || v_z < -v_¦Å);
+}
 
 // NOTE: Assuming never overflows/underflows.
 template <int Increment>
@@ -379,7 +360,7 @@ void LaunchCompactParticles(const FlipParticles& p_dst,
 
 void LaunchResample(const FlipParticles& particles, cudaArray* vel_x,
                     cudaArray* vel_y, cudaArray* vel_z, cudaArray* density,
-                    cudaArray* temperature, uint3 volume_size,
+                    cudaArray* temperature, uint random_seed, uint3 volume_size,
                     BlockArrangement* ba)
 {
     auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
@@ -410,7 +391,7 @@ void LaunchResample(const FlipParticles& particles, cudaArray* vel_x,
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ResampleKernel<<<grid, block>>>(particles, 0, volume_size);
+    ResampleKernel<<<grid, block>>>(particles, random_seed, volume_size);
 }
 
 void LaunchResetParticles(const FlipParticles& particles, BlockArrangement* ba)

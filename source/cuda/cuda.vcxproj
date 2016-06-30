@@ -224,7 +224,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="fluid_impulse.h" />
     <ClInclude Include="graphics_resource.h" />
     <ClInclude Include="kernel_launcher.h" />
+    <ClInclude Include="particle\flip.h" />
+    <ClInclude Include="particle\flip_impl_cuda.h" />
     <ClInclude Include="poisson_impl_cuda.h" />
+    <ClInclude Include="random_helper.h" />
     <ClInclude Include="volume_reduction.cuh" />
   </ItemGroup>
   <ItemGroup>
@@ -234,8 +237,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
+    <ClCompile Include="particle\flip_impl_cuda.cpp" />
     <ClCompile Include="particle\test_prefix_sum.cpp" />
     <ClCompile Include="poisson_impl_cuda.cpp" />
+    <ClCompile Include="random_helper.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

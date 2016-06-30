@@ -28,6 +28,10 @@
     <ClCompile Include="particle\test_prefix_sum.cpp">
       <Filter>particle</Filter>
     </ClCompile>
+    <ClCompile Include="random_helper.cpp" />
+    <ClCompile Include="particle\flip_impl_cuda.cpp">
+      <Filter>particle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="advection_method.h" />
@@ -43,6 +47,13 @@
     <ClInclude Include="kernel_launcher.h" />
     <ClInclude Include="poisson_impl_cuda.h" />
     <ClInclude Include="volume_reduction.cuh" />
+    <ClInclude Include="random_helper.h" />
+    <ClInclude Include="particle\flip_impl_cuda.h">
+      <Filter>particle</Filter>
+    </ClInclude>
+    <ClInclude Include="particle\flip.h">
+      <Filter>particle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">

@@ -28,6 +28,7 @@
 #include "cuda/cuda_core.h"
 #include "cuda/fluid_impl_cuda.h"
 #include "cuda/graphics_resource.h"
+#include "cuda/particle/flip_impl_cuda.h"
 #include "cuda/poisson_impl_cuda.h"
 #include "cuda_mem_piece.h"
 #include "cuda_volume.h"
@@ -97,6 +98,8 @@ CudaMain::CudaMain()
     , poisson_impl_(
         new PoissonImplCuda(core_->block_arrangement(),
                             core_->buffer_manager()))
+    , flip_impl_(
+        new FlipImplCuda(core_->block_arrangement(), core_->rand_helper()))
     , registerd_textures_()
 {
 

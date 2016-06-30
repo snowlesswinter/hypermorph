@@ -30,6 +30,7 @@
 class CudaCore;
 class CudaMemPiece;
 class CudaVolume;
+class FlipImplCuda;
 class FluidImplCuda;
 class GLSurface;
 class GLTexture;
@@ -238,6 +239,7 @@ private:
     std::unique_ptr<CudaCore> core_;
     std::unique_ptr<FluidImplCuda> fluid_impl_;
     std::unique_ptr<PoissonImplCuda> poisson_impl_;
+    std::unique_ptr<FlipImplCuda> flip_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
 };

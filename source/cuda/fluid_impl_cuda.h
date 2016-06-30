@@ -29,7 +29,6 @@
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
-class CudaArrayGroup;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;

@@ -24,6 +24,7 @@
 
 #include "aux_buffer_manager.h"
 #include "block_arrangement.h"
+#include "random_helper.h"
 #include "third_party/glm/fwd.hpp"
 
 struct cudaGraphicsResource;
@@ -73,10 +74,12 @@ public:
 
     BlockArrangement* block_arrangement() { return &block_arrangement_; }
     AuxBufferManager* buffer_manager() { return &buffer_manager_; }
+    RandomHelper* rand_helper() { return &rand_helper_; }
 
 private:
     BlockArrangement block_arrangement_;
     AuxBufferManager buffer_manager_;
+    RandomHelper rand_helper_;
 };
 
 #endif // _CUDA_CORE_H_
