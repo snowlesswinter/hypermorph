@@ -117,6 +117,11 @@ void CudaCore::UnregisterGLResource(GraphicsResource* graphics_res)
     cudaGraphicsUnregisterResource(graphics_res->resource());
 }
 
+bool CudaCore::AllocLinearMem(void** result, int size)
+{
+    return cudaMalloc(result, size) == cudaSuccess;
+}
+
 bool CudaCore::AllocMemPiece(void** result, int size)
 {
     return cudaMalloc(result, size) == cudaSuccess;

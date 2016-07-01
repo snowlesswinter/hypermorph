@@ -39,6 +39,7 @@ public:
 
     bool Init();
 
+    static bool AllocLinearMem(void** result, int size);
     static bool AllocMemPiece(void** result, int size);
     static bool AllocVolumeInPlaceMemory(cudaPitchedPtr** result,
                                          const glm::ivec3& extent,

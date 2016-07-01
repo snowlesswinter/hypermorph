@@ -22,12 +22,7 @@
 #ifndef _FLIP_H_
 #define _FLIP_H_
 
-#include "third_party/opengl/glew.h"
-
-#include <cuda_runtime.h>
-#include <driver_types.h>
-#include <helper_cuda.h>
-#include <helper_math.h>
+#include <stdint.h>
 
 struct FlipParticles
 {
@@ -40,8 +35,8 @@ struct FlipParticles
     static __device__ void FreeParticle(const FlipParticles& p, uint i);
     static __device__ bool IsStopped(float v_x, float v_y, float v_z);
 
-    uint* particle_index_;          // Cell index -> particle index.
-    uint* cell_index_;              // Particle index -> cell index.
+    uint32_t* particle_index_;      // Cell index -> particle index.
+    uint32_t* cell_index_;          // Particle index -> cell index.
     uint8_t* in_cell_index_;        // Particle index -> in-cell index.
     uint8_t* particle_count_;       // Cell index -> # particles in cell.
     uint16_t* position_x_;

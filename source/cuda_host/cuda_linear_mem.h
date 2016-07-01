@@ -19,25 +19,59 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_MEM_PIECE_H_
-#define _CUDA_MEM_PIECE_H_
+#ifndef _CUDA_LINEAR_MEM_H_
+#define _CUDA_LINEAR_MEM_H_
 
-class CudaMemPiece
+#include <memory>
+
+#include <stdint.h>
+
+namespace detail
+{
+class CudaLinearMemBase
 {
 public:
-    CudaMemPiece();
-    ~CudaMemPiece();
+    CudaLinearMemBase();
+    virtual ~CudaLinearMemBase();
 
-    bool Create(int size);
+    void* Create(int num_of_elements, int byte_width);
+    void Destroy(void* mem);
+};
+}
 
-    void* mem() const { return mem_; }
+// =============================================================================
+
+template <typename T>
+class CudaLinearMem : public detail::CudaLinearMemBase
+{
+public:
+    CudaLinearMem()
+        : mem_(nullptr)
+        , num_of_elements_(0)
+    {
+    }
+
+    virtual ~CudaLinearMem()
+    {
+        Destroy(mem_);
+    }
+
+    bool Create(int num_of_elements)
+    {
+        mem_ = reinterpret_cast<T*>(
+            CudaLinearMemBase::Create(num_of_elements, sizeof(T)));
+        if (mem_)
+            num_of_elements_ = num_of_elements;
+    }
+
+    T* mem() const { return mem_; }
 
 private:
-    CudaMemPiece(const CudaMemPiece&);
-    void operator=(const CudaMemPiece&);
+    CudaLinearMem(const CudaLinearMem&);
+    void operator=(const CudaLinearMem&);
 
-    void* mem_;
-    int size_;
+    T* mem_;
+    int num_of_elements_;
 };
 
-#endif // _CUDA_MEM_PIECE_H_
+#endif // _CUDA_LINEAR_MEM_H_

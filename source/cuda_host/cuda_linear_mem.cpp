@@ -19,25 +19,34 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_MEM_PIECE_H_
-#define _CUDA_MEM_PIECE_H_
+#include "stdafx.h"
+#include "cuda_linear_mem.h"
 
-class CudaMemPiece
+#include <cassert>
+
+#include "cuda/cuda_core.h"
+
+detail::CudaLinearMemBase::CudaLinearMemBase()
 {
-public:
-    CudaMemPiece();
-    ~CudaMemPiece();
 
-    bool Create(int size);
+}
 
-    void* mem() const { return mem_; }
+detail::CudaLinearMemBase::~CudaLinearMemBase()
+{
 
-private:
-    CudaMemPiece(const CudaMemPiece&);
-    void operator=(const CudaMemPiece&);
+}
 
-    void* mem_;
-    int size_;
-};
+void* detail::CudaLinearMemBase::Create(int num_of_elements, int byte_width)
+{
+    void* r = nullptr;
+    if (CudaCore::AllocLinearMem(&r, num_of_elements * byte_width))
+        return r;
 
-#endif // _CUDA_MEM_PIECE_H_
+    return nullptr;
+}
+
+void detail::CudaLinearMemBase::Destroy(void* mem)
+{
+    if (mem)
+        CudaCore::FreeMemPiece(mem);
+}

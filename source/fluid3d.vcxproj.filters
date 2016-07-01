@@ -84,6 +84,9 @@
     <ClInclude Include="poisson_solver\poisson_core_cuda.h">
       <Filter>poisson_solver</Filter>
     </ClInclude>
+    <ClInclude Include="cuda_host\cuda_linear_mem.h">
+      <Filter>cuda_host</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -153,6 +156,9 @@
     </ClCompile>
     <ClCompile Include="poisson_solver\poisson_core_cuda.cpp">
       <Filter>poisson_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="cuda_host\cuda_linear_mem.cpp">
+      <Filter>cuda_host</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -26,6 +26,7 @@
 #include <memory>
 
 #include "third_party/glm/fwd.hpp"
+#include "cuda_host/cuda_linear_mem.h"
 
 class CudaCore;
 class CudaMemPiece;
@@ -53,6 +54,24 @@ public:
         IMPULSE_SPHERE,
         IMPULSE_BUOYANT_JET,
         IMPULSE_FLYING_BALL,
+    };
+
+    struct FlipParticles
+    {
+        std::shared_ptr<CudaLinearMem<uint32_t>> particle_index_;
+        std::shared_ptr<CudaLinearMem<uint32_t>> cell_index_;
+        std::shared_ptr<CudaLinearMem<uint8_t>> in_cell_index_;
+        std::shared_ptr<CudaLinearMem<uint8_t>> particle_count_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> position_x_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> position_y_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> position_z_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_x_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_y_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_z_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> density_;
+        std::shared_ptr<CudaLinearMem<uint16_t>> temperature_;
+        std::shared_ptr<CudaMemPiece>  num_of_active_particles_;
+        int                            num_of_particles_;
     };
 
     static CudaMain* Instance();
