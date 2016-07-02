@@ -47,6 +47,7 @@ uint3 FromGlmVector(const glm::ivec3& v)
 PoissonImplCuda::PoissonImplCuda(BlockArrangement* ba, AuxBufferManager* bm)
     : ba_(ba)
     , bm_(bm)
+    , cell_size_(0.15f)
     , outflow_(false)
 {
 }
@@ -56,10 +57,10 @@ PoissonImplCuda::~PoissonImplCuda()
 }
 
 void PoissonImplCuda::ComputeResidual(cudaArray* r, cudaArray* u,
-                                      cudaArray* b, float cell_size,
+                                      cudaArray* b,
                                       const glm::ivec3& volume_size)
 {
-    LaunchComputeResidual(r, u, b, cell_size, FromGlmVector(volume_size), ba_);
+    LaunchComputeResidual(r, u, b, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::Prolongate(cudaArray* fine, cudaArray* coarse,
@@ -75,10 +76,9 @@ void PoissonImplCuda::ProlongateError(cudaArray* fine, cudaArray* coarse,
 }
 
 void PoissonImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
-                                         float cell_size,
                                          const glm::ivec3& volume_size)
 {
-    LaunchRelaxWithZeroGuess(u, b, cell_size, FromGlmVector(volume_size), ba_);
+    LaunchRelaxWithZeroGuess(u, b, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
@@ -88,11 +88,9 @@ void PoissonImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
 }
 
 void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
-                                   float cell_size,
                                    const glm::ivec3& volume_size)
 {
-    LaunchApplyStencil(aux, search, cell_size, outflow_,
-                       FromGlmVector(volume_size), ba_);
+    LaunchApplyStencil(aux, search, outflow_, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::ComputeAlpha(float* alpha, float* rho, cudaArray* aux,

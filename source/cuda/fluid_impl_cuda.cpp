@@ -48,6 +48,7 @@ uint3 FromGlmVector(const glm::ivec3& v)
 
 FluidImplCuda::FluidImplCuda(BlockArrangement* ba)
     : ba_(ba)
+    , cell_size_(0.15f)
     , staggered_(true)
     , mid_point_(false)
     , outflow_(false)
@@ -64,18 +65,17 @@ FluidImplCuda::~FluidImplCuda()
 void FluidImplCuda::AdvectScalarField(cudaArray* fnp1, cudaArray* fn,
                                       cudaArray* vel_x, cudaArray* vel_y,
                                       cudaArray* vel_z, cudaArray* aux,
-                                      float cell_size, float time_step,
-                                      float dissipation,
+                                      float time_step, float dissipation,
                                       const glm::ivec3& volume_size)
 {
     if (staggered_)
         LaunchAdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z, aux,
-                                         cell_size, time_step, dissipation,
+                                         cell_size_, time_step, dissipation,
                                          advect_method_,
                                          FromGlmVector(volume_size), mid_point_,
                                          ba_);
     else
-        LaunchAdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux, cell_size,
+        LaunchAdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux, cell_size_,
                                 time_step, dissipation, advect_method_,
                                 FromGlmVector(volume_size), mid_point_, ba_);
 }
@@ -85,8 +85,7 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                        cudaArray* fn_y, cudaArray* fn_z,
                                        cudaArray* vel_x, cudaArray* vel_y,
                                        cudaArray* vel_z, cudaArray* aux,
-                                       float cell_size, float time_step,
-                                       float dissipation,
+                                       float time_step, float dissipation,
                                        const glm::ivec3& volume_size,
                                        VectorField field)
 {
@@ -94,21 +93,21 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
         if (field == VECTOR_FIELD_VELOCITY) {
             LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
                                           fn_z, vel_x, vel_y, vel_z, aux,
-                                          cell_size, time_step, dissipation,
+                                          cell_size_, time_step, dissipation,
                                           advect_method_,
                                           FromGlmVector(volume_size),
                                           mid_point_, ba_);
         } else if (field == VECTOR_FIELD_VORTICITY) {
             LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
                                            fn_z, vel_x, vel_y, vel_z, aux,
-                                           cell_size, time_step, dissipation,
+                                           cell_size_, time_step, dissipation,
                                            advect_method_,
                                            FromGlmVector(volume_size),
                                            mid_point_, ba_);
         }
     } else {
         LaunchAdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z, vel_x,
-                                vel_y, vel_z, aux, cell_size, time_step,
+                                vel_y, vel_z, aux, cell_size_, time_step,
                                 dissipation, advect_method_,
                                 FromGlmVector(volume_size), mid_point_, ba_);
     }
@@ -168,48 +167,44 @@ void FluidImplCuda::BuildVorticityConfinement(cudaArray* conf_x,
                                               cudaArray* conf_z,
                                               cudaArray* vort_x,
                                               cudaArray* vort_y,
-                                              cudaArray* vort_z,
-                                              float coeff, float cell_size,
+                                              cudaArray* vort_z, float coeff,
                                               const glm::ivec3& volume_size)
 {
     LaunchBuildVorticityConfinementStaggered(conf_x, conf_y, conf_z, vort_x,
-                                             vort_y, vort_z, coeff, cell_size,
+                                             vort_y, vort_z, coeff, cell_size_,
                                              FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeCurl(cudaArray* vort_x, cudaArray* vort_y,
                                 cudaArray* vort_z, cudaArray* vel_x,
                                 cudaArray* vel_y, cudaArray* vel_z,
-                                float cell_size, const glm::ivec3& volume_size)
+                                const glm::ivec3& volume_size)
 {
     LaunchComputeCurlStaggered(vort_x, vort_y, vort_z, vel_x, vel_y,
-                               vel_z, cell_size, FromGlmVector(volume_size),
+                               vel_z, cell_size_, FromGlmVector(volume_size),
                                ba_);
 }
 
 void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
                                       cudaArray* vel_y, cudaArray* vel_z,
-                                      float cell_size,
                                       const glm::ivec3& volume_size)
 {
-    LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size, outflow_,
+    LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size_, outflow_,
                             staggered_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
                                              cudaArray* b,
-                                             float cell_size,
                                              const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualDiagnosis(residual, u, b, cell_size,
+    LaunchComputeResidualDiagnosis(residual, u, b, cell_size_,
                                    FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                          float cell_size, int num_of_iterations,
-                          const glm::ivec3& volume_size)
+                          int num_of_iterations, const glm::ivec3& volume_size)
 {
-    LaunchRelax(unp1, un, b, cell_size, outflow_, num_of_iterations,
+    LaunchRelax(unp1, un, b, outflow_, num_of_iterations,
                 FromGlmVector(volume_size), ba_);
 }
 
@@ -225,19 +220,18 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
 
 void FluidImplCuda::SubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                                      cudaArray* vel_z, cudaArray* pressure,
-                                     float cell_size,
                                      const glm::ivec3& volume_size)
 {
-    LaunchSubtractGradient(vel_x, vel_y, vel_z, pressure, cell_size, staggered_,
-                           FromGlmVector(volume_size), ba_);
+    LaunchSubtractGradient(vel_x, vel_y, vel_z, pressure, cell_size_,
+                           staggered_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y,
                                cudaArray* vel_z, cudaArray* psi_x,
                                cudaArray* psi_y, cudaArray* psi_z,
-                               float cell_size, const glm::ivec3& volume_size)
+                               const glm::ivec3& volume_size)
 {
-    LaunchAddCurlPsi(vel_x, vel_y, vel_z, psi_x, psi_y, psi_z, cell_size,
+    LaunchAddCurlPsi(vel_x, vel_y, vel_z, psi_x, psi_y, psi_z, cell_size_,
                      FromGlmVector(volume_size), ba_);
 }
 
@@ -266,13 +260,12 @@ void FluidImplCuda::StretchVortices(cudaArray* vnp1_x, cudaArray* vnp1_y,
                                     cudaArray* vnp1_z, cudaArray* vel_x,
                                     cudaArray* vel_y, cudaArray* vel_z,
                                     cudaArray* vort_x, cudaArray* vort_y,
-                                    cudaArray* vort_z, float cell_size,
-                                    float time_step,
+                                    cudaArray* vort_z, float time_step,
                                     const glm::ivec3& volume_size)
 {
     LaunchStretchVorticesStaggered(vnp1_x, vnp1_y, vnp1_z, vel_x, vel_y, vel_z,
-                                   vort_x, vort_y, vort_z, cell_size, time_step,
-                                   FromGlmVector(volume_size), ba_);
+                                   vort_x, vort_y, vort_z, cell_size_,
+                                   time_step, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::RoundPassed(int round)

@@ -92,16 +92,16 @@ public:
                      std::shared_ptr<CudaVolume> vel_x,
                      std::shared_ptr<CudaVolume> vel_y,
                      std::shared_ptr<CudaVolume> vel_z,
-                     std::shared_ptr<CudaVolume> aux,
-                     float cell_size, float time_step, float dissipation);
+                     std::shared_ptr<CudaVolume> aux, float time_step,
+                     float dissipation);
     void AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
                         std::shared_ptr<CudaVolume> vnp1_y,
                         std::shared_ptr<CudaVolume> vnp1_z,
                         std::shared_ptr<CudaVolume> vn_x,
                         std::shared_ptr<CudaVolume> vn_y,
                         std::shared_ptr<CudaVolume> vn_z,
-                        std::shared_ptr<CudaVolume> aux,
-                        float cell_size, float time_step, float dissipation);
+                        std::shared_ptr<CudaVolume> aux, float time_step,
+                        float dissipation);
     void AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                          std::shared_ptr<CudaVolume> vnp1_y,
                          std::shared_ptr<CudaVolume> vnp1_z,
@@ -111,8 +111,8 @@ public:
                          std::shared_ptr<CudaVolume> vel_x,
                          std::shared_ptr<CudaVolume> vel_y,
                          std::shared_ptr<CudaVolume> vel_z,
-                         std::shared_ptr<CudaVolume> aux,
-                         float cell_size, float time_step, float dissipation);
+                         std::shared_ptr<CudaVolume> aux, float time_step,
+                         float dissipation);
     void ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
                        std::shared_ptr<CudaVolume> vel_y,
                        std::shared_ptr<CudaVolume> vel_z,
@@ -131,36 +131,33 @@ public:
     void ComputeDivergence(std::shared_ptr<CudaVolume> div,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
-                           std::shared_ptr<CudaVolume> vel_z, float cell_size);
+                           std::shared_ptr<CudaVolume> vel_z);
     void Relax(std::shared_ptr<CudaVolume> unp1, std::shared_ptr<CudaVolume> un,
-               std::shared_ptr<CudaVolume> b, float cell_size,
-               int num_of_iterations);
+               std::shared_ptr<CudaVolume> b, int num_of_iterations);
     void ReviseDensity(std::shared_ptr<CudaVolume> density,
                        const glm::vec3& center_point, float radius,
                        float value);
     void SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
                           std::shared_ptr<CudaVolume> vel_y,
                           std::shared_ptr<CudaVolume> vel_z,
-                          std::shared_ptr<CudaVolume> pressure,
-                          float cell_size);
+                          std::shared_ptr<CudaVolume> pressure);
 
     // Multigrid.
     void ComputeResidual(std::shared_ptr<CudaVolume> r,
                          std::shared_ptr<CudaVolume> u,
-                         std::shared_ptr<CudaVolume> b, float cell_size);
+                         std::shared_ptr<CudaVolume> b);
     void Prolongate(std::shared_ptr<CudaVolume> fine,
                     std::shared_ptr<CudaVolume> coarse);
     void ProlongateError(std::shared_ptr<CudaVolume> fine,
                          std::shared_ptr<CudaVolume> coarse);
     void RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
-                            std::shared_ptr<CudaVolume> b,
-                            float cell_size);
+                            std::shared_ptr<CudaVolume> b);
     void Restrict(std::shared_ptr<CudaVolume> coarse,
                   std::shared_ptr<CudaVolume> fine);
 
     // Conjugate gradient.
     void ApplyStencil(std::shared_ptr<CudaVolume> aux,
-                      std::shared_ptr<CudaVolume> search, float cell_size);
+                      std::shared_ptr<CudaVolume> search);
     void ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
                       std::shared_ptr<CudaMemPiece> rho,
                       std::shared_ptr<CudaVolume> aux,
@@ -187,8 +184,7 @@ public:
                     std::shared_ptr<CudaVolume> vel_z,
                     std::shared_ptr<CudaVolume> psi_x,
                     std::shared_ptr<CudaVolume> psi_y,
-                    std::shared_ptr<CudaVolume> psi_z,
-                    float cell_size);
+                    std::shared_ptr<CudaVolume> psi_z);
     void ApplyVorticityConfinement(std::shared_ptr<CudaVolume> vel_x,
                                    std::shared_ptr<CudaVolume> vel_y,
                                    std::shared_ptr<CudaVolume> vel_z,
@@ -201,13 +197,13 @@ public:
                                    std::shared_ptr<CudaVolume> vort_x,
                                    std::shared_ptr<CudaVolume> vort_y,
                                    std::shared_ptr<CudaVolume> vort_z,
-                                   float coeff, float cell_size);
+                                   float coeff);
     void ComputeCurl(std::shared_ptr<CudaVolume> vort_x,
                      std::shared_ptr<CudaVolume> vort_y,
                      std::shared_ptr<CudaVolume> vort_z,
                      std::shared_ptr<CudaVolume> vel_x,
                      std::shared_ptr<CudaVolume> vel_y,
-                     std::shared_ptr<CudaVolume> vel_z, float cell_size);
+                     std::shared_ptr<CudaVolume> vel_z);
     void ComputeDeltaVorticity(std::shared_ptr<CudaVolume> delta_x,
                                std::shared_ptr<CudaVolume> delta_y,
                                std::shared_ptr<CudaVolume> delta_z,
@@ -226,8 +222,7 @@ public:
                          std::shared_ptr<CudaVolume> vel_z,
                          std::shared_ptr<CudaVolume> vort_x,
                          std::shared_ptr<CudaVolume> vort_y,
-                         std::shared_ptr<CudaVolume> vort_z,
-                         float cell_size, float time_step);
+                         std::shared_ptr<CudaVolume> vort_z, float time_step);
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,
@@ -247,8 +242,7 @@ public:
     // For diagnosis
     void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                   std::shared_ptr<CudaVolume> u,
-                                  std::shared_ptr<CudaVolume> b,
-                                  float cell_size);
+                                  std::shared_ptr<CudaVolume> b);
     void PrintVolume(std::shared_ptr<CudaVolume> volume,
                      const std::string& name);
     void RoundPassed(int round);

@@ -151,14 +151,13 @@ void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
                            std::shared_ptr<CudaVolume> vel_z,
-                           std::shared_ptr<CudaVolume> aux, float cell_size,
+                           std::shared_ptr<CudaVolume> aux,
                            float time_step, float dissipation)
 {
     fluid_impl_->AdvectScalarField(fnp1->dev_array(), fn->dev_array(),
                                    vel_x->dev_array(), vel_y->dev_array(),
                                    vel_z->dev_array(), aux->dev_array(),
-                                   cell_size, time_step, dissipation,
-                                   fnp1->size());
+                                   time_step, dissipation, fnp1->size());
 }
 
 void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
@@ -167,7 +166,7 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
                               std::shared_ptr<CudaVolume> vn_x,
                               std::shared_ptr<CudaVolume> vn_y,
                               std::shared_ptr<CudaVolume> vn_z,
-                              std::shared_ptr<CudaVolume> aux, float cell_size,
+                              std::shared_ptr<CudaVolume> aux,
                               float time_step, float dissipation)
 {
     fluid_impl_->AdvectVectorFields(vnp1_x->dev_array(), vnp1_y->dev_array(),
@@ -175,8 +174,7 @@ void CudaMain::AdvectVelocity(std::shared_ptr<CudaVolume> vnp1_x,
                                     vn_y->dev_array(), vn_z->dev_array(),
                                     vn_x->dev_array(), vn_y->dev_array(),
                                     vn_z->dev_array(), aux->dev_array(),
-                                    cell_size, time_step, dissipation,
-                                    vnp1_x->size(),
+                                    time_step, dissipation, vnp1_x->size(),
                                     FluidImplCuda::VECTOR_FIELD_VELOCITY);
 }
 
@@ -190,16 +188,14 @@ void CudaMain::AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                                std::shared_ptr<CudaVolume> vel_y,
                                std::shared_ptr<CudaVolume> vel_z,
                                std::shared_ptr<CudaVolume> aux,
-                               float cell_size, float time_step,
-                               float dissipation)
+                               float time_step, float dissipation)
 {
     fluid_impl_->AdvectVectorFields(vnp1_x->dev_array(), vnp1_y->dev_array(),
                                     vnp1_z->dev_array(), vn_x->dev_array(),
                                     vn_y->dev_array(), vn_z->dev_array(),
                                     vel_x->dev_array(), vel_y->dev_array(),
                                     vel_z->dev_array(), aux->dev_array(), 
-                                    cell_size, time_step, dissipation,
-                                    vnp1_x->size(),
+                                    time_step, dissipation, vnp1_x->size(),
                                     FluidImplCuda::VECTOR_FIELD_VORTICITY);
 }
 
@@ -240,21 +236,19 @@ void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
 void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,
                                  std::shared_ptr<CudaVolume> vel_x,
                                  std::shared_ptr<CudaVolume> vel_y,
-                                 std::shared_ptr<CudaVolume> vel_z,
-                                 float cell_size)
+                                 std::shared_ptr<CudaVolume> vel_z)
 {
     fluid_impl_->ComputeDivergence(div->dev_array(), vel_x->dev_array(),
                                    vel_y->dev_array(), vel_z->dev_array(),
-                                   cell_size, div->size());
+                                   div->size());
 }
 
 void CudaMain::Relax(std::shared_ptr<CudaVolume> unp1,
                      std::shared_ptr<CudaVolume> un,
-                     std::shared_ptr<CudaVolume> b, float cell_size,
-                     int num_of_iterations)
+                     std::shared_ptr<CudaVolume> b, int num_of_iterations)
 {
     fluid_impl_->Relax(unp1->dev_array(), un->dev_array(), b->dev_array(),
-                       cell_size, num_of_iterations, unp1->size());
+                       num_of_iterations, unp1->size());
 }
 
 void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
@@ -268,20 +262,19 @@ void CudaMain::ReviseDensity(std::shared_ptr<CudaVolume> density,
 void CudaMain::SubtractGradient(std::shared_ptr<CudaVolume> vel_x,
                                 std::shared_ptr<CudaVolume> vel_y,
                                 std::shared_ptr<CudaVolume> vel_z,
-                                std::shared_ptr<CudaVolume> pressure,
-                                float cell_size)
+                                std::shared_ptr<CudaVolume> pressure)
 {
     fluid_impl_->SubtractGradient(vel_x->dev_array(), vel_y->dev_array(),
                                   vel_z->dev_array(), pressure->dev_array(),
-                                  cell_size, vel_x->size());
+                                  vel_x->size());
 }
 
 void CudaMain::ComputeResidual(std::shared_ptr<CudaVolume> r,
                                std::shared_ptr<CudaVolume> u,
-                               std::shared_ptr<CudaVolume> b, float cell_size)
+                               std::shared_ptr<CudaVolume> b)
 {
     poisson_impl_->ComputeResidual(r->dev_array(), u->dev_array(),
-                                   b->dev_array(), cell_size, r->size());
+                                   b->dev_array(), r->size());
 }
 
 void CudaMain::Prolongate(std::shared_ptr<CudaVolume> fine,
@@ -299,11 +292,10 @@ void CudaMain::ProlongateError(std::shared_ptr<CudaVolume> fine,
 }
 
 void CudaMain::RelaxWithZeroGuess(std::shared_ptr<CudaVolume> u,
-                                  std::shared_ptr<CudaVolume> b,
-                                  float cell_size)
+                                  std::shared_ptr<CudaVolume> b)
 {
     poisson_impl_->RelaxWithZeroGuess(u->dev_array(), b->dev_array(),
-                                      cell_size, u->size());
+                                      u->size());
 }
 
 void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
@@ -314,10 +306,10 @@ void CudaMain::Restrict(std::shared_ptr<CudaVolume> coarse,
 }
 
 void CudaMain::ApplyStencil(std::shared_ptr<CudaVolume> aux,
-                            std::shared_ptr<CudaVolume> search, float cell_size)
+                            std::shared_ptr<CudaVolume> search)
 {
     poisson_impl_->ApplyStencil(aux->dev_array(), search->dev_array(),
-                                cell_size, aux->size());
+                                aux->size());
 }
 
 void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
@@ -378,11 +370,11 @@ void CudaMain::AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,
                           std::shared_ptr<CudaVolume> vel_z,
                           std::shared_ptr<CudaVolume> psi_x,
                           std::shared_ptr<CudaVolume> psi_y,
-                          std::shared_ptr<CudaVolume> psi_z, float cell_size)
+                          std::shared_ptr<CudaVolume> psi_z)
 {
     fluid_impl_->AddCurlPsi(vel_x->dev_array(), vel_y->dev_array(),
                             vel_z->dev_array(), psi_x->dev_array(),
-                            psi_y->dev_array(), psi_z->dev_array(), cell_size,
+                            psi_y->dev_array(), psi_z->dev_array(),
                             vel_x->size());
 }
 
@@ -408,7 +400,7 @@ void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> conf_x,
                                          std::shared_ptr<CudaVolume> vort_x,
                                          std::shared_ptr<CudaVolume> vort_y,
                                          std::shared_ptr<CudaVolume> vort_z,
-                                         float coeff, float cell_size)
+                                         float coeff)
 {
     fluid_impl_->BuildVorticityConfinement(conf_x->dev_array(),
                                            conf_y->dev_array(),
@@ -416,7 +408,7 @@ void CudaMain::BuildVorticityConfinement(std::shared_ptr<CudaVolume> conf_x,
                                            vort_x->dev_array(),
                                            vort_y->dev_array(),
                                            vort_z->dev_array(), coeff,
-                                           cell_size, conf_x->size());
+                                           conf_x->size());
 }
 
 void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> vort_x,
@@ -424,11 +416,11 @@ void CudaMain::ComputeCurl(std::shared_ptr<CudaVolume> vort_x,
                            std::shared_ptr<CudaVolume> vort_z,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
-                           std::shared_ptr<CudaVolume> vel_z, float cell_size)
+                           std::shared_ptr<CudaVolume> vel_z)
 {
     fluid_impl_->ComputeCurl(vort_x->dev_array(), vort_y->dev_array(),
                              vort_z->dev_array(), vel_x->dev_array(),
-                             vel_y->dev_array(), vel_z->dev_array(), cell_size,
+                             vel_y->dev_array(), vel_z->dev_array(),
                              vort_x->size());
 }
 
@@ -465,13 +457,13 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
                                std::shared_ptr<CudaVolume> vort_x,
                                std::shared_ptr<CudaVolume> vort_y,
                                std::shared_ptr<CudaVolume> vort_z,
-                               float cell_size, float time_step)
+                               float time_step)
 {
     fluid_impl_->StretchVortices(vnp1_x->dev_array(), vnp1_y->dev_array(),
                                  vnp1_z->dev_array(), vel_x->dev_array(),
                                  vel_y->dev_array(), vel_z->dev_array(),
                                  vort_x->dev_array(), vort_y->dev_array(),
-                                 vort_z->dev_array(), cell_size, time_step,
+                                 vort_z->dev_array(), time_step,
                                  vnp1_x->size());
 }
 
@@ -523,12 +515,10 @@ void CudaMain::SetStaggered(bool staggered)
 
 void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                         std::shared_ptr<CudaVolume> u,
-                                        std::shared_ptr<CudaVolume> b,
-                                        float cell_size)
+                                        std::shared_ptr<CudaVolume> b)
 {
     fluid_impl_->ComputeResidualDiagnosis(residual->dev_array(), u->dev_array(),
-                                          b->dev_array(), cell_size,
-                                          residual->size());
+                                          b->dev_array(), residual->size());
 
     PrintVolume(residual, "||residual||");
 }

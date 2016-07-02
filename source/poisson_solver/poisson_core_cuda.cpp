@@ -71,11 +71,10 @@ std::shared_ptr<GraphicsVolume3> PoissonCoreCuda::CreateVolumeGroup(
 
 void PoissonCoreCuda::ComputeResidual(const GraphicsVolume& r,
                                       const GraphicsVolume& u,
-                                      const GraphicsVolume& b,
-                                      float cell_size)
+                                      const GraphicsVolume& b)
 {
     CudaMain::Instance()->ComputeResidual(r.cuda_volume(), u.cuda_volume(),
-                                          b.cuda_volume(), cell_size);
+                                          b.cuda_volume());
 }
 
 void PoissonCoreCuda::Prolongate(const GraphicsVolume& fine,
@@ -92,18 +91,16 @@ void PoissonCoreCuda::ProlongateError(const GraphicsVolume& fine,
 }
 
 void PoissonCoreCuda::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                            float cell_size, int num_of_iterations)
+                            int num_of_iterations)
 {
     CudaMain::Instance()->Relax(u.cuda_volume(), u.cuda_volume(),
-                                b.cuda_volume(), cell_size, num_of_iterations);
+                                b.cuda_volume(), num_of_iterations);
 }
 
 void PoissonCoreCuda::RelaxWithZeroGuess(const GraphicsVolume& u,
-                                         const GraphicsVolume& b,
-                                         float cell_size)
+                                         const GraphicsVolume& b)
 {
-    CudaMain::Instance()->RelaxWithZeroGuess(u.cuda_volume(), b.cuda_volume(),
-                                             cell_size);
+    CudaMain::Instance()->RelaxWithZeroGuess(u.cuda_volume(), b.cuda_volume());
 }
 
 void PoissonCoreCuda::Restrict(const GraphicsVolume& coarse,
@@ -113,11 +110,9 @@ void PoissonCoreCuda::Restrict(const GraphicsVolume& coarse,
 }
 
 void PoissonCoreCuda::ApplyStencil(const GraphicsVolume& aux,
-                                   const GraphicsVolume& search,
-                                   float cell_size)
+                                   const GraphicsVolume& search)
 {
-    CudaMain::Instance()->ApplyStencil(aux.cuda_volume(), search.cuda_volume(),
-                                       cell_size);
+    CudaMain::Instance()->ApplyStencil(aux.cuda_volume(), search.cuda_volume());
 }
 
 void PoissonCoreCuda::ComputeAlpha(const GraphicsMemPiece& alpha,

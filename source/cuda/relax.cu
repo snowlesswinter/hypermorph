@@ -34,6 +34,9 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_u;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 
+const float kOmega = 1.1f;
+const float kBeta  = 6.0f;
+
 struct UpperBoundaryHandlerNeumann
 {
     __device__ void HandleUpperBoundary(float* north, float center, int y,
@@ -58,8 +61,7 @@ struct UpperBoundaryHandlerOutflow
 
 // =============================================================================
 
-__global__ void DampedJacobiKernel(float minus_square_cell_size,
-                                   float omega_over_beta, uint3 volume_size)
+__global__ void DampedJacobiKernel(float omega_over_beta, uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -78,8 +80,7 @@ __global__ void DampedJacobiKernel(float minus_square_cell_size,
     float b =      tex3D(tex_b, x, y, z);
 
     float u = omega_over_beta * 3.0f * center +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        b) * omega_over_beta;
+        (west + east + south + north + far + near - b) * omega_over_beta;
 
     auto raw = __float2half_rn(u);
     surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
@@ -116,8 +117,7 @@ __device__ void SaveToRegisters(float2* smem, uint si, uint bw, float* south,
     *north =  smem[si + bw].x;
 }
 
-__global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
-                                                 float omega_over_beta,
+__global__ void DampedJacobiKernel_smem_25d_32x6(float omega_over_beta,
                                                  int z0, int z2, int zi, int zn,
                                                  uint3 volume_size)
 {
@@ -144,8 +144,7 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
     ReadBlockAndHalo_32x6(z0 + zi, tx, ty, smem);
 
     float t1 = omega_over_beta * 4.0f * center.x +
-        (west + east + south + north + minus_square_cell_size * center.y) *
-        omega_over_beta;
+        (west + east + south + north - center.y) * omega_over_beta;
     float b = center.y;
     float near = t1;
 
@@ -169,8 +168,7 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
 
         // t1 is now pointing to plane |i - 1|.
         t1 = omega_over_beta * 3.0f * center.x +
-            (west + east + south + north + near + minus_square_cell_size *
-            center.y) * omega_over_beta;
+            (west + east + south + north + near - center.y) * omega_over_beta;
         b = center.y;
     }
 
@@ -185,15 +183,13 @@ __global__ void DampedJacobiKernel_smem_25d_32x6(float minus_square_cell_size,
                 cudaBoundaryModeTrap);
 
     t1 = omega_over_beta * 4.0f * center.x +
-        (west + east + south + north + near + minus_square_cell_size *
-        center.y) * omega_over_beta;
+        (west + east + south + north + near - center.y) * omega_over_beta;
     raw = make_ushort2(__float2half_rn(t1), __float2half_rn(center.y));
     surf3Dwrite(raw, surf, ox * sizeof(ushort2), oy, zn - zi,
                 cudaBoundaryModeTrap);
 }
 
-__global__ void DampedJacobiKernel_smem_branch(float minus_square_cell_size,
-                                               float omega_over_beta,
+__global__ void DampedJacobiKernel_smem_branch(float omega_over_beta,
                                                uint3 volume_size)
 {
     __shared__ float2 cached_block[1000];
@@ -238,14 +234,12 @@ __global__ void DampedJacobiKernel_smem_branch(float minus_square_cell_size,
     float  far =    cached_block[index + bw * bh].x;
 
     float u = omega_over_beta * 3.0f * center.x +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        center.y) * omega_over_beta;
+        (west + east + south + north + far + near - center.y) * omega_over_beta;
     ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void DampedJacobiKernel_smem_assist_thread(
-    float minus_square_cell_size, float omega_over_beta)
+__global__ void DampedJacobiKernel_smem_assist_thread(float omega_over_beta)
 {
     // Shared memory solution with halo handled by assistant threads still
     // runs a bit slower than the texture-only way(less than 3ms on my GTX
@@ -354,14 +348,13 @@ __global__ void DampedJacobiKernel_smem_assist_thread(
     float  far =    cached_block[index + slice_stride].x;
 
     float u = omega_over_beta * 3.0f * center.x +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        center.y) * omega_over_beta;
+        (west + east + south + north + far + near - center.y) * omega_over_beta;
     ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void DampedJacobiKernel_smem_faces_assist_thread(
-    float minus_square_cell_size, float omega_over_beta)
+    float omega_over_beta)
 {
     const int cache_size = 512;
     const int bd = 8;
@@ -452,14 +445,13 @@ __global__ void DampedJacobiKernel_smem_faces_assist_thread(
     float far =   threadIdx.z == blockDim.z - 1 ? cached_face_xyz1[blockDim.x * threadIdx.y + threadIdx.x] : cached_block[index + slice_stride].x;
 
     float u = omega_over_beta * 3.0f * center.x +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        center.y) * omega_over_beta;
+        (west + east + south + north + far + near - center.y) * omega_over_beta;
     ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void DampedJacobiKernel_smem_dedicated_assist_thread(
-    float minus_square_cell_size, float omega_over_beta)
+    float omega_over_beta)
 {
     __shared__ float2 cached_block[1000];
 
@@ -488,14 +480,13 @@ __global__ void DampedJacobiKernel_smem_dedicated_assist_thread(
     float far =     cached_block[index + blockDim.x * blockDim.y].x;
 
     float u = omega_over_beta * 3.0f * center.x +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        center.y) * omega_over_beta;
+        (west + east + south + north + far + near - center.y) * omega_over_beta;
     ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(center.y));
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void DampedJacobiKernel_smem_no_halo_storage(
-    float minus_square_cell_size, float omega_over_beta, uint3 volume_size)
+__global__ void DampedJacobiKernel_smem_no_halo_storage(float omega_over_beta,
+                                                        uint3 volume_size)
 {
     __shared__ float2 cached_block[512];
 
@@ -520,16 +511,14 @@ __global__ void DampedJacobiKernel_smem_no_halo_storage(
     float b_center = cached_block[index].y;
 
     float u = omega_over_beta * 3.0f * center +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        b_center) * omega_over_beta;
+        (west + east + south + north + far + near - b_center) * omega_over_beta;
     ushort2 raw = make_ushort2(__float2half_rn(u), __float2half_rn(b_center));
 
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
 template <typename UpperBoundaryHandler>
-__global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
-                                               float one_minus_omega,
+__global__ void RelaxRedBlackGaussSeidelKernel(float one_minus_omega,
                                                float omega_over_beta,
                                                uint3 volume_size, uint offset,
                                                UpperBoundaryHandler handler)
@@ -554,9 +543,41 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
 
     handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
+    // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
     float u = one_minus_omega * center +
-        (west + east + south + north + far + near + minus_square_cell_size *
-        b) * omega_over_beta;
+        (west + east + south + north + far + near - b) * omega_over_beta;
+
+    auto r = __float2half_rn(u);
+    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+}
+
+__global__ void RelaxWithZeroGuessKernel(float minus_omega_over_beta,
+                                         float coef, float omega_over_beta,
+                                         uint3 volume_size)
+{
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float3 coord = make_float3(x, y, z);
+
+    float near   = tex3D(tex_b, coord.x,        coord.y,        coord.z - 1.0f);
+    float south  = tex3D(tex_b, coord.x,        coord.y - 1.0f, coord.z);
+    float west   = tex3D(tex_b, coord.x - 1.0f, coord.y,        coord.z);
+    float center = tex3D(tex_b, coord.x,        coord.y,        coord.z);
+    float east   = tex3D(tex_b, coord.x + 1.0f, coord.y,        coord.z);
+    float north  = tex3D(tex_b, coord.x,        coord.y + 1.0f, coord.z);
+    float far    = tex3D(tex_b, coord.x,        coord.y,        coord.z + 1.0f);
+
+    // TODO: boundary condition.
+
+    float v = coef * center;
+    float u = (minus_omega_over_beta *
+        (north + south + east + west + far + near) - center) * omega_over_beta +
+        v;
 
     auto r = __float2half_rn(u);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
@@ -565,8 +586,8 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float minus_square_cell_size,
 // =============================================================================
 
 void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                       float cell_size, int num_of_iterations,
-                       uint3 volume_size, BlockArrangement* ba)
+                       int num_of_iterations, uint3 volume_size,
+                       BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
@@ -581,7 +602,6 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
     if (bound_b.error() != cudaSuccess)
         return;
 
-    float minus_square_cell_size = -cell_size * cell_size;
     float omega_over_beta = 0.11111111f;
     for (int i = 0; i < num_of_iterations; i++) {
         bool smem = false;
@@ -599,33 +619,30 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
 
             if (i >= num_of_iterations / 2)
                 DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
-                    minus_square_cell_size, omega_over_beta, volume_size.z - 1,
-                    volume_size.z - 3, -1, -1, volume_size);
+                    omega_over_beta, volume_size.z - 1, volume_size.z - 3, -1,
+                    -1, volume_size);
             else
                 DampedJacobiKernel_smem_25d_32x6<<<grid, block>>>(
-                    minus_square_cell_size, omega_over_beta, 0, 2, 1,
-                    volume_size.z, volume_size);
+                    omega_over_beta, 0, 2, 1, volume_size.z, volume_size);
             
         } else if (smem) {
             dim3 block;
             dim3 grid;
             ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
             DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
-                minus_square_cell_size, omega_over_beta);
+                omega_over_beta);
         } else {
             dim3 block;
             dim3 grid;
             ba->ArrangeRowScan(&block, &grid, volume_size);
-            DampedJacobiKernel<<<grid, block>>>(minus_square_cell_size,
-                                                omega_over_beta, volume_size);
+            DampedJacobiKernel<<<grid, block>>>(omega_over_beta, volume_size);
         }
     }
 }
 
 void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
-                              float cell_size, bool outflow,
-                              int num_of_iterations, uint3 volume_size,
-                              BlockArrangement* ba)
+                              bool outflow, int num_of_iterations,
+                              uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
@@ -640,9 +657,8 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
     if (bound_b.error() != cudaSuccess)
         return;
 
-    float minus_square_cell_size = -cell_size * cell_size;
-    float omega_over_beta = 0.1666666f * 1.3f;
-    float one_minus_omega = -0.3f;
+    float omega_over_beta = kOmega / kBeta;
+    float one_minus_omega = 1.0f - kOmega;
 
     uint3 half_size = volume_size;
     half_size.x /= 2;
@@ -654,34 +670,59 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
     UpperBoundaryHandlerNeumann neumann_handler;
     if (outflow) {
         for (int i = 0; i < num_of_iterations; i++) {
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
-                minus_square_cell_size, one_minus_omega, omega_over_beta,
-                volume_size, 0, outflow_handler);
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
-                minus_square_cell_size, one_minus_omega, omega_over_beta,
-                volume_size, 1, outflow_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
+                                                            omega_over_beta,
+                                                            volume_size, 0,
+                                                            outflow_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
+                                                            omega_over_beta,
+                                                            volume_size, 1,
+                                                            outflow_handler);
         }
     } else {
         for (int i = 0; i < num_of_iterations; i++) {
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
-                minus_square_cell_size, one_minus_omega, omega_over_beta,
-                volume_size, 0, neumann_handler);
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(
-                minus_square_cell_size, one_minus_omega, omega_over_beta,
-                volume_size, 1, neumann_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
+                                                            omega_over_beta,
+                                                            volume_size, 0,
+                                                            neumann_handler);
+            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
+                                                            omega_over_beta,
+                                                            volume_size, 1,
+                                                            neumann_handler);
         }
     }
 }
 
-void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
-                 bool outflow, int num_of_iterations, uint3 volume_size,
-                 BlockArrangement* ba)
+void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
+                 int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
 {
     bool jacobi = false;
     if (jacobi)
-        RelaxDampedJacobi(unp1, un, b, cell_size, num_of_iterations,
-                          volume_size, ba);
+        RelaxDampedJacobi(unp1, un, b, num_of_iterations, volume_size, ba);
     else
-        RelaxRedBlackGaussSeidel(unp1, un, b, cell_size, outflow,
-                                 num_of_iterations, volume_size, ba);
+        RelaxRedBlackGaussSeidel(unp1, un, b, outflow, num_of_iterations,
+                                 volume_size, ba);
+}
+
+void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
+                              BlockArrangement* ba)
+{
+    float minus_omega_over_beta = -kOmega / kBeta;
+    float omega_over_beta       =  kOmega / kBeta;
+    float coef                  =  kOmega * (kOmega - 1.0f) / kBeta;
+
+    if (BindCudaSurfaceToArray(&surf, u) != cudaSuccess)
+        return;
+
+    auto bound = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
+                                  cudaAddressModeClamp);
+    if (bound.error() != cudaSuccess)
+        return;
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    RelaxWithZeroGuessKernel<<<grid, block>>>(minus_omega_over_beta,
+                                              coef, omega_over_beta,
+                                              volume_size);
 }

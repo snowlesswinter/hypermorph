@@ -113,7 +113,6 @@ void PreconditionedConjugateGradient::SetNestedSolverIterations(
 
 void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
                                             std::shared_ptr<GraphicsVolume> b,
-                                            float cell_size,
                                             int iteration_times)
 {
     bool initialized = false;
@@ -134,22 +133,22 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
         u->Clear();
 
         // Copy |b| to |residual_|.
-        core_->ComputeResidual(*residual_, *u, *b, cell_size);
+        core_->ComputeResidual(*residual_, *u, *b);
         r = residual_;
         initialized = true;
     }
 
     preconditioner_->set_num_finest_level_iteration_per_pass(
         num_nested_iterations_);
-    preconditioner_->Solve(search_, r, cell_size, 1);
+    preconditioner_->Solve(search_, r, 1);
     core_->ComputeRho(*rho_, *search_, *r);
     for (int i = 0; i < iteration_times - 1; i++) {
-        core_->ApplyStencil(*aux_, *search_, cell_size);
+        core_->ApplyStencil(*aux_, *search_);
 
         core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
         core_->ScaledAdd(*r, *r, *aux_, *alpha_, -1.0f);
 
-        preconditioner_->Solve(aux_, r, cell_size, 1);
+        preconditioner_->Solve(aux_, r, 1);
 
         core_->ComputeRhoAndBeta(*beta_, *rho_new_, *rho_, *aux_, *r);
         std::swap(rho_new_, rho_);
@@ -158,7 +157,7 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
         core_->ScaledAdd(*search_, *aux_, *search_, *beta_, 1.0f);
     }
 
-    core_->ApplyStencil(*aux_, *search_, cell_size);
+    core_->ApplyStencil(*aux_, *search_);
     core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
     UpdateU(*u, *search_, *alpha_, &initialized);
 }

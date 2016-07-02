@@ -45,23 +45,21 @@ public:
     // Multigrid.
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
-                                 const GraphicsVolume& b, float cell_size) = 0;
+                                 const GraphicsVolume& b) = 0;
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) = 0;
     virtual void ProlongateError(const GraphicsVolume& fine,
                                  const GraphicsVolume& coarse) = 0;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                       float cell_size, int num_of_iterations) = 0;
+                       int num_of_iterations) = 0;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,
-                                    const GraphicsVolume& b,
-                                    float cell_size) = 0;
+                                    const GraphicsVolume& b) = 0;
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) = 0;
 
     // Conjugate gradient.
     virtual void ApplyStencil(const GraphicsVolume& aux,
-                              const GraphicsVolume& search,
-                              float cell_size) = 0;
+                              const GraphicsVolume& search) = 0;
     virtual void ComputeAlpha(const GraphicsMemPiece& alpha,
                               const GraphicsMemPiece& rho,
                               const GraphicsVolume& aux,

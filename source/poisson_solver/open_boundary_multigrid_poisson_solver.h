@@ -37,7 +37,7 @@ public:
     bool Initialize(int width, int height, int depth,
                     int byte_width);
     void Solve(std::shared_ptr<GraphicsVolume> u,
-               std::shared_ptr<GraphicsVolume> b, float cell_size);
+               std::shared_ptr<GraphicsVolume> b);
 
     void set_num_finest_level_iteration_per_pass(int n) {
         num_finest_level_iteration_per_pass_ = n;
@@ -45,7 +45,7 @@ public:
 
 private:
     void Relax(std::shared_ptr<GraphicsVolume> u,
-               std::shared_ptr<GraphicsVolume> b, float cell_size, int times);
+               std::shared_ptr<GraphicsVolume> b, int times);
 
     PoissonCore* core_;
     std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource_;

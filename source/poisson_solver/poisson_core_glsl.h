@@ -43,24 +43,21 @@ public:
 
     virtual void ComputeResidual(const GraphicsVolume& r,
                                  const GraphicsVolume& u,
-                                 const GraphicsVolume& b,
-                                 float cell_size) override;
+                                 const GraphicsVolume& b) override;
     virtual void Prolongate(const GraphicsVolume& fine,
                             const GraphicsVolume& coarse) override;
 
     virtual void ProlongateError(const GraphicsVolume& fine,
                                  const GraphicsVolume& coarse) override;
     virtual void Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                       float cell_size, int num_of_iterations) override;
+                       int num_of_iterations) override;
     virtual void RelaxWithZeroGuess(const GraphicsVolume& u,
-                                    const GraphicsVolume& b,
-                                    float cell_size) override;
+                                    const GraphicsVolume& b) override;
     virtual void Restrict(const GraphicsVolume& coarse,
                           const GraphicsVolume& fine) override;
 
     virtual void ApplyStencil(const GraphicsVolume& aux,
-                              const GraphicsVolume& search,
-                              float cell_size) override;
+                              const GraphicsVolume& search) override;
     virtual void ComputeAlpha(const GraphicsMemPiece& alpha,
                               const GraphicsMemPiece& rho,
                               const GraphicsVolume& aux,

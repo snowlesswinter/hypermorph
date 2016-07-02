@@ -34,7 +34,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_fine;
 
-__global__ void ComputeResidualKernel(float inverse_h_square, uint3 volume_size)
+__global__ void ComputeResidualKernel(uint3 volume_size)
 {
     int x = VolumeX();
     int y = VolumeY();
@@ -52,9 +52,9 @@ __global__ void ComputeResidualKernel(float inverse_h_square, uint3 volume_size)
     float far =    tex3D(tex, x, y, z + 1.0f);
     float b =      tex3D(tex_b, x, y, z);
 
-    float v = b -
-        (north + south + east + west + far + near - 6.0f * center) *
-        inverse_h_square;
+    // TODO: Should enforce the same boundary conditions as in relax kernel.
+
+    float v = b - (north + south + east + west + far + near - 6.0f * center);
     auto r = __float2half_rn(v);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
@@ -90,37 +90,6 @@ __global__ void ProlongateErrorLerpKernel(uint3 volume_size)
     surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void RelaxWithZeroGuessKernel(float alpha_omega_over_beta,
-                                         float one_minus_omega,
-                                         float minus_h_square,
-                                         float omega_times_inverse_beta,
-                                         uint3 volume_size)
-{
-    int x = VolumeX();
-    int y = VolumeY();
-    int z = VolumeZ();
-
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    float3 coord = make_float3(x, y, z);
-
-    float near =   tex3D(tex, coord.x, coord.y, coord.z - 1.0f);
-    float south =  tex3D(tex, coord.x, coord.y - 1.0f, coord.z);
-    float west =   tex3D(tex, coord.x - 1.0f, coord.y, coord.z);
-    float center = tex3D(tex, coord.x, coord.y, coord.z);
-    float east =   tex3D(tex, coord.x + 1.0f, coord.y, coord.z);
-    float north =  tex3D(tex, coord.x, coord.y + 1.0f, coord.z);
-    float far =    tex3D(tex, coord.x, coord.y, coord.z + 1.0f);
-
-    float u = one_minus_omega * (alpha_omega_over_beta * center) +
-        (alpha_omega_over_beta * (north + south + east + west + far + near) +
-        minus_h_square * center) * omega_times_inverse_beta;
-
-    auto r = __float2half_rn(u);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
-}
-
 __global__ void RestrictLerpKernel(uint3 volume_size)
 {
     int x = VolumeX();
@@ -132,15 +101,14 @@ __global__ void RestrictLerpKernel(uint3 volume_size)
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
-    auto r = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
+    auto r = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z) * 4.0f);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
 
 void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
-                           float cell_size, uint3 volume_size,
-                           BlockArrangement* ba)
+                           uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, r) != cudaSuccess)
         return;
@@ -158,8 +126,7 @@ void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
-    ComputeResidualKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
-                                           volume_size);
+    ComputeResidualKernel<<<grid, block>>>(volume_size);
 }
 
 void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
@@ -202,32 +169,6 @@ void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
     ProlongateErrorLerpKernel<<<grid, block>>>(volume_size_fine);
-}
-
-void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,
-                              uint3 volume_size, BlockArrangement* ba)
-{
-    float alpha_omega_over_beta = -(cell_size * cell_size) * 0.11111111f;
-    float one_minus_omega = 0.33333333f;
-    float minus_h_square = -(cell_size * cell_size);
-    float omega_times_inverse_beta = 0.11111111f;
-
-    if (BindCudaSurfaceToArray(&surf, u) != cudaSuccess)
-        return;
-
-    auto bound = BindHelper::Bind(&tex, b, false, cudaFilterModePoint,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    RelaxWithZeroGuessKernel<<<grid, block>>>(alpha_omega_over_beta,
-                                              one_minus_omega,
-                                              minus_h_square,
-                                              omega_times_inverse_beta,
-                                              volume_size);
 }
 
 void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,

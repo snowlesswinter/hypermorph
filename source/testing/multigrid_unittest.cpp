@@ -100,12 +100,10 @@ void MultigridUnittest::TestResidualCalculation(int random_seed)
                                       std::make_pair(-2.0f, 2.0f));
 
     PoissonCoreCuda cuda_core;
-    cuda_core.ComputeResidual(cuda_volume, cuda_volume, cuda_residual,
-                              kCellSize);
+    cuda_core.ComputeResidual(cuda_volume, cuda_volume, cuda_residual);
 
     PoissonCoreGlsl glsl_core;
-    glsl_core.ComputeResidual(glsl_volume, glsl_volume, glsl_residual,
-                              kCellSize);
+    glsl_core.ComputeResidual(glsl_volume, glsl_volume, glsl_residual);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size_1,
                                            pitch_1, n_1, 1, &cuda_residual,
@@ -216,10 +214,10 @@ void MultigridUnittest::TestZeroGuessRelaxation(int random_seed)
                                       std::make_pair(-4.0f, 4.0f));
 
     PoissonCoreCuda cuda_core;
-    cuda_core.RelaxWithZeroGuess(cuda_volume, cuda_volume, kCellSize);
+    cuda_core.RelaxWithZeroGuess(cuda_volume, cuda_volume);
 
     PoissonCoreGlsl glsl_core;
-    glsl_core.RelaxWithZeroGuess(glsl_volume, glsl_volume, kCellSize);
+    glsl_core.RelaxWithZeroGuess(glsl_volume, glsl_volume);
 
     UnittestCommon::CollectAndVerifyResult(width, height, depth, size, pitch, n,
                                            1, &cuda_volume, &glsl_volume,

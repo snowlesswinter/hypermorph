@@ -70,8 +70,7 @@ bool OpenBoundaryMultigridPoissonSolver::Initialize(int width, int height,
 }
 
 void OpenBoundaryMultigridPoissonSolver::Solve(
-    std::shared_ptr<GraphicsVolume> u, std::shared_ptr<GraphicsVolume> b,
-    float cell_size)
+    std::shared_ptr<GraphicsVolume> u, std::shared_ptr<GraphicsVolume> b)
 {
     auto i = volume_resource_.begin();
     auto prev = i;
@@ -101,23 +100,21 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[i + 1]->y();
 
         if (i)
-            core_->RelaxWithZeroGuess(*fine_volumes->x(), *fine_volumes->y(),
-                                      cell_size);
+            core_->RelaxWithZeroGuess(*fine_volumes->x(), *fine_volumes->y());
         else
-            Relax(fine_volumes->x(), fine_volumes->y(), cell_size, 2);
+            Relax(fine_volumes->x(), fine_volumes->y(), 2);
 
-        Relax(fine_volumes->x(), fine_volumes->y(), cell_size,
-              times_to_iterate - 2);
+        Relax(fine_volumes->x(), fine_volumes->y(), times_to_iterate - 2);
         core_->ComputeResidual(*fine_volumes->z(), *fine_volumes->x(),
-                               *fine_volumes->y(), cell_size);
+                               *fine_volumes->y());
         core_->Restrict(*coarse_volume, *fine_volumes->z());
 
         times_to_iterate *= 2;
     }
 
     std::shared_ptr<GraphicsVolume3> coarsest = volumes[num_of_levels - 1];
-    core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y(), cell_size);
-    Relax(coarsest->x(), coarsest->y(), cell_size, times_to_iterate - 2);
+    core_->RelaxWithZeroGuess(*coarsest->x(), *coarsest->y());
+    Relax(coarsest->x(), coarsest->y(), times_to_iterate - 2);
 
     for (int j = num_of_levels - 2; j >= 0; j--) {
         std::shared_ptr<GraphicsVolume> coarse_volume = volumes[j + 1]->x();
@@ -126,13 +123,13 @@ void OpenBoundaryMultigridPoissonSolver::Solve(
         times_to_iterate /= 2;
 
         core_->ProlongateError(*fine_volume->x(), *coarse_volume);
-        Relax(fine_volume->x(), fine_volume->y(), cell_size, times_to_iterate);
+        Relax(fine_volume->x(), fine_volume->y(), times_to_iterate);
     }
 }
 
 void OpenBoundaryMultigridPoissonSolver::Relax(
     std::shared_ptr<GraphicsVolume> u, std::shared_ptr<GraphicsVolume> b,
-    float cell_size, int times)
+   int times)
 {
-    core_->Relax(*u, *b, cell_size, times);
+    core_->Relax(*u, *b, times);
 }

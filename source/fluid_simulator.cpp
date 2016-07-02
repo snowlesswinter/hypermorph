@@ -356,7 +356,7 @@ void FluidSimulator::AdvectDensity(float cell_size, float delta_time)
                                           velocity_.x()->cuda_volume(),
                                           velocity_.y()->cuda_volume(),
                                           velocity_.z()->cuda_volume(),
-                                          general1b_->cuda_volume(),cell_size,
+                                          general1b_->cuda_volume(),
                                           delta_time, density_dissipation);
     } else {
         AdvectImpl(density_, delta_time, density_dissipation);
@@ -396,7 +396,7 @@ void FluidSimulator::AdvectTemperature(float cell_size, float delta_time)
                                           velocity_.x()->cuda_volume(),
                                           velocity_.y()->cuda_volume(),
                                           velocity_.z()->cuda_volume(),
-                                          general1b_->cuda_volume(), cell_size,
+                                          general1b_->cuda_volume(),
                                           delta_time, temperature_dissipation);
     } else {
         AdvectImpl(temperature_, delta_time, temperature_dissipation);
@@ -417,8 +417,7 @@ void FluidSimulator::AdvectVelocity(float cell_size, float delta_time)
                                              velocity_.y()->cuda_volume(),
                                              velocity_.z()->cuda_volume(),
                                              general1a_->cuda_volume(),
-                                             cell_size, delta_time,
-                                             velocity_dissipation);
+                                             delta_time, velocity_dissipation);
         velocity_.Swap(velocity_prime_);
 
         if (diagnosis_ == DIAG_VELOCITY) {
@@ -541,8 +540,7 @@ void FluidSimulator::ComputeDivergence(
         CudaMain::Instance()->ComputeDivergence(divergence->cuda_volume(),
                                                 velocity_.x()->cuda_volume(),
                                                 velocity_.y()->cuda_volume(),
-                                                velocity_.z()->cuda_volume(),
-                                                cell_size);
+                                                velocity_.z()->cuda_volume());
     } else {
         float half_inverse_cell_size = 0.5f / cell_size;
 
@@ -586,7 +584,7 @@ void FluidSimulator::ComputeResidualDiagnosis(
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ComputeResidualDiagnosis(
             diagnosis_volume_->cuda_volume(), pressure->cuda_volume(),
-            divergence->cuda_volume(), cell_size);
+            divergence->cuda_volume());
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         float inverse_h_square = 1.0f / (cell_size * cell_size);
 
@@ -650,7 +648,7 @@ void FluidSimulator::DampedJacobi(std::shared_ptr<GraphicsVolume> pressure,
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->Relax(pressure->cuda_volume(),
                                     pressure->cuda_volume(),
-                                    divergence->cuda_volume(), cell_size,
+                                    divergence->cuda_volume(),
                                     num_of_iterations);
     } else {
         float one_minus_omega = 0.33333333f;
@@ -811,8 +809,7 @@ void FluidSimulator::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
     if (pressure_solver_) {
         pressure_solver_->SetDiagnosis(diagnosis_ == DIAG_PRESSURE);
         pressure_solver_->SetNestedSolverIterations(num_nested_iterations);
-        pressure_solver_->Solve(pressure, divergence, cell_size,
-                                num_iterations);
+        pressure_solver_->Solve(pressure, divergence, num_iterations);
     }
 
     ComputeResidualDiagnosis(pressure, divergence, cell_size);
@@ -835,8 +832,7 @@ void FluidSimulator::SubtractGradient(std::shared_ptr<GraphicsVolume> pressure,
         CudaMain::Instance()->SubtractGradient(velocity_.x()->cuda_volume(),
                                                velocity_.y()->cuda_volume(),
                                                velocity_.z()->cuda_volume(),
-                                               pressure->cuda_volume(),
-                                               cell_size);
+                                               pressure->cuda_volume());
     } else {
         const float half_inverse_cell_size = 0.5f / cell_size;
 
@@ -867,7 +863,7 @@ void FluidSimulator::AddCurlPsi(const GraphicsVolume3& psi, float cell_size)
                                          velocity_.z()->cuda_volume(),
                                          psi.x()->cuda_volume(),
                                          psi.y()->cuda_volume(),
-                                         psi.z()->cuda_volume(), cell_size);
+                                         psi.z()->cuda_volume());
     }
 }
 
@@ -883,8 +879,8 @@ void FluidSimulator::AdvectVortices(const GraphicsVolume3& vorticity,
             temp.y()->cuda_volume(), temp.z()->cuda_volume(),
             velocity_prime_.x()->cuda_volume(),
             velocity_prime_.y()->cuda_volume(),
-            velocity_prime_.z()->cuda_volume(), aux->cuda_volume(), cell_size,
-            delta_time, 0.0f);
+            velocity_prime_.z()->cuda_volume(), aux->cuda_volume(), delta_time,
+            0.0f);
     }
 }
 
@@ -921,7 +917,7 @@ void FluidSimulator::BuildVorticityConfinemnet(float delta_time,
             vort_conf.x()->cuda_volume(), vort_conf.y()->cuda_volume(),
             vort_conf.z()->cuda_volume(), vorticity.x()->cuda_volume(),
             vorticity.y()->cuda_volume(), vorticity.z()->cuda_volume(),
-            vort_conf_coef * delta_time, cell_size);
+            vort_conf_coef * delta_time);
     }
 }
 
@@ -935,8 +931,7 @@ void FluidSimulator::ComputeCurl(const GraphicsVolume3& vorticity,
                                           vorticity.z()->cuda_volume(),
                                           velocity.x()->cuda_volume(),
                                           velocity.y()->cuda_volume(),
-                                          velocity.z()->cuda_volume(),
-                                          cell_size);
+                                          velocity.z()->cuda_volume());
         if (diagnosis_ == DIAG_CURL) {
             CudaMain::Instance()->PrintVolume(vorticity.x()->cuda_volume(),
                                               "CurlX");
@@ -978,7 +973,7 @@ void FluidSimulator::DecayVortices(const GraphicsVolume3& vorticity,
         CudaMain::Instance()->ComputeDivergence(
             aux->cuda_volume(), velocity_prime_.x()->cuda_volume(),
             velocity_prime_.y()->cuda_volume(),
-            velocity_prime_.z()->cuda_volume(), cell_size);
+            velocity_prime_.z()->cuda_volume());
         CudaMain::Instance()->DecayVortices(
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
             vorticity.z()->cuda_volume(), aux->cuda_volume(), delta_time);
@@ -1046,7 +1041,7 @@ void FluidSimulator::SolvePsi(const GraphicsVolume3& psi,
         for (int i = 0; i < psi.num_of_volumes(); i++) {
             psi[i]->Clear();
             for (int j = 0; j < num_multigrid_iterations; j++)
-                pressure_solver_->Solve(psi[i], delta_vort[i], cell_size, !j);
+                pressure_solver_->Solve(psi[i], delta_vort[i], !j);
         }
 
         if (diagnosis_ == DIAG_PSI) {
@@ -1068,7 +1063,7 @@ void FluidSimulator::StretchVortices(const GraphicsVolume3& vort_np1,
             velocity_prime_.y()->cuda_volume(),
             velocity_prime_.z()->cuda_volume(),
             vorticity.x()->cuda_volume(), vorticity.y()->cuda_volume(),
-            vorticity.z()->cuda_volume(), cell_size, delta_time);
+            vorticity.z()->cuda_volume(), delta_time);
     }
 }
 

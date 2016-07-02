@@ -61,8 +61,7 @@ struct UpperBoundaryHandlerOutflow
 // =============================================================================
 
 template <typename UpperBoundaryHandler>
-__global__ void ApplyStencilKernel(float inverse_square_cell_size,
-                                   uint3 volume_size,
+__global__ void ApplyStencilKernel(uint3 volume_size,
                                    UpperBoundaryHandler handler)
 {
     uint x = VolumeX();
@@ -82,8 +81,8 @@ __global__ void ApplyStencilKernel(float inverse_square_cell_size,
 
     handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
-    float v = (north + south + east + west + far + near - 6.0f * center) *
-        inverse_square_cell_size;
+    // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
+    float v = (north + south + east + west + far + near - 6.0f * center);
     auto r = __float2half_rn(v);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
@@ -173,8 +172,8 @@ struct SchemeBeta : public SchemeDefault
 
 // =============================================================================
 
-void LaunchApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
-                        bool outflow, uint3 volume_size, BlockArrangement* ba)
+void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
+                        uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
         return;
@@ -191,11 +190,9 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
     UpperBoundaryHandlerOutflow outflow_handler;
     UpperBoundaryHandlerNeumann neumann_handler;
     if (outflow)
-        ApplyStencilKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
-                                            volume_size, outflow_handler);
+        ApplyStencilKernel<<<grid, block>>>(volume_size, outflow_handler);
     else
-        ApplyStencilKernel<<<grid, block>>>(1.0f / (cell_size * cell_size),
-                                            volume_size, neumann_handler);
+        ApplyStencilKernel<<<grid, block>>>(volume_size, neumann_handler);
 }
 
 void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,

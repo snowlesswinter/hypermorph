@@ -39,7 +39,7 @@ public:
     virtual void SetDiagnosis(bool diagnosis) = 0;
     virtual void SetNestedSolverIterations(int num_iterations) = 0;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b, float cell_size,
+                       std::shared_ptr<GraphicsVolume> b,
                        int iteration_times) = 0;
 };
 

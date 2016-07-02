@@ -43,7 +43,7 @@ public:
     virtual void SetDiagnosis(bool diagnosis) override;
     virtual void SetNestedSolverIterations(int num_iterations) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b, float cell_size,
+                       std::shared_ptr<GraphicsVolume> b,
                        int iteration_times) override;
 
     void set_num_finest_level_iteration_per_pass(int n) {
@@ -52,7 +52,7 @@ public:
 
 private:
     void Iterate(std::shared_ptr<GraphicsVolume> u,
-                 std::shared_ptr<GraphicsVolume> b, float cell_size,
+                 std::shared_ptr<GraphicsVolume> b,
                  bool apply_initial_guess);
     bool ValidateVolume(std::shared_ptr<GraphicsVolume> v);
 

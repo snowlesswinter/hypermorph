@@ -39,18 +39,18 @@ public:
 
     // Multigrid.
     void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
-                         float cell_size, const glm::ivec3& volume_size);
+                         const glm::ivec3& volume_size);
     void Prolongate(cudaArray* fine, cudaArray* coarse,
                     const glm::ivec3& volume_size);
     void ProlongateError(cudaArray* fine, cudaArray* coarse,
                          const glm::ivec3& volume_size);
-    void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, float cell_size,
+    void RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
                             const glm::ivec3& volume_size);
     void Restrict(cudaArray* coarse, cudaArray* fine,
                   const glm::ivec3& volume_size);
 
     // Conjugate gradient.
-    void ApplyStencil(cudaArray* aux, cudaArray* search, float cell_size,
+    void ApplyStencil(cudaArray* aux, cudaArray* search,
                       const glm::ivec3& volume_size);
     void ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
                       cudaArray* search, const glm::ivec3& volume_size);
@@ -62,11 +62,13 @@ public:
     void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
                    float sign, const glm::ivec3& volume_size);
 
+    void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_outflow(bool outflow) { outflow_ = outflow; }
 
 private:
     BlockArrangement* ba_;
     AuxBufferManager* bm_;
+    float cell_size_;
     bool outflow_;
 };
 

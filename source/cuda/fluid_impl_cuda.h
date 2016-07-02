@@ -46,14 +46,14 @@ public:
 
     void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x,
                            cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
-                           float cell_size, float time_step, float dissipation,
+                           float time_step, float dissipation,
                            const glm::ivec3& volume_size);
     void AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                             cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y,
                             cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y,
-                            cudaArray* vel_z, cudaArray* aux, float cell_size,
-                            float time_step, float dissipation,
-                            const glm::ivec3& volume_size, VectorField field);
+                            cudaArray* vel_z, cudaArray* aux, float time_step,
+                            float dissipation, const glm::ivec3& volume_size,
+                            VectorField field);
     void ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
                        cudaArray* vel_z, cudaArray* temperature,
                        cudaArray* density, float time_step,
@@ -73,30 +73,27 @@ public:
     void BuildVorticityConfinement(cudaArray* conf_x, cudaArray* conf_y,
                                    cudaArray* conf_z, cudaArray* vort_x,
                                    cudaArray* vort_y, cudaArray* vort_z,
-                                   float coeff, float cell_size,
-                                   const glm::ivec3& volume_size);
+                                   float coeff, const glm::ivec3& volume_size);
     void ComputeCurl(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z,
                      cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                     float cell_size, const glm::ivec3& volume_size);
+                     const glm::ivec3& volume_size);
     void ComputeDivergence(cudaArray* div, cudaArray* vel_x,
-                           cudaArray* vel_y, cudaArray* vel_z, float cell_size,
+                           cudaArray* vel_y, cudaArray* vel_z,
                            const glm::ivec3& volume_size);
     void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
-                                  cudaArray* b, float cell_size,
-                                  const glm::ivec3& volume_size);
-    void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, float cell_size,
+                                  cudaArray* b, const glm::ivec3& volume_size);
+    void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
                int num_of_iterations, const glm::ivec3& volume_size);
     void ReviseDensity(cudaArray* density, const glm::vec3& center_point,
                        float radius, float value,
                        const glm::ivec3& volume_size);
     void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                          cudaArray* pressure, float cell_size,
-                          const glm::ivec3& volume_size);
+                          cudaArray* pressure, const glm::ivec3& volume_size);
 
     // Vorticity.
     void AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                     cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z,
-                    float cell_size, const glm::ivec3& volume_size);
+                    const glm::ivec3& volume_size);
     void ComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
                                cudaArray* delta_z, cudaArray* vort_x,
                                cudaArray* vort_y, cudaArray* vort_z,
@@ -107,12 +104,13 @@ public:
     void StretchVortices(cudaArray* vnp1_x, cudaArray* vnp1_y,
                          cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y,
                          cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y,
-                         cudaArray* vort_z, float cell_size, float time_step,
+                         cudaArray* vort_z, float time_step,
                          const glm::ivec3& volume_size);
 
     // For debugging.
     void RoundPassed(int round);
 
+    void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_advect_method(AdvectionMethod m) { advect_method_ = m; }
     void set_fluid_impulse(FluidImpulse i) { impulse_ = i; }
     void set_mid_point(bool mid_point) { mid_point_ = mid_point; }
@@ -121,6 +119,7 @@ public:
 
 private:
     BlockArrangement* ba_;
+    float cell_size_;
     bool staggered_;
     bool mid_point_;
     bool outflow_;

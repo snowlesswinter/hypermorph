@@ -172,7 +172,7 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
 }
 
 template <typename UpperBoundaryHandler>
-__global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
+__global__ void ComputeDivergenceStaggeredKernel(float cell_size,
                                                  uint3 volume_size,
                                                  UpperBoundaryHandler handler)
 {
@@ -206,14 +206,15 @@ __global__ void ComputeDivergenceStaggeredKernel(float inverse_cell_size,
     if (z >= volume_size.z - 1)
         diff_fn = -base_z;
 
-    float div = inverse_cell_size * (diff_ew + diff_ns + diff_fn);
+    // NOTE: Premultiply h^2 to get a uniformed cell size at all levels
+    //       of multigrid hierarchy.
+    float div = cell_size * (diff_ew + diff_ns + diff_fn);
     auto r = __float2half_rn(div);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
-                                               uint3 volume_size)
-{
+                                               uint3 volume_size){
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -250,8 +251,7 @@ __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
     if (coord.z == 0)
         near = center;
 
-    float v = b -
-        (north + south + east + west + far + near - 6.0 * center) *
+    float v = (b - (north + south + east + west + far + near - 6.0 * center)) *
         inverse_h_square;
     surf3Dwrite(fabsf(v), surf, x * sizeof(float), y, z, cudaBoundaryModeTrap);
 }
@@ -448,11 +448,11 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     UpperBoundaryHandlerNeumann neumann_handler;
     if (staggered) {
         if (outflow) {
-            ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
+            ComputeDivergenceStaggeredKernel<<<grid, block>>>(cell_size,
                                                               volume_size,
                                                               outflow_handler);
         } else {
-            ComputeDivergenceStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
+            ComputeDivergenceStaggeredKernel<<<grid, block>>>(cell_size,
                                                               volume_size,
                                                               neumann_handler);
         }

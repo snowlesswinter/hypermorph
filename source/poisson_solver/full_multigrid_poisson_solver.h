@@ -42,7 +42,7 @@ public:
     virtual void SetDiagnosis(bool diagnosis) override;
     virtual void SetNestedSolverIterations(int num_iterations) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b, float cell_size,
+                       std::shared_ptr<GraphicsVolume> b,
                        int iteration_times) override;
 
 private:
@@ -50,7 +50,7 @@ private:
         std::shared_ptr<GraphicsVolume>> VolumePair;
 
     void Iterate(std::shared_ptr<GraphicsVolume> u,
-                 std::shared_ptr<GraphicsVolume> b, float cell_size,
+                 std::shared_ptr<GraphicsVolume> b,
                  bool apply_initial_guess);
 
     PoissonCore* core_;

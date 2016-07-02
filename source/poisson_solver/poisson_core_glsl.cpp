@@ -79,8 +79,9 @@ std::shared_ptr<GraphicsVolume3> PoissonCoreGlsl::CreateVolumeGroup(
 
 void PoissonCoreGlsl::ComputeResidual(const GraphicsVolume& r,
                                       const GraphicsVolume& u,
-                                      const GraphicsVolume& b, float cell_size)
+                                      const GraphicsVolume& b)
 {
+    float cell_size = 0.15f;
     GetResidualPackedProgram()->Use();
 
     SetUniform("packed_tex", 0);
@@ -137,8 +138,9 @@ void PoissonCoreGlsl::ProlongateError(const GraphicsVolume& fine,
 }
 
 void PoissonCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
-                            float cell_size, int num_of_iterations)
+                            int num_of_iterations)
 {
+    float cell_size = 0.15f;
     for (int i = 0; i < num_of_iterations; i++) {
         GetRelaxPackedProgram()->Use();
 
@@ -157,9 +159,9 @@ void PoissonCoreGlsl::Relax(const GraphicsVolume& u, const GraphicsVolume& b,
 }
 
 void PoissonCoreGlsl::RelaxWithZeroGuess(const GraphicsVolume& u,
-                                         const GraphicsVolume& b,
-                                         float cell_size)
+                                         const GraphicsVolume& b)
 {
+    float cell_size = 0.15f;
     GetRelaxZeroGuessPackedProgram()->Use();
 
     SetUniform("packed_tex", 0);
@@ -194,8 +196,7 @@ void PoissonCoreGlsl::Restrict(const GraphicsVolume& coarse,
 }
 
 void PoissonCoreGlsl::ApplyStencil(const GraphicsVolume& aux,
-                                   const GraphicsVolume& search,
-                                   float cell_size)
+                                   const GraphicsVolume& search)
 {
 
 }
