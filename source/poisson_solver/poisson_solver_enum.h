@@ -19,41 +19,17 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _GRAPHICS_VOLUME_H_
-#define _GRAPHICS_VOLUME_H_
+#ifndef _POISSON_SOLVER_ENUM_H_
+#define _POISSON_SOLVER_ENUM_H_
 
-#include <memory>
-
-#include "graphics_lib_enum.h"
-
-class CudaVolume;
-class GLVolume;
-class GraphicsVolume
+enum PoissonSolverEnum
 {
-public:
-    explicit GraphicsVolume(GraphicsLib lib);
-    ~GraphicsVolume();
-
-    void Clear();
-    bool Create(int width, int height, int depth, int num_of_components,
-                int byte_width, int border);
-    bool HasSameProperties(const GraphicsVolume& other) const;
-    void Swap(GraphicsVolume& other);
-
-    GraphicsLib graphics_lib() const { return graphics_lib_; }
-    int GetWidth() const;
-    int GetHeight() const;
-    int GetDepth() const;
-    int GetByteWidth() const;
-
-    std::shared_ptr<GLVolume> gl_volume() const;
-    std::shared_ptr<CudaVolume> cuda_volume() const;
-
-private:
-    GraphicsLib graphics_lib_;
-    std::shared_ptr<GLVolume> gl_volume_;
-    std::shared_ptr<CudaVolume> cuda_volume_;
-    int border_;
+    POISSON_SOLVER_JACOBI,
+    POISSON_SOLVER_DAMPED_JACOBI,
+    POISSON_SOLVER_GAUSS_SEIDEL,
+    POISSON_SOLVER_MULTI_GRID,
+    POISSON_SOLVER_FULL_MULTI_GRID,
+    POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT
 };
 
-#endif // _GRAPHICS_VOLUME_H_
+#endif // _POISSON_SOLVER_ENUM_H_

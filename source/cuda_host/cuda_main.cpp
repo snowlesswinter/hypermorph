@@ -497,6 +497,12 @@ void CudaMain::SetMidPoint(bool mid_point)
     fluid_impl_->set_mid_point(mid_point);
 }
 
+void CudaMain::SetCellSize(float cell_size)
+{
+    fluid_impl_->set_cell_size(cell_size);
+    poisson_impl_->set_cell_size(cell_size);
+}
+
 void CudaMain::SetFluidImpulse(FluidImpulse impulse)
 {
     fluid_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));

@@ -48,7 +48,7 @@ public:
     void Reload();
 
     GraphicsLib graphics_lib() const { return graphics_lib_.value_; }
-    FluidSimulator::PoissonMethod poisson_method() const {
+    PoissonSolverEnum poisson_method() const {
         return poisson_method_.value_;
     }
     CudaMain::AdvectionMethod advection_method() const {
@@ -118,7 +118,7 @@ private:
     std::string preset_path_;
     ConfigField<std::string> preset_file_;
     ConfigField<GraphicsLib> graphics_lib_;
-    ConfigField<FluidSimulator::PoissonMethod> poisson_method_;
+    ConfigField<PoissonSolverEnum> poisson_method_;
     ConfigField<CudaMain::AdvectionMethod> advection_method_;
     ConfigField<CudaMain::FluidImpulse> fluid_impluse_;
     ConfigField<glm::vec3> light_color_;

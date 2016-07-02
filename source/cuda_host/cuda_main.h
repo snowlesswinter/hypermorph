@@ -234,6 +234,7 @@ public:
                  float occlusion_factor);
 
     void SetAdvectionMethod(AdvectionMethod method);
+    void SetCellSize(float cell_size);
     void SetFluidImpulse(FluidImpulse impulse);
     void SetMidPoint(bool mid_point);
     void SetOutflow(bool outflow);

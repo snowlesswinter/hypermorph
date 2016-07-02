@@ -127,6 +127,9 @@ bool GraphicsVolume::HasSameProperties(const GraphicsVolume& other) const
     if (graphics_lib_ != other.graphics_lib_)
         return false;
 
+    if (border_ != other.border_)
+        return false;
+
     if (graphics_lib_ == GRAPHICS_LIB_CUDA)
         return cuda_volume_->HasSameProperties(*other.cuda_volume());
 
@@ -134,6 +137,16 @@ bool GraphicsVolume::HasSameProperties(const GraphicsVolume& other) const
         return gl_volume_->HasSameProperties(*other.gl_volume());
 
     return false;
+}
+
+void GraphicsVolume::Swap(GraphicsVolume& other)
+{
+    assert(HasSameProperties(other));
+    if (!HasSameProperties(other))
+        return;
+
+    std::swap(gl_volume_, other.gl_volume_);
+    std::swap(cuda_volume_, other.cuda_volume_);
 }
 
 int GraphicsVolume::GetWidth() const

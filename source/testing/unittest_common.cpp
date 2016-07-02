@@ -28,7 +28,7 @@
 
 #include "cuda/cuda_core.h"
 #include "cuda_host/cuda_volume.h"
-#include "fluid_simulator.h"
+#include "fluid_solver/grid_fluid_solver.h"
 #include "graphics_volume.h"
 #include "half_float/half.h"
 #include "opengl/gl_volume.h"
@@ -275,19 +275,17 @@ void UnittestCommon::CollectAndVerifyResult(int width, int height, int depth,
                       channel_mask, function_name);
 }
 
-bool UnittestCommon::InitializeSimulators(FluidSimulator* sim_cuda,
-                                          FluidSimulator* sim_glsl)
+bool UnittestCommon::InitializeSimulators(GridFluidSolver* sim_cuda,
+                                          GridFluidSolver* sim_glsl)
 {
     do
     {
-        sim_cuda->set_graphics_lib(GRAPHICS_LIB_CUDA);
-        bool result = sim_cuda->Init();
+        bool result = sim_cuda->Initialize(GRAPHICS_LIB_CUDA, 1, 1, 1);
         assert(result);
         if (!result)
             break;
 
-        sim_glsl->set_graphics_lib(GRAPHICS_LIB_GLSL);
-        result = sim_glsl->Init();
+        result = sim_glsl->Initialize(GRAPHICS_LIB_GLSL, 1, 1, 1);
         assert(result);
         if (!result)
             break;

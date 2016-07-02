@@ -52,7 +52,3 @@ glm::vec3 CalculateInverseSize(const CudaVolume& volume);
 void PrintDebugString(const char* content, ...);
 void SetFatalError(const char* content, ...);
 void CheckCondition(int condition, ...);
-
-extern const float kMaxTimeStep;
-extern const float kBuoyancyCoef;
-extern const glm::vec3 kImpulsePosition;

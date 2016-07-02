@@ -19,41 +19,23 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _GRAPHICS_VOLUME_H_
-#define _GRAPHICS_VOLUME_H_
+#ifndef _FLIP_FLUID_SOLVER_H_
+#define _FLIP_FLUID_SOLVER_H_
 
-#include <memory>
+#include "fluid_solver.h"
 
-#include "graphics_lib_enum.h"
-
-class CudaVolume;
-class GLVolume;
-class GraphicsVolume
+class FlipFluidSolver : public FluidSolver
 {
 public:
-    explicit GraphicsVolume(GraphicsLib lib);
-    ~GraphicsVolume();
+    FlipFluidSolver();
+    virtual ~FlipFluidSolver();
 
-    void Clear();
-    bool Create(int width, int height, int depth, int num_of_components,
-                int byte_width, int border);
-    bool HasSameProperties(const GraphicsVolume& other) const;
-    void Swap(GraphicsVolume& other);
-
-    GraphicsLib graphics_lib() const { return graphics_lib_; }
-    int GetWidth() const;
-    int GetHeight() const;
-    int GetDepth() const;
-    int GetByteWidth() const;
-
-    std::shared_ptr<GLVolume> gl_volume() const;
-    std::shared_ptr<CudaVolume> cuda_volume() const;
-
-private:
-    GraphicsLib graphics_lib_;
-    std::shared_ptr<GLVolume> gl_volume_;
-    std::shared_ptr<CudaVolume> cuda_volume_;
-    int border_;
+    virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
+                            int depth) override;
+    virtual void Reset() override;
+    virtual void SetDiagnosis(int diagnosis) override;
+    virtual void SetPressureSolver(PoissonSolver* solver) override;
+    virtual void Solve(GraphicsVolume* density, float delta_time) override;
 };
 
-#endif // _GRAPHICS_VOLUME_H_
+#endif // _FLIP_FLUID_SOLVER_H_

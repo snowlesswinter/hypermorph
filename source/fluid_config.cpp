@@ -76,12 +76,12 @@ struct { GraphicsLib graphics_lib_; char* desc_; } lib_enum_desc[] = {
     {GRAPHICS_LIB_CUDA_DIAGNOSIS, "diagnosis"},
 };
 
-struct { FluidSimulator::PoissonMethod m_; char* desc_; } method_enum_desc[] = {
-    {FluidSimulator::POISSON_SOLVER_JACOBI, "j"},
-    {FluidSimulator::POISSON_SOLVER_DAMPED_JACOBI, "dj"},
-    {FluidSimulator::POISSON_SOLVER_MULTI_GRID, "mg"},
-    {FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID, "fmg"},
-    {FluidSimulator::POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT, "mgpcg"},
+struct { PoissonSolverEnum m_; char* desc_; } method_enum_desc[] = {
+    {POISSON_SOLVER_JACOBI, "j"},
+    {POISSON_SOLVER_DAMPED_JACOBI, "dj"},
+    {POISSON_SOLVER_MULTI_GRID, "mg"},
+    {POISSON_SOLVER_FULL_MULTI_GRID, "fmg"},
+    {POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT, "mgpcg"},
 };
 
 struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
@@ -118,9 +118,9 @@ std::istream& operator >> <GraphicsLib>(
 }
 
 template <>
-std::istream& operator >> <FluidSimulator::PoissonMethod>(
+std::istream& operator >> <PoissonSolverEnum>(
     std::istream& is,
-    FluidConfig::ConfigField<FluidSimulator::PoissonMethod>& field)
+    FluidConfig::ConfigField<PoissonSolverEnum>& field)
 {
     std::string method;
     std::getline(is, method);
@@ -206,9 +206,9 @@ std::ostream& operator << <GraphicsLib>(
 }
 
 template <>
-std::ostream& operator << <FluidSimulator::PoissonMethod>(
+std::ostream& operator << <PoissonSolverEnum>(
     std::ostream& os,
-    FluidConfig::ConfigField<FluidSimulator::PoissonMethod>& field)
+    FluidConfig::ConfigField<PoissonSolverEnum>& field)
 {
     os << field.desc_ << " = ";
     for (auto i : method_enum_desc)
@@ -301,8 +301,7 @@ FluidConfig::FluidConfig()
     , preset_path_()
     , preset_file_("", "preset")
     , graphics_lib_(GRAPHICS_LIB_CUDA, "graphics library")
-    , poisson_method_(FluidSimulator::POISSON_SOLVER_FULL_MULTI_GRID,
-                      "poisson method")
+    , poisson_method_(POISSON_SOLVER_FULL_MULTI_GRID, "poisson method")
     , advection_method_(CudaMain::MACCORMACK_SEMI_LAGRANGIAN,
                         "advection method")
     , fluid_impluse_(CudaMain::IMPULSE_HOT_FLOOR, "fluid impulse")
@@ -314,7 +313,7 @@ FluidConfig::FluidConfig()
     , impulse_temperature_(40.0f, "impulse temperature")
     , impulse_density_(0.5f, "impulse density")
     , impulse_velocity_(10.0f, "impulse velocity")
-    , smoke_buoyancy_(1.0f, "smoke buoyancy")
+    , smoke_buoyancy_(0.1f, "smoke buoyancy")
     , smoke_weight_(0.0001f, "smoke weight")
     , temperature_dissipation_(0.15f, "temperature dissipation")
     , velocity_dissipation_(0.001f, "velocity dissipation")

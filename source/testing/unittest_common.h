@@ -27,8 +27,8 @@
 
 #include <stdint.h>
 
-class FluidSimulator;
 class GraphicsVolume;
+class GridFluidSolver;
 class UnittestCommon
 {
 public:
@@ -38,8 +38,8 @@ public:
                                        GraphicsVolume* cuda_volume,
                                        GraphicsVolume* glsl_volume,
                                        char* function_name);
-    static bool InitializeSimulators(FluidSimulator* sim_cuda,
-                                     FluidSimulator* sim_glsl);
+    static bool InitializeSimulators(GridFluidSolver* sim_cuda,
+                                     GridFluidSolver* sim_glsl);
     static void InitializeVolume1(GraphicsVolume* cuda_volume,
                                   GraphicsVolume* glsl_volume, int width,
                                   int height, int depth, int n, int pitch,

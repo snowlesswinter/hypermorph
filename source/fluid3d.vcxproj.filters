@@ -13,6 +13,9 @@
     <Filter Include="poisson_solver">
       <UniqueIdentifier>{3a6e8f44-2c94-40e0-a53b-5592614c0e12}</UniqueIdentifier>
     </Filter>
+    <Filter Include="fluid_solver">
+      <UniqueIdentifier>{7557b4dc-e5d5-4ff9-bd61-b96374e488ee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -87,6 +90,18 @@
     <ClInclude Include="cuda_host\cuda_linear_mem.h">
       <Filter>cuda_host</Filter>
     </ClInclude>
+    <ClInclude Include="fluid_solver\fluid_solver.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="fluid_solver\flip_fluid_solver.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="fluid_solver\grid_fluid_solver.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="poisson_solver\poisson_solver_enum.h">
+      <Filter>poisson_solver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -159,6 +174,15 @@
     </ClCompile>
     <ClCompile Include="cuda_host\cuda_linear_mem.cpp">
       <Filter>cuda_host</Filter>
+    </ClCompile>
+    <ClCompile Include="fluid_solver\fluid_solver.cpp">
+      <Filter>fluid_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="fluid_solver\flip_fluid_solver.cpp">
+      <Filter>fluid_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="fluid_solver\grid_fluid_solver.cpp">
+      <Filter>fluid_solver</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
