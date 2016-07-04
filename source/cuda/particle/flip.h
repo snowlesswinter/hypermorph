@@ -26,19 +26,10 @@
 
 struct FlipParticles
 {
-    static const uint kCellUndefined = static_cast<uint>(-1);
-    static const uint kMaxNumParticlesPerCell = 6;
-    static const uint kMinNumParticlesPerCell = 3;
-
-    static __device__ bool IsCellUndefined(uint cell_index);
-    static __device__ void SetUndefined(uint* cell_index);
-    static __device__ void FreeParticle(const FlipParticles& p, uint i);
-    static __device__ bool IsStopped(float v_x, float v_y, float v_z);
-
     uint32_t* particle_index_;      // Cell index -> particle index.
     uint32_t* cell_index_;          // Particle index -> cell index.
+    uint32_t* particle_count_;      // Cell index -> # particles in cell.
     uint8_t* in_cell_index_;        // Particle index -> in-cell index.
-    uint8_t* particle_count_;       // Cell index -> # particles in cell.
     uint16_t* position_x_;
     uint16_t* position_y_;
     uint16_t* position_z_;
@@ -47,7 +38,7 @@ struct FlipParticles
     uint16_t* velocity_z_;
     uint16_t* density_;
     uint16_t* temperature_;
-    int* num_of_active_particles_;
+    int* num_of_actives_;
     int num_of_particles_;
 };
 

@@ -58,20 +58,20 @@ public:
 
     struct FlipParticles
     {
-        std::shared_ptr<CudaLinearMem<uint32_t>> particle_index_;
-        std::shared_ptr<CudaLinearMem<uint32_t>> cell_index_;
-        std::shared_ptr<CudaLinearMem<uint8_t>> in_cell_index_;
-        std::shared_ptr<CudaLinearMem<uint8_t>> particle_count_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> position_x_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> position_y_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> position_z_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_x_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_y_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> velocity_z_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> density_;
-        std::shared_ptr<CudaLinearMem<uint16_t>> temperature_;
-        std::shared_ptr<CudaMemPiece>  num_of_active_particles_;
-        int                            num_of_particles_;
+        std::shared_ptr<CudaLinearMemU32> particle_index_;
+        std::shared_ptr<CudaLinearMemU32> cell_index_;
+        std::shared_ptr<CudaLinearMemU32> particle_count_;
+        std::shared_ptr<CudaLinearMemU8>  in_cell_index_;
+        std::shared_ptr<CudaLinearMemU16> position_x_;
+        std::shared_ptr<CudaLinearMemU16> position_y_;
+        std::shared_ptr<CudaLinearMemU16> position_z_;
+        std::shared_ptr<CudaLinearMemU16> velocity_x_;
+        std::shared_ptr<CudaLinearMemU16> velocity_y_;
+        std::shared_ptr<CudaLinearMemU16> velocity_z_;
+        std::shared_ptr<CudaLinearMemU16> density_;
+        std::shared_ptr<CudaLinearMemU16> temperature_;
+        std::shared_ptr<CudaMemPiece>     num_of_actives_;
+        int                               num_of_particles_;
     };
 
     static CudaMain* Instance();
@@ -223,6 +223,19 @@ public:
                          std::shared_ptr<CudaVolume> vort_x,
                          std::shared_ptr<CudaVolume> vort_y,
                          std::shared_ptr<CudaVolume> vort_z, float time_step);
+
+    // Particles
+    void MoveParticles(FlipParticles* particles_prime,
+                       FlipParticles* particles,
+                       std::shared_ptr<CudaVolume> vel_x,
+                       std::shared_ptr<CudaVolume> vel_y,
+                       std::shared_ptr<CudaVolume> vel_z,
+                       std::shared_ptr<CudaVolume> density,
+                       std::shared_ptr<CudaVolume> temperature,
+                       std::shared_ptr<CudaVolume> delta_x,
+                       std::shared_ptr<CudaVolume> delta_y,
+                       std::shared_ptr<CudaVolume> delta_z, float time_step);
+    void ResetParticles(FlipParticles* particles);
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,

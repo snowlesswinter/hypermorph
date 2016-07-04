@@ -25,11 +25,11 @@
 #include <memory>
 
 #include "fluid_solver.h"
-#include "graphics_volume_group.h"
 #include "poisson_solver/poisson_solver_enum.h"
 #include "third_party/glm/vec3.hpp"
 
 class GraphicsVolume;
+class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
 class GridFluidSolver : public FluidSolver

@@ -22,20 +22,63 @@
 #ifndef _FLIP_FLUID_SOLVER_H_
 #define _FLIP_FLUID_SOLVER_H_
 
-#include "fluid_solver.h"
+#include <memory>
 
+#include "fluid_solver.h"
+#include "graphics_linear_mem.h"
+#include "third_party/glm/vec3.hpp"
+
+class GraphicsMemPiece;
+class GraphicsVolume;
+class GraphicsVolume3;
+class PoissonCore;
+class PoissonSolver;
 class FlipFluidSolver : public FluidSolver
 {
 public:
     FlipFluidSolver();
     virtual ~FlipFluidSolver();
 
+    virtual void Impulse(GraphicsVolume* density, float splat_radius,
+                         const glm::vec3& impulse_position,
+                         const glm::vec3& hotspot, float impulse_density,
+                         float impulse_temperature) override;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
                             int depth) override;
     virtual void Reset() override;
     virtual void SetDiagnosis(int diagnosis) override;
     virtual void SetPressureSolver(PoissonSolver* solver) override;
     virtual void Solve(GraphicsVolume* density, float delta_time) override;
+
+private:
+    struct FlipParticles;
+
+    static bool InitParticles(FlipParticles* particles, GraphicsLib lib);
+
+    void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
+    void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
+    void MoveParticles(float delta_time);
+    void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
+                       std::shared_ptr<GraphicsVolume> divergence,
+                       int num_iterations);
+    void SubtractGradient(std::shared_ptr<GraphicsVolume> pressure);
+
+    GraphicsLib graphics_lib_;
+    glm::ivec3 grid_size_;
+    PoissonSolver* pressure_solver_;
+    int diagnosis_;
+
+    std::shared_ptr<GraphicsVolume3> velocity_;
+    std::shared_ptr<GraphicsVolume3> velocity_prime_;
+    std::shared_ptr<GraphicsVolume> temperature_;
+    std::shared_ptr<GraphicsVolume> general1a_;
+    std::shared_ptr<GraphicsVolume> general1b_;
+    std::shared_ptr<GraphicsVolume> diagnosis_volume_;
+
+    std::unique_ptr<FlipParticles> particles_;
+    std::unique_ptr<FlipParticles> particles_prime_;
+
+    int frame_;
 };
 
 #endif // _FLIP_FLUID_SOLVER_H_

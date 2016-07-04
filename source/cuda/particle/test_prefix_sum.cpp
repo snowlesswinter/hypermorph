@@ -60,7 +60,7 @@ bool TestPrefixSum(BlockArrangement* ba, AuxBufferManager* bm)
 
     cudaMemcpy(idata.get(), cell_particles_counts.get(),
                num_of_cells * sizeof(uint), cudaMemcpyHostToDevice);
-    LaunchBuildCellOffsets(odata.get(), idata.get(), num_of_cells, ba, bm);
+    kern_launcher::BuildCellOffsets(odata.get(), idata.get(), num_of_cells, ba, bm);
 
     cudaThreadSynchronize();
     cudaMemcpy(cell_offsets_gpu.get(), odata.get(), num_of_cells * sizeof(uint),

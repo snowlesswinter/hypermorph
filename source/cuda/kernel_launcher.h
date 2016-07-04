@@ -71,7 +71,16 @@ extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, c
 extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
 
 // Particles.
-extern void LaunchBuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchResample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
+namespace kern_launcher
+{
+extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
+extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
+extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* delta_x, cudaArray* delta_y, cudaArray* delta_z, BlockArrangement* ba);
+extern void MoveParticles(const FlipParticles& particles, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
+extern void ResetParticles(const FlipParticles& particles, BlockArrangement* ba);
+extern void SortParticles(FlipParticles p_dst, FlipParticles p_src, BlockArrangement* ba);
+extern void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
+}
 
 #endif // _KERNEL_LAUNCHER_H_

@@ -28,6 +28,7 @@
 #include <cuda_runtime.h>
 #include <helper_math.h>
 
+#include "cuda/aux_buffer_manager.h"
 #include "cuda/kernel_launcher.h"
 #include "cuda/random_helper.h"
 #include "flip.h"
@@ -42,9 +43,12 @@ uint3 FromGlmVector(const glm::ivec3& v)
 }
 } // Anonymous namespace.
 
-FlipImplCuda::FlipImplCuda(BlockArrangement* ba, RandomHelper* rand)
+FlipImplCuda::FlipImplCuda(BlockArrangement* ba, AuxBufferManager* bm,
+                           RandomHelper* rand)
     : ba_(ba)
+    , bm_(bm)
     , rand_(rand)
+    , cell_size_(0.15f)
 {
 
 }
@@ -54,11 +58,38 @@ FlipImplCuda::~FlipImplCuda()
 
 }
 
-void FlipImplCuda::Advect(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+void FlipImplCuda::Advect(const FlipParticles& p_next,
+                          const FlipParticles& p_cur,
+                          cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                           cudaArray* density, cudaArray* temperature,
+                          cudaArray* delta_x, cudaArray* delta_y,
+                          cudaArray* delta_z, float time_step,
                           const glm::ivec3& volume_size)
 {
-    FlipParticles p;
-    LaunchResample(p, vel_x, vel_y, vel_z, density, temperature,
-                   rand_->Iterate(), FromGlmVector(volume_size), ba_);
+    kern_launcher::InterpolateDeltaVelocity(p_cur, delta_x, delta_y, delta_z,
+                                            ba_);
+    kern_launcher::Resample(p_cur, vel_x, vel_y, vel_z, density, temperature,
+                            rand_->Iterate(), FromGlmVector(volume_size), ba_);
+    kern_launcher::MoveParticles(p_cur, time_step, cell_size_,
+                                 FromGlmVector(volume_size), ba_);
+    CompactParticles(p_cur, p_next, volume_size);
+    kern_launcher::TransferToGrid(vel_x, vel_y, vel_z, density, temperature,
+                                  p_next, FromGlmVector(volume_size), ba_);
+}
+
+void FlipImplCuda::Reset(const FlipParticles& particles)
+{
+    kern_launcher::ResetParticles(particles, ba_);
+}
+
+void FlipImplCuda::CompactParticles(const FlipParticles& p_cur,
+                                    const FlipParticles& p_next,
+                                    const glm::ivec3& volume_size)
+{
+    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
+    kern_launcher::BindParticlesToCells(p_cur, FromGlmVector(volume_size),
+                                        ba_);
+    kern_launcher::BuildCellOffsets(p_cur.cell_index_, p_cur.particle_count_,
+                           num_of_cells, ba_, bm_);
+    kern_launcher::SortParticles(p_next, p_cur, ba_);
 }

@@ -107,6 +107,7 @@ bool FluidSimulator::Init()
 void FluidSimulator::Reset()
 {
     density_->Clear();
+    fluid_solver_->Reset();
 }
 
 bool FluidSimulator::IsImpulsing() const

@@ -19,63 +19,52 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_LINEAR_MEM_H_
-#define _CUDA_LINEAR_MEM_H_
+#ifndef _GRAPHICS_LINEAR_MEM_H_
+#define _GRAPHICS_LINEAR_MEM_H_
 
+#include <cassert>
 #include <memory>
 
 #include <stdint.h>
 
-namespace detail
-{
-class CudaLinearMemBase
-{
-public:
-    CudaLinearMemBase();
-    virtual ~CudaLinearMemBase();
-
-    void* Create(int num_of_elements, int byte_width);
-    void Destroy(void* mem);
-};
-}
-
-// =============================================================================
+#include "cuda_host/cuda_linear_mem.h"
+#include "graphics_lib_enum.h"
 
 template <typename T>
-class CudaLinearMem : public detail::CudaLinearMemBase
+class GraphicsLinearMem
 {
 public:
-    CudaLinearMem()
-        : mem_(nullptr)
-        , num_of_elements_(0)
-    {
-    }
-
-    virtual ~CudaLinearMem()
-    {
-        Destroy(mem_);
-    }
+    explicit GraphicsLinearMem(GraphicsLib lib);
+    ~GraphicsLinearMem();
 
     bool Create(int num_of_elements)
     {
-        mem_ = reinterpret_cast<T*>(
-            CudaLinearMemBase::Create(num_of_elements, sizeof(T)));
-        if (mem_)
-            num_of_elements_ = num_of_elements;
+        if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+            std::shared_ptr<CudaLinearMem<T>> r =
+                std::make_shared<CudaLinearMem<T>>();
+            bool result = r->Create(num_of_elements);
+            if (result) {
+                cuda_linear_mem_ = r;
+            }
+
+            return result;
+        }
     }
 
-    T* mem() const { return mem_; }
+    GraphicsLib graphics_lib() const { return graphics_lib_; }
+    std::shared_ptr<CudaLinearMem<T>> cuda_linear_mem() const
+    {
+        assert(cuda_linear_mem_);
+        return cuda_linear_mem_;
+    }
 
 private:
-    CudaLinearMem(const CudaLinearMem&);
-    void operator=(const CudaLinearMem&);
-
-    T* mem_;
-    int num_of_elements_;
+    GraphicsLib graphics_lib_;
+    std::shared_ptr<CudaLinearMem<T>> cuda_linear_mem_;
 };
 
-typedef CudaLinearMem<uint8_t> CudaLinearMemU8;
-typedef CudaLinearMem<uint16_t> CudaLinearMemU16;
-typedef CudaLinearMem<uint32_t> CudaLinearMemU32;
+typedef GraphicsLinearMem<uint8_t> GraphicsLinearMemU8;
+typedef GraphicsLinearMem<uint16_t> GraphicsLinearMemU16;
+typedef GraphicsLinearMem<uint32_t> GraphicsLinearMemU32;
 
-#endif // _CUDA_LINEAR_MEM_H_
+#endif // _GRAPHICS_LINEAR_MEM_H_

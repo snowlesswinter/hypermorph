@@ -31,27 +31,32 @@
 #include "cuda/cuda_common_kern.h"
 #include "flip.h"
 
-surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
 surface<void, cudaSurfaceType3D> surf_y;
 surface<void, cudaSurfaceType3D> surf_z;
+surface<void, cudaSurfaceType3D> surf_d;
+surface<void, cudaSurfaceType3D> surf_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
-__device__ bool FlipParticles::IsCellUndefined(uint cell_index)
+static const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
+static const uint32_t kMaxNumParticlesPerCell = 6;
+static const uint32_t kMinNumParticlesPerCell = 3;
+
+__device__ bool IsCellUndefined(uint cell_index)
 {
     return cell_index == kCellUndefined;
 }
 
-__device__ void FlipParticles::SetUndefined(uint* cell_index)
+__device__ void SetUndefined(uint* cell_index)
 {
     *cell_index = kCellUndefined;
 }
 
-__device__ void FlipParticles::FreeParticle(const FlipParticles& p, uint i)
+__device__ void FreeParticle(const FlipParticles& p, uint i)
 {
     SetUndefined(&p.cell_index_[i]);
 
@@ -59,7 +64,8 @@ __device__ void FlipParticles::FreeParticle(const FlipParticles& p, uint i)
     // treat it as a free particle.
     p.position_x_[i] = __float2half_rn(-1.0f);
 }
-__device__ bool FlipParticles::IsStopped(float v_x, float v_y, float v_z)
+
+__device__ bool IsStopped(float v_x, float v_y, float v_z)
 {
     const float v_¦Å = 0.00000001f;
     return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
@@ -151,42 +157,40 @@ __device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
 
 // TOTO: Need a thorough check for 1/2 voxel offset issue in position fields.
 
-__global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
-                                      uint16_t* pos_z, FlipParticles particles,
-                                      const uint16_t* vel_x,
-                                      const uint16_t* vel_y,
-                                      const uint16_t* vel_z,
+__global__ void AdvectParticlesKernel(FlipParticles particles,
                                       float time_step_over_cell_size)
 {
+    FlipParticles& p = particles;
+
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= *particles.num_of_active_particles_) // Maybe dynamic parallelism
+    if (i >= *p.num_of_actives_) // Maybe dynamic parallelism
                                                   // is a better choice.
         return;
 
-    // Already constrained by |num_of_active_particles_|.
+    // Already constrained by |num_of_actives_|.
     //
-    //if (FlipParticles::IsCellUndefined(particles.cell_index_[i]))
+    //if (IsCellUndefined(particles.cell_index_[i]))
     //    return;
 
-    float v_x = __half2float(vel_x[i]);
-    float v_y = __half2float(vel_y[i]);
-    float v_z = __half2float(vel_z[i]);
+    float v_x = __half2float(p.velocity_x_[i]);
+    float v_y = __half2float(p.velocity_y_[i]);
+    float v_z = __half2float(p.velocity_z_[i]);
 
-    if (FlipParticles::IsStopped(v_x, v_y, v_z)) {
-        // Elimiate all the particles that stopped.
-        FlipParticles::FreeParticle(particles, i);
+    if (IsStopped(v_x, v_y, v_z)) {
+        // Eliminate all the particles that stopped.
+        FreeParticle(particles, i);
         return;
     }
 
-    float x =   __half2float(pos_x[i]);
-    float y =   __half2float(pos_y[i]);
-    float z =   __half2float(pos_z[i]);
+    float x =   __half2float(p.position_x_[i]);
+    float y =   __half2float(p.position_y_[i]);
+    float z =   __half2float(p.position_z_[i]);
 
     // TODO: We need a higher order scheme.
     // TODO: Keep the same boundary conditions as the grid.
-    pos_x[i] = __float2half_rn(x + v_x * time_step_over_cell_size);
-    pos_y[i] = __float2half_rn(y + v_y * time_step_over_cell_size);
-    pos_z[i] = __float2half_rn(z + v_z * time_step_over_cell_size);
+    p.position_x_[i] = __float2half_rn(x + v_x * time_step_over_cell_size);
+    p.position_y_[i] = __float2half_rn(y + v_y * time_step_over_cell_size);
+    p.position_z_[i] = __float2half_rn(z + v_z * time_step_over_cell_size);
 }
 
 __global__ void BindParticlesToCellsKernel(FlipParticles particles,
@@ -200,7 +204,7 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
         // We need the number of active particles for allocation in the next
         // frame.
         int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
-        *particles.num_of_active_particles_ =
+        *particles.num_of_actives_ =
             particles.particle_index_[last_cell] +
             particles.particle_count_[last_cell];
     }
@@ -212,26 +216,26 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     // Do *NOT* check cell index for validation. Some newly inserted particles
     // may not have valid cell indices.
 
-    uint8_t* p_count = particles.particle_count_;
+    uint* p_count = particles.particle_count_;
     if (x >= 0 && x < volume_size.x && y >= 0 && y < volume_size.y && z >= 0 &&
             z < volume_size.z) {
         uint cell_index = (z * volume_size.y + y) * volume_size.x + x;
 
-        if (p_count[cell_index] > FlipParticles::kMaxNumParticlesPerCell) {
-            FlipParticles::FreeParticle(particles, i);
+        if (p_count[cell_index] > kMaxNumParticlesPerCell) {
+            FreeParticle(particles, i);
         } else {
             uint8_t in_cell_index =
-                AtomicIncrementUint8<1>(p_count + cell_index);
+                atomicAdd(p_count + cell_index, 1);
             particles.in_cell_index_[i] = in_cell_index;
-            if (in_cell_index > FlipParticles::kMaxNumParticlesPerCell) {
-                FlipParticles::FreeParticle(particles, i);
-                AtomicIncrementUint8<-1>(p_count + cell_index);
+            if (in_cell_index > kMaxNumParticlesPerCell) {
+                FreeParticle(particles, i);
+                atomicAdd(p_count + cell_index, 1);
             } else {
                 particles.cell_index_[i] = cell_index;
             }
         }
     } else {
-        FlipParticles::SetUndefined(&particles.cell_index_[i]);
+        SetUndefined(&particles.cell_index_[i]);
     }
 }
 
@@ -249,9 +253,9 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
                                        // choice.
         return;
 
-    // Already constrained by |num_of_active_particles_|.
+    // Already constrained by |num_of_active_particles|.
     //
-    //if (FlipParticles::IsCellUndefined(cell_index[i]))
+    //if (IsCellUndefined(cell_index[i]))
     //    return;
 
     float x = __half2float(pos_x[i]) + 0.5f;
@@ -273,8 +277,8 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
                                uint3 volume_size)
 {
     int free_particles =
-        particles.num_of_particles_ - *particles.num_of_active_particles_;
-    if (free_particles < FlipParticles::kMaxNumParticlesPerCell)
+        particles.num_of_particles_ - *particles.num_of_actives_;
+    if (free_particles < kMaxNumParticlesPerCell)
         return; // No more free particles.
 
     uint x = VolumeX();
@@ -288,7 +292,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     uint8_t count = particles.particle_count_[cell_index];
 
     // Scan for all undersampled cells, and try to insert new particles.
-    if (count >= FlipParticles::kMinNumParticlesPerCell)
+    if (count >= kMinNumParticlesPerCell)
         return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
@@ -297,14 +301,14 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     float v_y = tex3D(tex_y, coord.x,        coord.y + 0.5f, coord.z);
     float v_z = tex3D(tex_z, coord.x,        coord.y,        coord.z + 0.5f);
 
-    if (FlipParticles::IsStopped(v_x, v_y, v_z)) {
+    if (IsStopped(v_x, v_y, v_z)) {
         // All particles whose velocity is lower than the threshold will be
         // elimiated in advection kernel.
         return;
     }
 
-    int needed = FlipParticles::kMaxNumParticlesPerCell - count - 1;
-    int base_index = atomicAdd(particles.num_of_active_particles_, needed);
+    int needed = kMaxNumParticlesPerCell - count - 1;
+    int base_index = atomicAdd(particles.num_of_actives_, needed);
     if (base_index + needed > particles.num_of_particles_)
         return; // Not enough free particles.
 
@@ -346,10 +350,10 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
     if (i >= particles.num_of_particles_)
         return;
 
-    FlipParticles::FreeParticle(particles, i);
+    FreeParticle(particles, i);
 
     if (i == 0)
-        *particles.num_of_active_particles_ = 0;
+        *particles.num_of_actives_ = 0;
 }
 
 __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src)
@@ -360,7 +364,7 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src)
 
     uint cell_index = p_src.cell_index_[i];
     uint in_cell = p_src.in_cell_index_[i];
-    if (!FlipParticles::IsCellUndefined(cell_index)) {
+    if (!IsCellUndefined(cell_index)) {
         uint sort_index = p_dst.particle_index_[cell_index] + in_cell;
 
         p_dst.position_x_ [sort_index] = p_src.position_x_[i];
@@ -383,24 +387,27 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    uint*     p_index = particles.particle_index_;
-    uint8_t*  p_count = particles.particle_count_;
-    uint16_t* pos_x   = particles.position_x_;
-    uint16_t* pos_y   = particles.position_y_;
-    uint16_t* pos_z   = particles.position_z_;
-    uint16_t* vel_x   = particles.velocity_x_;
-    uint16_t* vel_y   = particles.velocity_y_;
-    uint16_t* vel_z   = particles.velocity_z_;
-    uint16_t* density = particles.density_;
+    uint*     p_index     = particles.particle_index_;
+    uint*     p_count     = particles.particle_count_;
+    uint16_t* pos_x       = particles.position_x_;
+    uint16_t* pos_y       = particles.position_y_;
+    uint16_t* pos_z       = particles.position_z_;
+    uint16_t* vel_x       = particles.velocity_x_;
+    uint16_t* vel_y       = particles.velocity_y_;
+    uint16_t* vel_z       = particles.velocity_z_;
+    uint16_t* density     = particles.density_;
+    uint16_t* temperature = particles.temperature_;
 
-    float weight_vel_x   = 0.0001f;
-    float weight_vel_y   = 0.0001f;
-    float weight_vel_z   = 0.0001f;
-    float weight_density = 0.0001f;
-    float avg_vel_x      = 0.0f;
-    float avg_vel_y      = 0.0f;
-    float avg_vel_z      = 0.0f;
-    float avg_density    = 0.0f;
+    float weight_vel_x       = 0.0001f;
+    float weight_vel_y       = 0.0001f;
+    float weight_vel_z       = 0.0001f;
+    float weight_density     = 0.0001f;
+    float weight_temperature = 0.0001f;
+    float avg_vel_x          = 0.0f;
+    float avg_vel_y          = 0.0f;
+    float avg_vel_z          = 0.0f;
+    float avg_density        = 0.0f;
+    float avg_temperature    = 0.0f;
 
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
             for (int k = -1; k <= 1; k++) {
@@ -424,17 +431,22 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
         ComputeWeightedAverage(&avg_density, &weight_density, pos_x + index,
                                pos_y + index, pos_z + index, coord,
                                density + index, count);
+        ComputeWeightedAverage(&avg_temperature, &weight_temperature,
+                               pos_x + index, pos_y + index, pos_z + index,
+                               coord, temperature + index, count);
     }
 
-    uint16_t r_x = __float2half_rn(avg_vel_x      / weight_vel_x);
-    uint16_t r_y = __float2half_rn(avg_vel_y      / weight_vel_y);
-    uint16_t r_z = __float2half_rn(avg_vel_z      / weight_vel_z);
-    uint16_t r_d = __float2half_rn(weight_density / weight_density);
+    uint16_t r_x = __float2half_rn(avg_vel_x          / weight_vel_x);
+    uint16_t r_y = __float2half_rn(avg_vel_y          / weight_vel_y);
+    uint16_t r_z = __float2half_rn(avg_vel_z          / weight_vel_z);
+    uint16_t r_d = __float2half_rn(weight_density     / weight_density);
+    uint16_t r_t = __float2half_rn(weight_temperature / weight_temperature);
 
     surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
-    surf3Dwrite(r_d, surf,   x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_d, surf_d, x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_t, surf_t, x * sizeof(r_t), y, z, cudaBoundaryModeTrap);
 
     // TODO: Diffuse the field if |total_weight| is too small(a hole near the
     //       spot).
@@ -442,9 +454,25 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
 
 // =============================================================================
 
-void BindParticlesToCells(const FlipParticles& particles,
-                          uint3 volume_size, BlockArrangement* ba)
+namespace kern_launcher
 {
+void MoveParticles(const FlipParticles& particles, float time_step,
+                   float cell_size, uint3 volume_size,
+                   BlockArrangement* ba)
+{
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
+    AdvectParticlesKernel<<<grid, block>>>(particles,
+                                           time_step / cell_size);
+}
+
+void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
+                          BlockArrangement* ba)
+{
+    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
+    cudaMemsetAsync(particles.in_cell_index_, 0, num_of_cells);
+
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
@@ -460,21 +488,41 @@ void SortParticles(FlipParticles p_dst, FlipParticles p_src,
     SortParticlesKernel<<<grid, block>>>(p_dst, p_src);
 }
 
-void LaunchCompactParticles(const FlipParticles& p_dst,
-                            const FlipParticles& p_src, uint3 volume_size,
-                            BlockArrangement* ba)
+void InterpolateDeltaVelocity(const FlipParticles& particles,
+                              cudaArray* delta_x, cudaArray* delta_y,
+                              cudaArray* delta_z, BlockArrangement* ba)
 {
-    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    cudaMemsetAsync(p_src.in_cell_index_, 0, num_of_cells);
-    BindParticlesToCells(p_src, volume_size, ba);
-    // BuildPrefixSum();
-    SortParticles(p_dst, p_src, ba);
+    auto bound_x = BindHelper::Bind(&tex_x, delta_x, false,
+                                    cudaFilterModeLinear, cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, delta_y, false,
+                                    cudaFilterModeLinear, cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, delta_z, false,
+                                    cudaFilterModeLinear, cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
+        return;
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
+    InterpolateDeltaVelocityKernel<<<grid, block>>>(particles.velocity_x_,
+                                                    particles.velocity_y_,
+                                                    particles.velocity_z_,
+                                                    particles.position_x_,
+                                                    particles.position_y_,
+                                                    particles.position_z_,
+                                                    particles.num_of_actives_);
 }
 
-void LaunchResample(const FlipParticles& particles, cudaArray* vel_x,
-                    cudaArray* vel_y, cudaArray* vel_z, cudaArray* density,
-                    cudaArray* temperature, uint random_seed, uint3 volume_size,
-                    BlockArrangement* ba)
+void Resample(const FlipParticles& particles, cudaArray* vel_x,
+              cudaArray* vel_y, cudaArray* vel_z, cudaArray* density,
+              cudaArray* temperature, uint random_seed, uint3 volume_size,
+              BlockArrangement* ba)
 {
     auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
@@ -507,10 +555,37 @@ void LaunchResample(const FlipParticles& particles, cudaArray* vel_x,
     ResampleKernel<<<grid, block>>>(particles, random_seed, volume_size);
 }
 
-void LaunchResetParticles(const FlipParticles& particles, BlockArrangement* ba)
+void ResetParticles(const FlipParticles& particles, BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
     ResetParticlesKernel<<<grid, block>>>(particles);
+}
+
+void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                    cudaArray* density, cudaArray* temperature,
+                    const FlipParticles& particles, uint3 volume_size,
+                    BlockArrangement* ba)
+{
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_d, density) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_t, temperature) != cudaSuccess)
+        return;
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
+    TransferToGridKernel<<<grid, block>>>(particles, volume_size);
+}
 }

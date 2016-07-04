@@ -28,6 +28,7 @@
 #include "cuda/cuda_core.h"
 #include "cuda/fluid_impl_cuda.h"
 #include "cuda/graphics_resource.h"
+#include "cuda/particle/flip.h"
 #include "cuda/particle/flip_impl_cuda.h"
 #include "cuda/poisson_impl_cuda.h"
 #include "cuda_mem_piece.h"
@@ -73,6 +74,26 @@ namespace
 
     return ::IMPULSE_NONE;
 }
+
+::FlipParticles ToCudaFlipParticles(const CudaMain::FlipParticles& p)
+{
+    ::FlipParticles cuda_p;
+    cuda_p.particle_index_   = p.particle_index_->mem();
+    cuda_p.cell_index_       = p.cell_index_->mem();
+    cuda_p.in_cell_index_    = p.in_cell_index_->mem();
+    cuda_p.particle_count_   = p.particle_count_->mem();
+    cuda_p.position_x_       = p.position_x_->mem();
+    cuda_p.position_y_       = p.position_y_->mem();
+    cuda_p.position_z_       = p.position_z_->mem();
+    cuda_p.velocity_x_       = p.velocity_x_->mem();
+    cuda_p.velocity_y_       = p.velocity_y_->mem();
+    cuda_p.velocity_z_       = p.velocity_z_->mem();
+    cuda_p.density_          = p.density_->mem();
+    cuda_p.temperature_      = p.temperature_->mem();
+    cuda_p.num_of_actives_   = reinterpret_cast<int*>(p.num_of_actives_->mem());
+    cuda_p.num_of_particles_ = p.num_of_particles_;
+    return cuda_p;
+}
 } // Anonymous namespace.
 
 CudaMain* CudaMain::Instance()
@@ -99,7 +120,8 @@ CudaMain::CudaMain()
         new PoissonImplCuda(core_->block_arrangement(),
                             core_->buffer_manager()))
     , flip_impl_(
-        new FlipImplCuda(core_->block_arrangement(), core_->rand_helper()))
+        new FlipImplCuda(core_->block_arrangement(), core_->buffer_manager(),
+                         core_->rand_helper()))
     , registerd_textures_()
 {
 
@@ -465,6 +487,31 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
                                  vort_x->dev_array(), vort_y->dev_array(),
                                  vort_z->dev_array(), time_step,
                                  vnp1_x->size());
+}
+
+void CudaMain::MoveParticles(FlipParticles* particles_prime,
+                             FlipParticles* particles,
+                             std::shared_ptr<CudaVolume> vel_x,
+                             std::shared_ptr<CudaVolume> vel_y,
+                             std::shared_ptr<CudaVolume> vel_z,
+                             std::shared_ptr<CudaVolume> density,
+                             std::shared_ptr<CudaVolume> temperature,
+                             std::shared_ptr<CudaVolume> delta_x,
+                             std::shared_ptr<CudaVolume> delta_y,
+                             std::shared_ptr<CudaVolume> delta_z,
+                             float time_step)
+{
+    flip_impl_->Advect(ToCudaFlipParticles(*particles_prime),
+                       ToCudaFlipParticles(*particles), vel_x->dev_array(),
+                       vel_y->dev_array(), vel_z->dev_array(),
+                       density->dev_array(), temperature->dev_array(),
+                       delta_x->dev_array(), delta_y->dev_array(),
+                       delta_z->dev_array(), time_step, vel_x->size());
+}
+
+void CudaMain::ResetParticles(FlipParticles* particles)
+{
+    flip_impl_->Reset(ToCudaFlipParticles(*particles));
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,

@@ -202,7 +202,9 @@ void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
     }
 }
 
-void LaunchBuildCellOffsets(uint* cell_offsets,
+namespace kern_launcher
+{
+void BuildCellOffsets(uint* cell_offsets,
                             const uint* cell_particles_counts, int num_of_cells,
                             BlockArrangement* ba, AuxBufferManager* bm)
 {
@@ -227,4 +229,5 @@ void LaunchBuildCellOffsets(uint* cell_offsets,
 
     PrefixSumRecursive(cell_offsets, cell_particles_counts, num_of_cells,
                        block_sums, 0, ba);
+}
 }

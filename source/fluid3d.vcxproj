@@ -96,6 +96,7 @@
     <ClInclude Include="fluid_solver\fluid_solver.h" />
     <ClInclude Include="fluid_solver\grid_fluid_solver.h" />
     <ClInclude Include="graphics_lib_enum.h" />
+    <ClInclude Include="graphics_linear_mem.h" />
     <ClInclude Include="graphics_mem_piece.h" />
     <ClInclude Include="graphics_volume.h" />
     <ClInclude Include="graphics_volume_group.h" />

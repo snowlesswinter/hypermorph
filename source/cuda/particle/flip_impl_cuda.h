@@ -25,22 +25,36 @@
 #include "third_party/glm/fwd.hpp"
 
 struct cudaArray;
+struct FlipParticles;
+class AuxBufferManager;
 class BlockArrangement;
 class CudaVolume;
 class RandomHelper;
 class FlipImplCuda
 {
 public:
-    FlipImplCuda(BlockArrangement* ba, RandomHelper* rand);
+    FlipImplCuda(BlockArrangement* ba, AuxBufferManager* bm,
+                 RandomHelper* rand);
     ~FlipImplCuda();
 
-    void Advect(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                cudaArray* density, cudaArray* temperature,
+    void Advect(const FlipParticles& p_next, const FlipParticles& p_cur,
+                cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                cudaArray* density, cudaArray* temperature, cudaArray* delta_x,
+                cudaArray* delta_y, cudaArray* delta_z, float time_step,
                 const glm::ivec3& volume_size);
+    void Reset(const FlipParticles& particles);
+
+    void set_cell_size(float cell_size) { cell_size_ = cell_size; }
 
 private:
+    void CompactParticles(const FlipParticles& p_cur,
+                          const FlipParticles& p_next,
+                          const glm::ivec3& volume_size);
+
     BlockArrangement* ba_;
+    AuxBufferManager* bm_;
     RandomHelper* rand_;
+    float cell_size_;
 };
 
 #endif // _FLIP_IMPL_CUDA_H_

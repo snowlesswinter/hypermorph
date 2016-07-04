@@ -25,6 +25,7 @@
 #include "cuda_host/cuda_volume.h"
 #include "fluid_solver/grid_fluid_solver.h"
 #include "graphics_volume.h"
+#include "graphics_volume_group.h"
 #include "half_float/half.h"
 #include "opengl/gl_volume.h"
 #include "third_party/glm/vec3.hpp"
