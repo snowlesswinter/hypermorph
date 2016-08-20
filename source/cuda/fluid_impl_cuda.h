@@ -54,11 +54,12 @@ public:
                             cudaArray* vel_z, cudaArray* aux, float time_step,
                             float dissipation, const glm::ivec3& volume_size,
                             VectorField field);
-    void ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
-                       cudaArray* vel_z, cudaArray* temperature,
-                       cudaArray* density, float time_step,
-                       float ambient_temperature, float accel_factor,
-                       float gravity, const glm::ivec3& volume_size);
+    void ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
+                       cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
+                       cudaArray* temperature, cudaArray* density,
+                       float time_step, float ambient_temperature,
+                       float accel_factor, float gravity,
+                       const glm::ivec3& volume_size);
     void ApplyImpulse(cudaArray* dest, cudaArray* source,
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius, float value,

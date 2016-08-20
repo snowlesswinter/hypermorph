@@ -27,6 +27,7 @@
 #include "cuda_host/cuda_main.h"
 #include "cuda_host/cuda_volume.h"
 #include "fluid_config.h"
+#include "fluid_solver/flip_fluid_solver.h"
 #include "fluid_solver/grid_fluid_solver.h"
 #include "graphics_volume.h"
 #include "metrics.h"
@@ -272,7 +273,7 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
 FluidSolver* FluidSimulator::GetFluidSolver()
 {
     if (!fluid_solver_) {
-        fluid_solver_.reset(new GridFluidSolver());
+        fluid_solver_.reset(new FlipFluidSolver());
     }
 
     return fluid_solver_.get();

@@ -117,5 +117,7 @@ public:
 };
 
 bool IsPow2(uint x);
+bool CopyVolumeAsync(cudaArray* dest, cudaArray* source,
+                     const uint3& volume_size);
 
 #endif // _CUDA_COMMON_HOST_H_

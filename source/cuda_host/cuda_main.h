@@ -113,9 +113,12 @@ public:
                          std::shared_ptr<CudaVolume> vel_z,
                          std::shared_ptr<CudaVolume> aux, float time_step,
                          float dissipation);
-    void ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
-                       std::shared_ptr<CudaVolume> vel_y,
-                       std::shared_ptr<CudaVolume> vel_z,
+    void ApplyBuoyancy(std::shared_ptr<CudaVolume> vnp1_x,
+                       std::shared_ptr<CudaVolume> vnp1_y,
+                       std::shared_ptr<CudaVolume> vnp1_z,
+                       std::shared_ptr<CudaVolume> vn_x,
+                       std::shared_ptr<CudaVolume> vn_y,
+                       std::shared_ptr<CudaVolume> vn_z,
                        std::shared_ptr<CudaVolume> temperature,
                        std::shared_ptr<CudaVolume> density, float time_step,
                        float ambient_temperature, float accel_factor,
@@ -227,14 +230,15 @@ public:
     // Particles
     void MoveParticles(FlipParticles* particles_prime,
                        FlipParticles* particles,
-                       std::shared_ptr<CudaVolume> vel_x,
-                       std::shared_ptr<CudaVolume> vel_y,
-                       std::shared_ptr<CudaVolume> vel_z,
+                       std::shared_ptr<CudaVolume> vnp1_x,
+                       std::shared_ptr<CudaVolume> vnp1_y,
+                       std::shared_ptr<CudaVolume> vnp1_z,
+                       std::shared_ptr<CudaVolume> vn_x,
+                       std::shared_ptr<CudaVolume> vn_y,
+                       std::shared_ptr<CudaVolume> vn_z,
                        std::shared_ptr<CudaVolume> density,
                        std::shared_ptr<CudaVolume> temperature,
-                       std::shared_ptr<CudaVolume> delta_x,
-                       std::shared_ptr<CudaVolume> delta_y,
-                       std::shared_ptr<CudaVolume> delta_z, float time_step);
+                       float time_step);
     void ResetParticles(FlipParticles* particles);
 
     // Rendering

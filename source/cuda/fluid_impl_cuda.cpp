@@ -113,15 +113,17 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
     }
 }
 
-void FluidImplCuda::ApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y,
-                                  cudaArray* vel_z, cudaArray* temperature,
-                                  cudaArray* density, float time_step,
-                                  float ambient_temperature, float accel_factor,
-                                  float gravity, const glm::ivec3& volume_size)
+void FluidImplCuda::ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
+                                  cudaArray* vnp1_z, cudaArray* vn_x,
+                                  cudaArray* vn_y, cudaArray* vn_z,
+                                  cudaArray* temperature, cudaArray* density,
+                                  float time_step, float ambient_temperature,
+                                  float accel_factor, float gravity,
+                                  const glm::ivec3& volume_size)
 {
-    LaunchApplyBuoyancy(vel_x, vel_y, vel_z, temperature, density, time_step,
-                        ambient_temperature, accel_factor, gravity, staggered_,
-                        FromGlmVector(volume_size), ba_);
+    LaunchApplyBuoyancy(vnp1_x, vnp1_y, vnp1_z, vn_x, vn_y, vn_z, temperature,
+                        density, time_step, ambient_temperature, accel_factor,
+                        gravity, staggered_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,

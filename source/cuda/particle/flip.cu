@@ -39,6 +39,9 @@ surface<void, cudaSurfaceType3D> surf_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_xp;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_yp;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
@@ -200,15 +203,6 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     if (i >= particles.num_of_particles_)
         return;
 
-    if (i == 0) {
-        // We need the number of active particles for allocation in the next
-        // frame.
-        int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
-        *particles.num_of_actives_ =
-            particles.particle_index_[last_cell] +
-            particles.particle_count_[last_cell];
-    }
-
     int x = static_cast<int>(__half2float(particles.position_x_[i]));
     int y = static_cast<int>(__half2float(particles.position_y_[i]));
     int z = static_cast<int>(__half2float(particles.position_z_[i]));
@@ -229,9 +223,10 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
             particles.in_cell_index_[i] = in_cell_index;
             if (in_cell_index > kMaxNumParticlesPerCell) {
                 FreeParticle(particles, i);
-                atomicAdd(p_count + cell_index, 1);
+                atomicAdd(p_count + cell_index, static_cast<uint>(-1));
             } else {
-                particles.cell_index_[i] = cell_index;
+                // Will be set in the counting sort routine.
+                //particles.cell_index_[i] = cell_index;
             }
         }
     } else {
@@ -262,9 +257,17 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     float y = __half2float(pos_y[i]) + 0.5f;
     float z = __half2float(pos_z[i]) + 0.5f;
 
-    float ¦Ä_x = tex3D(tex_x, x + 0.5f, y,        z);
-    float ¦Ä_y = tex3D(tex_y, x,        y + 0.5f, z);
-    float ¦Ä_z = tex3D(tex_z, x,        y,        z + 0.5f);
+    float v_x =  tex3D(tex_x,  x + 0.5f, y,        z);
+    float v_y =  tex3D(tex_y,  x,        y + 0.5f, z);
+    float v_z =  tex3D(tex_z,  x,        y,        z + 0.5f);
+
+    float v_xp = tex3D(tex_xp, x + 0.5f, y,        z);
+    float v_yp = tex3D(tex_yp, x,        y + 0.5f, z);
+    float v_zp = tex3D(tex_zp, x,        y,        z + 0.5f);
+
+    float ¦Ä_x = v_xp - v_x;
+    float ¦Ä_y = v_yp - v_y;
+    float ¦Ä_z = v_zp - v_z;
 
     vel_x[i] = __float2half_rn(__half2float(vel_x[i]) + ¦Ä_x);
     vel_y[i] = __float2half_rn(__half2float(vel_y[i]) + ¦Ä_y);
@@ -309,8 +312,10 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
 
     int needed = kMaxNumParticlesPerCell - count - 1;
     int base_index = atomicAdd(particles.num_of_actives_, needed);
-    if (base_index + needed > particles.num_of_particles_)
+    if (base_index + needed > particles.num_of_particles_) {
+        atomicAdd(particles.num_of_actives_, -needed);
         return; // Not enough free particles.
+    }
 
     // Reseed particles.
     uint seed = random_seed;
@@ -335,10 +340,10 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         particles.cell_index_   [index] = cell_index;
         particles.position_x_   [index] = __float2half_rn(pos.x);
         particles.position_y_   [index] = __float2half_rn(pos.y);
-        particles.position_y_   [index] = __float2half_rn(pos.z);
+        particles.position_z_   [index] = __float2half_rn(pos.z);
         particles.velocity_x_   [index] = __float2half_rn(v_x);
         particles.velocity_y_   [index] = __float2half_rn(v_y);
-        particles.velocity_y_   [index] = __float2half_rn(v_y);
+        particles.velocity_z_   [index] = __float2half_rn(v_z);
         particles.density_      [index] = __float2half_rn(density);
         particles.temperature_  [index] = __float2half_rn(temperature);
     }
@@ -356,11 +361,20 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
         *particles.num_of_actives_ = 0;
 }
 
-__global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src)
+__global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
+                                    uint3 volume_size)
 {
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= p_dst.num_of_particles_)
         return;
+
+    if (i == 0) {
+        // We need the number of active particles for allocation in the next
+        // frame.
+        int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
+        *p_dst.num_of_actives_ =
+            p_dst.particle_index_[last_cell] + p_dst.particle_count_[last_cell];
+    }
 
     uint cell_index = p_src.cell_index_[i];
     uint in_cell = p_src.in_cell_index_[i];
@@ -479,30 +493,56 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
     BindParticlesToCellsKernel<<<grid, block>>>(particles, volume_size);
 }
 
-void SortParticles(FlipParticles p_dst, FlipParticles p_src,
+void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
                    BlockArrangement* ba)
 {
+    cudaError_t e = cudaMemcpyAsync(p_dst.num_of_actives_,
+                                    p_src.num_of_actives_, sizeof(float),
+                                    cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&block, &grid, p_dst.num_of_particles_);
-    SortParticlesKernel<<<grid, block>>>(p_dst, p_src);
+    SortParticlesKernel<<<grid, block>>>(p_dst, p_src, volume_size);
 }
 
-void InterpolateDeltaVelocity(const FlipParticles& particles,
-                              cudaArray* delta_x, cudaArray* delta_y,
-                              cudaArray* delta_z, BlockArrangement* ba)
+void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x,
+                              cudaArray* vnp1_y, cudaArray* vnp1_z,
+                              cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
+                              BlockArrangement* ba)
 {
-    auto bound_x = BindHelper::Bind(&tex_x, delta_x, false,
+    auto bound_xp = BindHelper::Bind(&tex_xp, vnp1_x, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_xp.error() != cudaSuccess)
+        return;
+
+    auto bound_yp = BindHelper::Bind(&tex_yp, vnp1_y, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_yp.error() != cudaSuccess)
+        return;
+
+    auto bound_zp = BindHelper::Bind(&tex_zp, vnp1_z, false,
+                                     cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_zp.error() != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vn_x, false,
                                     cudaFilterModeLinear, cudaAddressModeClamp);
     if (bound_x.error() != cudaSuccess)
         return;
 
-    auto bound_y = BindHelper::Bind(&tex_y, delta_y, false,
+    auto bound_y = BindHelper::Bind(&tex_y, vn_y, false,
                                     cudaFilterModeLinear, cudaAddressModeClamp);
     if (bound_y.error() != cudaSuccess)
         return;
 
-    auto bound_z = BindHelper::Bind(&tex_z, delta_z, false,
+    auto bound_z = BindHelper::Bind(&tex_z, vn_z, false,
                                     cudaFilterModeLinear, cudaAddressModeClamp);
     if (bound_z.error() != cudaSuccess)
         return;

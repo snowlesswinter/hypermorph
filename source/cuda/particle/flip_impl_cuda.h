@@ -38,9 +38,9 @@ public:
     ~FlipImplCuda();
 
     void Advect(const FlipParticles& p_next, const FlipParticles& p_cur,
-                cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                cudaArray* density, cudaArray* temperature, cudaArray* delta_x,
-                cudaArray* delta_y, cudaArray* delta_z, float time_step,
+                cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
+                cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
+                cudaArray* density, cudaArray* temperature, float time_step,
                 const glm::ivec3& volume_size);
     void Reset(const FlipParticles& particles);
 

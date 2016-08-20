@@ -34,8 +34,12 @@ template <typename T>
 class GraphicsLinearMem
 {
 public:
-    explicit GraphicsLinearMem(GraphicsLib lib);
-    ~GraphicsLinearMem();
+    explicit GraphicsLinearMem(GraphicsLib lib)
+        : graphics_lib_(lib)
+        , cuda_linear_mem_()
+    {
+    }
+    ~GraphicsLinearMem() {}
 
     bool Create(int num_of_elements)
     {
@@ -49,6 +53,8 @@ public:
 
             return result;
         }
+
+        return false;
     }
 
     GraphicsLib graphics_lib() const { return graphics_lib_; }

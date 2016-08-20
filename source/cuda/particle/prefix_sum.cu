@@ -204,9 +204,9 @@ void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
 
 namespace kern_launcher
 {
-void BuildCellOffsets(uint* cell_offsets,
-                            const uint* cell_particles_counts, int num_of_cells,
-                            BlockArrangement* ba, AuxBufferManager* bm)
+void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts,
+                      int num_of_cells, BlockArrangement* ba,
+                      AuxBufferManager* bm)
 {
     int elements = num_of_cells;
     BlockSums block_sums;

@@ -60,8 +60,12 @@ public:
     {
         mem_ = reinterpret_cast<T*>(
             CudaLinearMemBase::Create(num_of_elements, sizeof(T)));
-        if (mem_)
+        if (mem_) {
             num_of_elements_ = num_of_elements;
+            return true;
+        }
+
+        return false;
     }
 
     T* mem() const { return mem_; }

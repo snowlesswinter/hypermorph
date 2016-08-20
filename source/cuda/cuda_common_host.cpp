@@ -21,7 +21,24 @@
 
 #include "cuda_common_host.h"
 
+#include <cassert>
+
 bool IsPow2(uint x)
 {
     return ((x & (x - 1)) == 0);
+}
+
+bool CopyVolumeAsync(cudaArray* dest, cudaArray* source,
+                     const uint3& volume_size)
+{
+    cudaMemcpy3DParms cpy_parms = {};
+    cpy_parms.dstArray = dest;
+    cpy_parms.srcArray = source;
+    cpy_parms.extent.width = volume_size.x;
+    cpy_parms.extent.height = volume_size.y;
+    cpy_parms.extent.depth = volume_size.z;
+    cpy_parms.kind = cudaMemcpyDeviceToDevice;
+    cudaError_t e = cudaMemcpy3DAsync(&cpy_parms);
+    assert(e == cudaSuccess);
+    return e == cudaSuccess;
 }

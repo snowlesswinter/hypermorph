@@ -221,19 +221,23 @@ void CudaMain::AdvectVorticity(std::shared_ptr<CudaVolume> vnp1_x,
                                     FluidImplCuda::VECTOR_FIELD_VORTICITY);
 }
 
-void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> vel_x,
-                             std::shared_ptr<CudaVolume> vel_y,
-                             std::shared_ptr<CudaVolume> vel_z,
+void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> vnp1_x,
+                             std::shared_ptr<CudaVolume> vnp1_y,
+                             std::shared_ptr<CudaVolume> vnp1_z,
+                             std::shared_ptr<CudaVolume> vn_x,
+                             std::shared_ptr<CudaVolume> vn_y,
+                             std::shared_ptr<CudaVolume> vn_z,
                              std::shared_ptr<CudaVolume> temperature,
                              std::shared_ptr<CudaVolume> density,
                              float time_step, float ambient_temperature,
                              float accel_factor, float gravity)
 {
-    fluid_impl_->ApplyBuoyancy(vel_x->dev_array(), vel_y->dev_array(),
-                               vel_z->dev_array(), temperature->dev_array(),
-                               density->dev_array(), time_step,
-                               ambient_temperature, accel_factor, gravity,
-                               vel_x->size());
+    fluid_impl_->ApplyBuoyancy(vnp1_x->dev_array(), vnp1_y->dev_array(),
+                               vnp1_z->dev_array(), vn_x->dev_array(),
+                               vn_y->dev_array(), vn_z->dev_array(),
+                               temperature->dev_array(), density->dev_array(),
+                               time_step, ambient_temperature, accel_factor,
+                               gravity, vnp1_x->size());
 }
 
 void CudaMain::ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
@@ -491,22 +495,22 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
 
 void CudaMain::MoveParticles(FlipParticles* particles_prime,
                              FlipParticles* particles,
-                             std::shared_ptr<CudaVolume> vel_x,
-                             std::shared_ptr<CudaVolume> vel_y,
-                             std::shared_ptr<CudaVolume> vel_z,
+                             std::shared_ptr<CudaVolume> vnp1_x,
+                             std::shared_ptr<CudaVolume> vnp1_y,
+                             std::shared_ptr<CudaVolume> vnp1_z,
+                             std::shared_ptr<CudaVolume> vn_x,
+                             std::shared_ptr<CudaVolume> vn_y,
+                             std::shared_ptr<CudaVolume> vn_z,
                              std::shared_ptr<CudaVolume> density,
                              std::shared_ptr<CudaVolume> temperature,
-                             std::shared_ptr<CudaVolume> delta_x,
-                             std::shared_ptr<CudaVolume> delta_y,
-                             std::shared_ptr<CudaVolume> delta_z,
                              float time_step)
 {
     flip_impl_->Advect(ToCudaFlipParticles(*particles_prime),
-                       ToCudaFlipParticles(*particles), vel_x->dev_array(),
-                       vel_y->dev_array(), vel_z->dev_array(),
+                       ToCudaFlipParticles(*particles), vnp1_x->dev_array(),
+                       vnp1_y->dev_array(), vnp1_z->dev_array(),
+                       vn_x->dev_array(), vn_y->dev_array(), vn_z->dev_array(),
                        density->dev_array(), temperature->dev_array(),
-                       delta_x->dev_array(), delta_y->dev_array(),
-                       delta_z->dev_array(), time_step, vel_x->size());
+                       time_step, vnp1_x->size());
 }
 
 void CudaMain::ResetParticles(FlipParticles* particles)

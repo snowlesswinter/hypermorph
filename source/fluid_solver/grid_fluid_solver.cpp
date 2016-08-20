@@ -64,7 +64,8 @@ enum DiagnosisTarget
 };
 
 GridFluidSolver::GridFluidSolver()
-    : graphics_lib_(GRAPHICS_LIB_CUDA)
+    : FluidSolver()
+    , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
     , pressure_solver_(nullptr)
     , diagnosis_(DIAG_NONE)
@@ -433,6 +434,9 @@ void GridFluidSolver::ApplyBuoyancy(const GraphicsVolume& density,
     float buoyancy_coef = GetProperties().buoyancy_coef_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyBuoyancy(velocity_->x()->cuda_volume(),
+                                            velocity_->y()->cuda_volume(),
+                                            velocity_->z()->cuda_volume(),
+                                            velocity_->x()->cuda_volume(),
                                             velocity_->y()->cuda_volume(),
                                             velocity_->z()->cuda_volume(),
                                             temperature_->cuda_volume(),
@@ -828,7 +832,6 @@ void GridFluidSolver::ComputeDeltaVorticity(const GraphicsVolume3& aux,
                                               "DeltaVortZ");
         }
     }
-
 }
 
 void GridFluidSolver::DecayVortices(const GraphicsVolume3& vorticity,

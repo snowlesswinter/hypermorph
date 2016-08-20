@@ -53,11 +53,12 @@ public:
 private:
     struct FlipParticles;
 
-    static bool InitParticles(FlipParticles* particles, GraphicsLib lib);
+    static bool InitParticles(FlipParticles* particles, GraphicsLib lib,
+                              int cell_count);
 
     void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
-    void MoveParticles(float delta_time);
+    void MoveParticles(GraphicsVolume* density, float delta_time);
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                        std::shared_ptr<GraphicsVolume> divergence,
                        int num_iterations);
@@ -69,7 +70,7 @@ private:
     int diagnosis_;
 
     std::shared_ptr<GraphicsVolume3> velocity_;
-    std::shared_ptr<GraphicsVolume3> velocity_prime_;
+    std::shared_ptr<GraphicsVolume3> velocity_prev_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;

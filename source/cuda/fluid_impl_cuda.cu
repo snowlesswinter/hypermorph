@@ -373,17 +373,24 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
 
 // =============================================================================
 
-void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                         cudaArray* temperature, cudaArray* density,
-                         float time_step, float ambient_temperature,
-                         float accel_factor, float gravity, bool staggered,
-                         uint3 volume_size, BlockArrangement* ba)
+void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
+                         cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
+                         cudaArray* vn_z, cudaArray* temperature,
+                         cudaArray* density, float time_step,
+                         float ambient_temperature, float accel_factor,
+                         float gravity, bool staggered, uint3 volume_size,
+                         BlockArrangement* ba)
 {
+    if (vnp1_x != vn_x)
+        CopyVolumeAsync(vnp1_x, vn_x, volume_size);
 
-    if (BindCudaSurfaceToArray(&surf, vel_y) != cudaSuccess)
+    if (vnp1_z != vn_z)
+        CopyVolumeAsync(vnp1_z, vn_z, volume_size);
+
+    if (BindCudaSurfaceToArray(&surf, vnp1_y) != cudaSuccess)
         return;
 
-    auto bound_v = BindHelper::Bind(&tex, vel_y, false, cudaFilterModeLinear,
+    auto bound_v = BindHelper::Bind(&tex, vn_y, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_v.error() != cudaSuccess)
         return;

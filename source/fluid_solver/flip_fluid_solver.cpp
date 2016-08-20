@@ -60,7 +60,7 @@ bool InitParticleField(T* field, GraphicsLib lib, int n)
 }
 
 template <typename U, typename V>
-bool SetCudaParticles(U* cuda_p, const V& p)
+void SetCudaParticles(U* cuda_p, const V& p)
 {
     cuda_p->particle_index_   = p->particle_index_->cuda_linear_mem();
     cuda_p->cell_index_       = p->cell_index_->cuda_linear_mem();
@@ -95,14 +95,34 @@ struct FlipFluidSolver::FlipParticles
     std::shared_ptr<GraphicsLinearMemU16> temperature_;
     std::shared_ptr<GraphicsMemPiece>     num_of_actives_;
     int                                   num_of_particles_;
+
+    FlipParticles(GraphicsLib lib)
+        : particle_index_(std::make_shared<GraphicsLinearMemU32>(lib))
+        , cell_index_(std::make_shared<GraphicsLinearMemU32>(lib))
+        , particle_count_(std::make_shared<GraphicsLinearMemU32>(lib))
+        , in_cell_index_(std::make_shared<GraphicsLinearMemU8>(lib))
+        , position_x_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , position_y_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , position_z_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , velocity_x_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , velocity_y_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , velocity_z_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , density_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , temperature_(std::make_shared<GraphicsLinearMemU16>(lib))
+        , num_of_actives_(std::make_shared<GraphicsMemPiece>(lib))
+        , num_of_particles_(0)
+    {
+    }
+
 };
 
 FlipFluidSolver::FlipFluidSolver()
-    : graphics_lib_(GRAPHICS_LIB_CUDA)
+    : FluidSolver()
+    , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
     , pressure_solver_(nullptr)
-    , particles_(new FlipParticles())
-    , particles_prime_(new FlipParticles())
+    , particles_(new FlipParticles(graphics_lib_))
+    , particles_prime_(new FlipParticles(graphics_lib_))
     , frame_(0)
 {
 
@@ -134,7 +154,7 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
                                  int height, int depth)
 {
     velocity_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
-    velocity_prime_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
+    velocity_prev_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
     temperature_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
@@ -146,7 +166,7 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
     if (!result)
         return false;
 
-    result = velocity_prime_->Create(width, height, depth, 1, 2, 0);
+    result = velocity_prev_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
@@ -166,12 +186,13 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
     if (!result)
         return false;
 
-    result = InitParticles(particles_.get(), graphics_lib_);
+    int cell_count = grid_size_.x * grid_size_.y * grid_size_.z;
+    result = InitParticles(particles_.get(), graphics_lib_, cell_count);
     assert(result);
     if (!result)
         return false;
 
-    result = InitParticles(particles_prime_.get(), graphics_lib_);
+    result = InitParticles(particles_prime_.get(), graphics_lib_, cell_count);
     assert(result);
     if (!result)
         return false;
@@ -197,10 +218,10 @@ void FlipFluidSolver::Reset()
         velocity_->z()->Clear();
     }
 
-    if (velocity_prime_ && *velocity_prime_) {
-        velocity_prime_->x()->Clear();
-        velocity_prime_->y()->Clear();
-        velocity_prime_->z()->Clear();
+    if (velocity_prev_ && *velocity_prev_) {
+        velocity_prev_->x()->Clear();
+        velocity_prev_->y()->Clear();
+        velocity_prev_->z()->Clear();
     }
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
@@ -241,7 +262,7 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     SubtractGradient(general1b_);
     Metrics::Instance()->OnVelocityRectified();
 
-    MoveParticles(delta_time);
+    MoveParticles(density, delta_time);
     Metrics::Instance()->OnVelocityAvected();
 
     // TODO: Apply buoyancy directly inside the move particles kernel.
@@ -251,17 +272,18 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     Metrics::Instance()->OnBuoyancyApplied();
 }
 
-bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib)
+bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
+                                    int cell_count)
 {
     bool result = true;
     int n = 50000;
     particles->num_of_particles_ = n;
     particles->num_of_actives_->Create(sizeof(int));
 
-    result &= InitParticleField(&particles->particle_index_, lib, n);
+    result &= InitParticleField(&particles->particle_index_, lib, cell_count);
     result &= InitParticleField(&particles->cell_index_,     lib, n);
     result &= InitParticleField(&particles->in_cell_index_,  lib, n);
-    result &= InitParticleField(&particles->particle_count_, lib, n);
+    result &= InitParticleField(&particles->particle_count_, lib, cell_count);
     result &= InitParticleField(&particles->position_x_,     lib, n);
     result &= InitParticleField(&particles->position_y_,     lib, n);
     result &= InitParticleField(&particles->position_z_,     lib, n);
@@ -281,7 +303,10 @@ void FlipFluidSolver::ApplyBuoyancy(const GraphicsVolume& density,
     float ambient_temperature = GetProperties().ambient_temperature_;
     float buoyancy_coef = GetProperties().buoyancy_coef_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyBuoyancy(velocity_->x()->cuda_volume(),
+        CudaMain::Instance()->ApplyBuoyancy(velocity_prev_->x()->cuda_volume(),
+                                            velocity_prev_->y()->cuda_volume(),
+                                            velocity_prev_->z()->cuda_volume(),
+                                            velocity_->x()->cuda_volume(),
                                             velocity_->y()->cuda_volume(),
                                             velocity_->z()->cuda_volume(),
                                             temperature_->cuda_volume(),
@@ -302,7 +327,7 @@ void FlipFluidSolver::ComputeDivergence(
     }
 }
 
-void FlipFluidSolver::MoveParticles(float delta_time)
+void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p_prime;
@@ -313,12 +338,15 @@ void FlipFluidSolver::MoveParticles(float delta_time)
                                             velocity_->x()->cuda_volume(),
                                             velocity_->y()->cuda_volume(),
                                             velocity_->z()->cuda_volume(),
-                                            general1b_->cuda_volume(),
+                                            velocity_prev_->x()->cuda_volume(),
+                                            velocity_prev_->y()->cuda_volume(), 
+                                            velocity_prev_->z()->cuda_volume(),
+                                            density->cuda_volume(),
                                             temperature_->cuda_volume(),
-                                            velocity_prime_->x()->cuda_volume(),
-                                            velocity_prime_->y()->cuda_volume(), 
-                                            velocity_prime_->z()->cuda_volume(),
                                             delta_time);
+
+        std::swap(velocity_prev_, velocity_);
+        std::swap(particles_, particles_prime_);
     }
 }
 

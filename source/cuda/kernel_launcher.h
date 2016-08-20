@@ -38,7 +38,7 @@ extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cud
 extern void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
 extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
 extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchApplyBuoyancy(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, bool staggered, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, bool staggered, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, bool outflow, bool staggered, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
@@ -75,11 +75,11 @@ namespace kern_launcher
 {
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
-extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* delta_x, cudaArray* delta_y, cudaArray* delta_z, BlockArrangement* ba);
+extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, BlockArrangement* ba);
 extern void MoveParticles(const FlipParticles& particles, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 extern void ResetParticles(const FlipParticles& particles, BlockArrangement* ba);
-extern void SortParticles(FlipParticles p_dst, FlipParticles p_src, BlockArrangement* ba);
+extern void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size, BlockArrangement* ba);
 extern void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 }
 
