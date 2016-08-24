@@ -483,9 +483,9 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
 
 namespace kern_launcher
 {
-void MoveParticles(const FlipParticles& particles, float time_step,
-                   float cell_size, uint3 volume_size,
-                   BlockArrangement* ba)
+void AdvectParticles(const FlipParticles& particles, float time_step,
+                     float cell_size, uint3 volume_size,
+                     BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
@@ -508,30 +508,6 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
     dim3 grid;
     ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
     BindParticlesToCellsKernel<<<grid, block>>>(particles, volume_size);
-}
-
-void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
-                   BlockArrangement* ba)
-{
-    cudaError_t e = cudaMemcpyAsync(p_dst.num_of_actives_,
-                                    p_src.num_of_actives_, sizeof(float),
-                                    cudaMemcpyDeviceToDevice);
-    assert(e == cudaSuccess);
-    if (e != cudaSuccess)
-        return;
-
-    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    e = cudaMemcpyAsync(p_dst.particle_count_, p_src.particle_count_,
-                        num_of_cells * sizeof(*p_dst.particle_count_),
-                        cudaMemcpyDeviceToDevice);
-    assert(e == cudaSuccess);
-    if (e != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangeLinear(&block, &grid, p_dst.num_of_particles_);
-    SortParticlesKernel<<<grid, block>>>(p_dst, p_src, volume_size);
 }
 
 void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x,
@@ -628,6 +604,38 @@ void ResetParticles(const FlipParticles& particles, BlockArrangement* ba)
     ResetParticlesKernel<<<grid, block>>>(particles);
 }
 
+void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
+                   BlockArrangement* ba)
+{
+    cudaError_t e = cudaMemcpyAsync(p_dst.num_of_actives_,
+                                    p_src.num_of_actives_, sizeof(float),
+                                    cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
+    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
+    e = cudaMemcpyAsync(p_dst.particle_count_, p_src.particle_count_,
+                        num_of_cells * sizeof(*p_dst.particle_count_),
+                        cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
+    e = cudaMemcpyAsync(p_dst.particle_index_, p_src.particle_index_,
+                        num_of_cells * sizeof(*p_dst.particle_index_),
+                        cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&block, &grid, p_dst.num_of_particles_);
+    SortParticlesKernel<<<grid, block>>>(p_dst, p_src, volume_size);
+}
+
 void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                     cudaArray* density, cudaArray* temperature,
                     const FlipParticles& particles, uint3 volume_size,
@@ -650,7 +658,7 @@ void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
 
     dim3 block;
     dim3 grid;
-    ba->ArrangeLinear(&block, &grid, particles.num_of_particles_);
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     TransferToGridKernel<<<grid, block>>>(particles, volume_size);
 }
 }

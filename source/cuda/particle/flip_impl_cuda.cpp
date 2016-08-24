@@ -69,8 +69,8 @@ void FlipImplCuda::Advect(const FlipParticles& p_next,
                                             vn_y, vn_z, ba_);
     kern_launcher::Resample(p_cur, vnp1_x, vnp1_y, vnp1_z, density, temperature,
                             rand_->Iterate(), FromGlmVector(volume_size), ba_);
-    kern_launcher::MoveParticles(p_cur, time_step, cell_size_,
-                                 FromGlmVector(volume_size), ba_);
+    kern_launcher::AdvectParticles(p_cur, time_step, cell_size_,
+                                   FromGlmVector(volume_size), ba_);
     CompactParticles(p_cur, p_next, volume_size);
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
                                   p_next, FromGlmVector(volume_size), ba_);
@@ -88,8 +88,9 @@ void FlipImplCuda::CompactParticles(const FlipParticles& p_cur,
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
     kern_launcher::BindParticlesToCells(p_cur, FromGlmVector(volume_size),
                                         ba_);
-    kern_launcher::BuildCellOffsets(p_cur.cell_index_, p_cur.particle_count_,
-                                    num_of_cells, ba_, bm_);
+    kern_launcher::BuildCellOffsets(p_cur.particle_index_,
+                                    p_cur.particle_count_, num_of_cells, ba_,
+                                    bm_);
     kern_launcher::SortParticles(p_next, p_cur, FromGlmVector(volume_size),
                                  ba_);
 }

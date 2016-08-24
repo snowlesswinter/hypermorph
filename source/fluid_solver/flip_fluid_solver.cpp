@@ -81,6 +81,7 @@ void SetCudaParticles(U* cuda_p, const V& p)
 
 struct FlipFluidSolver::FlipParticles
 {
+    // TODO: Two set of particles can share some fields.
     std::shared_ptr<GraphicsLinearMemU32> particle_index_;
     std::shared_ptr<GraphicsLinearMemU32> cell_index_;
     std::shared_ptr<GraphicsLinearMemU32> particle_count_;

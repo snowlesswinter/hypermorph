@@ -154,9 +154,10 @@ __global__ void BuildPrefixSumKernel(uint* prefix_sum, uint* block_sums,
 
 // =============================================================================
 
-void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
-                        int num_of_elements, const BlockSums& block_results,
-                        int level, BlockArrangement* ba)
+void PrefixSumRecursive(uint* particle_offsets,
+                        const uint* cell_particles_counts, int num_of_elements,
+                        const BlockSums& block_results, int level,
+                        BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
@@ -172,12 +173,12 @@ void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
     int shared_size_last_block = sizeof(int) * threads_last_block * 2;
     if (num_of_blocks > 1) {
         BuildPrefixSumKernel<true, false><<<grid, block, shared_size>>>(
-            cell_offsets, block_results[level].get(), cell_particles_counts,
+            particle_offsets, block_results[level].get(), cell_particles_counts,
             block.x * 2, 0, 0);
         if (np2_last_block)
             BuildPrefixSumKernel<true, true>
                 <<<1, threads_last_block, shared_size_last_block>>>(
-                    cell_offsets, block_results[level].get(),
+                    particle_offsets, block_results[level].get(),
                     cell_particles_counts, elements_last_block,
                     num_of_blocks - 1, num_of_elements - elements_last_block);
 
@@ -186,25 +187,27 @@ void PrefixSumRecursive(uint* cell_offsets, const uint* cell_particles_counts,
                            block_results, level + 1, ba);
 
         ApplyBlockResultsKernel<false><<<grid, block>>>(
-            cell_offsets, block_results[level].get(),
+            particle_offsets, block_results[level].get(),
             num_of_elements - (np2_last_block ? elements_last_block : 0), 0, 0);
         if (np2_last_block)
             ApplyBlockResultsKernel<true><<<1, threads_last_block>>>(
-                cell_offsets, block_results[level].get(), elements_last_block,
-                num_of_blocks - 1, num_of_elements - elements_last_block);
+                particle_offsets, block_results[level].get(),
+                elements_last_block, num_of_blocks - 1,
+                num_of_elements - elements_last_block);
     } else {
         if (IsPow2(num_of_elements))
             BuildPrefixSumKernel<false, false><<<grid, block, shared_size>>>(
-                cell_offsets, 0, cell_particles_counts, block.x * 2, 0, 0);
+                particle_offsets, 0, cell_particles_counts, block.x * 2, 0, 0);
         else
             BuildPrefixSumKernel<false, true><<<grid, block, shared_size>>>(
-                cell_offsets, 0, cell_particles_counts, num_of_elements, 0, 0);
+                particle_offsets, 0, cell_particles_counts, num_of_elements, 0,
+                0);
     }
 }
 
 namespace kern_launcher
 {
-void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts,
+void BuildCellOffsets(uint* particle_offsets, const uint* cell_particles_counts,
                       int num_of_cells, BlockArrangement* ba,
                       AuxBufferManager* bm)
 {
@@ -227,7 +230,7 @@ void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts,
         elements = num_of_blocks;
     } while (elements > 1);
 
-    PrefixSumRecursive(cell_offsets, cell_particles_counts, num_of_cells,
+    PrefixSumRecursive(particle_offsets, cell_particles_counts, num_of_cells,
                        block_sums, 0, ba);
 }
 }
