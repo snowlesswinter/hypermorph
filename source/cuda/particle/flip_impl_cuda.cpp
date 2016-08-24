@@ -67,7 +67,7 @@ void FlipImplCuda::Advect(const FlipParticles& p_next,
 {
     kern_launcher::InterpolateDeltaVelocity(p_cur, vnp1_x, vnp1_y, vnp1_z, vn_x,
                                             vn_y, vn_z, ba_);
-        kern_launcher::Resample(p_cur, vnp1_x, vnp1_y, vnp1_z, density, temperature,
+    kern_launcher::Resample(p_cur, vnp1_x, vnp1_y, vnp1_z, density, temperature,
                             rand_->Iterate(), FromGlmVector(volume_size), ba_);
     kern_launcher::MoveParticles(p_cur, time_step, cell_size_,
                                  FromGlmVector(volume_size), ba_);
