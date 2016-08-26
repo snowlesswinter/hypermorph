@@ -29,7 +29,7 @@ struct FlipParticles
     uint32_t* particle_index_;      // Cell index -> particle index.
     uint32_t* cell_index_;          // Particle index -> cell index.
     uint32_t* particle_count_;      // Cell index -> # particles in cell.
-    uint8_t* in_cell_index_;        // Particle index -> in-cell index.
+    uint8_t*  in_cell_index_;       // Particle index -> in-cell index.
     uint16_t* position_x_;
     uint16_t* position_y_;
     uint16_t* position_z_;

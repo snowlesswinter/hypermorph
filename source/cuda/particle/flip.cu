@@ -215,7 +215,7 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     }
 }
 
-// Fields should be reset: particle_count
+// Fields should be reset: particle_count, in_cell_index
 // Fields should be available: cell_index.
 // Active particles may *NOT* be consecutive.
 __global__ void BindParticlesToCellsKernel(FlipParticles particles,
@@ -235,14 +235,12 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
         atomicAdd(particles.num_of_actives_, -1);
     } else {
         uint count = atomicAdd(p_count + cell_index, 1);
-        //particles.in_cell_index_[i] = new_count;
         if (count >= kMaxNumParticlesPerCell) {
             atomicAdd(p_count + cell_index, static_cast<uint>(-1));
             FreeParticle(particles, i);
             atomicAdd(particles.num_of_actives_, -1);
         } else {
-            // Will be set in the counting sort routine.
-            //particles.cell_index_[i] = cell_index;
+            particles.in_cell_index_[i] = count;
         }
     }
 }
@@ -374,6 +372,8 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
         *particles.num_of_actives_ = 0;
 }
 
+// Fields should be available: cell_index, in_cell_index
+// Active particles may *NOT* be consecutive.
 __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
                                     uint3 volume_size)
 {
@@ -381,18 +381,18 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
     if (i >= p_dst.num_of_particles_)
         return;
 
-    if (i == 0) {
-        // We need the number of active particles for allocation in the next
-        // frame.
-        int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
-        *p_dst.num_of_actives_ =
-            p_dst.particle_index_[last_cell] + p_dst.particle_count_[last_cell];
-    }
+    //if (i == 0) {
+    //    // We need the number of active particles for allocation in the next
+    //    // frame.
+    //    int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
+    //    *p_dst.num_of_actives_ =
+    //        p_dst.particle_index_[last_cell] + p_dst.particle_count_[last_cell];
+    //}
 
     uint cell_index = p_src.cell_index_[i];
     uint in_cell = p_src.in_cell_index_[i];
     if (!IsCellUndefined(cell_index)) {
-        uint sort_index = p_dst.particle_index_[cell_index] + in_cell;
+        uint sort_index = p_src.particle_index_[cell_index] + in_cell;
 
         p_dst.position_x_ [sort_index] = p_src.position_x_[i];
         p_dst.position_y_ [sort_index] = p_src.position_y_[i];
@@ -463,11 +463,11 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
                                coord, temperature + index, count);
     }
 
-    uint16_t r_x = __float2half_rn(avg_vel_x          / weight_vel_x);
-    uint16_t r_y = __float2half_rn(avg_vel_y          / weight_vel_y);
-    uint16_t r_z = __float2half_rn(avg_vel_z          / weight_vel_z);
-    uint16_t r_d = __float2half_rn(weight_density     / weight_density);
-    uint16_t r_t = __float2half_rn(weight_temperature / weight_temperature);
+    uint16_t r_x = __float2half_rn(avg_vel_x       / weight_vel_x);
+    uint16_t r_y = __float2half_rn(avg_vel_y       / weight_vel_y);
+    uint16_t r_z = __float2half_rn(avg_vel_z       / weight_vel_z);
+    uint16_t r_d = __float2half_rn(avg_density     / weight_density);
+    uint16_t r_t = __float2half_rn(avg_temperature / weight_temperature);
 
     surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
@@ -498,9 +498,9 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
                           BlockArrangement* ba)
 {
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    //cudaMemsetAsync(
-    //    particles.in_cell_index_, 0,
-    //    particles.num_of_particles_ * sizeof(particles.in_cell_index_));
+    cudaMemsetAsync(
+        particles.in_cell_index_, 0,
+        particles.num_of_particles_ * sizeof(*particles.in_cell_index_));
     cudaMemsetAsync(particles.particle_count_, 0,
                     num_of_cells * sizeof(*particles.particle_count_));
 
