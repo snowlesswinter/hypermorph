@@ -73,7 +73,7 @@ void SetCudaParticles(U* cuda_p, const V& p)
     cuda_p->velocity_y_       = p->velocity_y_->cuda_linear_mem();
     cuda_p->velocity_z_       = p->velocity_z_->cuda_linear_mem();
     cuda_p->density_          = p->density_->cuda_linear_mem();
-    cuda_p->temperature_      = p->temperature_->cuda_linear_mem();
+    //cuda_p->temperature_      = p->temperature_->cuda_linear_mem();
     cuda_p->num_of_actives_   = p->num_of_actives_->cuda_mem_piece();
     cuda_p->num_of_particles_ = p->num_of_particles_;
 }
@@ -298,7 +298,7 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
     result &= InitParticleField(&particles->velocity_y_,     lib, n);
     result &= InitParticleField(&particles->velocity_z_,     lib, n);
     result &= InitParticleField(&particles->density_,        lib, n);
-    result &= InitParticleField(&particles->temperature_,    lib, n);
+    //result &= InitParticleField(&particles->temperature_,    lib, n);
 
     return result;
 }
@@ -368,7 +368,7 @@ void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
                                             temperature_->cuda_volume(),
                                             delta_time);
 
-        std::swap(particles_, particles_prime_);
+        //std::swap(particles_, particles_prime_);
     }
 }
 

@@ -242,6 +242,14 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     }
 }
 
+__global__ void CalculateNumberOfActiveParticles(FlipParticles particles,
+                                                 int last_cell_index)
+{
+    *particles.num_of_actives_ =
+        particles.particle_index_[last_cell_index] +
+        particles.particle_count_[last_cell_index];
+}
+
 // Should be invoked *BEFORE* resample kernel. Please read the comments of
 // ResampleKernel().
 // Active particles should be consecutive.
@@ -368,6 +376,24 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
 
     if (i == 0)
         *particles.num_of_actives_ = 0;
+}
+
+// Fields should be available: cell_index, in_cell_index
+// Active particles may *NOT* be consecutive.
+template <typename Type>
+__global__ void SortFieldKernel(Type* field_np1, Type* field,
+                                uint32_t* cell_index, uint8_t* in_cell_index,
+                                uint32_t* particle_index, uint num_of_particles,
+                                uint3 volume_size)
+{
+    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    if (i >= num_of_particles)
+        return;
+
+    if (!IsCellUndefined(cell_index[i])) {
+        uint sort_index = particle_index[cell_index[i]] + in_cell_index[i];
+        field_np1[sort_index] = field[i];
+    }
 }
 
 // Fields should be available: cell_index, in_cell_index
@@ -608,20 +634,14 @@ void ResetParticles(const FlipParticles& particles, BlockArrangement* ba)
     ResetParticlesKernel<<<grid, block>>>(particles);
 }
 
-void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
-                   BlockArrangement* ba)
+void FastSort(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
+              BlockArrangement* ba)
 {
-    cudaError_t e = cudaMemcpyAsync(p_dst.num_of_actives_,
-                                    p_src.num_of_actives_, sizeof(float),
-                                    cudaMemcpyDeviceToDevice);
-    assert(e == cudaSuccess);
-    if (e != cudaSuccess)
-        return;
-
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    e = cudaMemcpyAsync(p_dst.particle_count_, p_src.particle_count_,
-                        num_of_cells * sizeof(*p_dst.particle_count_),
-                        cudaMemcpyDeviceToDevice);
+    cudaError_t e = cudaMemcpyAsync(
+        p_dst.particle_count_, p_src.particle_count_,
+        num_of_cells * sizeof(*p_dst.particle_count_),
+        cudaMemcpyDeviceToDevice);
     assert(e == cudaSuccess);
     if (e != cudaSuccess)
         return;
@@ -633,11 +653,52 @@ void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
     if (e != cudaSuccess)
         return;
 
-
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&block, &grid, p_dst.num_of_particles_);
     SortParticlesKernel<<<grid, block>>>(p_dst, p_src, volume_size);
+}
+
+void SortParticles(FlipParticles p_dst, FlipParticles p_src, uint3 volume_size,
+                   BlockArrangement* ba)
+{
+    bool fast_sort = false;
+    if (fast_sort) {
+        FastSort(p_dst, p_src, volume_size, ba);
+        return;
+    }
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&block, &grid, p_src.num_of_particles_);
+
+    uint16_t* fields[] = {
+        p_src.position_x_,
+        p_src.position_y_,
+        p_src.position_z_,
+        p_src.velocity_x_,
+        p_src.velocity_y_,
+        p_src.velocity_z_,
+        p_src.density_
+    };
+
+    uint16_t* aux = p_dst.position_x_;
+    for (int i = 0; i < sizeof(fields) / sizeof(*fields); i++) {
+        SortFieldKernel<<<grid, block>>>(aux, fields[i],
+                                         p_src.cell_index_,
+                                         p_src.in_cell_index_,
+                                         p_src.particle_index_,
+                                         p_src.num_of_particles_, volume_size);
+        cudaError_t e = cudaMemcpyAsync(
+            fields[i], aux, p_src.num_of_particles_ * sizeof(*fields[i]),
+            cudaMemcpyDeviceToDevice);
+        assert(e == cudaSuccess);
+        if (e != cudaSuccess)
+            return;
+    }
+
+    int last_cell_index = volume_size.x * volume_size.y * volume_size.z - 1;
+    CalculateNumberOfActiveParticles<<<1, 1>>>(p_src, last_cell_index);
 }
 
 void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,

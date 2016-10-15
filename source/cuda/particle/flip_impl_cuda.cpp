@@ -73,7 +73,7 @@ void FlipImplCuda::Advect(const FlipParticles& p_next,
                                    FromGlmVector(volume_size), ba_);
     CompactParticles(p_cur, p_next, volume_size);
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
-                                  p_next, FromGlmVector(volume_size), ba_);
+                                  p_cur, FromGlmVector(volume_size), ba_);
 }
 
 void FlipImplCuda::Reset(const FlipParticles& particles)

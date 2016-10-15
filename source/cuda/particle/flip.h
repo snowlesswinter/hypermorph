@@ -37,7 +37,7 @@ struct FlipParticles
     uint16_t* velocity_y_;
     uint16_t* velocity_z_;
     uint16_t* density_;
-    uint16_t* temperature_;
+    //uint16_t* temperature_;
     int* num_of_actives_;
     int num_of_particles_;
 };

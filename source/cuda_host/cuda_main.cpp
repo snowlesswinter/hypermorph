@@ -89,7 +89,7 @@ namespace
     cuda_p.velocity_y_       = p.velocity_y_->mem();
     cuda_p.velocity_z_       = p.velocity_z_->mem();
     cuda_p.density_          = p.density_->mem();
-    cuda_p.temperature_      = p.temperature_->mem();
+    //cuda_p.temperature_      = p.temperature_->mem();
     cuda_p.num_of_actives_   = reinterpret_cast<int*>(p.num_of_actives_->mem());
     cuda_p.num_of_particles_ = p.num_of_particles_;
     return cuda_p;
