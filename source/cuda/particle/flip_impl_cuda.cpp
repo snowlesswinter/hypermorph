@@ -58,22 +58,23 @@ FlipImplCuda::~FlipImplCuda()
 
 }
 
-void FlipImplCuda::Advect(const FlipParticles& p_next,
-                          const FlipParticles& p_cur, cudaArray* vnp1_x,
+void FlipImplCuda::Advect(const FlipParticles& particles, uint16_t* aux,
+                          cudaArray* vnp1_x,
                           cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x,
                           cudaArray* vn_y, cudaArray* vn_z, cudaArray* density,
                           cudaArray* temperature, float time_step,
                           const glm::ivec3& volume_size)
 {
-    kern_launcher::InterpolateDeltaVelocity(p_cur, vnp1_x, vnp1_y, vnp1_z, vn_x,
-                                            vn_y, vn_z, ba_);
-    kern_launcher::Resample(p_cur, vnp1_x, vnp1_y, vnp1_z, density, temperature,
-                            rand_->Iterate(), FromGlmVector(volume_size), ba_);
-    kern_launcher::AdvectParticles(p_cur, time_step, cell_size_,
+    kern_launcher::InterpolateDeltaVelocity(particles, vnp1_x, vnp1_y, vnp1_z,
+                                            vn_x, vn_y, vn_z, ba_);
+    kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
+                            temperature, rand_->Iterate(),
+                            FromGlmVector(volume_size), ba_);
+    kern_launcher::AdvectParticles(particles, time_step, cell_size_,
                                    FromGlmVector(volume_size), ba_);
-    CompactParticles(p_cur, p_next, volume_size);
+    CompactParticles(particles, aux, volume_size);
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
-                                  p_cur, FromGlmVector(volume_size), ba_);
+                                  particles, FromGlmVector(volume_size), ba_);
 }
 
 void FlipImplCuda::Reset(const FlipParticles& particles)
@@ -81,16 +82,16 @@ void FlipImplCuda::Reset(const FlipParticles& particles)
     kern_launcher::ResetParticles(particles, ba_);
 }
 
-void FlipImplCuda::CompactParticles(const FlipParticles& p_cur,
-                                    const FlipParticles& p_next,
+void FlipImplCuda::CompactParticles(const FlipParticles& particles,
+                                    uint16_t* aux,
                                     const glm::ivec3& volume_size)
 {
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    kern_launcher::BindParticlesToCells(p_cur, FromGlmVector(volume_size),
+    kern_launcher::BindParticlesToCells(particles, FromGlmVector(volume_size),
                                         ba_);
-    kern_launcher::BuildCellOffsets(p_cur.particle_index_,
-                                    p_cur.particle_count_, num_of_cells, ba_,
-                                    bm_);
-    kern_launcher::SortParticles(p_next, p_cur, FromGlmVector(volume_size),
+    kern_launcher::BuildCellOffsets(particles.particle_index_,
+                                    particles.particle_count_, num_of_cells,
+                                    ba_, bm_);
+    kern_launcher::SortParticles(particles, aux, FromGlmVector(volume_size),
                                  ba_);
 }

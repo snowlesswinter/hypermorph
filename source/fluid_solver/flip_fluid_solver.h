@@ -78,7 +78,7 @@ private:
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
     std::unique_ptr<FlipParticles> particles_;
-    std::unique_ptr<FlipParticles> particles_prime_;
+    std::shared_ptr<GraphicsLinearMemU16> aux_;
 
     int frame_;
 };

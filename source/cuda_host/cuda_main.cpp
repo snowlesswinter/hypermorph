@@ -493,8 +493,8 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
                                  vnp1_x->size());
 }
 
-void CudaMain::MoveParticles(FlipParticles* particles_prime,
-                             FlipParticles* particles,
+void CudaMain::MoveParticles(FlipParticles* particles,
+                             std::shared_ptr<CudaLinearMemU16> aux_,
                              std::shared_ptr<CudaVolume> vnp1_x,
                              std::shared_ptr<CudaVolume> vnp1_y,
                              std::shared_ptr<CudaVolume> vnp1_z,
@@ -505,10 +505,10 @@ void CudaMain::MoveParticles(FlipParticles* particles_prime,
                              std::shared_ptr<CudaVolume> temperature,
                              float time_step)
 {
-    flip_impl_->Advect(ToCudaFlipParticles(*particles_prime),
-                       ToCudaFlipParticles(*particles), vnp1_x->dev_array(),
-                       vnp1_y->dev_array(), vnp1_z->dev_array(),
-                       vn_x->dev_array(), vn_y->dev_array(), vn_z->dev_array(),
+    flip_impl_->Advect(ToCudaFlipParticles(*particles), aux_->mem(),
+                       vnp1_x->dev_array(), vnp1_y->dev_array(),
+                       vnp1_z->dev_array(), vn_x->dev_array(),
+                       vn_y->dev_array(), vn_z->dev_array(),
                        density->dev_array(), temperature->dev_array(),
                        time_step, vnp1_x->size());
 }
