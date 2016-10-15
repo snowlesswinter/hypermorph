@@ -283,7 +283,7 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
                                     int cell_count)
 {
     bool result = true;
-    int n = 50000;
+    int n = 1000000;
     particles->num_of_particles_ = n;
     particles->num_of_actives_->Create(sizeof(int));
 

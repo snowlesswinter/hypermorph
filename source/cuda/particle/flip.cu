@@ -46,8 +46,8 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
 static const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
-static const uint32_t kMaxNumParticlesPerCell = 6;
-static const uint32_t kMinNumParticlesPerCell = 3;
+static const uint32_t kMaxNumParticlesPerCell = 3;
+static const uint32_t kMinNumParticlesPerCell = 1;
 
 __device__ bool IsCellUndefined(uint cell_index)
 {
@@ -70,8 +70,8 @@ __device__ void FreeParticle(const FlipParticles& p, uint i)
 
 __device__ bool IsStopped(float v_x, float v_y, float v_z)
 {
-    //const float v_¦Å = 0.00000001f;
-    const float v_¦Å = 0.0001f; // FIXME
+    // To determine the time to recycle particles.
+    const float v_¦Å = 0.02f;
     return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
              v_z > v_¦Å || v_z < -v_¦Å);
 }
@@ -146,14 +146,12 @@ __device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
                                        const uint16_t* pos_z, float3 pos,
                                        const uint16_t* field, int count)
 {
-    for (int i = 0; i < 1; i++) { // FIXME
+    for (int i = 0; i < count; i++) {
         float x = __half2float(*(pos_x + i));
         float y = __half2float(*(pos_y + i));
         float z = __half2float(*(pos_z + i));
 
         float weight = DistanceWeight(x, y, z, pos.x, pos.y, pos.z);
-        if (weight > 0.0001f) // FIXME
-            weight += 0.0000001f;
 
         *total_weight += weight;
         *total_value += weight * __half2float(*(field + i));
@@ -172,19 +170,13 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     FlipParticles& p = particles;
 
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= p.num_of_particles_) // FIXME
-    //if (i >= *p.num_of_actives_) // Maybe dynamic parallelism
-                                                  // is a better choice.
+    if (i >= *p.num_of_actives_) // Maybe dynamic parallelism is a better
+                                 // choice.
         return;
 
-    // Already constrained by |num_of_actives_|.
-    //
-    //if (IsCellUndefined(particles.cell_index_[i]))
-    //    return;
-
-    float v_x = __half2float(p.velocity_x_[i]);
-    float v_y = __half2float(p.velocity_y_[i]);
-    float v_z = __half2float(p.velocity_z_[i]);
+    float v_x = __half2float(p.velocity_x_[i]) * 0.95f;
+    float v_y = __half2float(p.velocity_y_[i]) * 0.95f;
+    float v_z = __half2float(p.velocity_z_[i]) * 0.95f;
 
     if (IsStopped(v_x, v_y, v_z)) {
         // Eliminate all the particles that stopped.
@@ -192,7 +184,6 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
 
         // We don't need the number of active particles until the sorting is
         // done.
-        //atomicAdd(p.num_of_actives_, -1);
         return;
     }
 
@@ -220,9 +211,6 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
         p.cell_index_[i] = cell_index;
     } else {
         FreeParticle(particles, i);
-
-        // See comment above.
-        // atomicAdd(p.num_of_actives_, -1);
     }
 }
 
@@ -243,13 +231,11 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     uint* p_count = particles.particle_count_;
     if (p_count[cell_index] >= kMaxNumParticlesPerCell) {
         FreeParticle(particles, i);
-        atomicAdd(particles.num_of_actives_, -1);
     } else {
         uint count = atomicAdd(p_count + cell_index, 1);
         if (count >= kMaxNumParticlesPerCell) {
             atomicAdd(p_count + cell_index, static_cast<uint>(-1));
             FreeParticle(particles, i);
-            atomicAdd(particles.num_of_actives_, -1);
         } else {
             particles.in_cell_index_[i] = count;
         }
@@ -258,6 +244,7 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
 
 // Should be invoked *BEFORE* resample kernel. Please read the comments of
 // ResampleKernel().
+// Active particles should be consecutive.
 __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
                                                uint16_t* vel_z,
                                                const uint16_t* pos_x,
@@ -298,6 +285,8 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
 
 // Should be invoked *AFTER* interpolation kernel. Since the newly inserted
 // particles sample the new velocity filed, they don't need any correction.
+//
+// Active particles should be consecutive.
 __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
                                uint3 volume_size)
 {
@@ -351,14 +340,10 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         density     = tex3D(tex_d, pos.x,        pos.y,        pos.z);
         //temperature = tex3D(tex_t, pos.x,        pos.y,        pos.z);
 
-        if (density > 0.001f) // FIXME
-            density += 0.0000001f;
-
         int index = base_index + i;
 
+        // Not necessary to initialize the in_cell_index field.
         // Particle-cell mapping will be done in the binding kernel.
-        //
-        //particles->in_cell_index_[index] = count + i;
 
         // Assign a valid value to |cell_index_| to activate this particle.
         particles.cell_index_   [index] = cell_index;
@@ -368,7 +353,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         particles.velocity_x_   [index] = __float2half_rn(v_x);
         particles.velocity_y_   [index] = __float2half_rn(v_y);
         particles.velocity_z_   [index] = __float2half_rn(v_z);
-        particles.density_      [index] = __float2half_rn(density);
+        particles.density_      [index] = __float2half_rn(density * 0.95f);
         //particles.temperature_  [index] = __float2half_rn(temperature);
     }
 }
@@ -394,13 +379,13 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
     if (i >= p_dst.num_of_particles_)
         return;
 
-    //if (i == 0) {
-    //    // We need the number of active particles for allocation in the next
-    //    // frame.
-    //    int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
-    //    *p_dst.num_of_actives_ =
-    //        p_dst.particle_index_[last_cell] + p_dst.particle_count_[last_cell];
-    //}
+    if (i == 0) {
+        // We need the number of active particles for allocation in the next
+        // frame.
+        int last_cell = volume_size.x * volume_size.y * volume_size.z - 1;
+        *p_dst.num_of_actives_ =
+            p_src.particle_index_[last_cell] + p_src.particle_count_[last_cell];
+    }
 
     uint cell_index = p_src.cell_index_[i];
     uint in_cell = p_src.in_cell_index_[i];
@@ -409,12 +394,12 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
 
         p_dst.position_x_ [sort_index] = p_src.position_x_[i];
         p_dst.position_y_ [sort_index] = p_src.position_y_[i];
-        p_dst.position_y_ [sort_index] = p_src.position_y_[i];
+        p_dst.position_z_ [sort_index] = p_src.position_z_[i];
         p_dst.velocity_x_ [sort_index] = p_src.velocity_x_[i];
         p_dst.velocity_y_ [sort_index] = p_src.velocity_y_[i];
-        p_dst.velocity_y_ [sort_index] = p_src.velocity_y_[i];
+        p_dst.velocity_z_ [sort_index] = p_src.velocity_z_[i];
         p_dst.density_    [sort_index] = p_src.density_[i];
-        p_dst.temperature_[sort_index] = p_src.temperature_[i];
+        //p_dst.temperature_[sort_index] = p_src.temperature_[i];
     }
 }
 
@@ -424,7 +409,10 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
     int y = VolumeY();
     int z = VolumeZ();
 
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+    if (x >= volume_size.x - 1 || y >= volume_size.y - 1 || z >= volume_size.z - 1)
+        return;
+
+    if (x < 1 || y < 1 || z < 1)
         return;
 
     uint*     p_index     = particles.particle_index_;
@@ -449,50 +437,15 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
     float avg_density        = 0.0f;
     //float avg_temperature    = 0.0f;
 
-    // FIXME
-    //int cell1 = (z * volume_size.y + y) * volume_size.x + x;
-    //int index = p_index[cell1];
-    //int count1 = p_count[cell1];
-    //if (!count1)
-    //    return;
-    //
-    //float x1 = __half2float(*(vel_x + index));
-    //float y1 = __half2float(*(vel_y + index));
-    //float z1 = __half2float(*(vel_z + index));
-    //float d = __half2float(*(density + index));
-    //float t = __half2float(*(temperature + index));
-    //
-    //if (y1 > 0.001f)
-    //    y1 += 0.00001f;
-    //
-    //if (d != 0.0f)
-    //    d += 0.00001f;
-    //
-    //uint16_t r_x = __float2half_rn(x1);
-    //uint16_t r_y = __float2half_rn(y1);
-    //uint16_t r_z = __float2half_rn(z1);
-    //uint16_t r_d = __float2half_rn(d);
-    //uint16_t r_t = __float2half_rn(t);
-    //
-    //surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
-    //surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
-    //surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
-    //surf3Dwrite(r_d, surf_d, x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
-    //surf3Dwrite(r_t, surf_t, x * sizeof(r_t), y, z, cudaBoundaryModeTrap);
-    //return;
-
-    int count = 0;
-    for (int i = 0; i < 1; i++) for (int j = 0; j < 1; j++)
-            for (int k = 0; k < 1; k++) {
-    //for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
-    //        for (int k = -1; k <= 1; k++) {
+    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
+            for (int k = -1; k <= 1; k++) {
         int3 pos = make_int3(x + k, y + j, z + i);
         int cell = (pos.z * volume_size.y + pos.y) * volume_size.x + pos.x;
-        int index = p_index[cell];
-        count = p_count[cell];
+        int count = p_count[cell];
         if (!count)
             continue;
 
+        int index = p_index[cell];
         float3 coord = make_float3(x, y, z) + 0.5f;
         ComputeWeightedAverage(&avg_vel_x, &weight_vel_x, pos_x + index,
                                pos_y + index, pos_z + index,
