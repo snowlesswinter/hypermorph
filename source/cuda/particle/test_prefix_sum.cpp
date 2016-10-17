@@ -36,7 +36,7 @@ bool TestPrefixSum(BlockArrangement* ba, AuxBufferManager* bm)
 {
     srand(0x18923074);
 
-    const int num_of_cells = 1000000;
+    const int num_of_cells = 10000000;
 
     std::unique_ptr<uint[]> cell_particles_counts(new uint[num_of_cells]);
     std::unique_ptr<uint[]> cell_offsets_cpu(new uint[num_of_cells]);
@@ -60,7 +60,8 @@ bool TestPrefixSum(BlockArrangement* ba, AuxBufferManager* bm)
 
     cudaMemcpy(idata.get(), cell_particles_counts.get(),
                num_of_cells * sizeof(uint), cudaMemcpyHostToDevice);
-    kern_launcher::BuildCellOffsets(odata.get(), idata.get(), num_of_cells, ba, bm);
+    kern_launcher::BuildCellOffsets(odata.get(), idata.get(), num_of_cells, ba,
+                                    bm);
 
     cudaThreadSynchronize();
     cudaMemcpy(cell_offsets_gpu.get(), odata.get(), num_of_cells * sizeof(uint),

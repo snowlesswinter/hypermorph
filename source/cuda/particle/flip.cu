@@ -46,8 +46,8 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
 static const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
-static const uint32_t kMaxNumParticlesPerCell = 3;
-static const uint32_t kMinNumParticlesPerCell = 1;
+static const uint32_t kMaxNumParticlesPerCell = 4;
+static const uint32_t kMinNumParticlesPerCell = 2;
 
 __device__ bool IsCellUndefined(uint cell_index)
 {
@@ -110,10 +110,10 @@ __device__ uint Tausworthe(uint z, int s1, int s2, int s3, uint M)
 __device__ float3 RandomCoord(uint* random_seed, int x, int y, int z)
 {
     uint seed = *random_seed;
-    uint seed0 = Tausworthe(seed,  blockIdx.x  & 0xF, blockIdx.y  & 0xF, blockIdx.z  & 0xF, 0xFFFFFFFE);
-    uint seed1 = Tausworthe(seed0, threadIdx.x & 0xF, threadIdx.y & 0xF, threadIdx.z & 0xF, 0xFFFFFFF8);
-    uint seed2 = Tausworthe(seed1, threadIdx.x & 0xF, threadIdx.y & 0xF, threadIdx.z & 0xF, 0xFFFFFFF0);
-    uint seed3 = Tausworthe(seed2, threadIdx.x & 0xF, threadIdx.y & 0xF, threadIdx.z & 0xF, 0xFFFFFFE0);
+    uint seed0 = Tausworthe(seed,  (blockIdx.x  + 1) & 0xF, (blockIdx.y  + 2) & 0xF, (blockIdx.z  + 3) & 0xF, 0xFFFFFFFE);
+    uint seed1 = Tausworthe(seed0, (threadIdx.x + 1) & 0xF, (threadIdx.y + 2) & 0xF, (threadIdx.z + 3) & 0xF, 0xFFFFFFF8);
+    uint seed2 = Tausworthe(seed1, (threadIdx.y + 1) & 0xF, (threadIdx.z + 2) & 0xF, (threadIdx.x + 3) & 0xF, 0xFFFFFFF0);
+    uint seed3 = Tausworthe(seed2, (threadIdx.z + 1) & 0xF, (threadIdx.x + 2) & 0xF, (threadIdx.y + 3) & 0xF, 0xFFFFFFE0);
 
     float rand_x = (seed1 & 127) / 128.0f - 0.5f;
     float rand_y = (seed2 & 127) / 128.0f - 0.5f;
@@ -325,7 +325,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
 
     if (IsStopped(v_x, v_y, v_z)) {
         // All particles whose velocity is lower than the threshold will be
-        // elimiated in advection kernel.
+        // eliminated in advection kernel.
         return;
     }
 
@@ -361,7 +361,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         particles.velocity_x_   [index] = __float2half_rn(v_x);
         particles.velocity_y_   [index] = __float2half_rn(v_y);
         particles.velocity_z_   [index] = __float2half_rn(v_z);
-        particles.density_      [index] = __float2half_rn(density * 0.95f);
+        particles.density_      [index] = __float2half_rn(density);
         //particles.temperature_  [index] = __float2half_rn(temperature);
     }
 }
@@ -681,7 +681,8 @@ void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size,
         particles.velocity_x_,
         particles.velocity_y_,
         particles.velocity_z_,
-        particles.density_
+        particles.density_,
+        //particles.temperature_
     };
 
     for (int i = 0; i < sizeof(fields) / sizeof(*fields); i++) {

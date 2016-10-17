@@ -116,7 +116,6 @@ struct FlipFluidSolver::FlipParticles
         , num_of_particles_(0)
     {
     }
-
 };
 
 FlipFluidSolver::FlipFluidSolver()

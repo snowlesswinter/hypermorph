@@ -141,6 +141,13 @@ void FluidSimulator::StopImpulsing()
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
+    int debug = 1;
+    if (debug) {
+        delta_time = 0.0f;
+        seconds_elapsed = 0.0f;
+        frame_count = 1;
+    }
+
     float fixed_time_step = FluidConfig::Instance()->fixed_time_step();
     float proper_delta_time = fixed_time_step > 0.0f ?
         fixed_time_step : std::min(delta_time, kMaxTimeStep);
