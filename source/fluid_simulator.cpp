@@ -141,7 +141,7 @@ void FluidSimulator::StopImpulsing()
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count)
 {
-    int debug = 1;
+    int debug = 0;
     if (debug) {
         delta_time = 0.0f;
         seconds_elapsed = 0.0f;

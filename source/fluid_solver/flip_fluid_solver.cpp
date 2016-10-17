@@ -78,7 +78,7 @@ void SetCudaParticles(U* cuda_p, const V& p)
     cuda_p->num_of_particles_ = p->num_of_particles_;
 }
 
-const int kNumParticles = 1000000;
+const int kNumParticles = 3000000;
 } // Anonymous namespace
 
 struct FlipFluidSolver::FlipParticles

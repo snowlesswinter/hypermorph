@@ -54,6 +54,7 @@
     <ClInclude Include="particle\flip.h">
       <Filter>particle</Filter>
     </ClInclude>
+    <ClInclude Include="cuda_debug.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">

@@ -243,6 +243,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="cuda_common_host.h" />
     <ClInclude Include="cuda_common_kern.h" />
     <ClInclude Include="cuda_core.h" />
+    <ClInclude Include="cuda_debug.h" />
     <ClInclude Include="field_offset.h" />
     <ClInclude Include="fluid_impl_cuda.h" />
     <ClInclude Include="fluid_impulse.h" />
