@@ -253,6 +253,8 @@ bool ResetSimulator()
     sim_ = new FluidSimulator();
     sim_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
     sim_->set_solver_choice(FluidConfig::Instance()->poisson_method());
+    sim_->set_grid_size(FluidConfig::Instance()->grid_size());
+    sim_->set_cell_size(FluidConfig::Instance()->cell_size());
 
     bool r = sim_->Init();
     if (r) {

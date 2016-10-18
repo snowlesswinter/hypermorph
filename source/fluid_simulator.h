@@ -54,6 +54,8 @@ public:
     void set_diagnosis(int diagnosis);
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
+    void set_grid_size(const glm::ivec3& size) { grid_size_ = size; }
+    void set_cell_size(const float size) { cell_size_ = size; }
 
     std::shared_ptr<GraphicsVolume> GetDensityField() const;
 
