@@ -142,6 +142,13 @@ void CudaMain::ClearVolume(CudaVolume* dest, const glm::vec4& value,
     core_->ClearVolume(dest->dev_array(), value, volume_size);
 }
 
+void CudaMain::CopyVolume(std::shared_ptr<CudaVolume> dest,
+                          std::shared_ptr<CudaVolume> source)
+{
+    CudaCore::CopyVolumeAsync(dest->dev_array(), source->dev_array(),
+                              dest->size());
+}
+
 int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
 {
     if (registerd_textures_.find(texture) != registerd_textures_.end())

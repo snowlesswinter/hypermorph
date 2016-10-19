@@ -33,6 +33,7 @@
 #include <helper_math.h>
 
 #include "graphics_resource.h"
+#include "cuda_common_host.h"
 #include "third_party/glm/mat4x4.hpp"
 #include "third_party/glm/vec3.hpp"
 
@@ -376,4 +377,11 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
                         density_factor, occlusion_factor);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
+}
+
+void CudaCore::CopyVolumeAsync(cudaArray* dest, cudaArray* source,
+                               const glm::ivec3& volume_size)
+{
+    uint3 size = make_uint3(volume_size.x, volume_size.y, volume_size.z);
+    ::CopyVolumeAsync(dest, source, size);
 }

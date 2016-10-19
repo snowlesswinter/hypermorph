@@ -286,6 +286,7 @@ void Display()
     UpdateFrame(static_cast<unsigned int>(deltaTime));
     RenderFrame();
     glutSwapBuffers();
+    Sleep(1);
 }
 
 void Reshape(int w, int h)

@@ -84,6 +84,8 @@ public:
 
     void ClearVolume(CudaVolume* dest, const glm::vec4& value,
                      const glm::ivec3& volume_size);
+    void CopyVolume(std::shared_ptr<CudaVolume> dest,
+                    std::shared_ptr<CudaVolume> source);
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
 

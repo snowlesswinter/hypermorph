@@ -73,7 +73,7 @@ extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
 // Particles.
 namespace kern_launcher
 {
-extern void AdvectParticles(const FlipParticles& particles, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
 extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, BlockArrangement* ba);

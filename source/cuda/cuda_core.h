@@ -54,6 +54,8 @@ public:
                                const glm::ivec3& volume_size);
     static void CopyToVolume(cudaArray* dest, void* source, size_t pitch,
                              const glm::ivec3& volume_size);
+    static void CopyVolumeAsync(cudaArray* dest, cudaArray* source,
+                                const glm::ivec3& volume_size);
     static void Raycast(GraphicsResource* dest, cudaArray* density,
                         const glm::mat4& model_view,
                         const glm::ivec2& surface_size,
