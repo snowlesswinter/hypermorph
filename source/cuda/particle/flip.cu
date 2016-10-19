@@ -116,9 +116,9 @@ __device__ float3 RandomCoord(uint* random_seed, int x, int y, int z)
     uint seed2 = Tausworthe(seed1, (threadIdx.y + 1) & 0xF, (threadIdx.z + 2) & 0xF, (threadIdx.x + 3) & 0xF, 0xFFFFFFF0);
     uint seed3 = Tausworthe(seed2, (threadIdx.z + 1) & 0xF, (threadIdx.x + 2) & 0xF, (threadIdx.y + 3) & 0xF, 0xFFFFFFE0);
 
-    float rand_x = (seed1 & 127) / 128.0f - 0.5f;
-    float rand_y = (seed2 & 127) / 128.0f - 0.5f;
-    float rand_z = (seed3 & 127) / 128.0f - 0.5f;
+    float rand_x = (seed1 & 127) / 129.5918f - 0.49f;
+    float rand_y = (seed2 & 127) / 129.5918f - 0.49f;
+    float rand_z = (seed3 & 127) / 129.5918f - 0.49f;
 
     *random_seed = seed3;
     return make_float3(rand_x, rand_y, rand_z);
@@ -191,7 +191,6 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     float y = __half2float(p.position_y_[i]);
     float z = __half2float(p.position_z_[i]);
 
-    // TODO: We need a higher order scheme.
     // TODO: Keep the same boundary conditions as the grid.
     x += v_x * time_step_over_cell_size;
     y += v_y * time_step_over_cell_size;
@@ -245,21 +244,21 @@ __global__ void AdvectParticlesHighOrderKernel(FlipParticles particles,
     float z = __half2float(p.position_z_[i]);
 
     // TODO: Keep the same boundary conditions as the grid.
-    float mid_x = x + 0.5f * time_step_over_cell_size * v_x;
-    float mid_y = y + 0.5f * time_step_over_cell_size * v_y;
-    float mid_z = z + 0.5f * time_step_over_cell_size * v_z;
+    float mid_x = x + 0.5f * time_step_over_cell_size * v_x + 0.5f;
+    float mid_y = y + 0.5f * time_step_over_cell_size * v_y + 0.5f;
+    float mid_z = z + 0.5f * time_step_over_cell_size * v_z + 0.5f;
 
-    float v_x2 = tex3D(tex_x, mid_x + 1.0f, mid_y + 0.5f, mid_z + 0.5f);
-    float v_y2 = tex3D(tex_y, mid_x + 0.5f, mid_y + 1.0f, mid_z + 0.5f);
-    float v_z2 = tex3D(tex_z, mid_x + 0.5f, mid_y + 0.5f, mid_z + 1.0f);
+    float v_x2 = tex3D(tex_x, mid_x + 0.5f, mid_y,        mid_z);
+    float v_y2 = tex3D(tex_y, mid_x,        mid_y + 0.5f, mid_z);
+    float v_z2 = tex3D(tex_z, mid_x,        mid_y,        mid_z + 0.5f);
 
-    float mid_x2 = x + 0.75f * time_step_over_cell_size * v_x2;
-    float mid_y2 = y + 0.75f * time_step_over_cell_size * v_y2;
-    float mid_z2 = z + 0.75f * time_step_over_cell_size * v_z2;
+    float mid_x2 = x + 0.75f * time_step_over_cell_size * v_x2 + 0.5f;
+    float mid_y2 = y + 0.75f * time_step_over_cell_size * v_y2 + 0.5f;
+    float mid_z2 = z + 0.75f * time_step_over_cell_size * v_z2 + 0.5f;
 
-    float v_x3 = tex3D(tex_x, mid_x2 + 1.0f, mid_y2 + 0.5f, mid_z2 + 0.5f);
-    float v_y3 = tex3D(tex_y, mid_x2 + 0.5f, mid_y2 + 1.0f, mid_z2 + 0.5f);
-    float v_z3 = tex3D(tex_z, mid_x2 + 0.5f, mid_y2 + 0.5f, mid_z2 + 1.0f);
+    float v_x3 = tex3D(tex_x, mid_x2 + 0.5f, mid_y2,        mid_z2);
+    float v_y3 = tex3D(tex_y, mid_x2,        mid_y2 + 0.5f, mid_z2);
+    float v_z3 = tex3D(tex_z, mid_x2,        mid_y2,        mid_z2 + 0.5f);
 
     float c1 = 2.0f / 9.0f * time_step_over_cell_size;
     float c2 = 3.0f / 9.0f * time_step_over_cell_size;
@@ -386,7 +385,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     int count = particles.particle_count_[cell_index];
 
     // Scan for all undersampled cells, and try to insert new particles.
-    if (count >= kMinNumParticlesPerCell)
+    if (count > kMinNumParticlesPerCell)
         return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
@@ -427,13 +426,13 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
 
         // Assign a valid value to |cell_index_| to activate this particle.
         particles.cell_index_   [index] = cell_index;
-        particles.position_x_   [index] = __float2half_rn(pos.x);
-        particles.position_y_   [index] = __float2half_rn(pos.y);
-        particles.position_z_   [index] = __float2half_rn(pos.z);
+        particles.position_x_   [index] = __float2half_rn(pos.x - 0.5f);
+        particles.position_y_   [index] = __float2half_rn(pos.y - 0.5f);
+        particles.position_z_   [index] = __float2half_rn(pos.z - 0.5f);
         particles.velocity_x_   [index] = __float2half_rn(v_x);
         particles.velocity_y_   [index] = __float2half_rn(v_y);
         particles.velocity_z_   [index] = __float2half_rn(v_z);
-        particles.density_      [index] = __float2half_rn(density);
+        particles.density_      [index] = __float2half_rn(density * 0.98f);
         //particles.temperature_  [index] = __float2half_rn(temperature);
     }
 }
