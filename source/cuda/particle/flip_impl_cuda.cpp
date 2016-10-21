@@ -93,5 +93,5 @@ void FlipImplCuda::CompactParticles(const FlipParticles& particles,
                                     particles.particle_count_, num_of_cells,
                                     ba_, bm_);
     kern_launcher::SortParticles(particles, aux, FromGlmVector(volume_size),
-                                 ba_);
+                                 ba_, bm_);
 }

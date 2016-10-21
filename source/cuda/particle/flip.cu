@@ -20,6 +20,7 @@
 // 3. This notice may not be removed or altered from any source distribution.
 
 #include <cassert>
+#include <functional>
 
 #include "third_party/opengl/glew.h"
 
@@ -108,7 +109,7 @@ __device__ uint Tausworthe(uint z, int s1, int s2, int s3, uint M)
     return (((z & M) << s3) ^ b);
 }
 
-__device__ float3 RandomCoord(uint* random_seed, int x, int y, int z)
+__device__ float3 RandomCoord(uint* random_seed)
 {
     uint seed = *random_seed;
     uint seed0 = Tausworthe(seed,  (blockIdx.x  + 1) & 0xF, (blockIdx.y  + 2) & 0xF, (blockIdx.z  + 3) & 0xF, 0xFFFFFFFE);
@@ -126,7 +127,7 @@ __device__ float3 RandomCoord(uint* random_seed, int x, int y, int z)
 
 __device__ float WeightKernel(float r)
 {
-    if (r >= -1.0f && r < 0.0f)
+    if (r >= -1.0f && r <= 0.0f)
         return 1.0f + r;
 
     if (r < 1.0f && r > 0.0f)
@@ -303,12 +304,12 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     if (p_count[cell_index] >= kMaxNumParticlesPerCell) {
         FreeParticle(particles, i);
     } else {
-        uint count = atomicAdd(p_count + cell_index, 1);
-        if (count >= kMaxNumParticlesPerCell) {
+        uint old_count = atomicAdd(p_count + cell_index, 1);
+        if (old_count >= kMaxNumParticlesPerCell) {
             atomicAdd(p_count + cell_index, static_cast<uint>(-1));
             FreeParticle(particles, i);
         } else {
-            particles.in_cell_index_[i] = count;
+            particles.in_cell_index_[i] = old_count;
         }
     }
 }
@@ -400,7 +401,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         return;
     }
 
-    int needed = kMaxNumParticlesPerCell - count - 1;
+    int needed = kMaxNumParticlesPerCell - count;
     int base_index = atomicAdd(particles.num_of_actives_, needed);
     if (base_index + needed > particles.num_of_particles_) {
         atomicAdd(particles.num_of_actives_, -needed);
@@ -410,7 +411,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     // Reseed particles.
     uint seed = random_seed;
     for (int i = 0; i < needed; i++) {
-        float3 pos = coord + RandomCoord(&seed, x, y, z);
+        float3 pos = coord + RandomCoord(&seed);
 
         float density;
         v_x         = tex3D(tex_x, pos.x + 0.5f, pos.y,        pos.z);
@@ -759,7 +760,7 @@ void FastSort(FlipParticles particles, uint3 volume_size, BlockArrangement* ba)
 }
 
 void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size,
-                   BlockArrangement* ba)
+                   BlockArrangement* ba, AuxBufferManager* bm)
 {
     bool fast_sort = false;
     if (fast_sort) {
@@ -798,6 +799,41 @@ void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size,
         if (e != cudaSuccess)
             return;
     }
+
+    // Sort index fields.
+    std::unique_ptr<uint32_t, std::function<void(void*)>> buf(
+        reinterpret_cast<uint32_t*>(
+            bm->Allocate(particles.num_of_particles_ * sizeof(uint32_t))),
+        [&bm](void* p) { bm->Free(p); });
+    SortFieldKernel<<<grid, block>>>(buf.get(), particles.cell_index_,
+                                     particles.cell_index_,
+                                     particles.in_cell_index_,
+                                     particles.particle_index_,
+                                     particles.num_of_particles_, volume_size);
+    DCHECK_KERNEL();
+
+    SortFieldKernel<<<grid, block>>>(reinterpret_cast<uint8_t*>(aux),
+                                     particles.in_cell_index_,
+                                     particles.cell_index_,
+                                     particles.in_cell_index_,
+                                     particles.particle_index_,
+                                     particles.num_of_particles_, volume_size);
+    DCHECK_KERNEL();
+
+    cudaError_t e = cudaMemcpyAsync(
+        particles.cell_index_, buf.get(),
+        particles.num_of_particles_ * sizeof(*buf), cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
+    e = cudaMemcpyAsync(
+        particles.in_cell_index_, aux,
+        particles.num_of_particles_ * sizeof(uint8_t),
+        cudaMemcpyDeviceToDevice);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
 
     int last_cell_index = volume_size.x * volume_size.y * volume_size.z - 1;
     CalculateNumberOfActiveParticles<<<1, 1>>>(particles, last_cell_index);

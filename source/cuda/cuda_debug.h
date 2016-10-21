@@ -25,8 +25,10 @@
 #ifndef NDEBUG
 #define DCHECK_KERNEL()\
     cudaDeviceSynchronize();\
-    cudaError_t __e__ = cudaGetLastError();\
-    assert(__e__ == cudaSuccess);
+    {\
+        cudaError_t __e__ = cudaGetLastError();\
+        assert(__e__ == cudaSuccess);\
+    }
 
 #else
 #define DCHECK_KERNEL() __noop
