@@ -74,8 +74,10 @@ public:
     void OnVorticityRestored();
     void OnRaycastPerformed();
 
+    void OnParticleNumberUpdated(int n);
     void OnProlongated();
 
+    int GetActiveParticleNumber() const;
     float GetOperationTimeCost(Operations o) const;
 
     void Reset();
@@ -91,6 +93,7 @@ private:
     std::list<double> time_stamps_;
     double last_operation_time_;
     SampleArray operation_time_costs_;
+    int num_active_particles_;
 };
 
 #endif // _METRICS_H_

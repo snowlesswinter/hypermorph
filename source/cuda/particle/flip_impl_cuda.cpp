@@ -58,10 +58,11 @@ FlipImplCuda::~FlipImplCuda()
 
 }
 
-void FlipImplCuda::Advect(const FlipParticles& particles, uint16_t* aux,
-                          cudaArray* vnp1_x,
-                          cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x,
-                          cudaArray* vn_y, cudaArray* vn_z, cudaArray* density,
+void FlipImplCuda::Advect(const FlipParticles& particles,
+                          int* num_active_particles, uint16_t* aux,
+                          cudaArray* vnp1_x, cudaArray* vnp1_y,
+                          cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
+                          cudaArray* vn_z, cudaArray* density,
                           cudaArray* temperature, float time_step,
                           const glm::ivec3& volume_size)
 {
@@ -72,7 +73,7 @@ void FlipImplCuda::Advect(const FlipParticles& particles, uint16_t* aux,
                             FromGlmVector(volume_size), ba_);
     kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,
                                    cell_size_, FromGlmVector(volume_size), ba_);
-    CompactParticles(particles, aux, volume_size);
+    CompactParticles(particles, num_active_particles, aux, volume_size);
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
                                   particles, FromGlmVector(volume_size), ba_);
 }
@@ -83,7 +84,7 @@ void FlipImplCuda::Reset(const FlipParticles& particles)
 }
 
 void FlipImplCuda::CompactParticles(const FlipParticles& particles,
-                                    uint16_t* aux,
+                                    int* num_active_particles, uint16_t* aux,
                                     const glm::ivec3& volume_size)
 {
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
@@ -92,6 +93,6 @@ void FlipImplCuda::CompactParticles(const FlipParticles& particles,
     kern_launcher::BuildCellOffsets(particles.particle_index_,
                                     particles.particle_count_, num_of_cells,
                                     ba_, bm_);
-    kern_launcher::SortParticles(particles, aux, FromGlmVector(volume_size),
-                                 ba_, bm_);
+    kern_launcher::SortParticles(particles, num_active_particles, aux,
+                                 FromGlmVector(volume_size), ba_, bm_);
 }

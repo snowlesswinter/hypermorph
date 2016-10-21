@@ -230,7 +230,7 @@ public:
                          std::shared_ptr<CudaVolume> vort_z, float time_step);
 
     // Particles
-    void MoveParticles(FlipParticles* particles,
+    void MoveParticles(FlipParticles* particles, int* num_active_particles,
                        std::shared_ptr<CudaLinearMemU16> aux_,
                        std::shared_ptr<CudaVolume> vnp1_x,
                        std::shared_ptr<CudaVolume> vnp1_y,

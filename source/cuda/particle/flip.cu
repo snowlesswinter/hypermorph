@@ -759,8 +759,9 @@ void FastSort(FlipParticles particles, uint3 volume_size, BlockArrangement* ba)
     DCHECK_KERNEL();
 }
 
-void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size,
-                   BlockArrangement* ba, AuxBufferManager* bm)
+void SortParticles(FlipParticles particles, int* num_active_particles,
+                   uint16_t* aux, uint3 volume_size, BlockArrangement* ba,
+                   AuxBufferManager* bm)
 {
     bool fast_sort = false;
     if (fast_sort) {
@@ -838,6 +839,9 @@ void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size,
     int last_cell_index = volume_size.x * volume_size.y * volume_size.z - 1;
     CalculateNumberOfActiveParticles<<<1, 1>>>(particles, last_cell_index);
     DCHECK_KERNEL();
+
+    cudaMemcpyAsync(num_active_particles, particles.num_of_actives_,
+                    sizeof(*num_active_particles), cudaMemcpyDeviceToHost);
 }
 
 void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,

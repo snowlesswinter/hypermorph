@@ -126,6 +126,7 @@ FlipFluidSolver::FlipFluidSolver()
     , particles_(new FlipParticles(graphics_lib_))
     , aux_()
     , frame_(0)
+    , num_active_particles_(0)
 {
 
 }
@@ -268,6 +269,7 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
 
     MoveParticles(density, delta_time);
     Metrics::Instance()->OnVelocityAvected();
+    Metrics::Instance()->OnParticleNumberUpdated(num_active_particles_);
 
     // TODO: Apply buoyancy directly inside the move particles kernel.
 
@@ -354,7 +356,8 @@ void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
         SetCudaParticles(&p, particles_);
-        CudaMain::Instance()->MoveParticles(&p, aux_->cuda_linear_mem(),
+        CudaMain::Instance()->MoveParticles(&p, &num_active_particles_,
+                                            aux_->cuda_linear_mem(),
                                             velocity_->x()->cuda_volume(),
                                             velocity_->y()->cuda_volume(),
                                             velocity_->z()->cuda_volume(),

@@ -79,7 +79,7 @@ extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_coun
 extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, BlockArrangement* ba);
 extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 extern void ResetParticles(const FlipParticles& particles, BlockArrangement* ba);
-extern void SortParticles(FlipParticles particles, uint16_t* aux, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void SortParticles(FlipParticles particles, int* num_active_particles, uint16_t* aux, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
 extern void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 }
 

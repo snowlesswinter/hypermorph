@@ -213,6 +213,10 @@ void DisplayMetrics()
             text << o[i] << ": " << cost << std::endl;
     }
 
+    int n = Metrics::Instance()->GetActiveParticleNumber();
+    if (n)
+        text << "Active Particles: " << n << std::endl;
+
     overlay_.RenderText(text.str(), viewport_size_.x, viewport_size_.y);
 }
 

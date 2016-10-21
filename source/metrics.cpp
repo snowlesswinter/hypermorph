@@ -46,6 +46,7 @@ Metrics::Metrics()
     , time_stamps_()
     , last_operation_time_(0.0)
     , operation_time_costs_()
+    , num_active_particles_(0)
 {
 }
 
@@ -161,9 +162,19 @@ void Metrics::OnRaycastPerformed()
     OnOperationProceeded(PERFORM_RAYCAST);
 }
 
+void Metrics::OnParticleNumberUpdated(int n)
+{
+    num_active_particles_ = n;
+}
+
 void Metrics::OnProlongated()
 {
     OnOperationProceeded(POISSON_PROLONGATE);
+}
+
+int Metrics::GetActiveParticleNumber() const
+{
+    return num_active_particles_;
 }
 
 float Metrics::GetOperationTimeCost(Operations o) const

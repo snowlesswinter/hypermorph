@@ -37,18 +37,19 @@ public:
                  RandomHelper* rand);
     ~FlipImplCuda();
 
-    void Advect(const FlipParticles& particles, uint16_t* aux,
-                cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
-                cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
-                cudaArray* density, cudaArray* temperature, float time_step,
-                const glm::ivec3& volume_size);
+    void Advect(const FlipParticles& particles, int* num_active_particles,
+                uint16_t* aux, cudaArray* vnp1_x, cudaArray* vnp1_y,
+                cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
+                cudaArray* vn_z, cudaArray* density, cudaArray* temperature,
+                float time_step, const glm::ivec3& volume_size);
     void Reset(const FlipParticles& particles);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
 
 private:
     void CompactParticles(const FlipParticles& particles,
-                          uint16_t* aux, const glm::ivec3& volume_size);
+                          int* num_active_particles, uint16_t* aux,
+                          const glm::ivec3& volume_size);
 
     BlockArrangement* ba_;
     AuxBufferManager* bm_;

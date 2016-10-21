@@ -81,6 +81,7 @@ private:
     std::shared_ptr<GraphicsLinearMemU16> aux_;
 
     int frame_;
+    int num_active_particles_;
 };
 
 #endif // _FLIP_FLUID_SOLVER_H_
