@@ -78,6 +78,17 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                                   particles, FromGlmVector(volume_size), ba_);
 }
 
+void FlipImplCuda::Emit(const FlipParticles& particles,
+                        const glm::vec3& center_point, const glm::vec3& hotspot,
+                        float radius, float density, float temperature,
+                        const glm::ivec3& volume_size)
+{
+    kern_launcher::EmitParticles(
+        particles, make_float3(center_point.x, center_point.y, center_point.z),
+        make_float3(hotspot.x, hotspot.y, hotspot.z), radius, density,
+        temperature, rand_->Iterate(), FromGlmVector(volume_size), ba_);
+}
+
 void FlipImplCuda::Reset(const FlipParticles& particles)
 {
     kern_launcher::ResetParticles(particles, ba_);

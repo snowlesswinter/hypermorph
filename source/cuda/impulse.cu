@@ -173,10 +173,10 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    const int heat_layer_thickness = 3;
+    const int kHeatLayerThickness = 3;
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
-            dim3 block(volume_size.x, heat_layer_thickness, 1);
+            dim3 block(volume_size.x, kHeatLayerThickness, 1);
             dim3 grid;
             ba->ArrangeGrid(&grid, block, volume_size);
             grid.y = 1;
@@ -196,7 +196,7 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
             break;
         }
         case IMPULSE_BUOYANT_JET: {
-            dim3 block(heat_layer_thickness, volume_size.y, 1);
+            dim3 block(kHeatLayerThickness, volume_size.y, 1);
             dim3 grid;
             ba->ArrangeGrid(&grid, block, volume_size);
             grid.x = 1;

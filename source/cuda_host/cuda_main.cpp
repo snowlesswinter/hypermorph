@@ -89,7 +89,7 @@ namespace
     cuda_p.velocity_y_       = p.velocity_y_->mem();
     cuda_p.velocity_z_       = p.velocity_z_->mem();
     cuda_p.density_          = p.density_->mem();
-    //cuda_p.temperature_      = p.temperature_->mem();
+    cuda_p.temperature_      = p.temperature_->mem();
     cuda_p.num_of_actives_   = reinterpret_cast<int*>(p.num_of_actives_->mem());
     cuda_p.num_of_particles_ = p.num_of_particles_;
     return cuda_p;
@@ -498,6 +498,16 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
                                  vort_x->dev_array(), vort_y->dev_array(),
                                  vort_z->dev_array(), time_step,
                                  vnp1_x->size());
+}
+
+void CudaMain::EmitParticles(FlipParticles* particles,
+                             const glm::vec3& center_point,
+                             const glm::vec3& hotspot, float radius,
+                             float density, float temperature,
+                             const glm::ivec3& volume_size)
+{
+    flip_impl_->Emit(ToCudaFlipParticles(*particles), center_point, hotspot,
+                     radius, density, temperature, volume_size);
 }
 
 void CudaMain::MoveParticles(FlipParticles* particles,

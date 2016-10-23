@@ -73,7 +73,7 @@ void SetCudaParticles(U* cuda_p, const V& p)
     cuda_p->velocity_y_       = p->velocity_y_->cuda_linear_mem();
     cuda_p->velocity_z_       = p->velocity_z_->cuda_linear_mem();
     cuda_p->density_          = p->density_->cuda_linear_mem();
-    //cuda_p->temperature_      = p->temperature_->cuda_linear_mem();
+    cuda_p->temperature_      = p->temperature_->cuda_linear_mem();
     cuda_p->num_of_actives_   = p->num_of_actives_->cuda_mem_piece();
     cuda_p->num_of_particles_ = p->num_of_particles_;
 }
@@ -142,14 +142,12 @@ void FlipFluidSolver::Impulse(GraphicsVolume* density, float splat_radius,
                               float impulse_temperature)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensity(density->cuda_volume(),
-                                                  impulse_position, hotspot,
-                                                  splat_radius,
-                                                  impulse_density);
-        CudaMain::Instance()->ApplyImpulse(temperature_->cuda_volume(),
-                                           temperature_->cuda_volume(),
-                                           impulse_position, hotspot,
-                                           splat_radius, impulse_temperature);
+        CudaMain::FlipParticles p;
+        SetCudaParticles(&p, particles_);
+        CudaMain::Instance()->EmitParticles(&p, impulse_position, hotspot,
+                                            splat_radius, impulse_density,
+                                            impulse_temperature,
+                                            density->cuda_volume()->size());
     }
 }
 
@@ -263,15 +261,9 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     SubtractGradient(general1b_);
     Metrics::Instance()->OnVelocityRectified();
 
-    // Advect density and temperature
-    AdvectTemperature(delta_time);
-    Metrics::Instance()->OnTemperatureAvected();
-
     MoveParticles(density, delta_time);
     Metrics::Instance()->OnVelocityAvected();
     Metrics::Instance()->OnParticleNumberUpdated(num_active_particles_);
-
-    // TODO: Apply buoyancy directly inside the move particles kernel.
 
     // Apply buoyancy and gravity
     ApplyBuoyancy(*density, delta_time);
@@ -299,25 +291,9 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
     result &= InitParticleField(&particles->velocity_y_,     lib, n);
     result &= InitParticleField(&particles->velocity_z_,     lib, n);
     result &= InitParticleField(&particles->density_,        lib, n);
-    //result &= InitParticleField(&particles->temperature_,    lib, n);
+    result &= InitParticleField(&particles->temperature_,    lib, n);
 
     return result;
-}
-
-void FlipFluidSolver::AdvectTemperature(float delta_time)
-{
-    float temperature_dissipation = GetProperties().temperature_dissipation_;
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->AdvectField(general1a_->cuda_volume(),
-                                          temperature_->cuda_volume(),
-                                          velocity_->x()->cuda_volume(),
-                                          velocity_->y()->cuda_volume(),
-                                          velocity_->z()->cuda_volume(),
-                                          general1b_->cuda_volume(),
-                                          delta_time, temperature_dissipation);
-    }
-
-    std::swap(temperature_, general1a_);
 }
 
 void FlipFluidSolver::ApplyBuoyancy(const GraphicsVolume& density,

@@ -47,9 +47,10 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
-static const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
-static const uint32_t kMaxNumParticlesPerCell = 4;
-static const uint32_t kMinNumParticlesPerCell = 2;
+const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
+const uint32_t kMaxNumParticlesPerCell = 4;
+const uint32_t kMinNumParticlesPerCell = 2;
+const uint32_t kMaxNumSamplesForOneTime = 3;
 
 __device__ bool IsCellUndefined(uint cell_index)
 {
@@ -73,9 +74,17 @@ __device__ void FreeParticle(const FlipParticles& p, uint i)
 __device__ bool IsStopped(float v_x, float v_y, float v_z)
 {
     // To determine the time to recycle particles.
-    const float v_¦Å = 0.02f;
+    const float v_¦Å = 0.0001f;
     return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
              v_z > v_¦Å || v_z < -v_¦Å);
+}
+
+__device__ bool IsCellActive(float v_x, float v_y, float v_z, float density,
+                             float temperature)
+{
+    const float kEpsilon = 0.0001f;
+    return !IsStopped(v_x, v_y, v_z) || density > kEpsilon ||
+            temperature > kEpsilon;
 }
 
 // NOTE: Assuming never overflows/underflows.
@@ -180,9 +189,6 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     float v_z = __half2float(p.velocity_z_[i]) * 0.99f;
 
     if (IsStopped(v_x, v_y, v_z)) {
-        // Eliminate all the particles that stopped.
-        FreeParticle(particles, i);
-
         // We don't need the number of active particles until the sorting is
         // done.
         return;
@@ -232,9 +238,9 @@ __global__ void AdvectParticlesHighOrderKernel(FlipParticles particles,
     float v_z = __half2float(p.velocity_z_[i]);
 
     if (IsStopped(v_x, v_y, v_z)) {
-        // Eliminate all the particles that stopped.
-        FreeParticle(particles, i);
-
+        // Don't eliminate the particle. It may contains density/temperature
+        // information.
+        //
         // We don't need the number of active particles until the sorting is
         // done.
         return;
@@ -244,6 +250,7 @@ __global__ void AdvectParticlesHighOrderKernel(FlipParticles particles,
     float y = __half2float(p.position_y_[i]);
     float z = __half2float(p.position_z_[i]);
 
+    // TODO: Velocity dissipation.
     // TODO: Keep the same boundary conditions as the grid.
     float mid_x = x + 0.5f * time_step_over_cell_size * v_x + 0.5f;
     float mid_y = y + 0.5f * time_step_over_cell_size * v_y + 0.5f;
@@ -300,6 +307,7 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     if (IsCellUndefined(cell_index))
         return;
 
+    // TODO: Free particles in resample kernel?
     uint* p_count = particles.particle_count_;
     if (p_count[cell_index] >= kMaxNumParticlesPerCell) {
         FreeParticle(particles, i);
@@ -320,6 +328,68 @@ __global__ void CalculateNumberOfActiveParticles(FlipParticles particles,
     *particles.num_of_actives_ =
         particles.particle_index_[last_cell_index] +
         particles.particle_count_[last_cell_index];
+}
+
+// Fields should be available: cell_index, particle_count, particle_index.
+__global__ void EmitParticlesKernel(FlipParticles particles,
+                                    float3 center_point, float3 hotspot,
+                                    float radius, float density,
+                                    float temperature, uint random_seed,
+                                    uint3 volume_size)
+{
+    uint x = VolumeX();
+    uint y = 1 + threadIdx.y;
+    uint z = VolumeZ();
+
+    if (x >= volume_size.x || z >= volume_size.z)
+        return;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+    float2 diff =
+        make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
+    float d = hypotf(diff.x, diff.y);
+    if (d >= radius)
+        return;
+
+    uint cell_index = (z * volume_size.y + y) * volume_size.x + x;
+    int count = particles.particle_count_[cell_index];
+    if (!count) {
+        int new_particles = kMaxNumSamplesForOneTime;
+        int base_index = atomicAdd(particles.num_of_actives_, new_particles);
+        if (base_index + new_particles > particles.num_of_particles_) {
+            atomicAdd(particles.num_of_actives_, -new_particles);
+            return; // Not enough free particles.
+        }
+
+        particles.particle_count_[cell_index] += new_particles;
+        uint seed = random_seed;
+        for (int i = 0; i < new_particles; i++) {
+            float3 pos = coord + RandomCoord(&seed);
+
+            int index = base_index + i;
+
+            // Not necessary to initialize the in_cell_index field.
+            // Particle-cell mapping will be done in the binding kernel.
+
+            // Assign a valid value to |cell_index_| to activate this particle.
+            particles.cell_index_ [index] = cell_index;
+            particles.position_x_ [index] = __float2half_rn(pos.x);
+            particles.position_y_ [index] = __float2half_rn(pos.y);
+            particles.position_z_ [index] = __float2half_rn(pos.z);
+            particles.velocity_x_ [index] = 0;
+            particles.velocity_y_ [index] = 0;
+            particles.velocity_z_ [index] = 0;
+            particles.density_    [index] = __float2half_rn(density);
+            particles.temperature_[index] = __float2half_rn(temperature);
+        }
+    } else {
+        uint p_index = particles.particle_index_[cell_index];
+        for (int i = 0; i < count; i++) {
+            // TOOD: Reset velocity to 0?
+            particles.density_    [p_index + i] = __float2half_rn(density);
+            particles.temperature_[p_index + i] = __float2half_rn(temperature);
+        }
+    }
 }
 
 // Should be invoked *BEFORE* resample kernel. Please read the comments of
@@ -366,13 +436,19 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
 // Should be invoked *AFTER* interpolation kernel. Since the newly inserted
 // particles sample the new velocity filed, they don't need any correction.
 //
+// One should be very careful designing the mechanism of re-sampling: an
+// important difference between particles and grid is that once a particle is
+// created, its density and temperature are not gonna change during its life
+// time(except decaying).
+//
+// Fields should be available: cell_index, particle_count.
 // Active particles should be consecutive.
 __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
                                uint3 volume_size)
 {
     int free_particles =
         particles.num_of_particles_ - *particles.num_of_actives_;
-    if (free_particles < kMaxNumParticlesPerCell)
+    if (free_particles < kMaxNumSamplesForOneTime)
         return; // No more free particles.
 
     uint x = VolumeX();
@@ -389,19 +465,28 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     if (count > kMinNumParticlesPerCell)
         return;
 
+    // CAUTION: All the physics variables, except velocity, should always be
+    //          updated directly to the particles, or these changes might never
+    //          get a chance to be applied to the particles, since the re-sample
+    //          kernel only concerns about the cells that not having sufficient
+    //          particles.
+    int needed = min(kMaxNumParticlesPerCell - count, kMaxNumSamplesForOneTime);
+    if (needed <= 0)
+        return;
+
     float3 coord = make_float3(x, y, z) + 0.5f;
 
-    float v_x = tex3D(tex_x, coord.x + 0.5f, coord.y,        coord.z);
-    float v_y = tex3D(tex_y, coord.x,        coord.y + 0.5f, coord.z);
-    float v_z = tex3D(tex_z, coord.x,        coord.y,        coord.z + 0.5f);
+    float v_x =         tex3D(tex_x, coord.x + 0.5f, coord.y,        coord.z);
+    float v_y =         tex3D(tex_y, coord.x,        coord.y + 0.5f, coord.z);
+    float v_z =         tex3D(tex_z, coord.x,        coord.y,        coord.z + 0.5f);
+    float density =     tex3D(tex_d, coord.x,        coord.y,        coord.z);
+    float temperature = tex3D(tex_t, coord.x,        coord.y,        coord.z);
 
-    if (IsStopped(v_x, v_y, v_z)) {
-        // All particles whose velocity is lower than the threshold will be
-        // eliminated in advection kernel.
+    if (!IsCellActive(v_x, v_y, v_z, density, temperature)) {
+        // FIXME: Recycle inactive particles.
         return;
     }
 
-    int needed = kMaxNumParticlesPerCell - count;
     int base_index = atomicAdd(particles.num_of_actives_, needed);
     if (base_index + needed > particles.num_of_particles_) {
         atomicAdd(particles.num_of_actives_, -needed);
@@ -413,12 +498,12 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     for (int i = 0; i < needed; i++) {
         float3 pos = coord + RandomCoord(&seed);
 
-        float density;
+        // TODO: Accelerate with share memory.
         v_x         = tex3D(tex_x, pos.x + 0.5f, pos.y,        pos.z);
         v_y         = tex3D(tex_y, pos.x,        pos.y + 0.5f, pos.z);
         v_z         = tex3D(tex_z, pos.x,        pos.y,        pos.z + 0.5f);
         density     = tex3D(tex_d, pos.x,        pos.y,        pos.z);
-        //temperature = tex3D(tex_t, pos.x,        pos.y,        pos.z);
+        temperature = tex3D(tex_t, pos.x,        pos.y,        pos.z);
 
         int index = base_index + i;
 
@@ -426,15 +511,15 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         // Particle-cell mapping will be done in the binding kernel.
 
         // Assign a valid value to |cell_index_| to activate this particle.
-        particles.cell_index_   [index] = cell_index;
-        particles.position_x_   [index] = __float2half_rn(pos.x - 0.5f);
-        particles.position_y_   [index] = __float2half_rn(pos.y - 0.5f);
-        particles.position_z_   [index] = __float2half_rn(pos.z - 0.5f);
-        particles.velocity_x_   [index] = __float2half_rn(v_x);
-        particles.velocity_y_   [index] = __float2half_rn(v_y);
-        particles.velocity_z_   [index] = __float2half_rn(v_z);
-        particles.density_      [index] = __float2half_rn(density * 0.98f);
-        //particles.temperature_  [index] = __float2half_rn(temperature);
+        particles.cell_index_ [index] = cell_index;
+        particles.position_x_ [index] = __float2half_rn(pos.x);
+        particles.position_y_ [index] = __float2half_rn(pos.y);
+        particles.position_z_ [index] = __float2half_rn(pos.z);
+        particles.velocity_x_ [index] = __float2half_rn(v_x);
+        particles.velocity_y_ [index] = __float2half_rn(v_y);
+        particles.velocity_z_ [index] = __float2half_rn(v_z);
+        particles.density_    [index] = __float2half_rn(density);
+        particles.temperature_[index] = __float2half_rn(temperature);
     }
 }
 
@@ -497,7 +582,7 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
         p_dst.velocity_y_ [sort_index] = p_src.velocity_y_[i];
         p_dst.velocity_z_ [sort_index] = p_src.velocity_z_[i];
         p_dst.density_    [sort_index] = p_src.density_[i];
-        //p_dst.temperature_[sort_index] = p_src.temperature_[i];
+        p_dst.temperature_[sort_index] = p_src.temperature_[i];
     }
 }
 
@@ -522,18 +607,18 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
     uint16_t* vel_y       = particles.velocity_y_;
     uint16_t* vel_z       = particles.velocity_z_;
     uint16_t* density     = particles.density_;
-    //uint16_t* temperature = particles.temperature_;
+    uint16_t* temperature = particles.temperature_;
 
     float weight_vel_x       = 0.0001f;
     float weight_vel_y       = 0.0001f;
     float weight_vel_z       = 0.0001f;
     float weight_density     = 0.0001f;
-    //float weight_temperature = 0.0001f;
+    float weight_temperature = 0.0001f;
     float avg_vel_x          = 0.0f;
     float avg_vel_y          = 0.0f;
     float avg_vel_z          = 0.0f;
     float avg_density        = 0.0f;
-    //float avg_temperature    = 0.0f;
+    float avg_temperature    = 0.0f;
 
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
             for (int k = -1; k <= 1; k++) {
@@ -545,24 +630,24 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
 
         int index = p_index[cell];
         float3 coord = make_float3(x, y, z) + 0.5f;
-        ComputeWeightedAverage(&avg_vel_x,   &weight_vel_x,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(-0.5f, 0.0f, 0.0f), vel_x +   index, count);
-        ComputeWeightedAverage(&avg_vel_y,   &weight_vel_y,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, -0.5f, 0.0f), vel_y +   index, count);
-        ComputeWeightedAverage(&avg_vel_z,   &weight_vel_z,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, 0.0f, -0.5f), vel_z +   index, count);
-        ComputeWeightedAverage(&avg_density, &weight_density, pos_x + index, pos_y + index, pos_z + index, coord,                                  density + index, count);
-        //ComputeWeightedAverage(&avg_temperature, &weight_temperature, pos_x + index, pos_y + index, pos_z + index, coord, temperature + index, count);
+        ComputeWeightedAverage(&avg_vel_x,       &weight_vel_x,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(-0.5f, 0.0f, 0.0f), vel_x +   index, count);
+        ComputeWeightedAverage(&avg_vel_y,       &weight_vel_y,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, -0.5f, 0.0f), vel_y +   index, count);
+        ComputeWeightedAverage(&avg_vel_z,       &weight_vel_z,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, 0.0f, -0.5f), vel_z +   index, count);
+        ComputeWeightedAverage(&avg_density,     &weight_density, pos_x + index, pos_y + index, pos_z + index, coord,                                  density + index, count);
+        ComputeWeightedAverage(&avg_temperature, &weight_temperature, pos_x + index, pos_y + index, pos_z + index, coord, temperature + index, count);
     }
 
-    uint16_t r_x = __float2half_rn(avg_vel_x       / weight_vel_x);
-    uint16_t r_y = __float2half_rn(avg_vel_y       / weight_vel_y);
-    uint16_t r_z = __float2half_rn(avg_vel_z       / weight_vel_z);
-    uint16_t r_d = __float2half_rn(avg_density     / weight_density);
-    //uint16_t r_t = __float2half_rn(avg_temperature / weight_temperature);
+    uint16_t r_x = __float2half_rn(avg_vel_x       / weight_vel_x      );
+    uint16_t r_y = __float2half_rn(avg_vel_y       / weight_vel_y      );
+    uint16_t r_z = __float2half_rn(avg_vel_z       / weight_vel_z      );
+    uint16_t r_d = __float2half_rn(avg_density     / weight_density     * 1.0f);
+    uint16_t r_t = __float2half_rn(avg_temperature / weight_temperature * 1.0f);
     
     surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
     surf3Dwrite(r_d, surf_d, x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
-    //surf3Dwrite(r_t, surf_t, x * sizeof(r_t), y, z, cudaBoundaryModeTrap);
+    surf3Dwrite(r_t, surf_t, x * sizeof(r_t), y, z, cudaBoundaryModeTrap);
 
     // TODO: Diffuse the field if |total_weight| is too small(a hole near the
     //       spot).
@@ -631,6 +716,22 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
     BindParticlesToCellsKernel<<<grid, block>>>(particles, volume_size);
+    DCHECK_KERNEL();
+}
+
+void EmitParticles(const FlipParticles& particles, float3 center_point,
+                   float3 hotspot, float radius, float density,
+                   float temperature, uint random_seed, uint3 volume_size,
+                   BlockArrangement* ba)
+{
+    const int kHeatLayerThickness = 3;
+    dim3 block(volume_size.x, kHeatLayerThickness, 1);
+    dim3 grid;
+    ba->ArrangeGrid(&grid, block, volume_size);
+    grid.y = 1;
+    EmitParticlesKernel<<<grid, block>>>(particles, center_point, hotspot,
+                                         radius, density, temperature,
+                                         random_seed, volume_size);
     DCHECK_KERNEL();
 }
 
@@ -781,7 +882,7 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
         particles.velocity_y_,
         particles.velocity_z_,
         particles.density_,
-        //particles.temperature_
+        particles.temperature_
     };
 
     for (int i = 0; i < sizeof(fields) / sizeof(*fields); i++) {

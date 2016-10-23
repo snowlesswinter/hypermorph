@@ -56,7 +56,6 @@ private:
     static bool InitParticles(FlipParticles* particles, GraphicsLib lib,
                               int cell_count);
 
-    void AdvectTemperature(float delta_time);
     void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
     void MoveParticles(GraphicsVolume* density, float delta_time);
