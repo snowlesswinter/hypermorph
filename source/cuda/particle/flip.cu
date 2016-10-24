@@ -233,9 +233,15 @@ __global__ void AdvectParticlesHighOrderKernel(FlipParticles particles,
                                  // choice.
         return;
 
-    float v_x = __half2float(p.velocity_x_[i]);
-    float v_y = __half2float(p.velocity_y_[i]);
-    float v_z = __half2float(p.velocity_z_[i]);
+    float x = __half2float(p.position_x_[i]);
+    float y = __half2float(p.position_y_[i]);
+    float z = __half2float(p.position_z_[i]);
+
+    // The fluid looks less bumpy with the re-sampled velocity. Don't know
+    // the exact reason yet.
+    float v_x = tex3D(tex_x, x + 0.5f, y,        z);
+    float v_y = tex3D(tex_y, x,        y + 0.5f, z);
+    float v_z = tex3D(tex_z, x,        y,        z + 0.5f);
 
     if (IsStopped(v_x, v_y, v_z)) {
         // Don't eliminate the particle. It may contains density/temperature
@@ -246,23 +252,19 @@ __global__ void AdvectParticlesHighOrderKernel(FlipParticles particles,
         return;
     }
 
-    float x = __half2float(p.position_x_[i]);
-    float y = __half2float(p.position_y_[i]);
-    float z = __half2float(p.position_z_[i]);
-
     // TODO: Velocity dissipation.
     // TODO: Keep the same boundary conditions as the grid.
-    float mid_x = x + 0.5f * time_step_over_cell_size * v_x + 0.5f;
-    float mid_y = y + 0.5f * time_step_over_cell_size * v_y + 0.5f;
-    float mid_z = z + 0.5f * time_step_over_cell_size * v_z + 0.5f;
+    float mid_x = x + 0.5f * time_step_over_cell_size * v_x;
+    float mid_y = y + 0.5f * time_step_over_cell_size * v_y;
+    float mid_z = z + 0.5f * time_step_over_cell_size * v_z;
 
     float v_x2 = tex3D(tex_x, mid_x + 0.5f, mid_y,        mid_z);
     float v_y2 = tex3D(tex_y, mid_x,        mid_y + 0.5f, mid_z);
     float v_z2 = tex3D(tex_z, mid_x,        mid_y,        mid_z + 0.5f);
 
-    float mid_x2 = x + 0.75f * time_step_over_cell_size * v_x2 + 0.5f;
-    float mid_y2 = y + 0.75f * time_step_over_cell_size * v_y2 + 0.5f;
-    float mid_z2 = z + 0.75f * time_step_over_cell_size * v_z2 + 0.5f;
+    float mid_x2 = x + 0.75f * time_step_over_cell_size * v_x2;
+    float mid_y2 = y + 0.75f * time_step_over_cell_size * v_y2;
+    float mid_z2 = z + 0.75f * time_step_over_cell_size * v_z2;
 
     float v_x3 = tex3D(tex_x, mid_x2 + 0.5f, mid_y2,        mid_z2);
     float v_y3 = tex3D(tex_y, mid_x2,        mid_y2 + 0.5f, mid_z2);
@@ -412,9 +414,9 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     //if (IsCellUndefined(cell_index[i]))
     //    return;
 
-    float x = __half2float(pos_x[i]) + 0.5f;
-    float y = __half2float(pos_y[i]) + 0.5f;
-    float z = __half2float(pos_z[i]) + 0.5f;
+    float x = __half2float(pos_x[i]);
+    float y = __half2float(pos_y[i]);
+    float z = __half2float(pos_z[i]);
 
     float v_x =  tex3D(tex_x,  x + 0.5f, y,        z);
     float v_y =  tex3D(tex_y,  x,        y + 0.5f, z);
@@ -733,7 +735,7 @@ void EmitParticles(const FlipParticles& particles, float3 center_point,
                    float temperature, uint random_seed, uint3 volume_size,
                    BlockArrangement* ba)
 {
-    const int kHeatLayerThickness = 3;
+    const int kHeatLayerThickness = 2;
     dim3 block(volume_size.x, kHeatLayerThickness, 1);
     dim3 grid;
     ba->ArrangeGrid(&grid, block, volume_size);
