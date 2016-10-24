@@ -36,7 +36,7 @@ class PoissonSolver;
 class FlipFluidSolver : public FluidSolver
 {
 public:
-    FlipFluidSolver();
+    explicit FlipFluidSolver(int max_num_particles);
     virtual ~FlipFluidSolver();
 
     virtual void Impulse(GraphicsVolume* density, float splat_radius,
@@ -54,10 +54,12 @@ private:
     struct FlipParticles;
 
     static bool InitParticles(FlipParticles* particles, GraphicsLib lib,
-                              int cell_count);
+                              int cell_count, int max_num_particles);
 
     void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
+    void ComputeResidualDiagnosis(std::shared_ptr<GraphicsVolume> pressure,
+                                  std::shared_ptr<GraphicsVolume> divergence);
     void MoveParticles(GraphicsVolume* density, float delta_time);
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                        std::shared_ptr<GraphicsVolume> divergence,
@@ -66,6 +68,7 @@ private:
 
     GraphicsLib graphics_lib_;
     glm::ivec3 grid_size_;
+    int max_num_particles_;
     PoissonSolver* pressure_solver_;
     int diagnosis_;
 

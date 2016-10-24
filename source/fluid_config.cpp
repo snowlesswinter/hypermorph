@@ -88,6 +88,7 @@ struct { CudaMain::AdvectionMethod m_; char* desc_; } advect_enum_desc[] = {
     {CudaMain::SEMI_LAGRANGIAN, "sl"},
     {CudaMain::MACCORMACK_SEMI_LAGRANGIAN, "mcsl"},
     {CudaMain::BFECC_SEMI_LAGRANGIAN, "bfeccsl"},
+    {CudaMain::FLIP, "flip"},
 };
 
 struct { CudaMain::FluidImpulse i_; char* desc_; } impulse_enum_desc[] = {
@@ -336,6 +337,7 @@ FluidConfig::FluidConfig()
     , outflow_(0, "outflow")
     , num_raycast_samples_(224, "num raycast samples")
     , num_raycast_light_samples_(64, "num raycast light samples")
+    , max_num_particles_(1000000, "max num particles")
     , initial_viewport_width_(512)
 {
 }
@@ -450,6 +452,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &outflow_,
         &num_raycast_samples_,
         &num_raycast_light_samples_,
+        &max_num_particles_,
     };
 
     for (auto& f : int_fields) {
@@ -512,6 +515,7 @@ void FluidConfig::Store(std::ostream& stream)
         outflow_,
         num_raycast_samples_,
         num_raycast_light_samples_,
+        max_num_particles_,
     };
 
     for (auto& f : int_fields)

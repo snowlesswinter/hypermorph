@@ -104,6 +104,7 @@ public:
     int num_raycast_light_samples() const {
         return num_raycast_light_samples_.value_;
     }
+    int max_num_particles() const { return max_num_particles_.value_; }
     int initial_viewport_width() const { return initial_viewport_width_; }
 
 private:
@@ -152,6 +153,7 @@ private:
     ConfigField<int> outflow_;
     ConfigField<int> num_raycast_samples_;
     ConfigField<int> num_raycast_light_samples_;
+    ConfigField<int> max_num_particles_;
     int initial_viewport_width_;
 };
 

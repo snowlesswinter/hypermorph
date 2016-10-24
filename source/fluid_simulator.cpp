@@ -280,7 +280,12 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
 FluidSolver* FluidSimulator::GetFluidSolver()
 {
     if (!fluid_solver_) {
-        fluid_solver_.reset(new FlipFluidSolver());
+        if (FluidConfig::Instance()->advection_method() == CudaMain::FLIP)
+            fluid_solver_.reset(
+                new FlipFluidSolver(
+                    FluidConfig::Instance()->max_num_particles()));
+        else
+            fluid_solver_.reset(new GridFluidSolver());
     }
 
     return fluid_solver_.get();

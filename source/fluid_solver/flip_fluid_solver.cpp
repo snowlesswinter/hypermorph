@@ -77,8 +77,6 @@ void SetCudaParticles(U* cuda_p, const V& p)
     cuda_p->num_of_actives_   = p->num_of_actives_->cuda_mem_piece();
     cuda_p->num_of_particles_ = p->num_of_particles_;
 }
-
-const int kNumParticles = 3000000;
 } // Anonymous namespace
 
 struct FlipFluidSolver::FlipParticles
@@ -118,22 +116,28 @@ struct FlipFluidSolver::FlipParticles
     }
 };
 
-FlipFluidSolver::FlipFluidSolver()
+FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     : FluidSolver()
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
+    , max_num_particles_(max_num_particles)
     , pressure_solver_(nullptr)
+    , diagnosis_(DIAG_NONE)
+    , velocity_()
+    , velocity_prev_()
+    , temperature_()
+    , general1a_()
+    , general1b_()
+    , diagnosis_volume_()
     , particles_(new FlipParticles(graphics_lib_))
     , aux_()
     , frame_(0)
     , num_active_particles_(0)
 {
-
 }
 
 FlipFluidSolver::~FlipFluidSolver()
 {
-
 }
 
 void FlipFluidSolver::Impulse(GraphicsVolume* density, float splat_radius,
@@ -188,12 +192,13 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
         return false;
 
     int cell_count = grid_size_.x * grid_size_.y * grid_size_.z;
-    result = InitParticles(particles_.get(), graphics_lib_, cell_count);
+    result = InitParticles(particles_.get(), graphics_lib_, cell_count,
+                           max_num_particles_);
     assert(result);
     if (!result)
         return false;
 
-    result = InitParticleField(&aux_, graphics_lib, kNumParticles);
+    result = InitParticleField(&aux_, graphics_lib, max_num_particles_);
     assert(result);
     if (!result)
         return false;
@@ -237,7 +242,7 @@ void FlipFluidSolver::Reset()
 
 void FlipFluidSolver::SetDiagnosis(int diagnosis)
 {
-
+    diagnosis_ = diagnosis % NUM_DIAG_TARGETS;
 }
 
 void FlipFluidSolver::SetPressureSolver(PoissonSolver* solver)
@@ -273,10 +278,10 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
 }
 
 bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
-                                    int cell_count)
+                                    int cell_count, int max_num_particles)
 {
     bool result = true;
-    int n = kNumParticles;
+    int n = max_num_particles;
     particles->num_of_particles_ = n;
     particles->num_of_actives_->Create(sizeof(int));
 
@@ -327,6 +332,33 @@ void FlipFluidSolver::ComputeDivergence(
     }
 }
 
+void FlipFluidSolver::ComputeResidualDiagnosis(
+    std::shared_ptr<GraphicsVolume> pressure,
+    std::shared_ptr<GraphicsVolume> divergence)
+{
+    if (diagnosis_ != DIAG_PRESSURE)
+        return;
+
+    if (!diagnosis_volume_) {
+        int width = pressure->GetWidth();
+        int height = pressure->GetHeight();
+        int depth = pressure->GetDepth();
+        std::shared_ptr<GraphicsVolume> v(new GraphicsVolume(graphics_lib_));
+        bool result = v->Create(width, height, depth, 1, 4, 0);
+        assert(result);
+        if (!result)
+            return;
+
+        diagnosis_volume_ = v;
+    }
+
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ComputeResidualDiagnosis(
+            diagnosis_volume_->cuda_volume(), pressure->cuda_volume(),
+            divergence->cuda_volume());
+    }
+}
+
 void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
@@ -354,6 +386,8 @@ void FlipFluidSolver::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
         pressure_solver_->SetDiagnosis(diagnosis_ == DIAG_PRESSURE);
         pressure_solver_->Solve(pressure, divergence, num_iterations);
     }
+
+    ComputeResidualDiagnosis(pressure, divergence);
 }
 
 void FlipFluidSolver::SubtractGradient(std::shared_ptr<GraphicsVolume> pressure)
