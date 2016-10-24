@@ -244,7 +244,8 @@ public:
                        std::shared_ptr<CudaVolume> density,
                        std::shared_ptr<CudaVolume> temperature,
                        float time_step);
-    void ResetParticles(FlipParticles* particles);
+    void ResetParticles(FlipParticles* particles,
+                        const glm::ivec3& volume_size);
 
     // Rendering
     void Raycast(std::shared_ptr<GLSurface> dest,

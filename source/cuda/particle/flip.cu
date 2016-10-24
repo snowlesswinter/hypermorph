@@ -530,6 +530,15 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
         return;
 
     FreeParticle(particles, i);
+    particles.in_cell_index_ = 0;
+    particles.velocity_x_ = 0;
+    particles.velocity_y_ = 0;
+    particles.velocity_z_ = 0;
+    particles.position_x_ = 0;
+    particles.position_y_ = 0;
+    particles.position_z_ = 0;
+    particles.density_ = 0;
+    particles.temperature_ = 0;
 
     if (i == 0)
         *particles.num_of_actives_ = 0;
@@ -823,12 +832,19 @@ void Resample(const FlipParticles& particles, cudaArray* vel_x,
     DCHECK_KERNEL();
 }
 
-void ResetParticles(const FlipParticles& particles, BlockArrangement* ba)
+void ResetParticles(const FlipParticles& particles, uint3 volume_size,
+                    BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
     ResetParticlesKernel<<<grid, block>>>(particles);
+
+    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
+    cudaMemsetAsync(particles.particle_index_, 0,
+                    num_of_cells * sizeof(*particles.particle_index_));
+    cudaMemsetAsync(particles.particle_count_, 0,
+                    num_of_cells * sizeof(*particles.particle_count_));
     DCHECK_KERNEL();
 }
 

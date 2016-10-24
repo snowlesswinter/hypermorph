@@ -187,7 +187,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 ray_start = eye_pos + ray_dir * near;
     glm::vec3 ray_stop = eye_pos + ray_dir * far;
 
-    // Transfrom to [0, 1) model space.
+    // Transform to [0, 1) model space.
     ray_start = 0.5f * (ray_start + 1.0f);
     ray_stop = 0.5f * (ray_stop + 1.0f);
 

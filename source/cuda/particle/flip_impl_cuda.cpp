@@ -89,9 +89,10 @@ void FlipImplCuda::Emit(const FlipParticles& particles,
         temperature, rand_->Iterate(), FromGlmVector(volume_size), ba_);
 }
 
-void FlipImplCuda::Reset(const FlipParticles& particles)
+void FlipImplCuda::Reset(const FlipParticles& particles,
+                         const glm::ivec3& volume_size)
 {
-    kern_launcher::ResetParticles(particles, ba_);
+    kern_launcher::ResetParticles(particles, FromGlmVector(volume_size), ba_);
 }
 
 void FlipImplCuda::CompactParticles(const FlipParticles& particles,

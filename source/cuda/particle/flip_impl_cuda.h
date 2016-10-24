@@ -45,7 +45,7 @@ public:
     void Emit(const FlipParticles& particles, const glm::vec3& center_point,
               const glm::vec3& hotspot, float radius, float density,
               float temperature, const glm::ivec3& volume_size);
-    void Reset(const FlipParticles& particles);
+    void Reset(const FlipParticles& particles, const glm::ivec3& volume_size);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
 

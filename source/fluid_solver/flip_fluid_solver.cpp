@@ -228,7 +228,7 @@ void FlipFluidSolver::Reset()
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
         SetCudaParticles(&p, particles_);
-        CudaMain::Instance()->ResetParticles(&p);
+        CudaMain::Instance()->ResetParticles(&p, grid_size_);
     }
 
     frame_ = 0;

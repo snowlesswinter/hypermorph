@@ -532,9 +532,10 @@ void CudaMain::MoveParticles(FlipParticles* particles,
                        time_step, vnp1_x->size());
 }
 
-void CudaMain::ResetParticles(FlipParticles* particles)
+void CudaMain::ResetParticles(FlipParticles* particles,
+                              const glm::ivec3& volume_size)
 {
-    flip_impl_->Reset(ToCudaFlipParticles(*particles));
+    flip_impl_->Reset(ToCudaFlipParticles(*particles), volume_size);
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
