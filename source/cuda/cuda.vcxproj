@@ -211,6 +211,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
+    <CudaCompile Include="particle\flip_advection.cu">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
     <CudaCompile Include="particle\prefix_sum.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
@@ -250,6 +254,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="graphics_resource.h" />
     <ClInclude Include="kernel_launcher.h" />
     <ClInclude Include="particle\flip.h" />
+    <ClInclude Include="particle\flip_common.cuh" />
     <ClInclude Include="particle\flip_impl_cuda.h" />
     <ClInclude Include="poisson_impl_cuda.h" />
     <ClInclude Include="random_helper.h" />
