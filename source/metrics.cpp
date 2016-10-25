@@ -152,6 +152,46 @@ void Metrics::OnVelocityRectified()
     OnOperationProceeded(RECTIFY_VELOCITY);
 }
 
+void Metrics::OnParticleEmitted()
+{
+    OnOperationProceeded(FLIP_EMISSION);
+}
+
+void Metrics::OnParticleVelocityInterpolated()
+{
+    OnOperationProceeded(FLIP_INTERPOLATION);
+}
+
+void Metrics::OnParticleResampled()
+{
+    OnOperationProceeded(FLIP_RESAMPLING);
+}
+
+void Metrics::OnParticleAdvected()
+{
+    OnOperationProceeded(FLIP_ADVECTION);
+}
+
+void Metrics::OnParticleCellBound()
+{
+    OnOperationProceeded(FLIP_CELL_BINDING);
+}
+
+void Metrics::OnParticlePrefixSumCalculated()
+{
+    OnOperationProceeded(FLIP_PREFIX_SUM);
+}
+
+void Metrics::OnParticleSorted()
+{
+    OnOperationProceeded(FLIP_SORTING);
+}
+
+void Metrics::OnParticleTransferred()
+{
+    OnOperationProceeded(FLIP_TRANSFER);
+}
+
 void Metrics::OnVorticityRestored()
 {
     OnOperationProceeded(RESTORE_VORTICITY);

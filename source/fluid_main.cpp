@@ -201,6 +201,16 @@ void DisplayMetrics()
         "Divergence",
         "Pressure",
         "Gradient",
+
+        "FLIP Emission",
+        "FLIP Interpolation",
+        "FLIP Resampling",
+        "FLIP Advection",
+        "FLIP Cell Binding",
+        "FLIP Prefix Sum",
+        "FLIP Sorting",
+        "FLIP Transfer",
+
         "Vorticity",
         "Raycast",
         "Render",

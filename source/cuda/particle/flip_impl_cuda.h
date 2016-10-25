@@ -33,7 +33,20 @@ class RandomHelper;
 class FlipImplCuda
 {
 public:
-    FlipImplCuda(BlockArrangement* ba, AuxBufferManager* bm,
+    class Observer
+    {
+    public:
+        virtual void OnEmitted() = 0;
+        virtual void OnVelocityInterpolated() = 0;
+        virtual void OnResampled() = 0;
+        virtual void OnAdvected() = 0;
+        virtual void OnCellBound() = 0;
+        virtual void OnPrefixSumCalculated() = 0;
+        virtual void OnSorted() = 0;
+        virtual void OnTransferred() = 0;
+    };
+
+    FlipImplCuda(Observer* observer, BlockArrangement* ba, AuxBufferManager* bm,
                  RandomHelper* rand);
     ~FlipImplCuda();
 
@@ -54,6 +67,7 @@ private:
                           int* num_active_particles, uint16_t* aux,
                           const glm::ivec3& volume_size);
 
+    Observer* observer_;
     BlockArrangement* ba_;
     AuxBufferManager* bm_;
     RandomHelper* rand_;

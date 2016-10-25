@@ -274,9 +274,13 @@ public:
     void Sync();
 
 private:
+    class FlipObserver;
+
     std::unique_ptr<CudaCore> core_;
     std::unique_ptr<FluidImplCuda> fluid_impl_;
     std::unique_ptr<PoissonImplCuda> poisson_impl_;
+
+    std::shared_ptr<FlipObserver> flip_ob_;
     std::unique_ptr<FlipImplCuda> flip_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;

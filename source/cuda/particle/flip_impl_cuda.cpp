@@ -43,9 +43,10 @@ uint3 FromGlmVector(const glm::ivec3& v)
 }
 } // Anonymous namespace.
 
-FlipImplCuda::FlipImplCuda(BlockArrangement* ba, AuxBufferManager* bm,
-                           RandomHelper* rand)
-    : ba_(ba)
+FlipImplCuda::FlipImplCuda(Observer* observer, BlockArrangement* ba,
+                           AuxBufferManager* bm, RandomHelper* rand)
+    : observer_(observer)
+    , ba_(ba)
     , bm_(bm)
     , rand_(rand)
     , cell_size_(0.15f)
@@ -68,14 +69,21 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
 {
     kern_launcher::InterpolateDeltaVelocity(particles, vnp1_x, vnp1_y, vnp1_z,
                                             vn_x, vn_y, vn_z, ba_);
+    observer_->OnVelocityInterpolated();
+
     kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
                             temperature, rand_->Iterate(),
                             FromGlmVector(volume_size), ba_);
+    observer_->OnResampled();
+
     kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,
                                    cell_size_, FromGlmVector(volume_size), ba_);
+    observer_->OnAdvected();
+
     CompactParticles(particles, num_active_particles, aux, volume_size);
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
                                   particles, FromGlmVector(volume_size), ba_);
+    observer_->OnTransferred();
 }
 
 void FlipImplCuda::Emit(const FlipParticles& particles,
@@ -87,6 +95,8 @@ void FlipImplCuda::Emit(const FlipParticles& particles,
         particles, make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z), radius, density,
         temperature, rand_->Iterate(), FromGlmVector(volume_size), ba_);
+
+    observer_->OnEmitted();
 }
 
 void FlipImplCuda::Reset(const FlipParticles& particles,
@@ -102,9 +112,14 @@ void FlipImplCuda::CompactParticles(const FlipParticles& particles,
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
     kern_launcher::BindParticlesToCells(particles, FromGlmVector(volume_size),
                                         ba_);
+    observer_->OnCellBound();
+
     kern_launcher::BuildCellOffsets(particles.particle_index_,
                                     particles.particle_count_, num_of_cells,
                                     ba_, bm_);
+    observer_->OnPrefixSumCalculated();
+
     kern_launcher::SortParticles(particles, num_active_particles, aux,
                                  FromGlmVector(volume_size), ba_, bm_);
+    observer_->OnSorted();
 }

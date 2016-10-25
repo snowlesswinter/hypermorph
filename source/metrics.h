@@ -39,6 +39,16 @@ public:
         COMPUTE_DIVERGENCE,
         SOLVE_PRESSURE,
         RECTIFY_VELOCITY,
+
+        FLIP_EMISSION,
+        FLIP_INTERPOLATION,
+        FLIP_RESAMPLING,
+        FLIP_ADVECTION,
+        FLIP_CELL_BINDING,
+        FLIP_PREFIX_SUM,
+        FLIP_SORTING,
+        FLIP_TRANSFER,
+
         RESTORE_VORTICITY,
         PERFORM_RAYCAST,
         RENDER_DENSITY,
@@ -71,6 +81,16 @@ public:
     void OnDivergenceComputed();
     void OnPressureSolved();
     void OnVelocityRectified();
+
+    void OnParticleEmitted();
+    void OnParticleVelocityInterpolated();
+    void OnParticleResampled();
+    void OnParticleAdvected();
+    void OnParticleCellBound();
+    void OnParticlePrefixSumCalculated();
+    void OnParticleSorted();
+    void OnParticleTransferred();
+
     void OnVorticityRestored();
     void OnRaycastPerformed();
 

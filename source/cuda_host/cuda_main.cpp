@@ -33,6 +33,7 @@
 #include "cuda/poisson_impl_cuda.h"
 #include "cuda_mem_piece.h"
 #include "cuda_volume.h"
+#include "metrics.h" // TODO
 #include "opengl/gl_surface.h"
 #include "opengl/gl_volume.h"
 #include "utility.h"
@@ -96,6 +97,43 @@ namespace
 }
 } // Anonymous namespace.
 
+class CudaMain::FlipObserver : public FlipImplCuda::Observer
+{
+public:
+    virtual void OnEmitted() override
+    {
+        Metrics::Instance()->OnParticleEmitted();
+    }
+    virtual void OnVelocityInterpolated() override
+    {
+        Metrics::Instance()->OnParticleVelocityInterpolated();
+    }
+    virtual void OnResampled() override
+    {
+        Metrics::Instance()->OnParticleResampled();
+    }
+    virtual void OnAdvected() override
+    {
+        Metrics::Instance()->OnParticleAdvected();
+    }
+    virtual void OnCellBound() override
+    {
+        Metrics::Instance()->OnParticleCellBound();
+    }
+    virtual void OnPrefixSumCalculated() override
+    {
+        Metrics::Instance()->OnParticlePrefixSumCalculated();
+    }
+    virtual void OnSorted() override
+    {
+        Metrics::Instance()->OnParticleSorted();
+    }
+    virtual void OnTransferred() override
+    {
+        Metrics::Instance()->OnParticleTransferred();
+    }
+};
+
 CudaMain* CudaMain::Instance()
 {
     static CudaMain* instance = nullptr;
@@ -119,9 +157,10 @@ CudaMain::CudaMain()
     , poisson_impl_(
         new PoissonImplCuda(core_->block_arrangement(),
                             core_->buffer_manager()))
+    , flip_ob_(std::make_shared<FlipObserver>())
     , flip_impl_(
-        new FlipImplCuda(core_->block_arrangement(), core_->buffer_manager(),
-                         core_->rand_helper()))
+        new FlipImplCuda(flip_ob_.get(), core_->block_arrangement(),
+                         core_->buffer_manager(), core_->rand_helper()))
     , registerd_textures_()
 {
 
