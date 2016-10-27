@@ -215,6 +215,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
+    <CudaCompile Include="particle\flip_mapping.cu">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">-Xcompiler /wd4819 %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
     <CudaCompile Include="particle\prefix_sum.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateLineInfo>
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>

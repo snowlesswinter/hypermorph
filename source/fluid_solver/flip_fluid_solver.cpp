@@ -145,6 +145,8 @@ void FlipFluidSolver::Impulse(GraphicsVolume* density, float splat_radius,
                               const glm::vec3& hotspot, float impulse_density,
                               float impulse_temperature)
 {
+    Metrics::Instance()->OnFrameUpdateBegins();
+
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
         SetCudaParticles(&p, particles_);

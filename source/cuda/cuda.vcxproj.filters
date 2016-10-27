@@ -17,6 +17,7 @@
       <Filter>particle</Filter>
     </CudaCompile>
     <CudaCompile Include="particle\flip_advection.cu" />
+    <CudaCompile Include="particle\flip_mapping.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />

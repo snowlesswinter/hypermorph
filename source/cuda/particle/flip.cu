@@ -34,6 +34,7 @@
 #include "cuda/particle/flip_common.cuh"
 #include "flip.h"
 
+surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
 surface<void, cudaSurfaceType3D> surf_y;
 surface<void, cudaSurfaceType3D> surf_z;
@@ -105,41 +106,6 @@ __device__ float3 RandomCoord(uint* random_seed)
 
     *random_seed = seed3;
     return make_float3(rand_x, rand_y, rand_z);
-}
-
-__device__ float WeightKernel(float r)
-{
-    if (r >= -1.0f && r <= 0.0f)
-        return 1.0f + r;
-
-    if (r < 1.0f && r > 0.0f)
-        return 1.0f - r;
-
-    return 0.0f;
-}
-
-__device__ float DistanceWeight(float x, float y, float z, float x0,
-                                float y0, float z0)
-{
-    return WeightKernel(x - x0) * WeightKernel(y - y0) * WeightKernel(z - z0);
-}
-
-__device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
-                                       const uint16_t* pos_x,
-                                       const uint16_t* pos_y,
-                                       const uint16_t* pos_z, float3 pos,
-                                       const uint16_t* field, int count)
-{
-    for (int i = 0; i < count; i++) {
-        float x = __half2float(*(pos_x + i));
-        float y = __half2float(*(pos_y + i));
-        float z = __half2float(*(pos_z + i));
-
-        float weight = DistanceWeight(x, y, z, pos.x, pos.y, pos.z);
-
-        *total_weight += weight;
-        *total_value += weight * __half2float(*(field + i));
-    }
 }
 
 // =============================================================================
@@ -279,6 +245,8 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     float ¦Ä_y = v_yp - v_y;
     float ¦Ä_z = v_zp - v_z;
 
+    // v_np1 = (1 - ¦Á) * v_n_pic + ¦Á * v_n_flip.
+    // We are using ¦Á = 1.
     vel_x[i] = __float2half_rn(__half2float(vel_x[i]) + ¦Ä_x);
     vel_y[i] = __float2half_rn(__half2float(vel_y[i]) + ¦Ä_y);
     vel_z[i] = __float2half_rn(__half2float(vel_z[i]) + ¦Ä_z);
@@ -349,7 +317,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     for (int i = 0; i < needed; i++) {
         float3 pos = coord + RandomCoord(&seed);
 
-        // TODO: Accelerate with share memory.
+        // TODO: Accelerate with shared memory.
         v_x         = tex3D(tex_x, pos.x + 0.5f, pos.y,        pos.z);
         v_y         = tex3D(tex_y, pos.x,        pos.y + 0.5f, pos.z);
         v_z         = tex3D(tex_z, pos.x,        pos.y,        pos.z + 0.5f);
@@ -444,73 +412,6 @@ __global__ void SortParticlesKernel(FlipParticles p_dst, FlipParticles p_src,
         p_dst.density_    [sort_index] = p_src.density_[i];
         p_dst.temperature_[sort_index] = p_src.temperature_[i];
     }
-}
-
-__global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
-{
-    int x = VolumeX();
-    int y = VolumeY();
-    int z = VolumeZ();
-
-    if (x >= volume_size.x - 1 || y >= volume_size.y - 1 || z >= volume_size.z - 1)
-        return;
-
-    if (x < 1 || y < 1 || z < 1)
-        return;
-
-    uint*     p_index     = particles.particle_index_;
-    uint*     p_count     = particles.particle_count_;
-    uint16_t* pos_x       = particles.position_x_;
-    uint16_t* pos_y       = particles.position_y_;
-    uint16_t* pos_z       = particles.position_z_;
-    uint16_t* vel_x       = particles.velocity_x_;
-    uint16_t* vel_y       = particles.velocity_y_;
-    uint16_t* vel_z       = particles.velocity_z_;
-    uint16_t* density     = particles.density_;
-    uint16_t* temperature = particles.temperature_;
-
-    float weight_vel_x       = 0.0001f;
-    float weight_vel_y       = 0.0001f;
-    float weight_vel_z       = 0.0001f;
-    float weight_density     = 0.0001f;
-    float weight_temperature = 0.0001f;
-    float avg_vel_x          = 0.0f;
-    float avg_vel_y          = 0.0f;
-    float avg_vel_z          = 0.0f;
-    float avg_density        = 0.0f;
-    float avg_temperature    = 0.0f;
-
-    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
-            for (int k = -1; k <= 1; k++) {
-        int3 pos = make_int3(x + k, y + j, z + i);
-        int cell = (pos.z * volume_size.y + pos.y) * volume_size.x + pos.x;
-        int count = p_count[cell];
-        if (!count)
-            continue;
-
-        int index = p_index[cell];
-        float3 coord = make_float3(x, y, z) + 0.5f;
-        ComputeWeightedAverage(&avg_vel_x,       &weight_vel_x,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(-0.5f, 0.0f, 0.0f), vel_x +   index, count);
-        ComputeWeightedAverage(&avg_vel_y,       &weight_vel_y,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, -0.5f, 0.0f), vel_y +   index, count);
-        ComputeWeightedAverage(&avg_vel_z,       &weight_vel_z,   pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, 0.0f, -0.5f), vel_z +   index, count);
-        ComputeWeightedAverage(&avg_density,     &weight_density, pos_x + index, pos_y + index, pos_z + index, coord,                                  density + index, count);
-        ComputeWeightedAverage(&avg_temperature, &weight_temperature, pos_x + index, pos_y + index, pos_z + index, coord, temperature + index, count);
-    }
-
-    uint16_t r_x = __float2half_rn(avg_vel_x       / weight_vel_x      );
-    uint16_t r_y = __float2half_rn(avg_vel_y       / weight_vel_y      );
-    uint16_t r_z = __float2half_rn(avg_vel_z       / weight_vel_z      );
-    uint16_t r_d = __float2half_rn(avg_density     / weight_density     * 1.0f);
-    uint16_t r_t = __float2half_rn(avg_temperature / weight_temperature * 1.0f);
-    
-    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
-    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
-    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
-    surf3Dwrite(r_d, surf_d, x * sizeof(r_d), y, z, cudaBoundaryModeTrap);
-    surf3Dwrite(r_t, surf_t, x * sizeof(r_t), y, z, cudaBoundaryModeTrap);
-
-    // TODO: Diffuse the field if |total_weight| is too small(a hole near the
-    //       spot).
 }
 
 // =============================================================================
@@ -772,32 +673,5 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
 
     cudaMemcpyAsync(num_active_particles, particles.num_of_actives_,
                     sizeof(*num_active_particles), cudaMemcpyDeviceToHost);
-}
-
-void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                    cudaArray* density, cudaArray* temperature,
-                    const FlipParticles& particles, uint3 volume_size,
-                    BlockArrangement* ba)
-{
-    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_d, density) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_t, temperature) != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    TransferToGridKernel<<<grid, block>>>(particles, volume_size);
-    DCHECK_KERNEL();
 }
 }
