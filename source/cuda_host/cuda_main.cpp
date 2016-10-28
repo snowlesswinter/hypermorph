@@ -79,10 +79,10 @@ namespace
 ::FlipParticles ToCudaFlipParticles(const CudaMain::FlipParticles& p)
 {
     ::FlipParticles cuda_p;
-    cuda_p.particle_index_   = p.particle_index_->mem();
+    cuda_p.particle_index_   = p.particle_index_ ? p.particle_index_->mem() : nullptr;
     cuda_p.cell_index_       = p.cell_index_->mem();
     cuda_p.in_cell_index_    = p.in_cell_index_->mem();
-    cuda_p.particle_count_   = p.particle_count_->mem();
+    cuda_p.particle_count_   = p.particle_count_ ? p.particle_count_->mem() : nullptr;
     cuda_p.position_x_       = p.position_x_->mem();
     cuda_p.position_y_       = p.position_y_->mem();
     cuda_p.position_z_       = p.position_z_->mem();
@@ -91,7 +91,7 @@ namespace
     cuda_p.velocity_z_       = p.velocity_z_->mem();
     cuda_p.density_          = p.density_->mem();
     cuda_p.temperature_      = p.temperature_->mem();
-    cuda_p.num_of_actives_   = reinterpret_cast<int*>(p.num_of_actives_->mem());
+    cuda_p.num_of_actives_   = p.num_of_actives_ ? reinterpret_cast<int*>(p.num_of_actives_->mem()) : nullptr;
     cuda_p.num_of_particles_ = p.num_of_particles_;
     return cuda_p;
 }
@@ -551,7 +551,7 @@ void CudaMain::EmitParticles(FlipParticles* particles,
 
 void CudaMain::MoveParticles(FlipParticles* particles,
                              int* num_active_particles,
-                             std::shared_ptr<CudaLinearMemU16> aux_,
+                             const FlipParticles* aux,
                              std::shared_ptr<CudaVolume> vnp1_x,
                              std::shared_ptr<CudaVolume> vnp1_y,
                              std::shared_ptr<CudaVolume> vnp1_z,
@@ -563,10 +563,9 @@ void CudaMain::MoveParticles(FlipParticles* particles,
                              float time_step)
 {
     flip_impl_->Advect(ToCudaFlipParticles(*particles), num_active_particles,
-                       aux_->mem(),
-                       vnp1_x->dev_array(), vnp1_y->dev_array(),
-                       vnp1_z->dev_array(), vn_x->dev_array(),
-                       vn_y->dev_array(), vn_z->dev_array(),
+                       ToCudaFlipParticles(*aux), vnp1_x->dev_array(),
+                       vnp1_y->dev_array(), vnp1_z->dev_array(),
+                       vn_x->dev_array(), vn_y->dev_array(), vn_z->dev_array(),
                        density->dev_array(), temperature->dev_array(),
                        time_step, vnp1_x->size());
 }

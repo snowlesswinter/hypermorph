@@ -51,7 +51,7 @@ public:
     ~FlipImplCuda();
 
     void Advect(const FlipParticles& particles, int* num_active_particles,
-                uint16_t* aux, cudaArray* vnp1_x, cudaArray* vnp1_y,
+                const FlipParticles& aux, cudaArray* vnp1_x, cudaArray* vnp1_y,
                 cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
                 cudaArray* vn_z, cudaArray* density, cudaArray* temperature,
                 float time_step, const glm::ivec3& volume_size);
@@ -63,8 +63,8 @@ public:
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
 
 private:
-    void CompactParticles(const FlipParticles& particles,
-                          int* num_active_particles, uint16_t* aux,
+    void CompactParticles(FlipParticles* particles, int* num_active_particles,
+                          const FlipParticles& aux,
                           const glm::ivec3& volume_size);
 
     Observer* observer_;

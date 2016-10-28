@@ -235,7 +235,7 @@ public:
                        const glm::vec3& hotspot, float radius, float density,
                        float temperature, const glm::ivec3& volume_size);
     void MoveParticles(FlipParticles* particles, int* num_active_particles,
-                       std::shared_ptr<CudaLinearMemU16> aux_,
+                       const FlipParticles* aux_,
                        std::shared_ptr<CudaVolume> vnp1_x,
                        std::shared_ptr<CudaVolume> vnp1_y,
                        std::shared_ptr<CudaVolume> vnp1_z,

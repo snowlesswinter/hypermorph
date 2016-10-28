@@ -54,7 +54,7 @@ private:
     struct FlipParticles;
 
     static bool InitParticles(FlipParticles* particles, GraphicsLib lib,
-                              int cell_count, int max_num_particles);
+                              int cell_count, int max_num_particles, bool aux);
 
     void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
@@ -65,6 +65,7 @@ private:
                        std::shared_ptr<GraphicsVolume> divergence,
                        int num_iterations);
     void SubtractGradient(std::shared_ptr<GraphicsVolume> pressure);
+    void SwapParticleFields(FlipParticles* particles, FlipParticles* aux);
 
     GraphicsLib graphics_lib_;
     glm::ivec3 grid_size_;
@@ -80,7 +81,7 @@ private:
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
     std::unique_ptr<FlipParticles> particles_;
-    std::shared_ptr<GraphicsLinearMemU16> aux_;
+    std::unique_ptr<FlipParticles> particles_aux_;
 
     int frame_;
     int num_active_particles_;
