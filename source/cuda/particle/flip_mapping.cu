@@ -45,6 +45,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 
 const uint32_t kMaxParticlesInCell = 4;
+const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
 
 struct ParticleFields
 {
@@ -158,7 +159,7 @@ __device__ void ReadPosAndField_all(ParticleFields* smem_fields,
     }
 
     if (count < kMaxParticlesInCell)
-        smem_fields->position_x_[base_index + i] = __float2half_rn(-1.0f);
+        smem_fields->position_x_[base_index + i] = kInvalidPos;
 }
 
 __device__ void ReadPosAndField(ushort3* smem_pos, uint16_t* smem_¦Õ,
@@ -185,7 +186,7 @@ __device__ void ReadPosAndField(ushort3* smem_pos, uint16_t* smem_¦Õ,
     }
 
     if (count < kMaxParticlesInCell)
-        smem_pos[smem_i * kMaxParticlesInCell + i].x = __float2half_rn(-1.0f);
+        smem_pos[smem_i * kMaxParticlesInCell + i].x = kInvalidPos;
 }
 
 __device__ void FlipReadBlockAndHalo_32x6_all(ParticleFields* smem_fields,
@@ -207,20 +208,22 @@ __device__ void FlipReadBlockAndHalo_32x6_all(ParticleFields* smem_fields,
 
     uint16_t* smem_pos_x = smem_fields->position_x_;
 
-    // TODO: Further tighten the scope of memory read?
+    // Tightening the scope of memory read will not notablely affect the
+    // performance, because the 8(one-side) extra units are actually the
+    // minimum amount of data size for fetching the halo.
     if (grid_x < 0 || grid_x >= volume_size.x) {
-        smem_pos_x[ linear_index *        kMaxParticlesInCell] = __float2half_rn(-1.0f);
-        smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = __float2half_rn(-1.0f);
+        smem_pos_x[ linear_index        * kMaxParticlesInCell] = kInvalidPos;
+        smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = kInvalidPos;
     } else {
         if (grid_y1 >= 0 && grid_y1 < volume_size.y)
             ReadPosAndField_all(smem_fields, particles, grid_x, grid_y1, grid_z, linear_index, volume_size);
         else
-            smem_pos_x[linear_index * kMaxParticlesInCell] = __float2half_rn(-1.0f);
+            smem_pos_x[linear_index * kMaxParticlesInCell] = kInvalidPos;
 
         if (grid_y2 >= 0 && grid_y2 < volume_size.y)
             ReadPosAndField_all(smem_fields, particles, grid_x, grid_y2, grid_z, linear_index + 192, volume_size);
         else
-            smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = __float2half_rn(-1.0f);
+            smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = kInvalidPos;
     }
 }
 
@@ -242,20 +245,19 @@ __device__ void FlipReadBlockAndHalo_32x6(ushort3* smem_pos, uint16_t* smem_¦Õ,
     int grid_y1 = static_cast<int>(blockIdx.y * blockDim.y + smem_y1) - 1;
     int grid_y2 = static_cast<int>(blockIdx.y * blockDim.y + smem_y2) - 1;
 
-    // TODO: Further tighten the scope of memory read?
     if (grid_x < 0 || grid_x >= volume_size.x) {
-        smem_pos[ linear_index        * kMaxParticlesInCell].x = __float2half_rn(-1.0f);
-        smem_pos[(linear_index + 192) * kMaxParticlesInCell].x = __float2half_rn(-1.0f);
+        smem_pos[ linear_index        * kMaxParticlesInCell].x = kInvalidPos;
+        smem_pos[(linear_index + 192) * kMaxParticlesInCell].x = kInvalidPos;
     } else {
         if (grid_y1 >= 0 && grid_y1 < volume_size.y)
             ReadPosAndField(smem_pos, smem_¦Õ, particles, field, grid_x, grid_y1, grid_z, linear_index, volume_size);
         else
-            smem_pos[linear_index * kMaxParticlesInCell].x = __float2half_rn(-1.0f);
+            smem_pos[linear_index * kMaxParticlesInCell].x = kInvalidPos;
 
         if (grid_y2 >= 0 && grid_y2 < volume_size.y)
             ReadPosAndField(smem_pos, smem_¦Õ, particles, field, grid_x, grid_y2, grid_z, linear_index + 192, volume_size);
         else
-            smem_pos[(linear_index + 192) * kMaxParticlesInCell].x = __float2half_rn(-1.0f);
+            smem_pos[(linear_index + 192) * kMaxParticlesInCell].x = kInvalidPos;
     }
 }
 
@@ -836,8 +838,6 @@ __global__ void TransferToGridKernel_smem_overlap(FlipParticles particles,
 
 // TODO: We can save shared memory by storing the weights instead of positions.
 // TODO: Bank conflict optimization.
-// TODO: Use negative-position value to substitute |smem_count|.
-// TODO: Expand the plane size if shared memory is greater than 48KB.
 //
 // As using shared memory to reduce the latency of data access, there are some
 // factors becoming our major concern:
@@ -855,7 +855,16 @@ __global__ void TransferToGridKernel_smem_overlap(FlipParticles particles,
 //
 // Kepler gpu is not affected by this issue since its thread register limit
 // is 63.
-
+//
+// TODO: A big issue of this kernel is that computation and memory-fetch
+//       overlapping is shutdown due to the lack of shared memory. The only
+//       hope is a high occupancy would hide the latency.
+//
+// This kernel is fast, but also memory-intensive, that not suitable for
+// some older gpus such as Kepler or Fermi.
+//
+// TODO: Further reduce the shared-memory allocation for higher occupancy/
+//       low bank conflict.
 __global__ void TransferToGridKernel_smem(FlipParticles particles,
                                           uint3 volume_size)
 {
