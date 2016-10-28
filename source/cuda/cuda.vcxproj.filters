@@ -16,8 +16,12 @@
     <CudaCompile Include="particle\flip.cu">
       <Filter>particle</Filter>
     </CudaCompile>
-    <CudaCompile Include="particle\flip_advection.cu" />
-    <CudaCompile Include="particle\flip_mapping.cu" />
+    <CudaCompile Include="particle\flip_advection.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
+    <CudaCompile Include="particle\flip_mapping.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />
@@ -57,7 +61,9 @@
       <Filter>particle</Filter>
     </ClInclude>
     <ClInclude Include="cuda_debug.h" />
-    <ClInclude Include="particle\flip_common.cuh" />
+    <ClInclude Include="particle\flip_common.cuh">
+      <Filter>particle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">
