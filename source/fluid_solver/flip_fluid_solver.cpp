@@ -98,19 +98,19 @@ struct FlipFluidSolver::FlipParticles
     int                                   num_of_particles_;
 
     FlipParticles(GraphicsLib lib)
-        : particle_index_(std::make_shared<GraphicsLinearMemU32>(lib))
-        , cell_index_(std::make_shared<GraphicsLinearMemU32>(lib))
-        , particle_count_(std::make_shared<GraphicsLinearMemU32>(lib))
-        , in_cell_index_(std::make_shared<GraphicsLinearMemU8>(lib))
-        , position_x_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , position_y_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , position_z_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , velocity_x_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , velocity_y_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , velocity_z_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , density_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , temperature_(std::make_shared<GraphicsLinearMemU16>(lib))
-        , num_of_actives_(std::make_shared<GraphicsMemPiece>(lib))
+        : particle_index_()
+        , cell_index_()
+        , particle_count_()
+        , in_cell_index_()
+        , position_x_()
+        , position_y_()
+        , position_z_()
+        , velocity_x_()
+        , velocity_y_()
+        , velocity_z_()
+        , density_()
+        , temperature_()
+        , num_of_actives_()
         , num_of_particles_(0)
     {
     }
@@ -300,7 +300,8 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
     result &= InitParticleField(&particles->temperature_,   lib, n);
 
     if (!aux) {
-        particles->num_of_actives_->Create(sizeof(int));
+        particles->num_of_actives_ = std::make_shared<GraphicsMemPiece>(lib);
+        result &= particles->num_of_actives_->Create(sizeof(int));
 
         result &= InitParticleField(&particles->particle_index_, lib,
                                     cell_count);
