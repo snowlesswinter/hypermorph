@@ -124,17 +124,60 @@ __device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
     }
 }
 
-__device__ void ReadPosAndField_all(ParticleFields* smem_fields,
-                                    const FlipParticles& particles, uint grid_x,
-                                    uint grid_y, uint grid_z, uint smem_i,
-                                    uint3 volume_size)
+template <int step>
+__device__ void ComputeWeightedAverage_smem_iterative(
+    FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
+    uint strided, float3 p0)
+{
+    const uint16_t* pos_x =       smem_fields->position_x_  + strided;
+    const uint16_t* pos_y =       smem_fields->position_y_  + strided;
+    const uint16_t* pos_z =       smem_fields->position_z_  + strided;
+    const uint16_t* vel_x =       smem_fields->velocity_x_  + strided;
+    const uint16_t* vel_y =       smem_fields->velocity_y_  + strided;
+    const uint16_t* vel_z =       smem_fields->velocity_z_  + strided;
+    const uint16_t* density =     smem_fields->density_     + strided;
+    const uint16_t* temperature = smem_fields->temperature_ + strided;
+
+    for (int i = 0; i < step; i++) {
+        float x = __half2float(*pos_x++);
+        if (x < 0.0f) // Empty cell.
+            return;
+
+        float y = __half2float(*pos_y++);
+        float z = __half2float(*pos_z++);
+
+        float weight_vel_x = DistanceWeight(x, y, z, p0.x - 0.5f, p0.y,        p0.z);
+        float weight_vel_y = DistanceWeight(x, y, z, p0.x,        p0.y - 0.5f, p0.z);
+        float weight_vel_z = DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z - 0.5f);
+        float weight =       DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z);
+
+        w->weight_vel_x_       += weight_vel_x;
+        w->weight_vel_y_       += weight_vel_y;
+        w->weight_vel_z_       += weight_vel_z;
+        w->weight_density_     += weight;
+        w->weight_temperature_ += weight;
+
+        w->sum_vel_x_       += weight_vel_x * __half2float(*(vel_x       + i));
+        w->sum_vel_y_       += weight_vel_y * __half2float(*(vel_y       + i));
+        w->sum_vel_z_       += weight_vel_z * __half2float(*(vel_z       + i));
+        w->sum_density_     += weight       * __half2float(*(density     + i));
+        w->sum_temperature_ += weight       * __half2float(*(temperature + i));
+    }
+}
+
+template <int step>
+__device__ void ReadPosAndField_iterative(ParticleFields* smem_fields,
+                                          const FlipParticles& particles,
+                                          uint grid_x, uint grid_y, uint grid_z,
+                                          uint smem_i, int start_i,
+                                          uint3 volume_size)
 {
     uint32_t* p_index = particles.particle_index_;
     uint32_t* p_count = particles.particle_count_;
 
     int cell = (grid_z * volume_size.y + grid_y) * volume_size.x + grid_x;
-    int count = p_count[cell];
-    int index = p_index[cell];
+    int count = min(static_cast<int>(p_count[cell]) - start_i, step);
+    int index = p_index[cell] + start_i;
 
     const uint16_t* pos_x       = particles.position_x_  + index;
     const uint16_t* pos_y       = particles.position_y_  + index;
@@ -146,7 +189,7 @@ __device__ void ReadPosAndField_all(ParticleFields* smem_fields,
     const uint16_t* temperature = particles.temperature_ + index;
 
     int i = 0;
-    int base_index = smem_i * kMaxParticlesInCell;
+    int base_index = smem_i * step;
     for (;i < count; i++) {
         smem_fields->position_x_ [base_index + i] = *pos_x++;
         smem_fields->position_y_ [base_index + i] = *pos_y++;
@@ -158,8 +201,127 @@ __device__ void ReadPosAndField_all(ParticleFields* smem_fields,
         smem_fields->temperature_[base_index + i] = *temperature++;
     }
 
-    if (count < kMaxParticlesInCell)
+    if (i < step)
         smem_fields->position_x_[base_index + i] = kInvalidPos;
+}
+
+template <int step>
+__device__ void FlipReadBlockAndHalo_32x6_iterative(
+    ParticleFields* smem_fields, const FlipParticles& particles, uint grid_z,
+    uint thread_x, uint thread_y, int start_i, uint3 volume_size)
+{
+    uint linear_index = thread_y * blockDim.x + thread_x;
+
+    const uint kSmemWidth = 48;
+
+    uint smem_x  = linear_index % kSmemWidth;
+    uint smem_y1 = linear_index / kSmemWidth;
+    uint smem_y2 = smem_y1 + 4;
+
+    int grid_x  = static_cast<int>(blockIdx.x * blockDim.x + smem_x)  - 8;
+    int grid_y1 = static_cast<int>(blockIdx.y * blockDim.y + smem_y1) - 1;
+    int grid_y2 = static_cast<int>(blockIdx.y * blockDim.y + smem_y2) - 1;
+
+    uint16_t* smem_pos_x = smem_fields->position_x_;
+
+    // Tightening the scope of memory read will not notably affect the
+    // performance, because the 8(one-side) extra units are actually the
+    // minimum amount of data size for fetching the halo.
+    if (grid_x < 0 || grid_x >= volume_size.x) {
+        smem_pos_x[ linear_index        * step] = kInvalidPos;
+        smem_pos_x[(linear_index + 192) * step] = kInvalidPos;
+    } else {
+        if (grid_y1 >= 0 && grid_y1 < volume_size.y)
+            ReadPosAndField_iterative<step>(smem_fields, particles, grid_x, grid_y1, grid_z, linear_index, start_i, volume_size);
+        else
+            smem_pos_x[linear_index * step] = kInvalidPos;
+
+        if (grid_y2 >= 0 && grid_y2 < volume_size.y)
+            ReadPosAndField_iterative<step>(smem_fields, particles, grid_x, grid_y2, grid_z, linear_index + 192, start_i, volume_size);
+        else
+            smem_pos_x[(linear_index + 192) * step] = kInvalidPos;
+    }
+}
+
+
+template <bool first, bool last>
+__device__ void SaveToSurface_iterative(const FieldWeightAndWeightedSum& w,
+                                        uint x, uint y, uint z, uint16_t* aux_x,
+                                        uint16_t* aux_y, uint16_t* aux_z,
+                                        uint16_t* aux_d, uint16_t* aux_t,
+                                        uint3 volume_size)
+{
+    FieldWeightAndWeightedSum r = w;
+    uint cell   = (z * volume_size.y + y) * volume_size.x + x;
+    uint stride = volume_size.x * volume_size.y * volume_size.z;
+    if (!first) {
+        r.sum_vel_x_          += __half2float(aux_x[cell]);
+        r.sum_vel_y_          += __half2float(aux_y[cell]);
+        r.sum_vel_z_          += __half2float(aux_z[cell]);
+        r.sum_density_        += __half2float(aux_d[cell]);
+        r.sum_temperature_    += __half2float(aux_t[cell]);
+
+        r.weight_vel_x_       += __half2float(aux_x[cell + stride]);
+        r.weight_vel_y_       += __half2float(aux_y[cell + stride]);
+        r.weight_vel_z_       += __half2float(aux_z[cell + stride]);
+        r.weight_density_     += __half2float(aux_d[cell + stride]);
+        r.weight_temperature_ += __half2float(aux_t[cell + stride]);
+    }
+
+    if (last) {
+        uint16_t r1 = __float2half_rn(r.sum_vel_x_ / r.weight_vel_x_);
+        surf3Dwrite(r1, surf_x, x * sizeof(r1), y, z, cudaBoundaryModeTrap);
+        uint16_t r2 = __float2half_rn(r.sum_vel_y_ / r.weight_vel_y_);
+        surf3Dwrite(r2, surf_y, x * sizeof(r2), y, z, cudaBoundaryModeTrap);
+        uint16_t r3 = __float2half_rn(r.sum_vel_z_ / r.weight_vel_z_);
+        surf3Dwrite(r3, surf_z, x * sizeof(r3), y, z, cudaBoundaryModeTrap);
+        uint16_t r4 = __float2half_rn(r.sum_density_ / r.weight_density_);
+        surf3Dwrite(r4, surf_d, x * sizeof(r4), y, z, cudaBoundaryModeTrap);
+        uint16_t r5 = __float2half_rn(r.sum_temperature_ / r.weight_temperature_);
+        surf3Dwrite(r5, surf_t, x * sizeof(r5), y, z, cudaBoundaryModeTrap);
+    } else {
+        // FIXME: Precision loss.
+        aux_x[cell]          = __float2half_rn(r.sum_vel_x_);
+        aux_y[cell]          = __float2half_rn(r.sum_vel_y_);
+        aux_z[cell]          = __float2half_rn(r.sum_vel_z_);
+        aux_d[cell]          = __float2half_rn(r.sum_density_);
+        aux_t[cell]          = __float2half_rn(r.sum_temperature_);
+
+        aux_x[cell + stride] = __float2half_rn(r.weight_vel_x_);
+        aux_y[cell + stride] = __float2half_rn(r.weight_vel_y_);
+        aux_z[cell + stride] = __float2half_rn(r.weight_vel_z_);
+        aux_d[cell + stride] = __float2half_rn(r.weight_density_);
+        aux_t[cell + stride] = __float2half_rn(r.weight_temperature_);
+    }
+}
+
+__device__ void FlipReadBlockAndHalo_32x6_all(ParticleFields* smem_fields,
+                                              const FlipParticles& particles,
+                                              uint grid_z, uint thread_x,
+                                              uint thread_y, uint3 volume_size)
+{
+    FlipReadBlockAndHalo_32x6_iterative<kMaxParticlesInCell>(smem_fields,
+                                                             particles, grid_z,
+                                                             thread_x, thread_y,
+                                                             0, volume_size);
+}
+
+__device__ void ComputeWeightedAverage_smem_all(
+    FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
+    uint strided, float3 p0)
+{
+    ComputeWeightedAverage_smem_iterative<kMaxParticlesInCell>(w, smem_fields,
+                                                               strided, p0);
+}
+
+__device__ inline void SwitchBuffers_all(ParticleFields* fields_ping,
+                                         ParticleFields* fields_pong)
+{
+    __syncthreads();
+
+    ParticleFields temp = *fields_ping;
+    *fields_ping = *fields_pong;
+    *fields_pong = temp;
 }
 
 __device__ void ReadPosAndField(ushort3* smem_pos, uint16_t* smem_¦Õ,
@@ -187,44 +349,6 @@ __device__ void ReadPosAndField(ushort3* smem_pos, uint16_t* smem_¦Õ,
 
     if (count < kMaxParticlesInCell)
         smem_pos[smem_i * kMaxParticlesInCell + i].x = kInvalidPos;
-}
-
-__device__ void FlipReadBlockAndHalo_32x6_all(ParticleFields* smem_fields,
-                                              const FlipParticles& particles,
-                                              uint grid_z, uint thread_x,
-                                              uint thread_y, uint3 volume_size)
-{
-    uint linear_index = thread_y * blockDim.x + thread_x;
-
-    const uint kSmemWidth = 48;
-
-    uint smem_x  = linear_index % kSmemWidth;
-    uint smem_y1 = linear_index / kSmemWidth;
-    uint smem_y2 = smem_y1 + 4;
-
-    int grid_x  = static_cast<int>(blockIdx.x * blockDim.x + smem_x)  - 8;
-    int grid_y1 = static_cast<int>(blockIdx.y * blockDim.y + smem_y1) - 1;
-    int grid_y2 = static_cast<int>(blockIdx.y * blockDim.y + smem_y2) - 1;
-
-    uint16_t* smem_pos_x = smem_fields->position_x_;
-
-    // Tightening the scope of memory read will not notably affect the
-    // performance, because the 8(one-side) extra units are actually the
-    // minimum amount of data size for fetching the halo.
-    if (grid_x < 0 || grid_x >= volume_size.x) {
-        smem_pos_x[ linear_index        * kMaxParticlesInCell] = kInvalidPos;
-        smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = kInvalidPos;
-    } else {
-        if (grid_y1 >= 0 && grid_y1 < volume_size.y)
-            ReadPosAndField_all(smem_fields, particles, grid_x, grid_y1, grid_z, linear_index, volume_size);
-        else
-            smem_pos_x[linear_index * kMaxParticlesInCell] = kInvalidPos;
-
-        if (grid_y2 >= 0 && grid_y2 < volume_size.y)
-            ReadPosAndField_all(smem_fields, particles, grid_x, grid_y2, grid_z, linear_index + 192, volume_size);
-        else
-            smem_pos_x[(linear_index + 192) * kMaxParticlesInCell] = kInvalidPos;
-    }
 }
 
 __device__ void FlipReadBlockAndHalo_32x6(ushort3* smem_pos, uint16_t* smem_¦Õ,
@@ -261,46 +385,6 @@ __device__ void FlipReadBlockAndHalo_32x6(ushort3* smem_pos, uint16_t* smem_¦Õ,
     }
 }
 
-__device__ void ComputeWeightedAverage_smem_all(
-    FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
-    uint strided, float3 p0)
-{
-    const uint16_t* pos_x =       smem_fields->position_x_  + strided;
-    const uint16_t* pos_y =       smem_fields->position_y_  + strided;
-    const uint16_t* pos_z =       smem_fields->position_z_  + strided;
-    const uint16_t* vel_x =       smem_fields->velocity_x_  + strided;
-    const uint16_t* vel_y =       smem_fields->velocity_y_  + strided;
-    const uint16_t* vel_z =       smem_fields->velocity_z_  + strided;
-    const uint16_t* density =     smem_fields->density_     + strided;
-    const uint16_t* temperature = smem_fields->temperature_ + strided;
-
-    for (int i = 0; i < kMaxParticlesInCell; i++) {
-        float x = __half2float(*pos_x++);
-        if (x < 0.0f) // Empty cell.
-            return;
-
-        float y = __half2float(*pos_y++);
-        float z = __half2float(*pos_z++);
-
-        float weight_vel_x = DistanceWeight(x, y, z, p0.x - 0.5f, p0.y,        p0.z);
-        float weight_vel_y = DistanceWeight(x, y, z, p0.x,        p0.y - 0.5f, p0.z);
-        float weight_vel_z = DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z - 0.5f);
-        float weight =       DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z);
-
-        w->weight_vel_x_       += weight_vel_x;
-        w->weight_vel_y_       += weight_vel_y;
-        w->weight_vel_z_       += weight_vel_z;
-        w->weight_density_     += weight;
-        w->weight_temperature_ += weight;
-
-        w->sum_vel_x_       += weight_vel_x * __half2float(*(vel_x       + i));
-        w->sum_vel_y_       += weight_vel_y * __half2float(*(vel_y       + i));
-        w->sum_vel_z_       += weight_vel_z * __half2float(*(vel_z       + i));
-        w->sum_density_     += weight       * __half2float(*(density     + i));
-        w->sum_temperature_ += weight       * __half2float(*(temperature + i));
-    }
-}
-
 __device__ void ComputeWeightedAverage_smem(float* total_value,
                                             float* total_weight,
                                             const ushort3* smem_pos, float3 p0,
@@ -322,43 +406,11 @@ __device__ void ComputeWeightedAverage_smem(float* total_value,
     }
 }
 
-__device__ inline void SwitchBuffers_all(ParticleFields* fields_ping,
-                                         ParticleFields* fields_pong)
-{
-    __syncthreads();
-
-    ParticleFields temp = *fields_ping;
-    *fields_ping = *fields_pong;
-    *fields_pong = temp;
-}
-
-__device__ inline void SwitchBuffers(ushort3** pos_ping, ushort3** pos_pong,
-                                     uint16_t** ¦Õ_ping, uint16_t** ¦Õ_pong)
-{
-    __syncthreads();
-
-    ushort3* pos_temp = *pos_ping;
-    *pos_ping = *pos_pong;
-    *pos_pong = pos_temp;
-
-    uint16_t* ¦Õ_temp = *¦Õ_ping;
-    *¦Õ_ping = *¦Õ_pong;
-    *¦Õ_pong = ¦Õ_temp;
-}
-
 __device__ void SaveToSurface(const FieldWeightAndWeightedSum& w, uint x,
                               uint y, uint z)
 {
-    uint16_t r1 = __float2half_rn(w.sum_vel_x_ / w.weight_vel_x_);
-    surf3Dwrite(r1, surf_x, x * sizeof(r1), y, z, cudaBoundaryModeTrap);
-    uint16_t r2 = __float2half_rn(w.sum_vel_y_ / w.weight_vel_y_);
-    surf3Dwrite(r2, surf_y, x * sizeof(r2), y, z, cudaBoundaryModeTrap);
-    uint16_t r3 = __float2half_rn(w.sum_vel_z_ / w.weight_vel_z_);
-    surf3Dwrite(r3, surf_z, x * sizeof(r3), y, z, cudaBoundaryModeTrap);
-    uint16_t r4 = __float2half_rn(w.sum_density_ / w.weight_density_);
-    surf3Dwrite(r4, surf_d, x * sizeof(r4), y, z, cudaBoundaryModeTrap);
-    uint16_t r5 = __float2half_rn(w.sum_temperature_ / w.weight_temperature_);
-    surf3Dwrite(r5, surf_t, x * sizeof(r5), y, z, cudaBoundaryModeTrap);
+    SaveToSurface_iterative<true, true>(w, x, y, z, nullptr, nullptr, nullptr,
+                                        nullptr, nullptr, make_uint3(0));
 }
 
 // =============================================================================
@@ -475,134 +527,6 @@ __global__ void TransferFieldToGridKernel(FlipParticles particles,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__device__ void ComputeWeightedAverage_smem(float* total_value,
-                                            float* total_weight,
-                                            const ushort3* smem_pos, float3 p0,
-                                            const uint16_t* smem_¦Õ, int count)
-{
-    for (int i = 0; i < count; i++) {
-        const ushort3* pos = smem_pos + i;
-        float x = __half2float(pos->x);
-        float y = __half2float(pos->y);
-        float z = __half2float(pos->z);
-
-        float weight = DistanceWeight(x, y, z, p0.x, p0.y, p0.z);
-
-        *total_weight += weight;
-        *total_value += weight * __half2float(*(smem_¦Õ + i));
-    }
-}
-
-__global__ void TransferFieldToGridKernel_smem_overlap(FlipParticles particles,
-                                                       uint16_t* field,
-                                                       float3 offset,
-                                                       uint3 volume_size)
-{
-    // Use fp16 for saving shared memory.
-    // Total shared memory usage:
-    // 6 * 384 * 4 * 2 + 2 * 384 * 4 * 2 = 24576.
-    __shared__ ushort3  smem_pos1[384 * kMaxParticlesInCell];
-    __shared__ ushort3  smem_pos2[384 * kMaxParticlesInCell];
-    __shared__ uint16_t smem_¦Õ1  [384 * kMaxParticlesInCell];
-    __shared__ uint16_t smem_¦Õ2  [384 * kMaxParticlesInCell];
-
-    ushort3*  smem_pos_ping = smem_pos1;
-    ushort3*  smem_pos_pong = smem_pos2;
-    uint16_t* smem_¦Õ_ping   = smem_¦Õ1;
-    uint16_t* smem_¦Õ_pong   = smem_¦Õ2;
-
-    const uint tx = threadIdx.x;
-    const uint ty = threadIdx.y;
-    const uint bw = blockDim.x + 16;
-
-    int x = VolumeX();
-    int y = VolumeY();
-
-    if (x >= volume_size.x || y >= volume_size.y)
-        return;
-
-    FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles, field, 0,
-                              tx, ty, volume_size);
-    SwitchBuffers(&smem_pos_ping, &smem_pos_pong, &smem_¦Õ_ping, &smem_¦Õ_pong);
-
-    const float kInitialWeight = 0.0001f;
-
-    float avg_near    = 0.0f;
-    float weight_near = kInitialWeight;
-    float avg_mid     = 0.0f;
-    float weight_mid  = kInitialWeight;
-    float avg_far     = 0.0f;
-    float weight_far  = kInitialWeight;
-
-    float3 coord =               make_float3(x, y, 0) + 0.5f + offset;
-    float3 coord_temp =  coord + make_float3(0, 0, 1);
-    float3 coord_temp2 = coord + make_float3(0, 0, 2);
-    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
-        uint smem_i = (ty + i + 1) * bw + tx + j + 8;
-        uint strided = smem_i * kMaxParticlesInCell;
-        ComputeWeightedAverage_smem(&avg_near, &weight_near,
-                                    smem_pos_pong + strided, coord,
-                                    smem_¦Õ_pong + strided);
-        ComputeWeightedAverage_smem(&avg_mid, &weight_mid,
-                                    smem_pos_pong + strided, coord_temp,
-                                    smem_¦Õ_pong + strided);
-    }
-
-    FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles, field, 1,
-                              tx, ty, volume_size);
-
-    // For each plane, we calculate the weighted average value of the
-    // farthest/middle/nearest plane of the last/current/next point, so as to
-    // reuse all of the position and field data of a plane.
-    uint z = 1;
-    for (; z < volume_size.z - 1; z++) {
-        SwitchBuffers(&smem_pos_ping, &smem_pos_pong, &smem_¦Õ_ping, &smem_¦Õ_pong);
-
-        for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
-            uint smem_i = (ty + i + 1) * bw + tx + j + 8;
-            uint strided = smem_i * kMaxParticlesInCell;
-            ComputeWeightedAverage_smem(&avg_near, &weight_near,
-                                        smem_pos_pong + strided, coord,
-                                        smem_¦Õ_pong + strided);
-            ComputeWeightedAverage_smem(&avg_mid, &weight_mid,
-                                        smem_pos_pong + strided, coord_temp,
-                                        smem_¦Õ_pong + strided);
-            ComputeWeightedAverage_smem(&avg_far, &weight_far,
-                                        smem_pos_pong + strided, coord_temp2,
-                                        smem_¦Õ_pong + strided);
-        }
-        uint16_t r = __float2half_rn(avg_near / weight_near);
-        surf3Dwrite(r, surf, x * sizeof(r), y, z - 1, cudaBoundaryModeTrap);
-
-        avg_near    = avg_mid;
-        weight_near = weight_mid;
-        avg_mid     = avg_far;
-        weight_mid  = weight_far;
-        avg_far     = 0.0f;
-        weight_far  = kInitialWeight;
-
-        coord.z       += 1.0f;
-        coord_temp.z  += 1.0f;
-        coord_temp2.z += 1.0f;
-
-        FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles,
-                                  field, z + 1, tx, ty, volume_size);
-    }
-    __syncthreads();
-
-    coord = make_float3(x, y, z - 1) + 0.5f;
-    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
-        uint smem_i = (ty + i + 1) * bw + tx + j + 8;
-        uint strided = smem_i * kMaxParticlesInCell;
-        ComputeWeightedAverage_smem(&avg_near, &weight_near, smem_pos_ping + strided, coord, smem_¦Õ_ping + strided);
-        ComputeWeightedAverage_smem(&avg_mid, &weight_mid, smem_pos_ping + strided, coord_temp, smem_¦Õ_ping + strided);
-    }
-    uint16_t r = __float2half_rn(avg_near / weight_near);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z - 1, cudaBoundaryModeTrap);
-    uint16_t r2 = __float2half_rn(avg_mid / weight_mid);
-    surf3Dwrite(r2, surf, x * sizeof(r2), y, z, cudaBoundaryModeTrap);
-}
-
 __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
                                                uint16_t* field, float3 offset,
                                                uint3 volume_size)
@@ -613,10 +537,8 @@ __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
     __shared__ ushort3  smem_pos1[384 * kMaxParticlesInCell];
     __shared__ uint16_t smem_¦Õ1  [384 * kMaxParticlesInCell];
 
-    ushort3*  smem_pos_ping = smem_pos1;
-    ushort3*  smem_pos_pong = smem_pos1;
-    uint16_t* smem_¦Õ_ping   = smem_¦Õ1;
-    uint16_t* smem_¦Õ_pong   = smem_¦Õ1;
+    ushort3*  smem_pos = smem_pos1;
+    uint16_t* smem_¦Õ   = smem_¦Õ1;
 
     const uint tx = threadIdx.x;
     const uint ty = threadIdx.y;
@@ -628,9 +550,9 @@ __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
     if (x >= volume_size.x || y >= volume_size.y)
         return;
 
-    FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles, field, 0,
+    FlipReadBlockAndHalo_32x6(smem_pos, smem_¦Õ, particles, field, 0,
                               tx, ty, volume_size);
-    SwitchBuffers(&smem_pos_ping, &smem_pos_pong, &smem_¦Õ_ping, &smem_¦Õ_pong);
+    __syncthreads();
 
     const float kInitialWeight = 0.0001f;
 
@@ -647,38 +569,35 @@ __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * kMaxParticlesInCell;
-        ComputeWeightedAverage_smem(&avg_near, &weight_near,
-                                    smem_pos_pong + strided, coord,
-                                    smem_¦Õ_pong + strided);
-        ComputeWeightedAverage_smem(&avg_mid, &weight_mid,
-                                    smem_pos_pong + strided, coord_temp,
-                                    smem_¦Õ_pong + strided);
+        ComputeWeightedAverage_smem(&avg_near, &weight_near, smem_pos + strided,
+                                    coord, smem_¦Õ + strided);
+        ComputeWeightedAverage_smem(&avg_mid, &weight_mid, smem_pos + strided,
+                                    coord_temp, smem_¦Õ + strided);
     }
 
     __syncthreads();
-    FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles, field, 1,
-                              tx, ty, volume_size);
+    FlipReadBlockAndHalo_32x6(smem_pos, smem_¦Õ, particles, field, 1, tx, ty,
+                              volume_size);
 
     // For each plane, we calculate the weighted average value of the
     // farthest/middle/nearest plane of the last/current/next point, so as to
     // reuse all of the position and field data of a plane.
     uint z = 1;
     for (; z < volume_size.z - 1; z++) {
-        SwitchBuffers(&smem_pos_ping, &smem_pos_pong, &smem_¦Õ_ping,
-                      &smem_¦Õ_pong);
+        __syncthreads();
 
         for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
             uint smem_i = (ty + i + 1) * bw + tx + j + 8;
             uint strided = smem_i * kMaxParticlesInCell;
             ComputeWeightedAverage_smem(&avg_near, &weight_near,
-                                        smem_pos_pong + strided, coord,
-                                        smem_¦Õ_pong + strided);
+                                        smem_pos + strided, coord,
+                                        smem_¦Õ + strided);
             ComputeWeightedAverage_smem(&avg_mid, &weight_mid,
-                                        smem_pos_pong + strided, coord_temp,
-                                        smem_¦Õ_pong + strided);
+                                        smem_pos + strided, coord_temp,
+                                        smem_¦Õ + strided);
             ComputeWeightedAverage_smem(&avg_far, &weight_far,
-                                        smem_pos_pong + strided, coord_temp2,
-                                        smem_¦Õ_pong + strided);
+                                        smem_pos + strided, coord_temp2,
+                                        smem_¦Õ + strided);
         }
         uint16_t r = __float2half_rn(avg_near / weight_near);
         surf3Dwrite(r, surf, x * sizeof(r), y, z - 1, cudaBoundaryModeTrap);
@@ -695,8 +614,8 @@ __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
         coord_temp2.z += 1.0f;
 
         __syncthreads();
-        FlipReadBlockAndHalo_32x6(smem_pos_ping, smem_¦Õ_ping, particles, field,
-                                  z + 1, tx, ty, volume_size);
+        FlipReadBlockAndHalo_32x6(smem_pos, smem_¦Õ, particles, field, z + 1, tx,
+                                  ty, volume_size);
     }
     __syncthreads();
 
@@ -704,12 +623,10 @@ __global__ void TransferFieldToGridKernel_smem(FlipParticles particles,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * kMaxParticlesInCell;
-        ComputeWeightedAverage_smem(&avg_near, &weight_near,
-                                    smem_pos_ping + strided, coord,
-                                    smem_¦Õ_ping + strided);
-        ComputeWeightedAverage_smem(&avg_mid, &weight_mid,
-                                    smem_pos_ping + strided, coord_temp,
-                                    smem_¦Õ_ping + strided);
+        ComputeWeightedAverage_smem(&avg_near, &weight_near, smem_pos + strided,
+                                    coord, smem_¦Õ + strided);
+        ComputeWeightedAverage_smem(&avg_mid, &weight_mid, smem_pos + strided,
+                                    coord_temp, smem_¦Õ + strided);
     }
     uint16_t r = __float2half_rn(avg_near / weight_near);
     surf3Dwrite(r, surf, x * sizeof(r), y, z - 1, cudaBoundaryModeTrap);
@@ -963,205 +880,38 @@ __global__ void TransferToGridKernel_smem(FlipParticles particles,
     SaveToSurface(w_near, x, y, z - 1);
     SaveToSurface(w_mid,  x, y, z);
 }
-// =============================================================================
 
-template <int step>
-__device__ void ComputeWeightedAverage_smem_iterative(
-    FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
-    uint strided, float3 p0)
-{
-    const uint16_t* pos_x =       smem_fields->position_x_  + strided;
-    const uint16_t* pos_y =       smem_fields->position_y_  + strided;
-    const uint16_t* pos_z =       smem_fields->position_z_  + strided;
-    const uint16_t* vel_x =       smem_fields->velocity_x_  + strided;
-    const uint16_t* vel_y =       smem_fields->velocity_y_  + strided;
-    const uint16_t* vel_z =       smem_fields->velocity_z_  + strided;
-    const uint16_t* density =     smem_fields->density_     + strided;
-    const uint16_t* temperature = smem_fields->temperature_ + strided;
-
-    for (int i = 0; i < step; i++) {
-        float x = __half2float(*pos_x++);
-        if (x < 0.0f) // Empty cell.
-            return;
-
-        float y = __half2float(*pos_y++);
-        float z = __half2float(*pos_z++);
-
-        float weight_vel_x = DistanceWeight(x, y, z, p0.x - 0.5f, p0.y,        p0.z);
-        float weight_vel_y = DistanceWeight(x, y, z, p0.x,        p0.y - 0.5f, p0.z);
-        float weight_vel_z = DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z - 0.5f);
-        float weight =       DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z);
-
-        w->weight_vel_x_       += weight_vel_x;
-        w->weight_vel_y_       += weight_vel_y;
-        w->weight_vel_z_       += weight_vel_z;
-        w->weight_density_     += weight;
-        w->weight_temperature_ += weight;
-
-        w->sum_vel_x_       += weight_vel_x * __half2float(*(vel_x       + i));
-        w->sum_vel_y_       += weight_vel_y * __half2float(*(vel_y       + i));
-        w->sum_vel_z_       += weight_vel_z * __half2float(*(vel_z       + i));
-        w->sum_density_     += weight       * __half2float(*(density     + i));
-        w->sum_temperature_ += weight       * __half2float(*(temperature + i));
-    }
-}
-
-template <int step>
-__device__ void ReadPosAndField_iterative(ParticleFields* smem_fields,
-                                          const FlipParticles& particles,
-                                          uint grid_x, uint grid_y, uint grid_z,
-                                          uint smem_i, int start_i,
-                                          uint3 volume_size)
-{
-    uint32_t* p_index = particles.particle_index_;
-    uint32_t* p_count = particles.particle_count_;
-
-    int cell = (grid_z * volume_size.y + grid_y) * volume_size.x + grid_x;
-    int count = min(static_cast<int>(p_count[cell]) - start_i, step);
-    int index = p_index[cell] + start_i;
-
-    const uint16_t* pos_x       = particles.position_x_  + index;
-    const uint16_t* pos_y       = particles.position_y_  + index;
-    const uint16_t* pos_z       = particles.position_z_  + index;
-    const uint16_t* vel_x       = particles.velocity_x_  + index;
-    const uint16_t* vel_y       = particles.velocity_y_  + index;
-    const uint16_t* vel_z       = particles.velocity_z_  + index;
-    const uint16_t* density     = particles.density_     + index;
-    const uint16_t* temperature = particles.temperature_ + index;
-
-    int i = 0;
-    int base_index = smem_i * step;
-    for (;i < count; i++) {
-        smem_fields->position_x_ [base_index + i] = *pos_x++;
-        smem_fields->position_y_ [base_index + i] = *pos_y++;
-        smem_fields->position_z_ [base_index + i] = *pos_z++;
-        smem_fields->velocity_x_ [base_index + i] = *vel_x++;
-        smem_fields->velocity_y_ [base_index + i] = *vel_y++;
-        smem_fields->velocity_z_ [base_index + i] = *vel_z++;
-        smem_fields->density_    [base_index + i] = *density++;
-        smem_fields->temperature_[base_index + i] = *temperature++;
-    }
-
-    if (i < step)
-        smem_fields->position_x_[base_index + i] = kInvalidPos;
-}
-
-template <int step>
-__device__ void FlipReadBlockAndHalo_32x6_iterative(
-    ParticleFields* smem_fields, const FlipParticles& particles, uint grid_z,
-    uint thread_x, uint thread_y, int start_i, uint3 volume_size)
-{
-    uint linear_index = thread_y * blockDim.x + thread_x;
-
-    const uint kSmemWidth = 48;
-
-    uint smem_x  = linear_index % kSmemWidth;
-    uint smem_y1 = linear_index / kSmemWidth;
-    uint smem_y2 = smem_y1 + 4;
-
-    int grid_x  = static_cast<int>(blockIdx.x * blockDim.x + smem_x)  - 8;
-    int grid_y1 = static_cast<int>(blockIdx.y * blockDim.y + smem_y1) - 1;
-    int grid_y2 = static_cast<int>(blockIdx.y * blockDim.y + smem_y2) - 1;
-
-    uint16_t* smem_pos_x = smem_fields->position_x_;
-
-    // Tightening the scope of memory read will not notably affect the
-    // performance, because the 8(one-side) extra units are actually the
-    // minimum amount of data size for fetching the halo.
-    if (grid_x < 0 || grid_x >= volume_size.x) {
-        smem_pos_x[ linear_index        * step] = kInvalidPos;
-        smem_pos_x[(linear_index + 192) * step] = kInvalidPos;
-    } else {
-        if (grid_y1 >= 0 && grid_y1 < volume_size.y)
-            ReadPosAndField_iterative<step>(smem_fields, particles, grid_x, grid_y1, grid_z, linear_index, start_i, volume_size);
-        else
-            smem_pos_x[linear_index * step] = kInvalidPos;
-
-        if (grid_y2 >= 0 && grid_y2 < volume_size.y)
-            ReadPosAndField_iterative<step>(smem_fields, particles, grid_x, grid_y2, grid_z, linear_index + 192, start_i, volume_size);
-        else
-            smem_pos_x[(linear_index + 192) * step] = kInvalidPos;
-    }
-}
-
-template <bool first, bool last>
-__device__ void SaveToSurface_iterative(const FieldWeightAndWeightedSum& w,
-                                        uint x, uint y, uint z, uint16_t* aux_x,
-                                        uint16_t* aux_y, uint16_t* aux_z,
-                                        uint16_t* aux_d, uint16_t* aux_t,
-                                        uint3 volume_size)
-{
-    FieldWeightAndWeightedSum r = w;
-    uint cell   = (z * volume_size.y + y) * volume_size.x + x;
-    uint stride = volume_size.x * volume_size.y * volume_size.z;
-    if (!first) {
-        r.sum_vel_x_          += __half2float(aux_x[cell]);
-        r.sum_vel_y_          += __half2float(aux_y[cell]);
-        r.sum_vel_z_          += __half2float(aux_z[cell]);
-        r.sum_density_        += __half2float(aux_d[cell]);
-        r.sum_temperature_    += __half2float(aux_t[cell]);
-
-        r.weight_vel_x_       += __half2float(aux_x[cell + stride]);
-        r.weight_vel_y_       += __half2float(aux_y[cell + stride]);
-        r.weight_vel_z_       += __half2float(aux_z[cell + stride]);
-        r.weight_density_     += __half2float(aux_d[cell + stride]);
-        r.weight_temperature_ += __half2float(aux_t[cell + stride]);
-    }
-
-    if (last) {
-        uint16_t r1 = __float2half_rn(r.sum_vel_x_ / r.weight_vel_x_);
-        surf3Dwrite(r1, surf_x, x * sizeof(r1), y, z, cudaBoundaryModeTrap);
-        uint16_t r2 = __float2half_rn(r.sum_vel_y_ / r.weight_vel_y_);
-        surf3Dwrite(r2, surf_y, x * sizeof(r2), y, z, cudaBoundaryModeTrap);
-        uint16_t r3 = __float2half_rn(r.sum_vel_z_ / r.weight_vel_z_);
-        surf3Dwrite(r3, surf_z, x * sizeof(r3), y, z, cudaBoundaryModeTrap);
-        uint16_t r4 = __float2half_rn(r.sum_density_ / r.weight_density_);
-        surf3Dwrite(r4, surf_d, x * sizeof(r4), y, z, cudaBoundaryModeTrap);
-        uint16_t r5 = __float2half_rn(r.sum_temperature_ / r.weight_temperature_);
-        surf3Dwrite(r5, surf_t, x * sizeof(r5), y, z, cudaBoundaryModeTrap);
-    } else {
-        // FIXME: Precision loss.
-        aux_x[cell]          = __float2half_rn(r.sum_vel_x_);
-        aux_y[cell]          = __float2half_rn(r.sum_vel_y_);
-        aux_z[cell]          = __float2half_rn(r.sum_vel_z_);
-        aux_d[cell]          = __float2half_rn(r.sum_density_);
-        aux_t[cell]          = __float2half_rn(r.sum_temperature_);
-
-        aux_x[cell + stride] = __float2half_rn(r.weight_vel_x_);
-        aux_y[cell + stride] = __float2half_rn(r.weight_vel_y_);
-        aux_z[cell + stride] = __float2half_rn(r.weight_vel_z_);
-        aux_d[cell + stride] = __float2half_rn(r.weight_density_);
-        aux_t[cell + stride] = __float2half_rn(r.weight_temperature_);
-    }
-}
-
+// This version of mapping kernel is more flexible, that the caller is free to
+// select a suitable amount of particles to process in one time. Especially
+// fit for the graphic cards that doesn't have much shared memory.
+//
+// It divides the mapping tasks by particles instead of fields, so as to avoid
+// the redundant distance-weight calculation.
+//
+// Experiments indicate that the computation-memory-fetch overlapping is not
+// as helpful as expected, but only increasing shared memory usage. The card
+// will manage to hide the latency as long as the occupancy is high enough.
+//
+// The problem of this kernel is actually the register usage, which stops it
+// from further parallel execution.
 template <int step, bool last_step>
 __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
                                                     int start_i,
                                                     FlipParticles aux,
                                                     uint3 volume_size)
 {
-    // Use fp16 for saving shared memory.
     // Total shared memory usage:
     // 2 * 384 * 16 * |step| = 12288 * |step|.
     __shared__ uint16_t smem_pos_x1      [384 * step];
-    __shared__ uint16_t smem_pos_x2      [384 * step];
     __shared__ uint16_t smem_pos_y1      [384 * step];
-    __shared__ uint16_t smem_pos_y2      [384 * step];
     __shared__ uint16_t smem_pos_z1      [384 * step];
-    __shared__ uint16_t smem_pos_z2      [384 * step];
     __shared__ uint16_t smem_vel_x1      [384 * step];
-    __shared__ uint16_t smem_vel_x2      [384 * step];
     __shared__ uint16_t smem_vel_y1      [384 * step];
-    __shared__ uint16_t smem_vel_y2      [384 * step];
     __shared__ uint16_t smem_vel_z1      [384 * step];
-    __shared__ uint16_t smem_vel_z2      [384 * step];
     __shared__ uint16_t smem_density1    [384 * step];
-    __shared__ uint16_t smem_density2    [384 * step];
     __shared__ uint16_t smem_temperature1[384 * step];
-    __shared__ uint16_t smem_temperature2[384 * step];
 
-    ParticleFields ping = {
+    ParticleFields smem = {
         smem_pos_x1,
         smem_pos_y1,
         smem_pos_z1,
@@ -1171,20 +921,6 @@ __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
         smem_density1,
         smem_temperature1,
     };
-
-    ParticleFields pong = {
-        smem_pos_x2,
-        smem_pos_y2,
-        smem_pos_z2,
-        smem_vel_x2,
-        smem_vel_y2,
-        smem_vel_z2,
-        smem_density2,
-        smem_temperature2,
-    };
-
-    ParticleFields* smem_ping = &ping;
-    ParticleFields* smem_pong = &pong;
 
     const uint tx = threadIdx.x;
     const uint ty = threadIdx.y;
@@ -1196,8 +932,8 @@ __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
     if (x >= volume_size.x || y >= volume_size.y)
         return;
 
-    FlipReadBlockAndHalo_32x6_iterative<step>(smem_ping, particles, 0, tx, ty, start_i, volume_size);
-    SwitchBuffers_all(smem_ping, smem_pong);
+    FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 0, tx, ty, start_i, volume_size);
+    __syncthreads();
 
     FieldWeightAndWeightedSum w_near;
     FieldWeightAndWeightedSum w_mid;
@@ -1212,25 +948,26 @@ __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_smem_iterative<step>(&w_near, smem_pong, strided, coord);
-        ComputeWeightedAverage_smem_iterative<step>(&w_mid,  smem_pong, strided, coord_temp);
+        ComputeWeightedAverage_smem_iterative<step>(&w_near, &smem, strided, coord);
+        ComputeWeightedAverage_smem_iterative<step>(&w_mid,  &smem, strided, coord_temp);
     }
 
-    FlipReadBlockAndHalo_32x6_iterative<step>(smem_ping, particles, 1, tx, ty, start_i, volume_size);
+    __syncthreads();
+    FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 1, tx, ty, start_i, volume_size);
 
     // For each plane, we calculate the weighted average value of the
     // farthest/middle/nearest plane of the last/current/next point, so as to
     // reuse all of the position and field data of a plane.
     uint z = 1;
     for (; z < volume_size.z - 1; z++) {
-        SwitchBuffers_all(smem_ping, smem_pong);
+        __syncthreads();
 
         for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
             uint smem_i = (ty + i + 1) * bw + tx + j + 8;
             uint strided = smem_i * step;
-            ComputeWeightedAverage_smem_iterative<step>(&w_near, smem_pong, strided, coord);
-            ComputeWeightedAverage_smem_iterative<step>(&w_mid,  smem_pong, strided, coord_temp);
-            ComputeWeightedAverage_smem_iterative<step>(&w_far,  smem_pong, strided, coord_temp2);
+            ComputeWeightedAverage_smem_iterative<step>(&w_near, &smem, strided, coord);
+            ComputeWeightedAverage_smem_iterative<step>(&w_mid,  &smem, strided, coord_temp);
+            ComputeWeightedAverage_smem_iterative<step>(&w_far,  &smem, strided, coord_temp2);
         }
         if (!start_i)
             SaveToSurface_iterative<true,  last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
@@ -1245,7 +982,8 @@ __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
         coord_temp.z  += 1.0f;
         coord_temp2.z += 1.0f;
 
-        FlipReadBlockAndHalo_32x6_iterative<step>(smem_ping, particles, z + 1, tx, ty, start_i, volume_size);
+        __syncthreads();
+        FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, z + 1, tx, ty, start_i, volume_size);
     }
     __syncthreads();
 
@@ -1253,8 +991,8 @@ __global__ void TransferToGridKernel_smem_iterative(FlipParticles particles,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_smem_iterative<step>(&w_near, smem_ping, strided, coord);
-        ComputeWeightedAverage_smem_iterative<step>(&w_mid,  smem_ping, strided, coord_temp);
+        ComputeWeightedAverage_smem_iterative<step>(&w_near, &smem, strided, coord);
+        ComputeWeightedAverage_smem_iterative<step>(&w_mid,  &smem, strided, coord_temp);
     }
 
     if (!start_i) {
