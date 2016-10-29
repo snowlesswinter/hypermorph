@@ -97,7 +97,7 @@ __device__ inline void ResetWeight(FieldWeightAndWeightedSum* w)
     w->sum_temperature_    = 0.0f;
 }
 
-__device__ float WeightKernel(float r)
+__device__ float WeightKernel_naive(float r)
 {
     if (r >= -1.0f && r <= 0.0f)
         return 1.0f + r;
@@ -108,10 +108,15 @@ __device__ float WeightKernel(float r)
     return 0.0f;
 }
 
+__device__ inline float WeightKernel(float p, float p0)
+{
+    return fmaxf(1.0f - fmaxf(p - p0, 0.0f) - fmaxf(p0 - p, 0.0f), 0.0f);
+}
+
 __device__ float DistanceWeight(float x, float y, float z, float x0,
                                 float y0, float z0)
 {
-    return WeightKernel(x - x0) * WeightKernel(y - y0) * WeightKernel(z - z0);
+    return WeightKernel(x, x0) * WeightKernel(y, y0) * WeightKernel(z, z0);
 }
 
 __device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
