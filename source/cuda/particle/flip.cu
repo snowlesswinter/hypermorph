@@ -381,7 +381,7 @@ __global__ void SortFieldKernel(Type* field_np1, Type* field,
     }
 }
 
-// Fields should be available: cell_index, in_cell_index
+// Fields should be available: cell_index, in_cell_index, particle_index
 // Active particles may *NOT* be consecutive.
 __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
                                     int last_cell_index, uint3 volume_size)

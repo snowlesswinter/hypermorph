@@ -816,7 +816,6 @@ __global__ void TransferToGridKernel_smem_overlap(FlipParticles particles,
 }
 
 // TODO: We can save shared memory by storing the weights instead of positions.
-// TODO: Bank conflict optimization.
 //
 // As using shared memory to reduce the latency of data access, there are some
 // factors becoming our major concern:
@@ -841,9 +840,6 @@ __global__ void TransferToGridKernel_smem_overlap(FlipParticles particles,
 //
 // This kernel is fast, but also memory-intensive, that not suitable for
 // some older gpus such as Kepler or Fermi.
-//
-// TODO: Further reduce the shared-memory allocation for higher occupancy/
-//       low bank conflict.
 __global__ void TransferToGridKernel_smem(FlipParticles particles,
                                           uint3 volume_size)
 {
@@ -1300,8 +1296,8 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
-        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        i == 1 ? PRUNE_Y : PRUNE_NONE); // Don't prune z.
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, i == 1 ? PRUNE_Y : PRUNE_NONE);
     }
 
     __syncthreads();
@@ -1331,12 +1327,11 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     }
     __syncthreads();
 
-    coord = make_float3(x, y, z - 1) + 0.5f;
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
-        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        (i == 1 ? PRUNE_Y : PRUNE_NONE) | PRUNE_Z);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, (i == 1 ? PRUNE_Y : PRUNE_NONE));
     }
 
     if (!start_i) {

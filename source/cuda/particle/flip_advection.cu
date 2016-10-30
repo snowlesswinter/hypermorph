@@ -199,9 +199,9 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     if (pos_z < 0.0f || pos_z >= volume_size.z)
         p.velocity_z_[i] = 0;
 
-    pos_x = min(max(pos_x, 0.0f), volume_size.x - 1.0f);
-    pos_y = min(max(pos_y, 0.0f), volume_size.y - 1.0f);
-    pos_z = min(max(pos_z, 0.0f), volume_size.z - 1.0f);
+    pos_x = fminf(fmaxf(pos_x, 0.0f), volume_size.x - 1.0f);
+    pos_y = fminf(fmaxf(pos_y, 0.0f), volume_size.y - 1.0f);
+    pos_z = fminf(fmaxf(pos_z, 0.0f), volume_size.z - 1.0f);
 
     p.position_x_[i] = __float2half_rn(pos_x);
     p.position_y_[i] = __float2half_rn(pos_y);
