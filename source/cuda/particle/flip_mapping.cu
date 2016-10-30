@@ -1146,9 +1146,10 @@ __device__ void ComputeWeightedAverage_prune(FieldWeightAndWeightedSum* w,
 }
 
 template <int step>
-__device__ void ProcessRow(FieldWeightAndWeightedSum* w_sum,
-                           const ParticleFields& smem, uint smem_i, float x,
-                           float y, float z, uint32_t prune_mask)
+__device__ void ProcessRow_deprecated(FieldWeightAndWeightedSum* w_sum,
+                                      const ParticleFields& smem, uint smem_i,
+                                      float x, float y, float z,
+                                      uint32_t prune_mask)
 {
     uint strided = smem_i * step;
     uint32_t zp;
@@ -1199,6 +1200,27 @@ __device__ void ProcessRow(FieldWeightAndWeightedSum* w_sum,
         AddWeight(&w_sum[2], &wa);
         ComputeWeightedAverage_prune_z<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f);
     }
+}
+
+template <int step>
+__device__ void ProcessRow(FieldWeightAndWeightedSum* w_sum,
+                           const ParticleFields& smem, uint smem_i, float x,
+                           float y, float z, uint32_t prune_mask)
+{
+    uint strided = smem_i * step;
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, x, y, z + 1.0f, prune_mask);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[2], nullptr, &smem, strided, x, y, z + 2.0f, prune_mask);
+
+    strided += step;
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, x, y, z + 1.0f, prune_mask);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[2], nullptr, &smem, strided, x, y, z + 2.0f, prune_mask);
+
+    strided += step;
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, x, y, z,        prune_mask | PRUNE_X | PRUNE_Z);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, x, y, z + 1.0f, prune_mask | PRUNE_X);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[2], nullptr, &smem, strided, x, y, z + 2.0f, prune_mask | PRUNE_X);
 }
 
 // As per some characteristics of staggered grid, we could easily deduce
