@@ -81,9 +81,58 @@ struct FieldWeightAndWeightedSum
     float sum_temperature_;
 };
 
+struct TemporaryStorage
+{
+    __device__ inline void Store(float* field, float value)
+    {
+        *field = value;
+    }
+};
+
+struct AccumulativeStorage
+{
+    __device__ inline void Store(float* field, float value)
+    {
+        *field += value;
+    }
+};
+
+union FloatSignExtraction
+{
+    float f_;
+    struct
+    {
+        unsigned int mantisa_ : 23;
+        unsigned int exponent_ : 8;
+        unsigned int sign_ : 1;
+    } parts_;
+};
+
+__device__ inline uint32_t GetFloatSign(float f)
+{
+    FloatSignExtraction e;
+    e.f_ = f;
+    return e.parts_.sign_;
+}
+
+__device__ inline void AddWeight(FieldWeightAndWeightedSum* d,
+                                 const FieldWeightAndWeightedSum* s)
+{
+    d->weight_vel_x_       += s->weight_vel_x_;
+    d->weight_vel_y_       += s->weight_vel_y_;
+    d->weight_vel_z_       += s->weight_vel_z_;
+    d->weight_density_     += s->weight_density_;
+    d->weight_temperature_ += s->weight_temperature_;
+    d->sum_vel_x_          += s->sum_vel_x_;
+    d->sum_vel_y_          += s->sum_vel_y_;
+    d->sum_vel_z_          += s->sum_vel_z_;
+    d->sum_density_        += s->sum_density_;
+    d->sum_temperature_    += s->sum_temperature_;
+}
+
 __device__ inline void ResetWeight(FieldWeightAndWeightedSum* w)
 {
-    const float kInitialWeight = 0.0001f;
+    const float kInitialWeight = 0.00001f;
 
     w->weight_vel_x_       = kInitialWeight;
     w->weight_vel_y_       = kInitialWeight;
@@ -1017,11 +1066,36 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
 }
 
 // =============================================================================
-
 template <int step>
-__device__ void ComputeWeightedAverage_prune(
+__device__ void ComputeWeightedAverage_prune_z(
     FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
-    uint strided, float x0, float y0, float z0, uint32_t prune_mask)
+    uint strided, float x0, float y0, float z0)
+{
+    const uint16_t* pos_x = smem_fields->position_x_ + strided;
+    const uint16_t* pos_y = smem_fields->position_y_ + strided;
+    const uint16_t* pos_z = smem_fields->position_z_ + strided;
+    const uint16_t* vel_z = smem_fields->velocity_z_ + strided;
+
+    for (int i = 0; i < step; i++) {
+        float x = __half2float(*pos_x++);
+        if (x < 0.0f) // Empty cell.
+            return;
+
+        float y = __half2float(*pos_y++);
+        float z = __half2float(*pos_z++);
+
+        float  weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
+        w->weight_vel_z_ += weight_vel_z;
+        w->sum_vel_z_    += weight_vel_z * __half2float(*(vel_z + i));
+    }
+}
+
+template <int step, typename WeightStorage>
+__device__ void ComputeWeightedAverage_prune(FieldWeightAndWeightedSum* w,
+                                             uint32_t* z_prune,
+                                             const ParticleFields* smem_fields,
+                                             uint strided, float x0, float y0,
+                                             float z0, uint32_t prune_mask)
 {
     const uint16_t* pos_x =       smem_fields->position_x_  + strided;
     const uint16_t* pos_y =       smem_fields->position_y_  + strided;
@@ -1032,6 +1106,7 @@ __device__ void ComputeWeightedAverage_prune(
     const uint16_t* density =     smem_fields->density_     + strided;
     const uint16_t* temperature = smem_fields->temperature_ + strided;
 
+    WeightStorage storage;
     for (int i = 0; i < step; i++) {
         float x = __half2float(*pos_x++);
         if (x < 0.0f) // Empty cell.
@@ -1040,33 +1115,33 @@ __device__ void ComputeWeightedAverage_prune(
         float y = __half2float(*pos_y++);
         float z = __half2float(*pos_z++);
 
-        float weight_vel_x;
         if (!(prune_mask & PRUNE_X)) {
-            weight_vel_x = DistanceWeight(x, y, z, x0 - 0.5f, y0, z0);
-            w->weight_vel_x_ += weight_vel_x;
-            w->sum_vel_x_    += weight_vel_x * __half2float(*(vel_x + i));
+            float weight_vel_x = DistanceWeight(x, y, z, x0 - 0.5f, y0, z0);
+            storage.Store(&w->weight_vel_x_, weight_vel_x);
+            storage.Store(&w->sum_vel_x_,    weight_vel_x * __half2float(*(vel_x + i)));
         }
 
-        float weight_vel_y;
         if (!(prune_mask & PRUNE_Y)) {
-            weight_vel_y = DistanceWeight(x, y, z, x0, y0 - 0.5f, z0);
-            w->weight_vel_y_ += weight_vel_y;
-            w->sum_vel_y_    += weight_vel_y * __half2float(*(vel_y + i));
+            float weight_vel_y = DistanceWeight(x, y, z, x0, y0 - 0.5f, z0);
+            storage.Store(&w->weight_vel_y_, weight_vel_y);
+            storage.Store(&w->sum_vel_y_,    weight_vel_y * __half2float(*(vel_y + i)));
         }
 
-        float weight_vel_z;
         if (!(prune_mask & PRUNE_Z)) {
-            weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
-            w->weight_vel_z_ += weight_vel_z;
-            w->sum_vel_z_    += weight_vel_z * __half2float(*(vel_z + i));
+            float weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
+            storage.Store(&w->weight_vel_z_, weight_vel_z);
+            storage.Store(&w->sum_vel_z_,    weight_vel_z * __half2float(*(vel_z + i)));
         }
-        float weight       = DistanceWeight(x, y, z, x0, y0, z0);
 
-        w->weight_density_     += weight;
-        w->weight_temperature_ += weight;
+        if (z_prune)
+            *z_prune = GetFloatSign(z - z0);
 
-        w->sum_density_     += weight * __half2float(*(density     + i));
-        w->sum_temperature_ += weight * __half2float(*(temperature + i));
+        float weight = DistanceWeight(x, y, z, x0, y0, z0);
+        
+        storage.Store(&w->weight_density_,     weight);
+        storage.Store(&w->weight_temperature_, weight);
+        storage.Store(&w->sum_density_,     weight * __half2float(*(density + i)));
+        storage.Store(&w->sum_temperature_, weight * __half2float(*(temperature + i)));
     }
 }
 
@@ -1076,19 +1151,54 @@ __device__ void ProcessRow(FieldWeightAndWeightedSum* w_sum,
                            float y, float z, uint32_t prune_mask)
 {
     uint strided = smem_i * step;
-    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask);
-    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask);
+    uint32_t zp;
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], &zp, &smem, strided, x, y, z + 1.0f, prune_mask);
+    FieldWeightAndWeightedSum wa;
+    ResetWeight(&wa);
+    ComputeWeightedAverage_prune<step, TemporaryStorage>(&wa, nullptr, &smem, strided, x, y, z + 2.0f * (1 - zp), prune_mask | (PRUNE_Z * zp));
+
+    // One should note that there is something quite different between CUDA
+    // kernels and ordinary c++ functions.
+    // e.g. if we change the following code in such a way that:
+    //
+    // AddWeight(&w_sum[zp ? 0 : 2], &wa);
+    //
+    // nvcc is gonna generate something surprising us. It took a whole day for
+    // me to understand that we can't simply expect the kernel to do the
+    // 'pointer dynamics' as we always do in a c++ function. All the
+    // instructions inside a kernel actually are operations directly to
+    // the registers, but not memory, so it's not that easy for a kernel to
+    // perform a 'pointer dynamics'. If we force the compiler to create this
+    // kind of code, it will choose a aggressive way that substitute the
+    // registers with local-memory, which is absurdly slow.
+    if (zp) {
+        AddWeight(&w_sum[0], &wa);
+    } else {
+        AddWeight(&w_sum[2], &wa);
+        ComputeWeightedAverage_prune_z<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f);
+    }
 
     strided += step;
-    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask);
-    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], &zp, &smem, strided, x, y, z + 1.0f, prune_mask);
+    ResetWeight(&wa);
+    ComputeWeightedAverage_prune<step, TemporaryStorage>(&wa, nullptr, &smem, strided, x, y, z + 2.0f * (1 - zp), prune_mask | (PRUNE_Z * zp));
+    if (zp) {
+        AddWeight(&w_sum[0], &wa);
+    } else {
+        AddWeight(&w_sum[2], &wa);
+        ComputeWeightedAverage_prune_z<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f);
+    }
 
     strided += step;
-    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_X | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask | PRUNE_X);
-    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask | PRUNE_X);
+    ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], &zp, &smem, strided, x, y, z + 1.0f, prune_mask | PRUNE_X);
+    ResetWeight(&wa);
+    ComputeWeightedAverage_prune<step, TemporaryStorage>(&wa, nullptr, &smem, strided, x, y, z + 2.0f * (1 - zp), prune_mask | PRUNE_X | (PRUNE_Z * zp));
+    if (zp) {
+        AddWeight(&w_sum[0], &wa);
+    } else {
+        AddWeight(&w_sum[2], &wa);
+        ComputeWeightedAverage_prune_z<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f);
+    }
 }
 
 // As per some characteristics of staggered grid, we could easily deduce
@@ -1168,8 +1278,8 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
-        ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
     }
 
     __syncthreads();
@@ -1203,8 +1313,8 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
-        ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[0], nullptr, &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
+        ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
     }
 
     if (!start_i) {
