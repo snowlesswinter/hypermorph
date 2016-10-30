@@ -1021,7 +1021,7 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
 template <int step>
 __device__ void ComputeWeightedAverage_prune(
     FieldWeightAndWeightedSum* w, const ParticleFields* smem_fields,
-    uint strided, float3 p0, uint32_t prune_mask)
+    uint strided, float x0, float y0, float z0, uint32_t prune_mask)
 {
     const uint16_t* pos_x =       smem_fields->position_x_  + strided;
     const uint16_t* pos_y =       smem_fields->position_y_  + strided;
@@ -1042,56 +1042,53 @@ __device__ void ComputeWeightedAverage_prune(
 
         float weight_vel_x;
         if (!(prune_mask & PRUNE_X)) {
-            weight_vel_x = DistanceWeight(x, y, z, p0.x - 0.5f, p0.y, p0.z);
+            weight_vel_x = DistanceWeight(x, y, z, x0 - 0.5f, y0, z0);
             w->weight_vel_x_ += weight_vel_x;
             w->sum_vel_x_    += weight_vel_x * __half2float(*(vel_x + i));
         }
 
         float weight_vel_y;
         if (!(prune_mask & PRUNE_Y)) {
-            weight_vel_y = DistanceWeight(x, y, z, p0.x, p0.y - 0.5f, p0.z);
+            weight_vel_y = DistanceWeight(x, y, z, x0, y0 - 0.5f, z0);
             w->weight_vel_y_ += weight_vel_y;
             w->sum_vel_y_    += weight_vel_y * __half2float(*(vel_y + i));
         }
 
         float weight_vel_z;
         if (!(prune_mask & PRUNE_Z)) {
-            weight_vel_z = DistanceWeight(x, y, z, p0.x, p0.y, p0.z - 0.5f);
+            weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
             w->weight_vel_z_ += weight_vel_z;
             w->sum_vel_z_    += weight_vel_z * __half2float(*(vel_z + i));
         }
-        float weight       = DistanceWeight(x, y, z, p0.x, p0.y, p0.z);
+        float weight       = DistanceWeight(x, y, z, x0, y0, z0);
 
         w->weight_density_     += weight;
         w->weight_temperature_ += weight;
 
-        w->sum_density_     += weight       * __half2float(*(density     + i));
-        w->sum_temperature_ += weight       * __half2float(*(temperature + i));
+        w->sum_density_     += weight * __half2float(*(density     + i));
+        w->sum_temperature_ += weight * __half2float(*(temperature + i));
     }
 }
 
 template <int step>
-__device__ void ProcessRow(FieldWeightAndWeightedSum* w_near,
-                           FieldWeightAndWeightedSum* w_mid,
-                           FieldWeightAndWeightedSum* w_far,
-                           const ParticleFields& smem, uint smem_i,
-                           const float3& coord, const float3& coord_temp,
-                           const float3& coord_temp2, uint32_t prune_mask)
+__device__ void ProcessRow(FieldWeightAndWeightedSum* w_sum,
+                           const ParticleFields& smem, uint smem_i, float x,
+                           float y, float z, uint32_t prune_mask)
 {
     uint strided = smem_i * step;
-    ComputeWeightedAverage_prune<step>(w_near, &smem, strided, coord,       prune_mask | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(w_mid,  &smem, strided, coord_temp,  prune_mask);
-    ComputeWeightedAverage_prune<step>(w_far,  &smem, strided, coord_temp2, prune_mask);
+    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
+    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask);
+    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask);
 
     strided += step;
-    ComputeWeightedAverage_prune<step>(w_near, &smem, strided, coord,       prune_mask | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(w_mid,  &smem, strided, coord_temp,  prune_mask);
-    ComputeWeightedAverage_prune<step>(w_far,  &smem, strided, coord_temp2, prune_mask);
+    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_Z);
+    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask);
+    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask);
 
     strided += step;
-    ComputeWeightedAverage_prune<step>(w_near, &smem, strided, coord,       prune_mask | PRUNE_X | PRUNE_Z);
-    ComputeWeightedAverage_prune<step>(w_mid,  &smem, strided, coord_temp,  prune_mask | PRUNE_X);
-    ComputeWeightedAverage_prune<step>(w_far,  &smem, strided, coord_temp2, prune_mask | PRUNE_X);
+    ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, x, y, z,        prune_mask | PRUNE_X | PRUNE_Z);
+    ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, x, y, z + 1.0f, prune_mask | PRUNE_X);
+    ComputeWeightedAverage_prune<step>(&w_sum[2], &smem, strided, x, y, z + 2.0f, prune_mask | PRUNE_X);
 }
 
 // As per some characteristics of staggered grid, we could easily deduce
@@ -1112,23 +1109,15 @@ __device__ void ProcessRow(FieldWeightAndWeightedSum* w_near,
 // * The calculation of |vel_x| on column 2 can be pruned.
 // * The calculation of |vel_y| on row 0 can be pruned.
 //
+// CAUTION: *NEVER* unroll this loop!
 template <int step>
-__device__ void ProcessPlane(FieldWeightAndWeightedSum* w_near,
-                             FieldWeightAndWeightedSum* w_mid,
-                             FieldWeightAndWeightedSum* w_far,
-                             const ParticleFields& smem, uint tx, uint ty,
-                             uint bw, const float3& coord,
-                             const float3& coord_temp,
-                             const float3& coord_temp2)
+__device__ void ProcessPlanes(FieldWeightAndWeightedSum* w_sum,
+                              const ParticleFields& smem, uint tx, uint ty,
+                              uint bw, float x0, float y0, float z0)
 {
     uint smem_i = ty * bw + tx + 7;
-    ProcessRow<step>(w_near, w_mid, w_far, smem, smem_i, coord, coord_temp, coord_temp2, PRUNE_NONE);
-
-    smem_i += bw;
-    ProcessRow<step>(w_near, w_mid, w_far, smem, smem_i, coord, coord_temp, coord_temp2, PRUNE_NONE);
-
-    smem_i += bw;
-    ProcessRow<step>(w_near, w_mid, w_far, smem, smem_i, coord, coord_temp, coord_temp2, PRUNE_Y);
+    for (int y = -1; y <= 1; y++, smem_i += bw)
+        ProcessRow<step>(w_sum, smem, smem_i, x0, y0, z0, y == 1 ? PRUNE_Y : PRUNE_NONE);
 }
 
 template <int step, bool last_step>
@@ -1170,21 +1159,17 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 0, tx, ty, start_i, volume_size);
     __syncthreads();
 
-    FieldWeightAndWeightedSum w_near;
-    FieldWeightAndWeightedSum w_mid;
-    FieldWeightAndWeightedSum w_far;
-    ResetWeight(&w_near);
-    ResetWeight(&w_mid);
-    ResetWeight(&w_far);
+    FieldWeightAndWeightedSum w_sum[3];
+    ResetWeight(&w_sum[0]);
+    ResetWeight(&w_sum[1]);
+    ResetWeight(&w_sum[2]);
 
-    float3 coord       =         make_float3(x, y, 0) + 0.5f;
-    float3 coord_temp  = coord + make_float3(0, 0, 1);
-    float3 coord_temp2 = coord + make_float3(0, 0, 2);
+    float3 coord = make_float3(x, y, 0) + 0.5f;
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_iterative<step>(&w_near, &smem, strided, coord);
-        ComputeWeightedAverage_iterative<step>(&w_mid,  &smem, strided, coord_temp);
+        ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
+        ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
     }
 
     __syncthreads();
@@ -1196,20 +1181,18 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     uint z = 1;
     for (; z < volume_size.z - 1; z++) {
         __syncthreads();
-        ProcessPlane<step>(&w_near, &w_mid, &w_far, smem, tx, ty, bw, coord, coord_temp, coord_temp2);
+        ProcessPlanes<step>(w_sum, smem, tx, ty, bw, coord.x, coord.y, coord.z);
 
         if (!start_i)
-            SaveToSurface_iterative<true,  last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+            SaveToSurface_iterative<true,  last_step>(w_sum[0], x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
         else
-            SaveToSurface_iterative<false, last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+            SaveToSurface_iterative<false, last_step>(w_sum[0], x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
 
-        w_near = w_mid;
-        w_mid  = w_far;
-        ResetWeight(&w_far);
+        w_sum[0] = w_sum[1];
+        w_sum[1] = w_sum[2];
+        ResetWeight(&w_sum[2]);
 
-        coord.z       += 1.0f;
-        coord_temp.z  += 1.0f;
-        coord_temp2.z += 1.0f;
+        coord.z += 1.0f;
 
         __syncthreads();
         FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, z + 1, tx, ty, start_i, volume_size);
@@ -1220,16 +1203,16 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
-        ComputeWeightedAverage_iterative<step>(&w_near, &smem, strided, coord);
-        ComputeWeightedAverage_iterative<step>(&w_mid,  &smem, strided, coord_temp);
+        ComputeWeightedAverage_prune<step>(&w_sum[0], &smem, strided, coord.x, coord.y, coord.z,        PRUNE_NONE);
+        ComputeWeightedAverage_prune<step>(&w_sum[1], &smem, strided, coord.x, coord.y, coord.z + 1.0f, PRUNE_NONE);
     }
 
     if (!start_i) {
-        SaveToSurface_iterative<true,  last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
-        SaveToSurface_iterative<true,  last_step>(w_mid,  x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+        SaveToSurface_iterative<true,  last_step>(w_sum[0], x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+        SaveToSurface_iterative<true,  last_step>(w_sum[1], x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
     } else {
-        SaveToSurface_iterative<false, last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
-        SaveToSurface_iterative<false, last_step>(w_mid,  x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+        SaveToSurface_iterative<false, last_step>(w_sum[0], x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
+        SaveToSurface_iterative<false, last_step>(w_sum[1], x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
     }
 }
 
