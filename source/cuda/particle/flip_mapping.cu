@@ -159,7 +159,7 @@ __device__ float WeightKernel_naive(float r)
 
 __device__ inline float WeightKernel(float p, float p0)
 {
-    return fmaxf(1.0f - fmaxf(p - p0, 0.0f) - fmaxf(p0 - p, 0.0f), 0.0f);
+    return 1.0f - fminf(fabsf(p - p0), 1.0f);
 }
 
 __device__ float DistanceWeight(float x, float y, float z, float x0,
