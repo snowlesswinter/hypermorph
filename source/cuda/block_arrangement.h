@@ -45,6 +45,9 @@ public:
     void ArrangeRowScan(dim3* block, dim3* grid, const uint3& volume_size);
     void ArrangeSequential(dim3* block, dim3* grid, const uint3& volume_size);
 
+    // TODO: Kernel strategy?
+    int GetSharedMemPerSMInKB() const;
+
 private:
     std::unique_ptr<cudaDeviceProp> dev_prop_;
 };

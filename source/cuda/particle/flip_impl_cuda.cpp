@@ -74,6 +74,7 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
     kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
                             temperature, rand_->Iterate(),
                             FromGlmVector(volume_size), ba_);
+    kern_launcher::DiffuseAndDecay(particles, time_step, ba_);
     observer_->OnResampled();
 
     kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,

@@ -170,3 +170,8 @@ void BlockArrangement::ArrangeSequential(dim3* block, dim3* grid,
     *block = dim3(bw, bh, bd);
     *grid = dim3(blocks, 1, 1);
 }
+
+int BlockArrangement::GetSharedMemPerSMInKB() const
+{
+    return dev_prop_->sharedMemPerMultiprocessor >> 10;
+}

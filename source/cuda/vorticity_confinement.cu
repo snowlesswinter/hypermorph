@@ -135,17 +135,17 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
     float near_vort_x =   tex3D(tex_x, coord.x,        coord.y + 0.5f, coord.z - 0.5f);
     float near_vort_y =   tex3D(tex_y, coord.x + 0.5f, coord.y,        coord.z - 0.5f);
     float near_vort_z =   tex3D(tex_z, coord.x + 0.5f, coord.y + 0.5f, coord.z - 1.0f);
-    float near_vort = sqrtf(near_vort_x * near_vort_x + near_vort_y * near_vort_y + near_vort_z * near_vort_z);
+    float near_vort = __fsqrt_rn(near_vort_x * near_vort_x + near_vort_y * near_vort_y + near_vort_z * near_vort_z);
 
     float south_vort_x =  tex3D(tex_x, coord.x,        coord.y - 0.5f, coord.z + 0.5f);
     float south_vort_y =  tex3D(tex_y, coord.x + 0.5f, coord.y - 1.0f, coord.z + 0.5f);
     float south_vort_z =  tex3D(tex_z, coord.x + 0.5f, coord.y - 0.5f, coord.z);
-    float south_vort = sqrtf(south_vort_x * south_vort_x + south_vort_y * south_vort_y + south_vort_z * south_vort_z);
+    float south_vort = __fsqrt_rn(south_vort_x * south_vort_x + south_vort_y * south_vort_y + south_vort_z * south_vort_z);
 
     float west_vort_x =   tex3D(tex_x, coord.x - 1.0f, coord.y + 0.5f, coord.z + 0.5f);
     float west_vort_y =   tex3D(tex_y, coord.x - 0.5f, coord.y,        coord.z + 0.5f);
     float west_vort_z =   tex3D(tex_z, coord.x - 0.5f, coord.y + 0.5f, coord.z);
-    float west_vort = sqrtf(west_vort_x * west_vort_x + west_vort_y * west_vort_y + west_vort_z * west_vort_z);
+    float west_vort = __fsqrt_rn(west_vort_x * west_vort_x + west_vort_y * west_vort_y + west_vort_z * west_vort_z);
 
     float center_vort_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
     float center_vort_y = tex3D(tex_y, coord.x,        coord.y,        coord.z);
@@ -154,27 +154,27 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
     float east_vort_x =   tex3D(tex_x, coord.x + 1.0f, coord.y + 0.5f, coord.z + 0.5f);
     float east_vort_y =   tex3D(tex_y, coord.x + 1.5f, coord.y,        coord.z + 0.5f);
     float east_vort_z =   tex3D(tex_z, coord.x + 1.5f, coord.y + 0.5f, coord.z);
-    float east_vort = sqrtf(east_vort_x * east_vort_x + east_vort_y * east_vort_y + east_vort_z * east_vort_z);
+    float east_vort = __fsqrt_rn(east_vort_x * east_vort_x + east_vort_y * east_vort_y + east_vort_z * east_vort_z);
 
     float north_vort_x =  tex3D(tex_x, coord.x,        coord.y + 1.5f, coord.z + 0.5f);
     float north_vort_y =  tex3D(tex_y, coord.x + 0.5f, coord.y + 1.0f, coord.z + 0.5f);
     float north_vort_z =  tex3D(tex_z, coord.x + 0.5f, coord.y + 1.5f, coord.z);
-    float north_vort = sqrtf(north_vort_x * north_vort_x + north_vort_y * north_vort_y + north_vort_z * north_vort_z);
+    float north_vort = __fsqrt_rn(north_vort_x * north_vort_x + north_vort_y * north_vort_y + north_vort_z * north_vort_z);
 
     float far_vort_x =    tex3D(tex_x, coord.x,        coord.y + 0.5f, coord.z + 1.5f);
     float far_vort_y =    tex3D(tex_y, coord.x + 0.5f, coord.y,        coord.z + 1.5f);
     float far_vort_z =    tex3D(tex_z, coord.x + 0.5f, coord.y + 0.5f, coord.z + 1.0f);
-    float far_vort = sqrtf(far_vort_x * far_vort_x + far_vort_y * far_vort_y + far_vort_z * far_vort_z);
+    float far_vort = __fsqrt_rn(far_vort_x * far_vort_x + far_vort_y * far_vort_y + far_vort_z * far_vort_z);
 
     // Calculate normalized ¦Ç.
     float ¦Ç_x = half_inverse_cell_size * (east_vort - west_vort);
     float ¦Ç_y = half_inverse_cell_size * (north_vort - south_vort);
     float ¦Ç_z = half_inverse_cell_size * (far_vort - near_vort);
 
-    float ¦Ç_mag = sqrtf(¦Ç_x * ¦Ç_x + ¦Ç_y * ¦Ç_y + ¦Ç_z * ¦Ç_z + 0.00001f);
-    ¦Ç_x /= ¦Ç_mag;
-    ¦Ç_y /= ¦Ç_mag;
-    ¦Ç_z /= ¦Ç_mag;
+    float r_¦Ç_mag = __frsqrt_rn(¦Ç_x * ¦Ç_x + ¦Ç_y * ¦Ç_y + ¦Ç_z * ¦Ç_z + 0.00001f);
+    ¦Ç_x *= r_¦Ç_mag;
+    ¦Ç_y *= r_¦Ç_mag;
+    ¦Ç_z *= r_¦Ç_mag;
 
     // Vorticity confinement at the center of the grid.
     float conf_x = coeff * cell_size * (¦Ç_y * center_vort_z - ¦Ç_z * center_vort_y);

@@ -173,7 +173,7 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    const int kHeatLayerThickness = 3;
+    const int kHeatLayerThickness = 8;
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
             dim3 block(volume_size.x, kHeatLayerThickness, 1);
@@ -217,7 +217,7 @@ void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
 
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
-            dim3 block(volume_size.x, 2, 1);
+            dim3 block(volume_size.x, 8, 1);
             dim3 grid;
             ba->ArrangeGrid(&grid, block, volume_size);
             grid.y = 1;

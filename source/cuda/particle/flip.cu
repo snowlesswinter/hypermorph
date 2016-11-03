@@ -147,6 +147,20 @@ __global__ void CalculateNumberOfActiveParticles(FlipParticles particles,
         particles.particle_count_[last_cell_index];
 }
 
+__global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step)
+{
+    FlipParticles& p = particles;
+
+    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    if (i >= *p.num_of_actives_)
+        return;
+
+    particles.temperature_[i] = __float2half_rn((1.0f - 0.25f * time_step) * __half2float(particles.temperature_[i]));
+    particles.velocity_x_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_x_[i]));
+    particles.velocity_y_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_y_[i]));
+    particles.velocity_z_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_z_[i]));
+}
+
 // Fields should be available: cell_index, particle_count, particle_index.
 __global__ void EmitParticlesKernel(FlipParticles particles,
                                     float3 center_point, float3 hotspot,
@@ -444,12 +458,22 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
     DCHECK_KERNEL();
 }
 
+void DiffuseAndDecay(const FlipParticles& particles, float time_step,
+                     BlockArrangement* ba)
+{
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
+
+    DiffuseAndDecayKernel<<<grid, block>>>(particles, time_step);
+}
+
 void EmitParticles(const FlipParticles& particles, float3 center_point,
                    float3 hotspot, float radius, float density,
                    float temperature, uint random_seed, uint3 volume_size,
                    BlockArrangement* ba)
 {
-    const int kHeatLayerThickness = 2;
+    const int kHeatLayerThickness = 8;
     dim3 block(volume_size.x, kHeatLayerThickness, 1);
     dim3 grid;
     ba->ArrangeGrid(&grid, block, volume_size);

@@ -1405,15 +1405,26 @@ void TransferToGrid_iterative(cudaArray* vel_x, cudaArray* vel_y,
     dim3 grid((volume_size.x + block.x - 1) / block.x,
               (volume_size.y + block.y - 1) / block.y,
               1);
-        
-    for (int i = 0; i < 3; i++) {
-        TransferToGridKernel_iterative<1, false><<<grid, block>>>(particles, i,
-                                                                  aux,
-                                                                  volume_size);
+
+    int step = ba->GetSharedMemPerSMInKB() >= 96 ? 2 : 1;
+    int kMaxNumParticlesInCell = 4;
+    for (int i = 0; i < kMaxNumParticlesInCell - step; i += step) {
+        if (step == 1)
+            TransferToGridKernel_iterative<1, false><<<grid, block>>>(
+                particles, i, aux, volume_size);
+        else if (step == 2)
+            TransferToGridKernel_iterative<2, false><<<grid, block>>>(
+                particles, i, aux, volume_size);
+
         DCHECK_KERNEL();
     }
-    TransferToGridKernel_iterative<1, true><<<grid, block>>>(particles, 3, aux,
-                                                             volume_size);
+    if (step == 1)
+        TransferToGridKernel_iterative<1, true><<<grid, block>>>(
+            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+    else if (step == 2)
+        TransferToGridKernel_iterative<2, true><<<grid, block>>>(
+            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+
     DCHECK_KERNEL();
 }
 
@@ -1472,14 +1483,26 @@ void TransferToGrid_prune(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     dim3 grid((volume_size.x + block.x - 1) / block.x,
               (volume_size.y + block.y - 1) / block.y,
               1);
-        
-    for (int i = 0; i < 3; i++) {
-        TransferToGridKernel_prune<1, false><<<grid, block>>>(
-            particles, i, aux, volume_size);
+
+    int step = ba->GetSharedMemPerSMInKB() >= 96 ? 2 : 1;
+    int kMaxNumParticlesInCell = 4;
+    for (int i = 0; i < kMaxNumParticlesInCell - step; i += step) {
+        if (step == 1)
+            TransferToGridKernel_prune<1, false><<<grid, block>>>(
+                particles, i, aux, volume_size);
+        else if (step == 2)
+            TransferToGridKernel_prune<2, false><<<grid, block>>>(
+                particles, i, aux, volume_size);
+
         DCHECK_KERNEL();
     }
-    TransferToGridKernel_prune<1, true><<<grid, block>>>(
-        particles, 3, aux, volume_size);
+    if (step == 1)
+        TransferToGridKernel_prune<1, true><<<grid, block>>>(
+            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+    else if (step == 2)
+        TransferToGridKernel_prune<2, true><<<grid, block>>>(
+            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+
     DCHECK_KERNEL();
 }
 

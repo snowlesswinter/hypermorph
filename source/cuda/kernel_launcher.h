@@ -76,6 +76,7 @@ namespace kern_launcher
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
+extern void DiffuseAndDecay(const FlipParticles& particles, float time_step, BlockArrangement* ba);
 extern void EmitParticles(const FlipParticles& particles, float3 center_point, float3 hotspot, float radius, float density, float temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, BlockArrangement* ba);
 extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);

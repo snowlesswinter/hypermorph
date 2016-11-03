@@ -164,8 +164,8 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         static_cast<float>(sin(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
     float cos_factor =
         static_cast<float>(cos(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
-    float hotspot_x = cos_factor * splat_radius * 0.8f + pos.x;
-    float hotspot_z = sin_factor * splat_radius * 0.8f + pos.z;
+    float hotspot_x = pos.x; //cos_factor * splat_radius * 0.8f + pos.x;
+    float hotspot_z = pos.z; //sin_factor * splat_radius * 0.8f + pos.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
 
     bool do_impulse = false;
