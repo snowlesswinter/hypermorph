@@ -1,0 +1,41 @@
+poisson method = mgpcg
+advection method = flip
+grid size = (64,64,64)
+grid size = (128,384,128)
+grid size = (96,96,96)
+grid size = (96,252,96)
+ambient temperature = 0
+smoke buoyancy = 1
+smoke weight = 0.02
+
+temperature dissipation = 0.85
+velocity dissipation = 0.008
+density dissipation = 0.05
+
+number of jacobi iterations = 60
+num multigrid iterations = 2
+num full multigrid iterations = 1
+num mgpcg iterations = 3
+auto impulse = 1
+staggered = 1
+outflow = 1
+light intensity = 18
+light position = (1.4, 0.8, 1.6)
+num raycast samples = 200
+num raycast light samples = 110
+light absorption = 10
+raycast density factor = 40
+raycast occlusion factor = 8
+time stretch = 5
+vorticity confinement = -1
+
+impulse temperature = 0
+velocity dissipation = 0.55
+impulse density = 0
+density dissipation = 0.0
+splat radius factor = 0.2
+fixed time step = 0.03
+
+max num particles = 15000000
+impulse temperature = 26
+impulse density = 0.38
