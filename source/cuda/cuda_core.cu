@@ -530,18 +530,20 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
         return;
 
     float d = __half2float(density[i]);
-    int stride = 3;
+    int stride = 4;
 
     if (d > 0.015f) {
         uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
         buf[i * stride    ] = pos_x[i];
         buf[i * stride + 1] = pos_y[i];
         buf[i * stride + 2] = pos_z[i];
+        buf[i * stride + 3] = __float2half_rn(1.0f);
     } else {
         uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
         buf[i * stride    ] = 0;
         buf[i * stride + 1] = 0;
         buf[i * stride + 2] = 0;
+        buf[i * stride + 3] = __float2half_rn(1.0f);
     }
 }
 

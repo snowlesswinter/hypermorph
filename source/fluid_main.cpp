@@ -63,65 +63,85 @@ GLProgram blob_program_;
 
 #define STRINGIFY(A) #A
 
-// vertex shader
-const char *vertexShader = STRINGIFY(
+const char* blob_vs = STRINGIFY(
 
 in vec4 in_position;
-out float v_opacity;
-
-uniform mat4 mv_matrix;
-uniform mat4 mvp_matrix;
 
 void main()
 {
-    vec3 pos_in_eye_coord = vec3(mv_matrix * in_position);
+    gl_Position = vec4(in_position.xyz, 1.0f);
+}
+);
+
+const char* blob_gs = STRINGIFY(
+
+layout(points)           in;
+layout(triangle_strip)   out;
+layout(max_vertices = 4) out;
+
+uniform mat4 u_mv_matrix;
+uniform mat4 u_mvp_matrix;
+uniform vec3 u_hori;
+uniform vec3 u_vert;
+
+out vec2 gs_tex_coord;
+
+void main()
+{
+    vec4 pos = u_mvp_matrix * gl_in[0].gl_Position;
+
+    vec3 pos_in_eye_coord = vec3(u_mv_matrix * gl_in[0].gl_Position);
     float dist = length(pos_in_eye_coord);
-    gl_PointSize = 1000.0f / dist;
+    float blob_size = 3000.0f / dist;
 
-    gl_Position = mvp_matrix * in_position;
-    v_opacity = (dist - 500.0f) / 50.0f;
+    gl_Position = pos + vec4(-blob_size, -blob_size, 0, 0);
+    gs_tex_coord = vec2(0.0f, 0.0f);
+    EmitVertex();
+
+    gl_Position = pos + vec4(-blob_size, blob_size, 0, 0);
+    gs_tex_coord = vec2(0.0f, 1.0f);
+    EmitVertex();
+
+    gl_Position = pos + vec4(blob_size, -blob_size, 0, 0);
+    gs_tex_coord = vec2(1.0f, 0.0f);
+    EmitVertex();
+
+    gl_Position = pos + vec4(blob_size, blob_size, 0, 0);
+    gs_tex_coord = vec2(1.0f, 1.0f);
+    EmitVertex();
+
+    EndPrimitive();
 }
 );
 
-const char *geoShader = STRINGIFY(
+const char *blob_fs = STRINGIFY(
 
-in vec4 in_position;
-out float v_opacity;
+uniform mat4 u_mv_matrix;
+uniform vec3 u_light_dir;
 
-uniform mat4 mv_matrix;
-uniform mat4 mvp_matrix;
-
-void main()
-{
-    vec3 pos = gl_in[0].gl_Position.xyz;
-    gl_Position = mvp_matrix * vec4(pos, 1.0f);
-}
-);
-
-const char *spherePixelShader = STRINGIFY(
-in float v_opacity;
+in vec2 gs_tex_coord;
 out vec4 out_color;
+
 void main()
 {
-//     const vec3 lightDir = vec3(0.577, 0.577, 0.577);
-// 
-//     // calculate normal from texture coordinates
-//     vec3 N;
-//     N.xy = gl_TexCoord[0].xy*vec2(2.0, -2.0) + vec2(-1.0, 1.0);
-//     float mag = dot(N.xy, N.xy);
-// 
-//     if (mag > 1.0)
-//         discard;   // kill pixels outside circle
-// 
-//     N.z = sqrt(1.0 - mag);
-// 
-//     // calculate lighting
-//     float diffuse = max(0.0, dot(lightDir, N));
+    const vec3 light_dir = vec3(0.577, 0.577, 0.577);
+
+    vec3 blob_normal;
+    blob_normal.xy = gs_tex_coord.xy * 2.0f - 1.0f;
+    float mag = dot(blob_normal.xy, blob_normal.xy);
+    if (mag > 1.0f)
+        discard;
+
+    blob_normal.z = sqrt(1.0f - mag);
+
+    float diffuse = max(0.0f, dot(light_dir, blob_normal));
 
     vec4 color = vec4(134.0f, 186.0f, 245.0f, 255.0f) / 255.0f;
-    //color.a *= (1.0f - v_opacity);
 
-    out_color = color;// *v_opacity / 100;// gl_Color * diffuse;
+    color *= diffuse * 0.6f + 0.4f;
+    color.a = 1.0f;
+
+    out_color = color;
 }
 );
 
@@ -242,7 +262,7 @@ void UpdateFrame(unsigned int microseconds)
     glm::mat4 translate = glm::translate(
         glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
 
-    glm::vec3 eye(0.0f, 0.0f, 550.0f + trackball_->GetZoom());
+    glm::vec3 eye(0.0f, 0.0f, -550.0f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     float aspect_radio =
@@ -253,6 +273,8 @@ void UpdateFrame(unsigned int microseconds)
     persp = glm::perspective(kFieldOfView_, aspect_radio, -10.0f, 10.0f);
     mv = glm::lookAt(eye, target, up) *
         glm::mat4(trackball_->GetRotation()) * translate;
+//     mv = 
+//         translate * glm::mat4(trackball_->GetRotation()) * glm::lookAt(eye, target, up);
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -339,7 +361,6 @@ void RenderFrame()
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(0.3, (GLfloat)viewport_size_.x / (GLfloat)viewport_size_.y, -1.0, 3.0);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -349,17 +370,18 @@ void RenderFrame()
     glDisable(GL_CULL_FACE);
     glDisable(GL_ALPHA_TEST);
 
-    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
 
     blob_program_.Use();
-    blob_program_.SetUniform("mv_matrix", mv);
-    blob_program_.SetUniform("mvp_matrix", persp * mv);
+    blob_program_.SetUniform("u_mv_matrix", mv);
+    blob_program_.SetUniform("u_mvp_matrix", persp * mv);
+    blob_program_.SetUniform("u_light_dir",
+                             FluidConfig::Instance()->light_position());
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
-    glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
-    glVertexAttribPointer(SlotPosition, 3, GL_HALF_FLOAT, GL_FALSE,
+    glVertexPointer(4, GL_HALF_FLOAT, 0, 0);
+    glVertexAttribPointer(SlotPosition, 4, GL_HALF_FLOAT, GL_FALSE,
                           0, nullptr);
     glEnableVertexAttribArray(SlotPosition);
     glEnableClientState(GL_VERTEX_ARRAY);
@@ -629,7 +651,7 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
     
     point_vbo_ = CreateDynamicVbo(kNumParticles);
     CudaMain::Instance()->RegisterGLBuffer(point_vbo_);
-    blob_program_.Load(vertexShader, std::string(), spherePixelShader);
+    blob_program_.Load(blob_vs, blob_gs, blob_fs);
     // =========================================================================
 
     // register callbacks
