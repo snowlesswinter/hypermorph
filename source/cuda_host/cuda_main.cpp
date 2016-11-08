@@ -162,6 +162,7 @@ CudaMain::CudaMain()
         new FlipImplCuda(flip_ob_.get(), core_->block_arrangement(),
                          core_->buffer_manager(), core_->rand_helper()))
     , registerd_textures_()
+    , vbo_(new GraphicsResource(core_.get()))
 {
 
 }
@@ -212,6 +213,11 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
 
     core_->UnregisterGLResource(i->second.get());
     registerd_textures_.erase(i);
+}
+
+int CudaMain::RegisterGLBuffer(int vbo)
+{
+    return core_->RegisterGLBuffer(vbo, vbo_.get());
 }
 
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
@@ -703,4 +709,13 @@ void CudaMain::RoundPassed(int round)
 void CudaMain::Sync()
 {
     core_->Sync();
+}
+
+void CudaMain::CopyToVbo(uint32_t vbo, const FlipParticles* particles)
+{
+    core_->CopyToVbo(vbo, vbo_->Receive(), particles->position_x_->mem(),
+                     particles->position_y_->mem(),
+                     particles->position_z_->mem(), particles->density_->mem(),
+                     reinterpret_cast<int*>(particles->num_of_actives_->mem()),
+                     particles->num_of_particles_);
 }

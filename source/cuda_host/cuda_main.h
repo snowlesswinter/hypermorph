@@ -89,6 +89,8 @@ public:
                     std::shared_ptr<CudaVolume> source);
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
+    int RegisterGLBuffer(int vbo);
+    void UnregisterGBuffer(int vbo);
 
     void AdvectField(std::shared_ptr<CudaVolume> fnp1,
                      std::shared_ptr<CudaVolume> fn,
@@ -273,6 +275,9 @@ public:
     void RoundPassed(int round);
     void Sync();
 
+    // TODO:
+    void CopyToVbo(uint32_t vbo, const FlipParticles* particles);
+
 private:
     class FlipObserver;
 
@@ -284,6 +289,8 @@ private:
     std::unique_ptr<FlipImplCuda> flip_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
+
+    std::unique_ptr<GraphicsResource> vbo_;
 };
 
 #endif // _CUDA_MAIN_H_

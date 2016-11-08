@@ -45,7 +45,7 @@
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
-float kFieldOfView_ = 0.7f;
+float kFieldOfView_ = 0.2f;
 float kAspectRatio = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
@@ -56,6 +56,75 @@ FluidSimulator* sim_ = nullptr;
 VolumeRenderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 glm::ivec2 viewport_size_(0);
+GLuint point_vbo_ = 0;
+int kNumParticles = 4000000;
+GLProgram blob_program_;
+
+
+#define STRINGIFY(A) #A
+
+// vertex shader
+const char *vertexShader = STRINGIFY(
+
+in vec4 in_position;
+out float v_opacity;
+
+uniform mat4 mv_matrix;
+uniform mat4 mvp_matrix;
+
+void main()
+{
+    vec3 pos_in_eye_coord = vec3(mv_matrix * in_position);
+    float dist = length(pos_in_eye_coord);
+    gl_PointSize = 1000.0f / dist;
+
+    gl_Position = mvp_matrix * in_position;
+    v_opacity = (dist - 500.0f) / 50.0f;
+}
+);
+
+const char *geoShader = STRINGIFY(
+
+in vec4 in_position;
+out float v_opacity;
+
+uniform mat4 mv_matrix;
+uniform mat4 mvp_matrix;
+
+void main()
+{
+    vec3 pos = gl_in[0].gl_Position.xyz;
+    gl_Position = mvp_matrix * vec4(pos, 1.0f);
+}
+);
+
+const char *spherePixelShader = STRINGIFY(
+in float v_opacity;
+out vec4 out_color;
+void main()
+{
+//     const vec3 lightDir = vec3(0.577, 0.577, 0.577);
+// 
+//     // calculate normal from texture coordinates
+//     vec3 N;
+//     N.xy = gl_TexCoord[0].xy*vec2(2.0, -2.0) + vec2(-1.0, 1.0);
+//     float mag = dot(N.xy, N.xy);
+// 
+//     if (mag > 1.0)
+//         discard;   // kill pixels outside circle
+// 
+//     N.z = sqrt(1.0 - mag);
+// 
+//     // calculate lighting
+//     float diffuse = max(0.0, dot(lightDir, N));
+
+    vec4 color = vec4(134.0f, 186.0f, 245.0f, 255.0f) / 255.0f;
+    //color.a *= (1.0f - v_opacity);
+
+    out_color = color;// *v_opacity / 100;// gl_Color * diffuse;
+}
+);
+
 
 struct
 {
@@ -161,17 +230,29 @@ bool InitGraphics(int* argc, char** argv)
     return true;
 }
 
+glm::mat4 mv;
+glm::mat4 persp;
+
 void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
 
-    glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
+    glm::vec3 half_size = FluidConfig::Instance()->grid_size() / 2.0f;
+    glm::mat4 translate = glm::translate(
+        glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
+
+    glm::vec3 eye(0.0f, 0.0f, 550.0f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
-    renderer_->Update(
-        eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
-        glm::perspective(kFieldOfView_, kAspectRatio, 0.0f, 1.0f));
+    float aspect_radio =
+        static_cast<float>(viewport_size_.x) / viewport_size_.y;
+//     renderer_->Update(
+//         eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
+//         glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
+    persp = glm::perspective(kFieldOfView_, aspect_radio, -10.0f, 10.0f);
+    mv = glm::lookAt(eye, target, up) *
+        glm::mat4(trackball_->GetRotation()) * translate;
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -230,6 +311,7 @@ void DisplayMetrics()
     overlay_.RenderText(text.str(), viewport_size_.x, viewport_size_.y);
 }
 
+CudaMain::FlipParticles g_cmfp;
 void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
@@ -237,17 +319,63 @@ void RenderFrame()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
-    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     //glClearColor(0.6f, 0.6f, 0.6f, 0.6f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
-    renderer_->Render(sim_->GetDensityField(), focal_length);
+    //renderer_->Render(sim_->GetDensityField(), focal_length);
+
     Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
 
     DisplayMetrics();
+    //return;
+
+    // TODO ====================================================================
+    
+    CudaMain::Instance()->CopyToVbo(point_vbo_, &g_cmfp);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(0.3, (GLfloat)viewport_size_.x / (GLfloat)viewport_size_.y, -1.0, 3.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glDisable(GL_BLEND);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_ALPHA_TEST);
+
+    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+
+    blob_program_.Use();
+    blob_program_.SetUniform("mv_matrix", mv);
+    blob_program_.SetUniform("mvp_matrix", persp * mv);
+
+    glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
+    glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
+    glVertexAttribPointer(SlotPosition, 3, GL_HALF_FLOAT, GL_FALSE,
+                          0, nullptr);
+    glEnableVertexAttribArray(SlotPosition);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    glDrawArrays(GL_POINTS, 0, kNumParticles);
+    GLenum e = glGetError();
+    assert(e == GL_NO_ERROR);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_COLOR_ARRAY);
+
+    blob_program_.Unuse();
+    glDisable(GL_POINT_SPRITE);
+    glDisable(GL_DEPTH_TEST);
+    // =========================================================================
 }
 
 bool ResetRenderer()
@@ -445,7 +573,6 @@ bool Initialize()
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnableVertexAttribArray(SlotPosition);
 
     Metrics::Instance()->SetOperationSync(
         []() { glFinish(); CudaMain::Instance()->Sync(); });
@@ -497,6 +624,13 @@ int __stdcall WinMain(HINSTANCE inst, HINSTANCE ignore_me0, char* ignore_me1,
 
     if (!Initialize())
         Cleanup(EXIT_FAILURE);
+
+    // TODO ====================================================================
+    
+    point_vbo_ = CreateDynamicVbo(kNumParticles);
+    CudaMain::Instance()->RegisterGLBuffer(point_vbo_);
+    blob_program_.Load(vertexShader, std::string(), spherePixelShader);
+    // =========================================================================
 
     // register callbacks
     glutDisplayFunc(Display);

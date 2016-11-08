@@ -253,6 +253,7 @@ void FlipFluidSolver::SetPressureSolver(PoissonSolver* solver)
     pressure_solver_ = solver;
 }
 
+extern CudaMain::FlipParticles g_cmfp;
 void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
@@ -278,6 +279,8 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     Metrics::Instance()->OnBuoyancyApplied();
 
     CudaMain::Instance()->RoundPassed(frame_++);
+
+    SetCudaParticles(&g_cmfp, particles_);
 }
 
 bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
