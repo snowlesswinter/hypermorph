@@ -293,7 +293,7 @@ GLuint CreateDynamicVbo(int point_number)
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, point_number * 4 * sizeof(uint16_t), 0,
+    glBufferData(GL_ARRAY_BUFFER, point_number * 3 * sizeof(uint16_t), 0,
                  GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     return vbo;

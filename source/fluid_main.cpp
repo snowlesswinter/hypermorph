@@ -45,7 +45,7 @@
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
-float kFieldOfView_ = 0.2f;
+float kFieldOfView_ = 1.0f;
 float kAspectRatio = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
@@ -69,7 +69,7 @@ in vec4 in_position;
 
 void main()
 {
-    gl_Position = vec4(in_position.xyz, 1.0f);
+    gl_Position = in_position;
 }
 );
 
@@ -92,7 +92,7 @@ void main()
 
     vec3 pos_in_eye_coord = vec3(u_mv_matrix * gl_in[0].gl_Position);
     float dist = length(pos_in_eye_coord);
-    float blob_size = 3000.0f / dist;
+    float blob_size = 250.0f / dist;
 
     gl_Position = pos + vec4(-blob_size, -blob_size, 0, 0);
     gs_tex_coord = vec2(0.0f, 0.0f);
@@ -262,7 +262,7 @@ void UpdateFrame(unsigned int microseconds)
     glm::mat4 translate = glm::translate(
         glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
 
-    glm::vec3 eye(0.0f, 0.0f, -550.0f + trackball_->GetZoom());
+    glm::vec3 eye(0.0f, 0.0f, 150.0f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     float aspect_radio =
@@ -270,11 +270,9 @@ void UpdateFrame(unsigned int microseconds)
 //     renderer_->Update(
 //         eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
 //         glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
-    persp = glm::perspective(kFieldOfView_, aspect_radio, -10.0f, 10.0f);
+    persp = glm::perspective(kFieldOfView_, aspect_radio, -1.0f, 1.0f);
     mv = glm::lookAt(eye, target, up) *
         glm::mat4(trackball_->GetRotation()) * translate;
-//     mv = 
-//         translate * glm::mat4(trackball_->GetRotation()) * glm::lookAt(eye, target, up);
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -371,7 +369,7 @@ void RenderFrame()
     glDisable(GL_ALPHA_TEST);
 
     glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
 
     blob_program_.Use();
     blob_program_.SetUniform("u_mv_matrix", mv);
@@ -380,8 +378,8 @@ void RenderFrame()
                              FluidConfig::Instance()->light_position());
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
-    glVertexPointer(4, GL_HALF_FLOAT, 0, 0);
-    glVertexAttribPointer(SlotPosition, 4, GL_HALF_FLOAT, GL_FALSE,
+    glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
+    glVertexAttribPointer(SlotPosition, 3, GL_HALF_FLOAT, GL_FALSE,
                           0, nullptr);
     glEnableVertexAttribArray(SlotPosition);
     glEnableClientState(GL_VERTEX_ARRAY);
