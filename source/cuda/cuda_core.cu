@@ -526,7 +526,7 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
                                 int* num_of_active_particles)
 {
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= 4000000)
+    if (i >= 8000000)
         return;
 
     int stride = 3;

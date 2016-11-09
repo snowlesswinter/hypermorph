@@ -129,6 +129,8 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, viewport_size_.x, viewport_size_.y);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_BLEND);
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {

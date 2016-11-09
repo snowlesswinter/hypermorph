@@ -103,6 +103,7 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="graphics_linear_mem.h" />
+    <ClInclude Include="blob_renderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -185,5 +186,6 @@
     <ClCompile Include="fluid_solver\grid_fluid_solver.cpp">
       <Filter>fluid_solver</Filter>
     </ClCompile>
+    <ClCompile Include="blob_renderer.cpp" />
   </ItemGroup>
 </Project>

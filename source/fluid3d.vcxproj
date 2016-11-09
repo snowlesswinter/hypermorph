@@ -86,6 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="blob_renderer.h" />
     <ClInclude Include="cuda_host\cuda_linear_mem.h" />
     <ClInclude Include="cuda_host\cuda_mem_piece.h" />
     <ClInclude Include="fluid_config.h" />
@@ -125,6 +126,7 @@
     <ClInclude Include="volume_renderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="blob_renderer.cpp" />
     <ClCompile Include="cuda_host\cuda_linear_mem.cpp" />
     <ClCompile Include="cuda_host\cuda_mem_piece.cpp" />
     <ClCompile Include="fluid_config.cpp" />
