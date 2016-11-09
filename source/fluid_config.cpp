@@ -98,6 +98,11 @@ struct { CudaMain::FluidImpulse i_; char* desc_; } impulse_enum_desc[] = {
     {CudaMain::IMPULSE_FLYING_BALL, "fb"},
 };
 
+struct { RenderMode i_; char* desc_; } render_mode_desc[] = {
+    {RENDER_MODE_VOLUME, "vol"},
+    {RENDER_MODE_BLOB, "blob"},
+};
+
 template <typename T>
 std::istream& operator >>(std::istream& is, FluidConfig::ConfigField<T>& field)
 {
@@ -157,6 +162,21 @@ std::istream& operator >> <CudaMain::FluidImpulse>(
     std::getline(is, impulse);
     std::string lower_trimmed = to_lower(trimmed(impulse));
     for (auto i : impulse_enum_desc)
+        if (lower_trimmed == i.desc_)
+            field.value_ = i.i_;
+
+    return is;
+}
+
+template <>
+std::istream& operator >> <RenderMode>(
+    std::istream& is,
+    FluidConfig::ConfigField<RenderMode>& field)
+{
+    std::string mode;
+    std::getline(is, mode);
+    std::string lower_trimmed = to_lower(trimmed(mode));
+    for (auto i : render_mode_desc)
         if (lower_trimmed == i.desc_)
             field.value_ = i.i_;
 
@@ -246,6 +266,19 @@ std::ostream& operator << <CudaMain::FluidImpulse>(
 }
 
 template <>
+std::ostream& operator << <RenderMode>(
+    std::ostream& os,
+    FluidConfig::ConfigField<RenderMode>& field)
+{
+    os << field.desc_ << " = ";
+    for (auto i : render_mode_desc)
+        if (field.value_ == i.i_)
+            os << i.desc_;
+
+    return os;
+}
+
+template <>
 std::ostream& operator << <glm::vec3>(
     std::ostream& os, FluidConfig::ConfigField<glm::vec3>& field)
 {
@@ -306,6 +339,7 @@ FluidConfig::FluidConfig()
     , advection_method_(CudaMain::MACCORMACK_SEMI_LAGRANGIAN,
                         "advection method")
     , fluid_impluse_(CudaMain::IMPULSE_HOT_FLOOR, "fluid impulse")
+    , render_mode_(RENDER_MODE_VOLUME, "render mode")
     , light_color_(glm::vec3(171, 160, 139), "light color")
     , light_position_(glm::vec3(1.5f, 0.7f, 0.0f), "light position")
     , grid_size_(glm::vec3(128, 128, 128), "grid size")
@@ -384,6 +418,11 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
 
     if (lower_trimmed == fluid_impluse_.desc_) {
         value_stream >> fluid_impluse_;
+        return;
+    }
+
+    if (lower_trimmed == render_mode_.desc_) {
+        value_stream >> render_mode_;
         return;
     }
 
@@ -469,6 +508,7 @@ void FluidConfig::Store(std::ostream& stream)
     stream << poisson_method_ << std::endl;
     stream << advection_method_ << std::endl;
     stream << fluid_impluse_ << std::endl;
+    stream << render_mode_ << std::endl;
     stream << light_color_ << std::endl;
     stream << light_position_ << std::endl;
     stream << grid_size_ << std::endl;

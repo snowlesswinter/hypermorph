@@ -168,10 +168,6 @@ bool InitGraphics(int* argc, char** argv)
     return true;
 }
 
-glm::mat4 mv;
-glm::mat4 persp;
-
-
 void UpdateFrame(unsigned int microseconds)
 {
     float delta_time = microseconds * 0.000001f;
@@ -184,18 +180,21 @@ void UpdateFrame(unsigned int microseconds)
     float half_diag = sqrtf(half_size.x * half_size.x +
                             half_size.y * half_size.y +
                             half_size.z * half_size.z);
-    float eye_dist = half_diag / sinf(kFieldOfView_ / 2);
+    float eye_dist = half_diag / std::sinf(kFieldOfView_ / 2);
     float near_pos = eye_dist - half_diag;
     float far_pos = eye_dist + half_diag;
+
+    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_VOLUME)
+        eye_dist = 3.8f;
 
     glm::vec3 eye(0.0f, 0.0f, eye_dist + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     float aspect_radio =
         static_cast<float>(viewport_size_.x) / viewport_size_.y;
-//     volume_renderer_->Update(
-//         eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
-//         glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
+    volume_renderer_->Update(
+        eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
+        glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
 
     blob_renderer_->Update(
         eye, glm::mat4(trackball_->GetRotation()) * translate,
@@ -263,14 +262,17 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    
-    float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
-    //volume_renderer_->Render(sim_->GetDensityField(), focal_length);
-    blob_renderer_->Render();
+    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_BLOB) {
+        // FIXME:
+        float crit_density = FluidConfig::Instance()->impulse_density() / 10.0f;
+        CudaMain::Instance()->CopyToVbo(blob_renderer_->point_vbo(), &g_cmfp,
+                                        crit_density);
 
-    // FIXME:
-    CudaMain::Instance()->CopyToVbo(blob_renderer_->point_vbo(), &g_cmfp);
+        blob_renderer_->Render();
+    } else {
+        float focal_length = 1.0f / std::tanf(kFieldOfView_ / 2);
+        volume_renderer_->Render(sim_->GetDensityField(), focal_length);
+    }
 
     Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
@@ -481,10 +483,6 @@ bool Initialize()
                                             radius * 0.5f);
 
     Vbos.FullscreenQuad = CreateQuadVbo();
-
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     Metrics::Instance()->SetOperationSync(
         []() { glFinish(); CudaMain::Instance()->Sync(); });

@@ -711,11 +711,13 @@ void CudaMain::Sync()
     core_->Sync();
 }
 
-void CudaMain::CopyToVbo(uint32_t vbo, const FlipParticles* particles)
+void CudaMain::CopyToVbo(uint32_t vbo, const FlipParticles* particles,
+                         float crit_density)
 {
     core_->CopyToVbo(vbo, vbo_->Receive(), particles->position_x_->mem(),
                      particles->position_y_->mem(),
                      particles->position_z_->mem(), particles->density_->mem(),
+                     crit_density,
                      reinterpret_cast<int*>(particles->num_of_actives_->mem()),
                      particles->num_of_particles_);
 }

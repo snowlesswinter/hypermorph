@@ -27,6 +27,7 @@
 #include "cuda_host/cuda_main.h"
 #include "graphics_lib_enum.h"
 #include "fluid_simulator.h"
+#include "rendering.h"
 #include "third_party/glm/vec3.hpp"
 
 class FluidConfig
@@ -57,6 +58,7 @@ public:
     CudaMain::FluidImpulse fluid_impluse() const {
         return fluid_impluse_.value_;
     }
+    RenderMode render_mode() const { return render_mode_.value_; }
     glm::vec3 light_color() const { return light_color_.value_; }
     glm::vec3 light_position() const { return light_position_.value_; }
     glm::vec3 grid_size() const { return grid_size_.value_; }
@@ -122,6 +124,7 @@ private:
     ConfigField<PoissonSolverEnum> poisson_method_;
     ConfigField<CudaMain::AdvectionMethod> advection_method_;
     ConfigField<CudaMain::FluidImpulse> fluid_impluse_;
+    ConfigField<RenderMode> render_mode_;
     ConfigField<glm::vec3> light_color_;
     ConfigField<glm::vec3> light_position_;
     ConfigField<glm::vec3> grid_size_;

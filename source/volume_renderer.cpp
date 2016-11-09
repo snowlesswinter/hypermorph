@@ -132,12 +132,17 @@ void VolumeRenderer::Render(std::shared_ptr<GraphicsVolume> density_volume,
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         RenderImplCuda();
     } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
         RenderImplGlsl(density_volume, focal_length);
     }
+
+    glDisable(GL_BLEND);
 }
 
 void VolumeRenderer::Update(glm::vec3 eye_position, const glm::mat4& look_at,
@@ -184,8 +189,6 @@ void VolumeRenderer::RenderImplCuda()
     if (!surf_)
         return;
 
-    glEnable(GL_BLEND);
-
     render_texture_->Use();
     render_texture_->SetUniform("depth", 1.0f);
     render_texture_->SetUniform("sampler", 0);
@@ -197,8 +200,6 @@ void VolumeRenderer::RenderImplCuda()
     RenderMesh(*GetQuadMesh());
 
     glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_BLEND);
-
     render_texture_->Unuse();
 }
 

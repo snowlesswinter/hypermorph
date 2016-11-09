@@ -202,7 +202,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             i++, pos += step, travel -= step_size) {
         float density =
             tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
-        if (density < 0.01f)
+        if (density < 0.02f)
             continue;
 
         glm::vec3 light_dir = glm::normalize(light_pos - pos) * light_scale;
@@ -523,15 +523,17 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
 __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
                                 uint16_t* pos_z, uint16_t* density,
-                                int* num_of_active_particles)
+                                float crit_density,
+                                int* num_of_active_particles,
+                                int num_of_particles)
 {
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= 8000000)
+    if (i >= num_of_particles)
         return;
 
     int stride = 3;
     bool skip = i >= *num_of_active_particles ||
-        __half2float(density[i]) < 0.06f;
+        __half2float(density[i]) < crit_density;
 
     uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
     buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
@@ -542,14 +544,16 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
 namespace kern_launcher
 {
 void CopyToVbo(void* vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
-               uint16_t* density, int* num_of_active_particles,
-               int num_of_particles_, BlockArrangement* ba)
+               uint16_t* density, float crit_density,
+               int* num_of_active_particles, int num_of_particles,
+               BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
-    ba->ArrangeLinear(&grid, &block, num_of_particles_);
+    ba->ArrangeLinear(&grid, &block, num_of_particles);
     CopyToVboKernel<<<grid, block>>>(vbo, pos_x, pos_y, pos_z, density,
-                                     num_of_active_particles);
+                                     crit_density, num_of_active_particles,
+                                     num_of_particles);
     DCHECK_KERNEL();
 }
 }

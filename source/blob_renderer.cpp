@@ -186,18 +186,19 @@ void BlobRenderer::OnViewportSized(const glm::ivec2& viewport_size)
 
 void BlobRenderer::Render()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
-    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
+    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     glDisable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_CULL_FACE);
     glDisable(GL_ALPHA_TEST);
@@ -226,6 +227,7 @@ void BlobRenderer::Render()
     glDisableClientState(GL_VERTEX_ARRAY);
 
     blob_program->Unuse();
+    glDisable(GL_DEPTH_TEST);
 }
 
 void BlobRenderer::Update(const glm::vec3& eye_position,
@@ -237,7 +239,7 @@ void BlobRenderer::Update(const glm::vec3& eye_position,
     glm::mat4 look_at = glm::lookAt(eye_position, target, up);
     model_view_ = look_at * rotation;
     perspective_projection_ = perspective;
-    point_scale_ = 100.0f / tanf(fov_ / 2.0f);
+    point_scale_ = 100.0f / std::tanf(fov_ / 2.0f);
 }
 
 GLProgram* BlobRenderer::GetRenderProgram()

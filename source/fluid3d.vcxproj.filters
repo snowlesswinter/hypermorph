@@ -104,6 +104,7 @@
     </ClInclude>
     <ClInclude Include="graphics_linear_mem.h" />
     <ClInclude Include="blob_renderer.h" />
+    <ClInclude Include="rendering.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />

@@ -35,7 +35,6 @@ void main()
 
     vec4 c = texelFetch(sampler, coord, 0);
     frag_color = vec4(c.r, c.r, 0, c.r);
-    frag_color = vec4(0, 0, 0, c.r);
 }
 )";
 }

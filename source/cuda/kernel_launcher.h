@@ -73,7 +73,7 @@ extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
 // Particles.
 namespace kern_launcher
 {
-extern void CopyToVbo(void* vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z, uint16_t* density, int* num_of_active_particles, int num_of_particles_, BlockArrangement* ba);
+extern void CopyToVbo(void* vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z, uint16_t* density, float crit_density, int* num_of_active_particles, int num_of_particles, BlockArrangement* ba);
 
 
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);

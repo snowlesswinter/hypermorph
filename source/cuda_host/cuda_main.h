@@ -276,7 +276,8 @@ public:
     void Sync();
 
     // TODO:
-    void CopyToVbo(uint32_t vbo, const FlipParticles* particles);
+    void CopyToVbo(uint32_t vbo, const FlipParticles* particles,
+                   float crit_density);
 
 private:
     class FlipObserver;

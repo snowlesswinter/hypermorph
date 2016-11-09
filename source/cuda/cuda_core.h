@@ -78,7 +78,8 @@ public:
     // TODO:
     void CopyToVbo(uint32_t vbo, cudaGraphicsResource** res, uint16_t* pos_x,
                    uint16_t* pos_y, uint16_t* pos_z, uint16_t* density,
-                   int* num_of_active_particles, int num_of_particles);
+                   float crit_density, int* num_of_active_particles,
+                   int num_of_particles);
 
     BlockArrangement* block_arrangement() { return &block_arrangement_; }
     AuxBufferManager* buffer_manager() { return &buffer_manager_; }
