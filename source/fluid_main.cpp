@@ -46,7 +46,6 @@ int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
 float kFieldOfView_ = 1.0f;
-float kAspectRatio = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
@@ -64,11 +63,19 @@ GLProgram blob_program_;
 #define STRINGIFY(A) #A
 
 const char* blob_vs = STRINGIFY(
+    
+uniform mat4 u_mv_matrix;
+uniform float point_scale;
 
 in vec4 in_position;
+out float vs_blob_size;
 
 void main()
 {
+    vec3 pos_in_eye_coord = vec3(u_mv_matrix * in_position);
+    float dist = length(pos_in_eye_coord);
+    vs_blob_size = point_scale / dist;
+
     gl_Position = in_position;
 }
 );
@@ -79,28 +86,17 @@ layout(points)           in;
 layout(triangle_strip)   out;
 layout(max_vertices = 4) out;
 
-uniform mat4 u_mv_matrix;
 uniform mat4 u_mvp_matrix;
-uniform vec3 u_hori;
-uniform vec3 u_vert;
 
+in float vs_blob_size[];
 out vec2 gs_tex_coord;
+out float gs_z;
 
 void main()
 {
+    gs_z = gl_in[0].gl_Position.z;
     vec4 pos = u_mvp_matrix * gl_in[0].gl_Position;
-
-    vec3 pos_in_eye_coord = vec3(u_mv_matrix * gl_in[0].gl_Position);
-    float dist = length(pos_in_eye_coord);
-    float blob_size = 250.0f / dist;
-
-    gl_Position = pos + vec4(-blob_size, -blob_size, 0, 0);
-    gs_tex_coord = vec2(0.0f, 0.0f);
-    EmitVertex();
-
-    gl_Position = pos + vec4(-blob_size, blob_size, 0, 0);
-    gs_tex_coord = vec2(0.0f, 1.0f);
-    EmitVertex();
+    float blob_size = vs_blob_size[0];
 
     gl_Position = pos + vec4(blob_size, -blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 0.0f);
@@ -108,6 +104,14 @@ void main()
 
     gl_Position = pos + vec4(blob_size, blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 1.0f);
+    EmitVertex();
+
+    gl_Position = pos + vec4(-blob_size, -blob_size, 0, 0);
+    gs_tex_coord = vec2(0.0f, 0.0f);
+    EmitVertex();
+
+    gl_Position = pos + vec4(-blob_size, blob_size, 0, 0);
+    gs_tex_coord = vec2(0.0f, 1.0f);
     EmitVertex();
 
     EndPrimitive();
@@ -120,6 +124,7 @@ uniform mat4 u_mv_matrix;
 uniform vec3 u_light_dir;
 
 in vec2 gs_tex_coord;
+in float gs_z;
 out vec4 out_color;
 
 vec3 rgb2hsv(vec3 c)
@@ -142,7 +147,7 @@ vec3 hsv2rgb(vec3 c)
 
 void main()
 {
-    const vec3 light_dir = vec3(0.1, 0.75, 1.0);
+    const vec3 light_dir = vec3(0.3, 0.75, 1.0);
 
     vec3 blob_normal;
     blob_normal.xy = gs_tex_coord.xy * 2.0f - 1.0f;
@@ -154,25 +159,16 @@ void main()
 
     float diffuse = max(0.0f, dot(light_dir, blob_normal));
 
-    vec3 color1 = vec3(63.0f, 194.0f, 250.0f);
-    vec3 color2 = vec3(25.0f, 88.0f, 133.0f);
+    vec3 hsv_color = vec3(189.0f / 360.0f, 0.7f, 0.97f); // RGB: 74.0f, 222.0f, 247.0f
 
-    vec3 color3 = vec3(80.0f, 228.0f, 255.0f); // 126,240,158
-    vec3 color4 = vec3(63.0f, 178.0f, 239.0f); // 134,203,142
-    vec3 color5 = vec3(49.0f, 140.0f, 188.0f); // 134,141,112
-    vec3 hsv_color = rgb2hsv(color3);
+    hsv_color.x += (1.0f - gs_tex_coord.y) * (13.0f / 360.0f);
+    hsv_color.y += (1.0f - diffuse) * 0.09f;
+    hsv_color.z -= (1.0f - diffuse) * 0.4f;
 
-//     float alpha = (diffuse);
-//     vec3 color = color1 * alpha + color2 * (1.0f - alpha);
-    float hue_factor = 1.0f + (1.0f - diffuse * diffuse) * 0.0635f;
-    hsv_color.x *= min(hue_factor, 1.0635f);
-    hsv_color.y *= diffuse * 0.4f + 0.6f;
-    hsv_color.z *= diffuse * 0.3f + 0.7f;
-
-    out_color = vec4(hsv2rgb(hsv_color) / 255.0f, 1.0f);
+    hsv_color.x += (gs_z / 96.0f) * (130.0f / 360.0f);
+    out_color = vec4(hsv2rgb(hsv_color), 1.0f);
 }
 );
-
 
 struct
 {
@@ -280,6 +276,7 @@ bool InitGraphics(int* argc, char** argv)
 
 glm::mat4 mv;
 glm::mat4 persp;
+float point_scale_;
 
 void UpdateFrame(unsigned int microseconds)
 {
@@ -290,7 +287,14 @@ void UpdateFrame(unsigned int microseconds)
     glm::mat4 translate = glm::translate(
         glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
 
-    glm::vec3 eye(0.0f, 0.0f, 150.0f + trackball_->GetZoom());
+    float half_diag = sqrtf(half_size.x * half_size.x +
+                            half_size.y * half_size.y +
+                            half_size.z * half_size.z);
+    float eye_dist = half_diag / sinf(kFieldOfView_ / 2);
+    float near_pos = eye_dist - half_diag;
+    float far_pos = eye_dist + half_diag;
+
+    glm::vec3 eye(0.0f, 0.0f, eye_dist + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     float aspect_radio =
@@ -298,9 +302,11 @@ void UpdateFrame(unsigned int microseconds)
 //     renderer_->Update(
 //         eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
 //         glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
-    persp = glm::perspective(kFieldOfView_, aspect_radio, -1.0f, 1.0f);
+
+    persp = glm::perspective(kFieldOfView_, aspect_radio, near_pos, far_pos);
     mv = glm::lookAt(eye, target, up) *
         glm::mat4(trackball_->GetRotation()) * translate;
+    point_scale_ = 100.0f / tanf(kFieldOfView_ / 2);
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -367,9 +373,9 @@ void RenderFrame()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    //glClearColor(0.6f, 0.6f, 0.6f, 0.6f);
+    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
@@ -391,19 +397,19 @@ void RenderFrame()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glDisable(GL_BLEND);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
     glDisable(GL_ALPHA_TEST);
 
     glDepthMask(GL_TRUE);
-    glDisable(GL_DEPTH_TEST);
+    glClearDepth(1.0f);
+    glEnable(GL_DEPTH_TEST);
 
     blob_program_.Use();
     blob_program_.SetUniform("u_mv_matrix", mv);
     blob_program_.SetUniform("u_mvp_matrix", persp * mv);
-    blob_program_.SetUniform("u_light_dir",
-                             FluidConfig::Instance()->light_position());
+    blob_program_.SetUniform("point_scale", point_scale_);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
     glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
@@ -418,10 +424,8 @@ void RenderFrame()
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
 
     blob_program_.Unuse();
-    glDisable(GL_POINT_SPRITE);
     glDisable(GL_DEPTH_TEST);
     // =========================================================================
 }

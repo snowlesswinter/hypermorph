@@ -531,7 +531,7 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
 
     int stride = 3;
     bool skip = i >= *num_of_active_particles ||
-        __half2float(density[i]) < 0.03f;
+        __half2float(density[i]) < 0.06f;
 
     uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
     buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
