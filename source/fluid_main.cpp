@@ -122,9 +122,27 @@ uniform vec3 u_light_dir;
 in vec2 gs_tex_coord;
 out vec4 out_color;
 
+vec3 rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = c.g < c.b ? vec4(c.bg, K.wz) : vec4(c.gb, K.xy);
+    vec4 q = c.r < p.x ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
 void main()
 {
-    const vec3 light_dir = vec3(0.577, 0.577, 0.577);
+    const vec3 light_dir = vec3(0.1, 0.75, 1.0);
 
     vec3 blob_normal;
     blob_normal.xy = gs_tex_coord.xy * 2.0f - 1.0f;
@@ -136,12 +154,22 @@ void main()
 
     float diffuse = max(0.0f, dot(light_dir, blob_normal));
 
-    vec4 color = vec4(134.0f, 186.0f, 245.0f, 255.0f) / 255.0f;
+    vec3 color1 = vec3(63.0f, 194.0f, 250.0f);
+    vec3 color2 = vec3(25.0f, 88.0f, 133.0f);
 
-    color *= diffuse * 0.6f + 0.4f;
-    color.a = 1.0f;
+    vec3 color3 = vec3(80.0f, 228.0f, 255.0f); // 126,240,158
+    vec3 color4 = vec3(63.0f, 178.0f, 239.0f); // 134,203,142
+    vec3 color5 = vec3(49.0f, 140.0f, 188.0f); // 134,141,112
+    vec3 hsv_color = rgb2hsv(color3);
 
-    out_color = color;
+//     float alpha = (diffuse);
+//     vec3 color = color1 * alpha + color2 * (1.0f - alpha);
+    float hue_factor = 1.0f + (1.0f - diffuse * diffuse) * 0.0635f;
+    hsv_color.x *= min(hue_factor, 1.0635f);
+    hsv_color.y *= diffuse * 0.4f + 0.6f;
+    hsv_color.z *= diffuse * 0.3f + 0.7f;
+
+    out_color = vec4(hsv2rgb(hsv_color) / 255.0f, 1.0f);
 }
 );
 

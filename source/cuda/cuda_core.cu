@@ -529,22 +529,14 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
     if (i >= 4000000)
         return;
 
-    float d = __half2float(density[i]);
     int stride = 3;
+    bool skip = i >= *num_of_active_particles ||
+        __half2float(density[i]) < 0.03f;
 
-    if (d > 0.015f) {
-        uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
-        buf[i * stride    ] = pos_x[i];
-        buf[i * stride + 1] = pos_y[i];
-        buf[i * stride + 2] = pos_z[i];
-        //buf[i * stride + 3] = __float2half_rn(1.0f);
-    } else {
-        uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
-        buf[i * stride    ] = 0;
-        buf[i * stride + 1] = 0;
-        buf[i * stride + 2] = 0;
-        //buf[i * stride + 3] = __float2half_rn(1.0f);
-    }
+    uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
+    buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
+    buf[i * stride + 1] = pos_y[i];
+    buf[i * stride + 2] = pos_z[i];
 }
 
 namespace kern_launcher
