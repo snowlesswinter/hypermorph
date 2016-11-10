@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "fluid_solver.h"
+#include "fluid_buffer_owner.h"
 #include "graphics_linear_mem.h"
 #include "third_party/glm/vec3.hpp"
 
@@ -33,12 +34,13 @@ class GraphicsVolume;
 class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
-class FlipFluidSolver : public FluidSolver
+class FlipFluidSolver : public FluidSolver, public FluidBufferOwner
 {
 public:
     explicit FlipFluidSolver(int max_num_particles);
     virtual ~FlipFluidSolver();
 
+    // Overridden from FluidSolver:
     virtual void Impulse(GraphicsVolume* density, float splat_radius,
                          const glm::vec3& impulse_position,
                          const glm::vec3& hotspot, float impulse_density,
@@ -49,6 +51,18 @@ public:
     virtual void SetDiagnosis(int diagnosis) override;
     virtual void SetPressureSolver(PoissonSolver* solver) override;
     virtual void Solve(GraphicsVolume* density, float delta_time) override;
+
+    // Overridden from FluidBufferOwner:
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
+    virtual GraphicsVolume* GetDensityVolume() override;
+    virtual GraphicsLinearMemU16* GetParticleDensityField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosXField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosYField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosZField() override;
+    virtual GraphicsVolume* GetTemperatureVolume() override;
+    virtual bool InitBuffers(GraphicsLib graphics_lib, int width, int height,
+                             int depth) override;
+    virtual void ResetBuffers() override;
 
 private:
     struct FlipParticles;

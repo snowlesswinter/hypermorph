@@ -105,6 +105,9 @@
     <ClInclude Include="graphics_linear_mem.h" />
     <ClInclude Include="blob_renderer.h" />
     <ClInclude Include="rendering.h" />
+    <ClInclude Include="fluid_solver\fluid_buffer_owner.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />

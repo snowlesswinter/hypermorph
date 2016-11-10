@@ -24,6 +24,9 @@
 
 #include "cuda_host/cuda_main.h"
 #include "fluid_config.h"
+#include "fluid_solver/fluid_buffer_owner.h"
+#include "graphics_linear_mem.h"
+#include "graphics_mem_piece.h"
 #include "graphics_volume.h"
 #include "opengl/gl_program.h"
 #include "utility.h"
@@ -184,8 +187,17 @@ void BlobRenderer::OnViewportSized(const glm::ivec2& viewport_size)
     viewport_size_ = viewport_size;
 }
 
-void BlobRenderer::Render()
+void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
 {
+    CudaMain::Instance()->CopyToVbo(
+        point_vbo_,
+        buf_owner->GetParticlePosXField()->cuda_linear_mem(),
+        buf_owner->GetParticlePosYField()->cuda_linear_mem(),
+        buf_owner->GetParticlePosZField()->cuda_linear_mem(),
+        buf_owner->GetParticleDensityField()->cuda_linear_mem(),
+        buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
+        crit_density, FluidConfig::Instance()->max_num_particles());
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 

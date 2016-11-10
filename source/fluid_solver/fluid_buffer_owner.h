@@ -19,49 +19,33 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _BLOB_RENDERER_H_
-#define _BLOB_RENDERER_H_
-
-#include <memory>
+#ifndef _FLUID_BUFFER_OWNER_H_
+#define _FLUID_BUFFER_OWNER_H_
 
 #include "graphics_lib_enum.h"
-#include "third_party/glm/mat4x4.hpp"
-#include "third_party/glm/vec2.hpp"
-#include "third_party/glm/vec3.hpp"
 
-class FluidBufferOwner;
-class GLProgram;
-class GLSurface;
+class GraphicsLinearMemU16;
+class GraphicsMemPiece;
 class GraphicsVolume;
-class BlobRenderer
+class PoissonSolver;
+class FluidBufferOwner
 {
 public:
-    BlobRenderer();
-    ~BlobRenderer();
+    virtual ~FluidBufferOwner() {}
 
-    bool Init(int particle_count, const glm::ivec2& viewport_size);
-    void OnViewportSized(const glm::ivec2& viewport_size);
-    void Render(FluidBufferOwner* buf_owner, float crit_density);
-    void Update(const glm::vec3& eye_position, const glm::mat4& rotation,
-                const glm::mat4& perspective);
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() = 0;
+    virtual GraphicsVolume* GetDensityVolume() = 0;
+    virtual GraphicsLinearMemU16* GetParticleDensityField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosXField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosZField() = 0;
+    virtual GraphicsVolume* GetTemperatureVolume() = 0;
+    virtual bool InitBuffers(GraphicsLib graphics_lib, int width, int height,
+                             int depth) = 0;
+    virtual void ResetBuffers() = 0;
 
-    void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
-    void set_fov(float fov) { fov_ = fov; }
-
-private:
-    GLProgram* GetRenderProgram();
-
-    GraphicsLib graphics_lib_;
-    glm::ivec2 viewport_size_;
-
-    int particle_count_;
-    float fov_;
-    glm::mat4 model_view_;
-    glm::mat4 perspective_projection_;
-    float point_scale_;
-
-    std::shared_ptr<GLProgram> prog_;
-    uint32_t point_vbo_;
+protected:
+    FluidBufferOwner() {}
 };
 
-#endif // _BLOB_RENDERER_H_
+#endif // _FLUID_BUFFER_OWNER_H_

@@ -251,6 +251,12 @@ public:
                         const glm::ivec3& volume_size);
 
     // Rendering
+    void CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+                   std::shared_ptr<CudaLinearMemU16> pos_y,
+                   std::shared_ptr<CudaLinearMemU16> pos_z,
+                   std::shared_ptr<CudaLinearMemU16> density,
+                   std::shared_ptr<CudaMemPiece> num_of_actives,
+                   float crit_density, int num_of_particles);
     void Raycast(std::shared_ptr<GLSurface> dest,
                  std::shared_ptr<CudaVolume> density,
                  const glm::mat4& model_view, const glm::vec3& eye_pos,
@@ -274,10 +280,6 @@ public:
                      const std::string& name);
     void RoundPassed(int round);
     void Sync();
-
-    // TODO:
-    void CopyToVbo(uint32_t vbo, const FlipParticles* particles,
-                   float crit_density);
 
 private:
     class FlipObserver;

@@ -582,6 +582,19 @@ void CudaMain::ResetParticles(FlipParticles* particles,
     flip_impl_->Reset(ToCudaFlipParticles(*particles), volume_size);
 }
 
+void CudaMain::CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+                         std::shared_ptr<CudaLinearMemU16> pos_y,
+                         std::shared_ptr<CudaLinearMemU16> pos_z,
+                         std::shared_ptr<CudaLinearMemU16> density,
+                         std::shared_ptr<CudaMemPiece> num_of_actives,
+                         float crit_density, int num_of_particles)
+{
+    core_->CopyToVbo(vbo, vbo_->Receive(), pos_x->mem(), pos_y->mem(),
+                     pos_z->mem(), density->mem(), crit_density,
+                     reinterpret_cast<int*>(num_of_actives->mem()),
+                     num_of_particles);
+}
+
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                        std::shared_ptr<CudaVolume> density,
                        const glm::mat4& model_view, const glm::vec3& eye_pos,
@@ -709,15 +722,4 @@ void CudaMain::RoundPassed(int round)
 void CudaMain::Sync()
 {
     core_->Sync();
-}
-
-void CudaMain::CopyToVbo(uint32_t vbo, const FlipParticles* particles,
-                         float crit_density)
-{
-    core_->CopyToVbo(vbo, vbo_->Receive(), particles->position_x_->mem(),
-                     particles->position_y_->mem(),
-                     particles->position_z_->mem(), particles->density_->mem(),
-                     crit_density,
-                     reinterpret_cast<int*>(particles->num_of_actives_->mem()),
-                     particles->num_of_particles_);
 }

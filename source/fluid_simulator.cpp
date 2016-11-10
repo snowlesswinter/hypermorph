@@ -51,6 +51,7 @@ FluidSimulator::FluidSimulator()
     , data_byte_width_(2)
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , fluid_solver_()
+    , buf_owner_(nullptr)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
     , pressure_solver_()
@@ -280,12 +281,14 @@ std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
 FluidSolver* FluidSimulator::GetFluidSolver()
 {
     if (!fluid_solver_) {
-        if (FluidConfig::Instance()->advection_method() == CudaMain::FLIP)
-            fluid_solver_.reset(
-                new FlipFluidSolver(
-                    FluidConfig::Instance()->max_num_particles()));
-        else
+        if (FluidConfig::Instance()->advection_method() == CudaMain::FLIP) {
+            FlipFluidSolver* solver = new FlipFluidSolver(
+                FluidConfig::Instance()->max_num_particles());
+            fluid_solver_.reset(solver);
+            buf_owner_ = solver;
+        } else {
             fluid_solver_.reset(new GridFluidSolver());
+        }
     }
 
     return fluid_solver_.get();

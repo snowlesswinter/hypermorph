@@ -263,12 +263,8 @@ void RenderFrame()
     Metrics::Instance()->OnFrameRenderingBegins();
 
     if (FluidConfig::Instance()->render_mode() == RENDER_MODE_BLOB) {
-        // FIXME:
         float crit_density = FluidConfig::Instance()->impulse_density() / 10.0f;
-        CudaMain::Instance()->CopyToVbo(blob_renderer_->point_vbo(), &g_cmfp,
-                                        crit_density);
-
-        blob_renderer_->Render();
+        blob_renderer_->Render(sim_->buf_owner(), crit_density);
     } else {
         float focal_length = 1.0f / std::tanf(kFieldOfView_ / 2);
         volume_renderer_->Render(sim_->GetDensityField(), focal_length);

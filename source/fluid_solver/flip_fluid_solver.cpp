@@ -118,6 +118,7 @@ struct FlipFluidSolver::FlipParticles
 
 FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     : FluidSolver()
+    , FluidBufferOwner()
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
     , max_num_particles_(max_num_particles)
@@ -281,6 +282,52 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     CudaMain::Instance()->RoundPassed(frame_++);
 
     SetCudaParticles(&g_cmfp, particles_);
+}
+
+GraphicsMemPiece* FlipFluidSolver::GetActiveParticleCountMemPiece()
+{
+    return particles_->num_of_actives_.get();
+}
+
+GraphicsVolume* FlipFluidSolver::GetDensityVolume()
+{
+    return nullptr;
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticleDensityField()
+{
+    return particles_->density_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosXField()
+{
+    return particles_->position_x_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosYField()
+{
+    return particles_->position_y_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosZField()
+{
+    return particles_->position_z_.get();
+}
+
+GraphicsVolume* FlipFluidSolver::GetTemperatureVolume()
+{
+    return temperature_.get();
+}
+
+bool FlipFluidSolver::InitBuffers(GraphicsLib graphics_lib, int width,
+                                  int height, int depth)
+{
+    return true;
+}
+
+void FlipFluidSolver::ResetBuffers()
+{
+
 }
 
 bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,

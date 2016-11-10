@@ -70,7 +70,15 @@ private:
 };
 
 typedef GraphicsLinearMem<uint8_t> GraphicsLinearMemU8;
-typedef GraphicsLinearMem<uint16_t> GraphicsLinearMemU16;
 typedef GraphicsLinearMem<uint32_t> GraphicsLinearMemU32;
+
+class GraphicsLinearMemU16 : public GraphicsLinearMem<uint16_t>
+{
+public:
+    explicit GraphicsLinearMemU16(GraphicsLib lib)
+        : GraphicsLinearMem<uint16_t>(lib)
+    {
+    }
+};
 
 #endif // _GRAPHICS_LINEAR_MEM_H_

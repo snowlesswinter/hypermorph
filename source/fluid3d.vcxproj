@@ -94,6 +94,7 @@
     <ClInclude Include="cuda_host\cuda_volume.h" />
     <ClInclude Include="fluid_simulator.h" />
     <ClInclude Include="fluid_solver\flip_fluid_solver.h" />
+    <ClInclude Include="fluid_solver\fluid_buffer_owner.h" />
     <ClInclude Include="fluid_solver\fluid_solver.h" />
     <ClInclude Include="fluid_solver\grid_fluid_solver.h" />
     <ClInclude Include="graphics_lib_enum.h" />
