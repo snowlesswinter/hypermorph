@@ -86,7 +86,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="blob_renderer.h" />
     <ClInclude Include="cuda_host\cuda_linear_mem.h" />
     <ClInclude Include="cuda_host\cuda_mem_piece.h" />
     <ClInclude Include="fluid_config.h" />
@@ -117,8 +116,10 @@
     <ClInclude Include="poisson_solver\poisson_solver.h" />
     <ClInclude Include="poisson_solver\poisson_solver_enum.h" />
     <ClInclude Include="poisson_solver\preconditioned_conjugate_gradient.h" />
+    <ClInclude Include="renderer\blob_renderer.h" />
     <ClInclude Include="renderer\renderer.h" />
-    <ClInclude Include="rendering.h" />
+    <ClInclude Include="renderer\rendering.h" />
+    <ClInclude Include="renderer\volume_renderer.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
     <ClInclude Include="shader\overlay_shader.h" />
@@ -126,10 +127,8 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="trackball.h" />
     <ClInclude Include="utility.h" />
-    <ClInclude Include="volume_renderer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="blob_renderer.cpp" />
     <ClCompile Include="cuda_host\cuda_linear_mem.cpp" />
     <ClCompile Include="cuda_host\cuda_mem_piece.cpp" />
     <ClCompile Include="fluid_config.cpp" />
@@ -156,7 +155,9 @@
     <ClCompile Include="poisson_solver\poisson_core_glsl.cpp" />
     <ClCompile Include="poisson_solver\poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\preconditioned_conjugate_gradient.cpp" />
+    <ClCompile Include="renderer\blob_renderer.cpp" />
     <ClCompile Include="renderer\renderer.cpp" />
+    <ClCompile Include="renderer\volume_renderer.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />
@@ -167,7 +168,6 @@
     </ClCompile>
     <ClCompile Include="trackball.cpp" />
     <ClCompile Include="utility.cpp" />
-    <ClCompile Include="volume_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="cuda\cuda.vcxproj">

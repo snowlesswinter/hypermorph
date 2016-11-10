@@ -27,7 +27,7 @@
 #include "cuda_host/cuda_main.h"
 #include "graphics_lib_enum.h"
 #include "fluid_simulator.h"
-#include "rendering.h"
+#include "renderer/rendering.h"
 #include "third_party/glm/vec3.hpp"
 
 class FluidConfig

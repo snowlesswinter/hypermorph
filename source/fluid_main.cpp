@@ -24,7 +24,6 @@
 #include <sstream>
 #include <numeric>
 
-#include "blob_renderer.h"
 #include "config_file_watcher.h"
 #include "cuda_host/cuda_main.h"
 #include "fluid_config.h"
@@ -34,6 +33,8 @@
 #include "opengl/gl_program.h"
 #include "opengl/gl_volume.h"
 #include "overlay_content.h"
+#include "renderer/blob_renderer.h"
+#include "renderer/volume_renderer.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
 #include "third_party/glm/gtc/matrix_transform.hpp"
@@ -41,7 +42,6 @@
 #include "third_party/opengl/glew.h"
 #include "trackball.h"
 #include "utility.h"
-#include "volume_renderer.h"
 
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
