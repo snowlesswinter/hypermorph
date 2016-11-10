@@ -117,6 +117,7 @@
     <ClInclude Include="poisson_solver\poisson_solver.h" />
     <ClInclude Include="poisson_solver\poisson_solver_enum.h" />
     <ClInclude Include="poisson_solver\preconditioned_conjugate_gradient.h" />
+    <ClInclude Include="renderer\renderer.h" />
     <ClInclude Include="rendering.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
@@ -155,6 +156,7 @@
     <ClCompile Include="poisson_solver\poisson_core_glsl.cpp" />
     <ClCompile Include="poisson_solver\poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\preconditioned_conjugate_gradient.cpp" />
+    <ClCompile Include="renderer\renderer.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />

@@ -16,6 +16,9 @@
     <Filter Include="fluid_solver">
       <UniqueIdentifier>{7557b4dc-e5d5-4ff9-bd61-b96374e488ee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="renderer">
+      <UniqueIdentifier>{b08a4be7-a7c9-4a0e-afe4-06c20ebf376e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -108,6 +111,9 @@
     <ClInclude Include="fluid_solver\fluid_buffer_owner.h">
       <Filter>fluid_solver</Filter>
     </ClInclude>
+    <ClInclude Include="renderer\renderer.h">
+      <Filter>renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -191,5 +197,8 @@
       <Filter>fluid_solver</Filter>
     </ClCompile>
     <ClCompile Include="blob_renderer.cpp" />
+    <ClCompile Include="renderer\renderer.cpp">
+      <Filter>renderer</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

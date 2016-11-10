@@ -23,7 +23,6 @@
 #include "blob_renderer.h"
 
 #include "cuda_host/cuda_main.h"
-#include "fluid_config.h"
 #include "fluid_solver/fluid_buffer_owner.h"
 #include "graphics_linear_mem.h"
 #include "graphics_mem_piece.h"
@@ -101,6 +100,7 @@ in vec2 gs_tex_coord;
 in float gs_z;
 out vec4 out_color;
 
+// HSV <-> RGB conversion from http://lolengine.net/blog/2013/07/27/rgb-to-hsv-in-glsl
 vec3 rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -148,12 +148,10 @@ void main()
 } // Anonymous namespace.
 
 BlobRenderer::BlobRenderer()
-    : graphics_lib_(GRAPHICS_LIB_CUDA)
-    , viewport_size_(0)
+    : Renderer()
     , particle_count_(0)
-    , fov_(1.0f)
-    , model_view_()
-    , perspective_projection_()
+    , model_view_proj_()
+    , perspective_proj_()
     , point_scale_(1.0f)
     , prog_()
     , point_vbo_(0)
@@ -168,26 +166,7 @@ BlobRenderer::~BlobRenderer()
     }
 }
 
-bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
-{
-    particle_count_ = particle_count;
-    viewport_size_ = viewport_size;
-
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        point_vbo_ = CreateDynamicVbo(particle_count);
-        CudaMain::Instance()->RegisterGLBuffer(point_vbo_);
-        return true;
-    }
-
-    return true;
-}
-
-void BlobRenderer::OnViewportSized(const glm::ivec2& viewport_size)
-{
-    viewport_size_ = viewport_size;
-}
-
-void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
+void BlobRenderer::Render(FluidBufferOwner* buf_owner)
 {
     CudaMain::Instance()->CopyToVbo(
         point_vbo_,
@@ -196,7 +175,7 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
         buf_owner->GetParticlePosZField()->cuda_linear_mem(),
         buf_owner->GetParticleDensityField()->cuda_linear_mem(),
         buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
-        crit_density, FluidConfig::Instance()->max_num_particles());
+        crit_density_, particle_count_);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -205,7 +184,7 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
     glLoadIdentity();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
+    glViewport(0, 0, viewport_size().x, viewport_size().y);
     glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -221,9 +200,9 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
 
     GLProgram* blob_program = GetRenderProgram();
     blob_program->Use();
-    blob_program->SetUniform("u_mv_matrix", model_view_);
+    blob_program->SetUniform("u_mv_matrix", model_view_proj_);
     blob_program->SetUniform("u_mvp_matrix",
-                             perspective_projection_ * model_view_);
+                             perspective_proj_ * model_view_proj_);
     blob_program->SetUniform("point_scale", point_scale_);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
@@ -242,16 +221,46 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner, float crit_density)
     glDisable(GL_DEPTH_TEST);
 }
 
-void BlobRenderer::Update(const glm::vec3& eye_position,
-                          const glm::mat4& rotation,
-                          const glm::mat4& perspective)
+void BlobRenderer::Update(float zoom, const glm::mat4& rotation)
 {
+    glm::vec3 half_size = grid_size() * 0.5f;
+    glm::mat4 translate = glm::translate(
+        glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
+
+    float half_diag = glm::length(half_size);
+
+    // Make sure the camera is able to capture every corner however the
+    // rotation goes.
+    float eye_dist     = half_diag / std::sinf(fov() / 2.0f);
+    float near_pos     = eye_dist - half_diag;
+    float far_pos      = eye_dist + half_diag;
+    float aspect_ratio =
+        static_cast<float>(viewport_size().x) / viewport_size().y;
+
+    glm::vec3 eye(0.0f, 0.0f, eye_dist + zoom);
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
-    glm::mat4 look_at = glm::lookAt(eye_position, target, up);
-    model_view_ = look_at * rotation;
-    perspective_projection_ = perspective;
-    point_scale_ = 100.0f / std::tanf(fov_ / 2.0f);
+    glm::mat4 look_at = glm::lookAt(eye, target, up);
+
+    model_view_proj_ = look_at * rotation * translate;
+    perspective_proj_ = glm::perspective(fov(), aspect_ratio, near_pos,
+                                         far_pos);
+
+    point_scale_ = 100.0f / std::tanf(fov() / 2.0f);
+}
+
+bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
+{
+    particle_count_ = particle_count;
+    OnViewportSized(viewport_size);
+
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
+        point_vbo_ = CreateDynamicVbo(particle_count);
+        CudaMain::Instance()->RegisterGLBuffer(point_vbo_);
+        return true;
+    }
+
+    return true;
 }
 
 GLProgram* BlobRenderer::GetRenderProgram()

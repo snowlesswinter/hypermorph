@@ -53,8 +53,7 @@ LARGE_INTEGER time_freq_;
 LARGE_INTEGER prev_time_;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
-VolumeRenderer* volume_renderer_ = nullptr;
-BlobRenderer* blob_renderer_ = nullptr;
+Renderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 glm::ivec2 viewport_size_(0);
 
@@ -66,14 +65,9 @@ struct
 
 void Cleanup(int exit_code)
 {
-    if (volume_renderer_) {
-        delete volume_renderer_;
-        volume_renderer_ = nullptr;
-    }
-
-    if (blob_renderer_) {
-        delete blob_renderer_;
-        blob_renderer_ = nullptr;
+    if (renderer_) {
+        delete renderer_;
+        renderer_ = nullptr;
     }
 
     if (watcher_) {
@@ -173,32 +167,8 @@ void UpdateFrame(unsigned int microseconds)
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
 
-    glm::vec3 half_size = FluidConfig::Instance()->grid_size() / 2.0f;
-    glm::mat4 translate = glm::translate(
-        glm::mat4(), glm::vec3(-half_size.x, -half_size.y, -half_size.z));
-
-    float half_diag = sqrtf(half_size.x * half_size.x +
-                            half_size.y * half_size.y +
-                            half_size.z * half_size.z);
-    float eye_dist = half_diag / std::sinf(kFieldOfView_ / 2);
-    float near_pos = eye_dist - half_diag;
-    float far_pos = eye_dist + half_diag;
-
-    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_VOLUME)
-        eye_dist = 3.8f;
-
-    glm::vec3 eye(0.0f, 0.0f, eye_dist + trackball_->GetZoom());
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
-    glm::vec3 target(0.0f);
-    float aspect_radio =
-        static_cast<float>(viewport_size_.x) / viewport_size_.y;
-    volume_renderer_->Update(
-        eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
-        glm::perspective(kFieldOfView_, aspect_radio, 0.0f, 1.0f));
-
-    blob_renderer_->Update(
-        eye, glm::mat4(trackball_->GetRotation()) * translate,
-        glm::perspective(kFieldOfView_, aspect_radio, near_pos, far_pos));
+    renderer_->Update(trackball_->GetZoom(),
+                      glm::mat4(trackball_->GetRotation()));
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -261,37 +231,40 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
-    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_BLOB) {
-        float crit_density = FluidConfig::Instance()->impulse_density() / 10.0f;
-        blob_renderer_->Render(sim_->buf_owner(), crit_density);
-    } else {
-        float focal_length = 1.0f / std::tanf(kFieldOfView_ / 2);
-        volume_renderer_->Render(sim_->buf_owner(), focal_length);
-    }
+    renderer_->Render(sim_->buf_owner());
 
-    Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
-
     DisplayMetrics();
 }
 
 bool ResetRenderer()
 {
-    if (volume_renderer_)
-        delete volume_renderer_;
+    if (renderer_)
+        delete renderer_;
 
-    volume_renderer_ = new VolumeRenderer();
-    volume_renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
-    bool result = volume_renderer_->Init(viewport_size_);
+    VolumeRenderer* vr = nullptr;
+    BlobRenderer* br = nullptr;
+    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_VOLUME) {
+        vr = new VolumeRenderer();
+        renderer_ = vr;
+    } else {
+        br = new BlobRenderer();
+        renderer_ = br;
+    }
 
-    if (blob_renderer_)
-        delete blob_renderer_;
+    renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
+    renderer_->set_grid_size(FluidConfig::Instance()->grid_size());
+    renderer_->set_fov(kFieldOfView_);
 
-    blob_renderer_ = new BlobRenderer();
-    blob_renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
-    blob_renderer_->set_fov(kFieldOfView_);
-    result &= blob_renderer_->Init(FluidConfig::Instance()->max_num_particles(),
-                                   viewport_size_);
+    bool result = true;
+    if (br) {
+        br->set_crit_density(FluidConfig::Instance()->impulse_density() * 0.1f);
+        result &= br->Init(FluidConfig::Instance()->max_num_particles(),
+                           viewport_size_);
+    } 
+
+    if (vr)
+        result &= vr->Init(viewport_size_);
 
     return result;
 }
@@ -328,8 +301,13 @@ void Display()
     prev_time_ = currentTime;
 
     if (watcher_->file_modified()) {
+        RenderMode old_mode = FluidConfig::Instance()->render_mode();
+
         FluidConfig::Instance()->Reload();
         watcher_->ResetState();
+
+        if (old_mode != FluidConfig::Instance()->render_mode())
+            ResetRenderer();
 
         sim_->NotifyConfigChanged();
     }
@@ -344,8 +322,7 @@ void Reshape(int w, int h)
 {
     viewport_size_ = glm::ivec2(w, h);
 
-    volume_renderer_->OnViewportSized(viewport_size_);
-    blob_renderer_->OnViewportSized(viewport_size_);
+    renderer_->OnViewportSized(viewport_size_);
     trackball_->OnViewportSized(viewport_size_);
 }
 
@@ -401,6 +378,7 @@ void Keyboard(unsigned char key, int x, int y)
 
 bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
 {
+    // TODO:
     glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);

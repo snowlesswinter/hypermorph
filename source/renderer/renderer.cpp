@@ -19,42 +19,21 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _BLOB_RENDERER_H_
-#define _BLOB_RENDERER_H_
+#include "stdafx.h"
+#include "renderer.h"
 
-#include <memory>
-
-#include "renderer/renderer.h"
-
-class FluidBufferOwner;
-class GLProgram;
-class GLSurface;
-class GraphicsVolume;
-class BlobRenderer : public Renderer
+Renderer::Renderer()
+    : graphics_lib_(GRAPHICS_LIB_CUDA)
+    , viewport_size_(0)
+    , fov_(1.0f)
 {
-public:
-    BlobRenderer();
-    virtual ~BlobRenderer();
+}
 
-    // Overridden from Renderer:
-    virtual void Render(FluidBufferOwner* buf_owner) override;
-    virtual void Update(float zoom, const glm::mat4& rotation) override;
+Renderer::~Renderer()
+{
+}
 
-    bool Init(int particle_count, const glm::ivec2& viewport_size);
-
-    void set_crit_density(float crit_density) { crit_density_ = crit_density; }
-
-private:
-    GLProgram* GetRenderProgram();
-
-    int particle_count_;
-    glm::mat4 model_view_proj_;
-    glm::mat4 perspective_proj_;
-    float point_scale_;
-
-    std::shared_ptr<GLProgram> prog_;
-    uint32_t point_vbo_;
-    float crit_density_;
-};
-
-#endif // _BLOB_RENDERER_H_
+void Renderer::OnViewportSized(const glm::ivec2& viewport_size)
+{
+    viewport_size_ = viewport_size;
+}

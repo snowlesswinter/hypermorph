@@ -34,13 +34,13 @@
 #include "third_party/glm/gtc/matrix_transform.hpp"
 
 VolumeRenderer::VolumeRenderer()
-    : graphics_lib_(GRAPHICS_LIB_CUDA)
-    , viewport_size_(0)
-    , model_view_()
-    , view_()
-    , projection_()
-    , model_view_projection_()
+    : Renderer()
+    , model_view_proj_()
+    , view_proj_()
+    , perspective_proj_()
+    , mvp_proj_()
     , eye_position_()
+    , focal_length_(1.0f)
     , surf_()
     , render_texture_(new GLProgram())
     , raycast_()
@@ -62,11 +62,105 @@ VolumeRenderer::~VolumeRenderer()
     }
 }
 
+void VolumeRenderer::OnViewportSized(const glm::ivec2& viewport_size)
+{
+    if (surf_ && Renderer::viewport_size() != viewport_size) {
+
+        // A shitty bug in CUDA 7.5 that make the program go crash if I
+        // unregister any opengl resources during debug/profiling.
+        //
+        // Be sure to check all the places that opengl-CUDA inter-operate.
+
+        CudaMain::Instance()->UnregisterGLImage(surf_);
+        surf_.reset();
+    }
+
+    Renderer::OnViewportSized(viewport_size);
+
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
+        std::shared_ptr<GLSurface> s(new GLSurface());
+        bool result = s->Create(viewport_size, GL_RGBA16F, GL_RGBA, 2);
+        if (!result)
+            return;
+
+        CudaMain::Instance()->RegisterGLImage(s);
+        surf_ = s;
+    }
+}
+
+void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
+{
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->Raycast(
+            surf_, buf_owner->GetDensityVolume()->cuda_volume(),
+            model_view_proj_, eye_position_,
+            FluidConfig::Instance()->light_color(),
+            FluidConfig::Instance()->light_position(),
+            FluidConfig::Instance()->light_intensity(), focal_length_,
+            FluidConfig::Instance()->num_raycast_samples(),
+            FluidConfig::Instance()->num_raycast_light_samples(),
+            FluidConfig::Instance()->light_absorption(),
+            FluidConfig::Instance()->raycast_density_factor(),
+            FluidConfig::Instance()->raycast_occlusion_factor());
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, viewport_size().x, viewport_size().y);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
+        RenderImplCuda();
+    } else if (graphics_lib() == GRAPHICS_LIB_GLSL) {
+        RenderImplGlsl(buf_owner->GetDensityVolume(), focal_length_);
+    }
+
+    glDisable(GL_BLEND);
+}
+
+void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
+{
+    // Volume rendering uses normalized coordinates.
+    glm::vec3 half_size = grid_size() * 0.5f;
+    float max_length =
+        std::max(std::max(half_size.x, half_size.y), half_size.z);
+    half_size /= max_length;
+
+    float half_diag = std::sqrtf(half_size.x * half_size.x +
+                                 half_size.y * half_size.y +
+                                 half_size.z * half_size.z);
+
+    // Make sure the camera is able to capture every corner however the
+    // rotation goes.
+    float eye_dist     = half_diag / std::sinf(fov() / 2.0f);
+    float near_pos     = eye_dist - half_diag;
+    float far_pos      = eye_dist + half_diag;
+    float aspect_ratio =
+        static_cast<float>(viewport_size().x) / viewport_size().y;
+
+    glm::vec3 eye(0.0f, 0.0f, eye_dist + zoom);
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    glm::vec3 target(0.0f);
+    view_proj_ = glm::lookAt(eye, target, up);
+
+    model_view_proj_ = view_proj_ * rotation;
+    perspective_proj_ = glm::perspective(fov(), aspect_ratio, near_pos,
+                                         far_pos);
+    mvp_proj_ = perspective_proj_ * model_view_proj_;
+    eye_position_ =
+        (glm::transpose(model_view_proj_) * glm::vec4(eye, 1.0f)).xyz();
+    focal_length_ = near_pos;
+}
+
 bool VolumeRenderer::Init(const glm::ivec2& viewport_size)
 {
-    viewport_size_ = viewport_size;
+    set_viewport_size(viewport_size);
 
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
         std::shared_ptr<GLSurface> s(new GLSurface());
         bool result = s->Create(viewport_size, GL_RGBA16F,
                                 GL_RGBA, 2);
@@ -85,76 +179,6 @@ bool VolumeRenderer::Init(const glm::ivec2& viewport_size)
     }
 
     return true;
-}
-
-void VolumeRenderer::OnViewportSized(const glm::ivec2& viewport_size)
-{
-    if (surf_ && viewport_size_ != viewport_size) {
-
-        // A shitty bug in CUDA 7.5 that make the program go crash if I
-        // unregister any opengl resources during debug/profiling.
-        //
-        // Be sure to check all the places that opengl-CUDA inter-operate.
-
-        CudaMain::Instance()->UnregisterGLImage(surf_);
-        surf_.reset();
-    }
-
-    viewport_size_ = viewport_size;
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        std::shared_ptr<GLSurface> s(new GLSurface());
-        bool result = s->Create(viewport_size, GL_RGBA16F, GL_RGBA, 2);
-        if (!result)
-            return;
-
-        CudaMain::Instance()->RegisterGLImage(s);
-        surf_ = s;
-    }
-}
-
-void VolumeRenderer::Render(FluidBufferOwner* buf_owner, float focal_length)
-{
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->Raycast(
-            surf_, buf_owner->GetDensityVolume()->cuda_volume(), model_view_,
-            eye_position_, FluidConfig::Instance()->light_color(),
-            FluidConfig::Instance()->light_position(),
-            FluidConfig::Instance()->light_intensity(), focal_length,
-            FluidConfig::Instance()->num_raycast_samples(),
-            FluidConfig::Instance()->num_raycast_light_samples(),
-            FluidConfig::Instance()->light_absorption(),
-            FluidConfig::Instance()->raycast_density_factor(),
-            FluidConfig::Instance()->raycast_occlusion_factor());
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_DEPTH_TEST);
-
-    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        RenderImplCuda();
-    } else if (graphics_lib_ == GRAPHICS_LIB_GLSL) {
-        RenderImplGlsl(buf_owner->GetDensityVolume(), focal_length);
-    }
-
-    glDisable(GL_BLEND);
-}
-
-void VolumeRenderer::Update(glm::vec3 eye_position, const glm::mat4& look_at,
-                            const glm::mat4& rotation,
-                            const glm::mat4& perspective)
-{
-    view_ = look_at;
-    model_view_ = view_ * rotation;
-    projection_ = perspective;
-    model_view_projection_ = projection_ * model_view_;
-    eye_position_ =
-        (glm::transpose(model_view_) * glm::vec4(eye_position, 1.0f)).xyz();
 }
 
 uint32_t VolumeRenderer::GetCubeCenterVbo()
@@ -208,14 +232,14 @@ void VolumeRenderer::RenderImplGlsl(GraphicsVolume* density_volume,
 {
     GLProgram* raycast = GetRaycastProgram();
     raycast->Use();
-    raycast->SetUniform("ModelviewProjection", model_view_projection_);
-    raycast->SetUniform("Modelview", model_view_);
-    raycast->SetUniform("ViewMatrix", view_);
-    raycast->SetUniform("ProjectionMatrix", projection_);
+    raycast->SetUniform("ModelviewProjection", mvp_proj_);
+    raycast->SetUniform("Modelview", model_view_proj_);
+    raycast->SetUniform("ViewMatrix", view_proj_);
+    raycast->SetUniform("ProjectionMatrix", perspective_proj_);
     raycast->SetUniform("RayOrigin", eye_position_);
     raycast->SetUniform("FocalLength", focal_length);
-    raycast->SetUniform("WindowSize", static_cast<float>(viewport_size_.x),
-                        static_cast<float>(viewport_size_.y));
+    raycast->SetUniform("WindowSize", static_cast<float>(viewport_size().x),
+                        static_cast<float>(viewport_size().y));
 
     glBindBuffer(GL_ARRAY_BUFFER, GetCubeCenterVbo());
     glVertexAttribPointer(SlotPosition, 3, GL_FLOAT, GL_FALSE,
