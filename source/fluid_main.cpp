@@ -257,7 +257,6 @@ void DisplayMetrics()
     overlay_.RenderText(text.str(), viewport_size_.x, viewport_size_.y);
 }
 
-CudaMain::FlipParticles g_cmfp;
 void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
@@ -267,7 +266,7 @@ void RenderFrame()
         blob_renderer_->Render(sim_->buf_owner(), crit_density);
     } else {
         float focal_length = 1.0f / std::tanf(kFieldOfView_ / 2);
-        volume_renderer_->Render(sim_->GetDensityField(), focal_length);
+        volume_renderer_->Render(sim_->buf_owner(), focal_length);
     }
 
     Metrics::Instance()->OnRaycastPerformed();

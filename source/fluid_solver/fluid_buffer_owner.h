@@ -40,9 +40,6 @@ public:
     virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;
     virtual GraphicsLinearMemU16* GetParticlePosZField() = 0;
     virtual GraphicsVolume* GetTemperatureVolume() = 0;
-    virtual bool InitBuffers(GraphicsLib graphics_lib, int width, int height,
-                             int depth) = 0;
-    virtual void ResetBuffers() = 0;
 
 protected:
     FluidBufferOwner() {}

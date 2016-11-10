@@ -29,6 +29,7 @@
 #include "third_party/glm/vec2.hpp"
 #include "third_party/glm/vec3.hpp"
 
+class FluidBufferOwner;
 class GLProgram;
 class GLSurface;
 class GraphicsVolume;
@@ -41,8 +42,7 @@ public:
 
     bool Init(const glm::ivec2& viewport_size);
     void OnViewportSized(const glm::ivec2& viewport_size);
-    void Render(std::shared_ptr<GraphicsVolume> density_volume,
-                float focal_length);
+    void Render(FluidBufferOwner* buf_owner, float focal_length);
     void Update(glm::vec3 eye_position, const glm::mat4& look_at,
                 const glm::mat4& rotation, const glm::mat4& perspective);
 
@@ -54,8 +54,7 @@ private:
     GLProgram* GetRaycastProgram();
 
     void RenderImplCuda();
-    void RenderImplGlsl(std::shared_ptr<GraphicsVolume> density_volume,
-                        float focal_length);
+    void RenderImplGlsl(GraphicsVolume* density_volume, float focal_length);
 
     GraphicsLib graphics_lib_;
     glm::ivec2 viewport_size_;

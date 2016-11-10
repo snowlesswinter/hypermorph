@@ -59,8 +59,6 @@ public:
     void set_grid_size(const glm::ivec3& size) { grid_size_ = size; }
     void set_cell_size(const float size) { cell_size_ = size; }
 
-    std::shared_ptr<GraphicsVolume> GetDensityField() const;
-
 private:
     PoissonSolver* GetPressureSolver();
     FluidSolver* GetFluidSolver();
@@ -75,7 +73,6 @@ private:
     std::unique_ptr<PoissonCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<PoissonSolver> psi_solver_;
-    std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<glm::vec2> manual_impulse_;
 };
 

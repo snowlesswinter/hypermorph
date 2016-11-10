@@ -56,7 +56,6 @@ FluidSimulator::FluidSimulator()
     , multigrid_core_()
     , pressure_solver_()
     , psi_solver_()
-    , density_()
     , manual_impulse_()
 {
 }
@@ -72,13 +71,6 @@ bool FluidSimulator::Init()
     int width  = static_cast<int>(grid_size.x);
     int height = static_cast<int>(grid_size.y);
     int depth  = static_cast<int>(grid_size.z);
-
-    density_ = std::make_shared<GraphicsVolume>(graphics_lib_);
-
-    bool result = density_->Create(width, height, depth, 1, 2, 0);
-    assert(result);
-    if (!result)
-        return false;
 
     PoissonSolver* pressure_solver = GetPressureSolver();
     FluidSolver* fluid_solver = GetFluidSolver();
@@ -108,7 +100,6 @@ bool FluidSimulator::Init()
 
 void FluidSimulator::Reset()
 {
-    density_->Clear();
     fluid_solver_->Reset();
 }
 
@@ -186,10 +177,10 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     }
 
     if (do_impulse)
-        fluid_solver_->Impulse(density_.get(), splat_radius, pos, hotspot,
-                               impulse_density, impulse_temperature);
+        fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,
+        impulse_temperature);
 
-    fluid_solver_->Solve(density_.get(), proper_delta_time);
+    fluid_solver_->Solve(proper_delta_time);
 }
 
 void FluidSimulator::UpdateImpulsing(float x, float y)
@@ -273,11 +264,6 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
     return pressure_solver_.get();
 }
 
-std::shared_ptr<GraphicsVolume> FluidSimulator::GetDensityField() const
-{
-    return density_;
-}
-
 FluidSolver* FluidSimulator::GetFluidSolver()
 {
     if (!fluid_solver_) {
@@ -287,7 +273,9 @@ FluidSolver* FluidSimulator::GetFluidSolver()
             fluid_solver_.reset(solver);
             buf_owner_ = solver;
         } else {
-            fluid_solver_.reset(new GridFluidSolver());
+            GridFluidSolver* solver = new GridFluidSolver();
+            fluid_solver_.reset(solver);
+            buf_owner_ = solver;
         }
     }
 

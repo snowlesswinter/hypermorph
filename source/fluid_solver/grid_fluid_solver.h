@@ -24,6 +24,7 @@
 
 #include <memory>
 
+#include "fluid_buffer_owner.h"
 #include "fluid_solver.h"
 #include "poisson_solver/poisson_solver_enum.h"
 #include "third_party/glm/vec3.hpp"
@@ -32,14 +33,14 @@ class GraphicsVolume;
 class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
-class GridFluidSolver : public FluidSolver
+class GridFluidSolver : public FluidSolver, public FluidBufferOwner
 {
 public:
     GridFluidSolver();
     virtual ~GridFluidSolver();
 
-    virtual void Impulse(GraphicsVolume* density, float splat_radius,
-                         const glm::vec3& impulse_position,
+    // Overridden from FluidSolver:
+    virtual void Impulse(float splat_radius, const glm::vec3& impulse_position,
                          const glm::vec3& hotspot, float impulse_density,
                          float impulse_temperature) override;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
@@ -47,17 +48,26 @@ public:
     virtual void Reset() override;
     virtual void SetDiagnosis(int diagnosis) override;
     virtual void SetPressureSolver(PoissonSolver* solver) override;
-    virtual void Solve(GraphicsVolume* density, float delta_time) override;
+    virtual void Solve(float delta_time) override;
+
+    // Overridden from FluidBufferOwner:
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
+    virtual GraphicsVolume* GetDensityVolume() override;
+    virtual GraphicsLinearMemU16* GetParticleDensityField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosXField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosYField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosZField() override;
+    virtual GraphicsVolume* GetTemperatureVolume() override;
 
 private:
     friend class FluidUnittest;
 
-    void AdvectDensity(GraphicsVolume* density, float delta_time);
+    void AdvectDensity(float delta_time);
     void AdvectImpl(const GraphicsVolume& source, float delta_time,
                     float dissipation);
     void AdvectTemperature(float delta_time);
     void AdvectVelocity(float delta_time);
-    void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
+    void ApplyBuoyancy(float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
     void ComputeResidualDiagnosis(std::shared_ptr<GraphicsVolume> pressure,
                                   std::shared_ptr<GraphicsVolume> divergence);
@@ -67,11 +77,10 @@ private:
     void Impulse1(std::shared_ptr<GraphicsVolume> dest,
                  const glm::vec3& position, const glm::vec3& hotspot,
                  float splat_radius, float value);
-    void ImpulseDensity(const GraphicsVolume& density,
-                        const glm::vec3& position, const glm::vec3& hotspot,
+    void ImpulseDensity(const glm::vec3& position, const glm::vec3& hotspot,
                         float splat_radius,
                         float value);
-    void ReviseDensity(const GraphicsVolume& density);
+    void ReviseDensity();
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                        std::shared_ptr<GraphicsVolume> divergence,
                        int num_iterations);
@@ -110,6 +119,7 @@ private:
     std::shared_ptr<GraphicsVolume3> vorticity_;
     std::shared_ptr<GraphicsVolume3> aux_;
     std::shared_ptr<GraphicsVolume3> vort_conf_;
+    std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;
