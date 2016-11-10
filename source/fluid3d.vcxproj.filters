@@ -16,6 +16,9 @@
     <Filter Include="fluid_solver">
       <UniqueIdentifier>{7557b4dc-e5d5-4ff9-bd61-b96374e488ee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="renderer">
+      <UniqueIdentifier>{b08a4be7-a7c9-4a0e-afe4-06c20ebf376e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -59,7 +62,6 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="fluid_config.h" />
-    <ClInclude Include="volume_renderer.h" />
     <ClInclude Include="opengl\gl_surface.h">
       <Filter>opengl</Filter>
     </ClInclude>
@@ -103,6 +105,21 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="graphics_linear_mem.h" />
+    <ClInclude Include="fluid_solver\fluid_buffer_owner.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\renderer.h">
+      <Filter>renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\blob_renderer.h">
+      <Filter>renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\rendering.h">
+      <Filter>renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\volume_renderer.h">
+      <Filter>renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -146,7 +163,6 @@
       <Filter>poisson_solver</Filter>
     </ClCompile>
     <ClCompile Include="fluid_config.cpp" />
-    <ClCompile Include="volume_renderer.cpp" />
     <ClCompile Include="opengl\gl_surface.cpp">
       <Filter>opengl</Filter>
     </ClCompile>
@@ -184,6 +200,15 @@
     </ClCompile>
     <ClCompile Include="fluid_solver\grid_fluid_solver.cpp">
       <Filter>fluid_solver</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\renderer.cpp">
+      <Filter>renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\volume_renderer.cpp">
+      <Filter>renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\blob_renderer.cpp">
+      <Filter>renderer</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

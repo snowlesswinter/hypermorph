@@ -16,7 +16,7 @@
 GLuint LoadProgram(const std::string& vs_source, const std::string& gs_source,
                    const std::string& fs_source)
 {
-    const char* version_directive = "#version 150\n";
+    const char* version_directive = "#version 430\n";
     
     GLint compileSuccess;
     GLchar compilerSpew[256];
@@ -90,6 +90,17 @@ void ClearSurface(GLTexture* s, float v)
     glBindFramebuffer(GL_FRAMEBUFFER, s->frame_buffer());
     glClearColor(v, v, v, v);
     glClear(GL_COLOR_BUFFER_BIT);
+}
+
+GLuint CreateDynamicVbo(int point_number)
+{
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, point_number * 3 * sizeof(uint16_t), 0,
+                 GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return vbo;
 }
 
 GLuint CreatePointVbo(float x, float y, float z)

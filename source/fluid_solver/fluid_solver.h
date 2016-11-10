@@ -44,8 +44,7 @@ public:
     FluidSolver();
     virtual ~FluidSolver();
 
-    virtual void Impulse(GraphicsVolume* density, float splat_radius,
-                         const glm::vec3& impulse_position,
+    virtual void Impulse(float splat_radius, const glm::vec3& impulse_position,
                          const glm::vec3& hotspot, float impulse_density,
                          float impulse_temperature) = 0;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
@@ -54,7 +53,7 @@ public:
     virtual void SetDiagnosis(int diagnosis) = 0;
     virtual void SetPressureSolver(PoissonSolver* solver) = 0;
     virtual void SetProperties(const FluidProperties& properties);
-    virtual void Solve(GraphicsVolume* density, float delta_time) = 0;
+    virtual void Solve(float delta_time) = 0;
 
 protected:
     const FluidProperties& GetProperties() const { return properties_;  }

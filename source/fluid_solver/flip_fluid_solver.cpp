@@ -118,6 +118,7 @@ struct FlipFluidSolver::FlipParticles
 
 FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     : FluidSolver()
+    , FluidBufferOwner()
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
     , max_num_particles_(max_num_particles)
@@ -125,6 +126,7 @@ FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     , diagnosis_(DIAG_NONE)
     , velocity_()
     , velocity_prev_()
+    , density_()
     , temperature_()
     , general1a_()
     , general1b_()
@@ -140,7 +142,7 @@ FlipFluidSolver::~FlipFluidSolver()
 {
 }
 
-void FlipFluidSolver::Impulse(GraphicsVolume* density, float splat_radius,
+void FlipFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& impulse_position,
                               const glm::vec3& hotspot, float impulse_density,
                               float impulse_temperature)
@@ -153,7 +155,7 @@ void FlipFluidSolver::Impulse(GraphicsVolume* density, float splat_radius,
         CudaMain::Instance()->EmitParticles(&p, impulse_position, hotspot,
                                             splat_radius, impulse_density,
                                             impulse_temperature,
-                                            density->cuda_volume()->size());
+                                            density_->cuda_volume()->size());
     }
 }
 
@@ -162,6 +164,7 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
 {
     velocity_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
     velocity_prev_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
+    density_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     temperature_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1a_ = std::make_shared<GraphicsVolume>(graphics_lib_);
     general1b_ = std::make_shared<GraphicsVolume>(graphics_lib_);
@@ -174,6 +177,11 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
         return false;
 
     result = velocity_prev_->Create(width, height, depth, 1, 2, 0);
+    assert(result);
+    if (!result)
+        return false;
+
+    result = density_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)
         return false;
@@ -212,6 +220,9 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
 
 void FlipFluidSolver::Reset()
 {
+    if (density_)
+        density_->Clear();
+
     if (temperature_)
         temperature_->Clear();
 
@@ -253,7 +264,7 @@ void FlipFluidSolver::SetPressureSolver(PoissonSolver* solver)
     pressure_solver_ = solver;
 }
 
-void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
+void FlipFluidSolver::Solve(float delta_time)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
 
@@ -269,15 +280,50 @@ void FlipFluidSolver::Solve(GraphicsVolume* density, float delta_time)
     SubtractGradient(general1b_);
     Metrics::Instance()->OnVelocityRectified();
 
-    MoveParticles(density, delta_time);
+    MoveParticles(delta_time);
     Metrics::Instance()->OnVelocityAvected();
     Metrics::Instance()->OnParticleNumberUpdated(num_active_particles_);
 
     // Apply buoyancy and gravity
-    ApplyBuoyancy(*density, delta_time);
+    ApplyBuoyancy(delta_time);
     Metrics::Instance()->OnBuoyancyApplied();
 
     CudaMain::Instance()->RoundPassed(frame_++);
+}
+
+GraphicsMemPiece* FlipFluidSolver::GetActiveParticleCountMemPiece()
+{
+    return particles_->num_of_actives_.get();
+}
+
+GraphicsVolume* FlipFluidSolver::GetDensityVolume()
+{
+    return density_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticleDensityField()
+{
+    return particles_->density_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosXField()
+{
+    return particles_->position_x_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosYField()
+{
+    return particles_->position_y_.get();
+}
+
+GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosZField()
+{
+    return particles_->position_z_.get();
+}
+
+GraphicsVolume* FlipFluidSolver::GetTemperatureVolume()
+{
+    return temperature_.get();
 }
 
 bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
@@ -312,8 +358,7 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
     return result;
 }
 
-void FlipFluidSolver::ApplyBuoyancy(const GraphicsVolume& density,
-                                    float delta_time)
+void FlipFluidSolver::ApplyBuoyancy(float delta_time)
 {
     float smoke_weight = GetProperties().weight_;
     float ambient_temperature = GetProperties().ambient_temperature_;
@@ -326,7 +371,7 @@ void FlipFluidSolver::ApplyBuoyancy(const GraphicsVolume& density,
                                             velocity_prev_->y()->cuda_volume(),
                                             velocity_prev_->z()->cuda_volume(),
                                             temperature_->cuda_volume(),
-                                            density.cuda_volume(), delta_time,
+                                            density_->cuda_volume(), delta_time,
                                             ambient_temperature,
                                             buoyancy_coef, smoke_weight);
     }
@@ -370,7 +415,7 @@ void FlipFluidSolver::ComputeResidualDiagnosis(
     }
 }
 
-void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
+void FlipFluidSolver::MoveParticles(float delta_time)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
@@ -384,7 +429,7 @@ void FlipFluidSolver::MoveParticles(GraphicsVolume* density, float delta_time)
                                             velocity_prev_->x()->cuda_volume(),
                                             velocity_prev_->y()->cuda_volume(), 
                                             velocity_prev_->z()->cuda_volume(),
-                                            density->cuda_volume(),
+                                            density_->cuda_volume(),
                                             temperature_->cuda_volume(),
                                             delta_time);
 

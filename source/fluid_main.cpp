@@ -33,6 +33,8 @@
 #include "opengl/gl_program.h"
 #include "opengl/gl_volume.h"
 #include "overlay_content.h"
+#include "renderer/blob_renderer.h"
+#include "renderer/volume_renderer.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
 #include "third_party/glm/gtc/matrix_transform.hpp"
@@ -40,22 +42,21 @@
 #include "third_party/opengl/glew.h"
 #include "trackball.h"
 #include "utility.h"
-#include "volume_renderer.h"
 
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
-float kFieldOfView_ = 0.7f;
-float kAspectRatio = 1.0f;
+float kFieldOfView_ = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
 LARGE_INTEGER prev_time_;
 int g_diagnosis = 0;
 FluidSimulator* sim_ = nullptr;
-VolumeRenderer* renderer_ = nullptr;
+Renderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 glm::ivec2 viewport_size_(0);
+
 
 struct
 {
@@ -166,12 +167,8 @@ void UpdateFrame(unsigned int microseconds)
     float delta_time = microseconds * 0.000001f;
     trackball_->Update(microseconds);
 
-    glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
-    glm::vec3 target(0.0f);
-    renderer_->Update(
-        eye, glm::lookAt(eye, target, up), glm::mat4(trackball_->GetRotation()),
-        glm::perspective(kFieldOfView_, kAspectRatio, 0.0f, 1.0f));
+    renderer_->Update(trackball_->GetZoom(),
+                      glm::mat4(trackball_->GetRotation()));
 
     static double time_elapsed = 0;
     time_elapsed += delta_time;
@@ -234,19 +231,9 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    renderer_->Render(sim_->buf_owner());
 
-    //glClearColor(0.01f, 0.06f, 0.08f, 0.0f);
-    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    //glClearColor(0.6f, 0.6f, 0.6f, 0.6f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    float focal_length = 1.0f / std::tan(kFieldOfView_ / 2);
-    renderer_->Render(sim_->GetDensityField(), focal_length);
-    Metrics::Instance()->OnRaycastPerformed();
     Metrics::Instance()->OnFrameRendered();
-
     DisplayMetrics();
 }
 
@@ -255,9 +242,31 @@ bool ResetRenderer()
     if (renderer_)
         delete renderer_;
 
-    renderer_ = new VolumeRenderer();
+    VolumeRenderer* vr = nullptr;
+    BlobRenderer* br = nullptr;
+    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_VOLUME) {
+        vr = new VolumeRenderer();
+        renderer_ = vr;
+    } else {
+        br = new BlobRenderer();
+        renderer_ = br;
+    }
+
     renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
-    return renderer_->Init(viewport_size_);
+    renderer_->set_grid_size(FluidConfig::Instance()->grid_size());
+    renderer_->set_fov(kFieldOfView_);
+
+    bool result = true;
+    if (br) {
+        br->set_crit_density(FluidConfig::Instance()->impulse_density() * 0.1f);
+        result &= br->Init(FluidConfig::Instance()->max_num_particles(),
+                           viewport_size_);
+    } 
+
+    if (vr)
+        result &= vr->Init(viewport_size_);
+
+    return result;
 }
 
 bool ResetSimulator()
@@ -292,8 +301,13 @@ void Display()
     prev_time_ = currentTime;
 
     if (watcher_->file_modified()) {
+        RenderMode old_mode = FluidConfig::Instance()->render_mode();
+
         FluidConfig::Instance()->Reload();
         watcher_->ResetState();
+
+        if (old_mode != FluidConfig::Instance()->render_mode())
+            ResetRenderer();
 
         sim_->NotifyConfigChanged();
     }
@@ -364,6 +378,7 @@ void Keyboard(unsigned char key, int x, int y)
 
 bool CalculateImpulseSpot(int x, int y, glm::vec2* result)
 {
+    // TODO:
     glm::vec3 eye(0.0f, 0.0f, 3.8f + trackball_->GetZoom());
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
@@ -441,11 +456,6 @@ bool Initialize()
                                             radius * 0.5f);
 
     Vbos.FullscreenQuad = CreateQuadVbo();
-
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnableVertexAttribArray(SlotPosition);
 
     Metrics::Instance()->SetOperationSync(
         []() { glFinish(); CudaMain::Instance()->Sync(); });

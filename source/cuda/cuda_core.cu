@@ -29,6 +29,7 @@
 
 #include "cuda_common_host.h"
 #include "cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 #include "third_party/glm/common.hpp"
 #include "third_party/glm/glm.hpp"
 #include "third_party/glm/mat3x3.hpp"
@@ -201,7 +202,7 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             i++, pos += step, travel -= step_size) {
         float density =
             tex3D(raycast_density, pos.x, pos.y, pos.z) * density_factor;
-        if (density < 0.01f)
+        if (density < 0.02f)
             continue;
 
         glm::vec3 light_dir = glm::normalize(light_pos - pos) * light_scale;
@@ -518,4 +519,41 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
                                        num_light_samples, kLightScale,
                                        kAbsorptionTimesStepSize, density_factor,
                                        occlusion_factor);
+}
+
+__global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
+                                uint16_t* pos_z, uint16_t* density,
+                                float crit_density,
+                                int* num_of_active_particles,
+                                int num_of_particles)
+{
+    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    if (i >= num_of_particles)
+        return;
+
+    int stride = 3;
+    bool skip = i >= *num_of_active_particles ||
+        __half2float(density[i]) < crit_density;
+
+    uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
+    buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
+    buf[i * stride + 1] = pos_y[i];
+    buf[i * stride + 2] = pos_z[i];
+}
+
+namespace kern_launcher
+{
+void CopyToVbo(void* vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
+               uint16_t* density, float crit_density,
+               int* num_of_active_particles, int num_of_particles,
+               BlockArrangement* ba)
+{
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeLinear(&grid, &block, num_of_particles);
+    CopyToVboKernel<<<grid, block>>>(vbo, pos_x, pos_y, pos_z, density,
+                                     crit_density, num_of_active_particles,
+                                     num_of_particles);
+    DCHECK_KERNEL();
+}
 }

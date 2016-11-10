@@ -89,6 +89,8 @@ public:
                     std::shared_ptr<CudaVolume> source);
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
+    int RegisterGLBuffer(int vbo);
+    void UnregisterGBuffer(int vbo);
 
     void AdvectField(std::shared_ptr<CudaVolume> fnp1,
                      std::shared_ptr<CudaVolume> fn,
@@ -249,6 +251,12 @@ public:
                         const glm::ivec3& volume_size);
 
     // Rendering
+    void CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+                   std::shared_ptr<CudaLinearMemU16> pos_y,
+                   std::shared_ptr<CudaLinearMemU16> pos_z,
+                   std::shared_ptr<CudaLinearMemU16> density,
+                   std::shared_ptr<CudaMemPiece> num_of_actives,
+                   float crit_density, int num_of_particles);
     void Raycast(std::shared_ptr<GLSurface> dest,
                  std::shared_ptr<CudaVolume> density,
                  const glm::mat4& model_view, const glm::vec3& eye_pos,
@@ -284,6 +292,8 @@ private:
     std::unique_ptr<FlipImplCuda> flip_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
+
+    std::unique_ptr<GraphicsResource> vbo_;
 };
 
 #endif // _CUDA_MAIN_H_

@@ -162,6 +162,7 @@ CudaMain::CudaMain()
         new FlipImplCuda(flip_ob_.get(), core_->block_arrangement(),
                          core_->buffer_manager(), core_->rand_helper()))
     , registerd_textures_()
+    , vbo_(new GraphicsResource(core_.get()))
 {
 
 }
@@ -212,6 +213,11 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
 
     core_->UnregisterGLResource(i->second.get());
     registerd_textures_.erase(i);
+}
+
+int CudaMain::RegisterGLBuffer(int vbo)
+{
+    return core_->RegisterGLBuffer(vbo, vbo_.get());
 }
 
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
@@ -574,6 +580,19 @@ void CudaMain::ResetParticles(FlipParticles* particles,
                               const glm::ivec3& volume_size)
 {
     flip_impl_->Reset(ToCudaFlipParticles(*particles), volume_size);
+}
+
+void CudaMain::CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+                         std::shared_ptr<CudaLinearMemU16> pos_y,
+                         std::shared_ptr<CudaLinearMemU16> pos_z,
+                         std::shared_ptr<CudaLinearMemU16> density,
+                         std::shared_ptr<CudaMemPiece> num_of_actives,
+                         float crit_density, int num_of_particles)
+{
+    core_->CopyToVbo(vbo, vbo_->Receive(), pos_x->mem(), pos_y->mem(),
+                     pos_z->mem(), density->mem(), crit_density,
+                     reinterpret_cast<int*>(num_of_actives->mem()),
+                     num_of_particles);
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,

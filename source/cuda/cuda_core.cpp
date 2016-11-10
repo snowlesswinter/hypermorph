@@ -32,8 +32,9 @@
 #include <helper_cuda_gl.h>
 #include <helper_math.h>
 
-#include "graphics_resource.h"
 #include "cuda_common_host.h"
+#include "graphics_resource.h"
+#include "kernel_launcher.h"
 #include "third_party/glm/mat4x4.hpp"
 #include "third_party/glm/vec3.hpp"
 
@@ -384,4 +385,25 @@ void CudaCore::CopyVolumeAsync(cudaArray* dest, cudaArray* source,
 {
     uint3 size = make_uint3(volume_size.x, volume_size.y, volume_size.z);
     ::CopyVolumeAsync(dest, source, size);
+}
+
+void CudaCore::CopyToVbo(uint32_t vbo, cudaGraphicsResource** res,
+                         uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
+                         uint16_t* density, float crit_density,
+                         int* num_of_active_particles,
+                         int num_of_particles)
+{
+    cudaError_t e = cudaGraphicsMapResources(1, res, 0);
+    assert(e == cudaSuccess);
+
+    void* p = nullptr;
+    size_t bytes = 0;
+    e = cudaGraphicsResourceGetMappedPointer((void**)&p, &bytes, *res);
+    assert(e == cudaSuccess);
+    
+    kern_launcher::CopyToVbo(p, pos_x, pos_y, pos_z, density, crit_density,
+                             num_of_active_particles, num_of_particles,
+                             &block_arrangement_);
+    e = cudaGraphicsUnmapResources(1, res, 0);
+    assert(e == cudaSuccess);
 }

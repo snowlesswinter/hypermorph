@@ -29,6 +29,7 @@
 #include "poisson_solver/poisson_solver_enum.h"
 #include "third_party/glm/vec3.hpp"
 
+class FluidBufferOwner;
 class FluidSolver;
 class FluidUnittest;
 class GraphicsVolume;
@@ -50,14 +51,13 @@ public:
     void Update(float delta_time, double seconds_elapsed, int frame_count);
     void UpdateImpulsing(float x, float y);
 
+    FluidBufferOwner* buf_owner() const { return buf_owner_; }
     void set_solver_choice(PoissonSolverEnum ps) { solver_choice_ = ps; }
     void set_diagnosis(int diagnosis);
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
     void set_grid_size(const glm::ivec3& size) { grid_size_ = size; }
     void set_cell_size(const float size) { cell_size_ = size; }
-
-    std::shared_ptr<GraphicsVolume> GetDensityField() const;
 
 private:
     PoissonSolver* GetPressureSolver();
@@ -68,11 +68,11 @@ private:
     int data_byte_width_;
     GraphicsLib graphics_lib_;
     std::unique_ptr<FluidSolver> fluid_solver_;
+    FluidBufferOwner* buf_owner_;
     PoissonSolverEnum solver_choice_;
     std::unique_ptr<PoissonCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<PoissonSolver> psi_solver_;
-    std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<glm::vec2> manual_impulse_;
 };
 

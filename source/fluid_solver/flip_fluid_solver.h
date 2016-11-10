@@ -24,6 +24,7 @@
 
 #include <memory>
 
+#include "fluid_buffer_owner.h"
 #include "fluid_solver.h"
 #include "graphics_linear_mem.h"
 #include "third_party/glm/vec3.hpp"
@@ -33,14 +34,14 @@ class GraphicsVolume;
 class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
-class FlipFluidSolver : public FluidSolver
+class FlipFluidSolver : public FluidSolver, public FluidBufferOwner
 {
 public:
     explicit FlipFluidSolver(int max_num_particles);
     virtual ~FlipFluidSolver();
 
-    virtual void Impulse(GraphicsVolume* density, float splat_radius,
-                         const glm::vec3& impulse_position,
+    // Overridden from FluidSolver:
+    virtual void Impulse(float splat_radius, const glm::vec3& impulse_position,
                          const glm::vec3& hotspot, float impulse_density,
                          float impulse_temperature) override;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
@@ -48,7 +49,16 @@ public:
     virtual void Reset() override;
     virtual void SetDiagnosis(int diagnosis) override;
     virtual void SetPressureSolver(PoissonSolver* solver) override;
-    virtual void Solve(GraphicsVolume* density, float delta_time) override;
+    virtual void Solve(float delta_time) override;
+
+    // Overridden from FluidBufferOwner:
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
+    virtual GraphicsVolume* GetDensityVolume() override;
+    virtual GraphicsLinearMemU16* GetParticleDensityField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosXField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosYField() override;
+    virtual GraphicsLinearMemU16* GetParticlePosZField() override;
+    virtual GraphicsVolume* GetTemperatureVolume() override;
 
 private:
     struct FlipParticles;
@@ -56,11 +66,11 @@ private:
     static bool InitParticles(FlipParticles* particles, GraphicsLib lib,
                               int cell_count, int max_num_particles, bool aux);
 
-    void ApplyBuoyancy(const GraphicsVolume& density, float delta_time);
+    void ApplyBuoyancy(float delta_time);
     void ComputeDivergence(std::shared_ptr<GraphicsVolume> divergence);
     void ComputeResidualDiagnosis(std::shared_ptr<GraphicsVolume> pressure,
                                   std::shared_ptr<GraphicsVolume> divergence);
-    void MoveParticles(GraphicsVolume* density, float delta_time);
+    void MoveParticles(float delta_time);
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
                        std::shared_ptr<GraphicsVolume> divergence,
                        int num_iterations);
@@ -75,6 +85,7 @@ private:
 
     std::shared_ptr<GraphicsVolume3> velocity_;
     std::shared_ptr<GraphicsVolume3> velocity_prev_;
+    std::shared_ptr<GraphicsVolume> density_;
     std::shared_ptr<GraphicsVolume> temperature_;
     std::shared_ptr<GraphicsVolume> general1a_;
     std::shared_ptr<GraphicsVolume> general1b_;

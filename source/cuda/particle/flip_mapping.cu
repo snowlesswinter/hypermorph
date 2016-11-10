@@ -47,6 +47,11 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 const uint32_t kMaxParticlesInCell = 4;
 const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
 
+#define DIV_SYNC_BEGIN(condition) \
+     {
+#define DIV_SYNC_END() \
+        }
+
 enum PruneFlag
 {
     PRUNE_NONE = 0,
@@ -1281,18 +1286,27 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     int x = VolumeX();
     int y = VolumeY();
 
-    if (x >= volume_size.x || y >= volume_size.y)
-        return;
+    bool drop_thread = (x >= volume_size.x || y >= volume_size.y);
+    if (drop_thread) {
+        for (int i = 0; i < (volume_size.z * 2 - 1); i++)
+            __syncthreads();
 
+        return;
+    }
+
+    DIV_SYNC_BEGIN(!drop_thread);
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 0, tx, ty, start_i, volume_size);
+    DIV_SYNC_END();
     __syncthreads();
 
     FieldWeightAndWeightedSum w_sum[3];
+    float3 coord = make_float3(x, y, 0) + 0.5f;
+
+    DIV_SYNC_BEGIN(!drop_thread);
     ResetWeight(&w_sum[0]);
     ResetWeight(&w_sum[1]);
     ResetWeight(&w_sum[2]);
 
-    float3 coord = make_float3(x, y, 0) + 0.5f;
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
@@ -1300,8 +1314,11 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
         ComputeWeightedAverage_prune<step, AccumulativeStorage>(&w_sum[1], nullptr, &smem, strided, coord.x, coord.y, coord.z + 1.0f, i == 1 ? PRUNE_Y : PRUNE_NONE);
     }
 
+    DIV_SYNC_END();
     __syncthreads();
+    DIV_SYNC_BEGIN(!drop_thread);
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 1, tx, ty, start_i, volume_size);
+    DIV_SYNC_END();
 
     // For each plane, we calculate the weighted average value of the
     // farthest/middle/nearest plane of the last/current/next point, so as to
@@ -1309,6 +1326,7 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     uint z = 1;
     for (; z < volume_size.z - 1; z++) {
         __syncthreads();
+        DIV_SYNC_BEGIN(!drop_thread);
         ProcessPlanes<step>(w_sum, smem, tx, ty, bw, coord.x, coord.y, coord.z);
 
         if (!start_i)
@@ -1322,11 +1340,15 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
 
         coord.z += 1.0f;
 
+        DIV_SYNC_END();
         __syncthreads();
+        DIV_SYNC_BEGIN(!drop_thread);
         FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, z + 1, tx, ty, start_i, volume_size);
+        DIV_SYNC_END();
     }
     __syncthreads();
 
+    DIV_SYNC_BEGIN(!drop_thread);
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
@@ -1341,6 +1363,7 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
         SaveToSurface_iterative<false, last_step>(w_sum[0], x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
         SaveToSurface_iterative<false, last_step>(w_sum[1], x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
     }
+    DIV_SYNC_END();
 }
 
 // =============================================================================
@@ -1485,7 +1508,7 @@ void TransferToGrid_prune(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
               1);
 
     int step = ba->GetSharedMemPerSMInKB() >= 96 ? 2 : 1;
-    int kMaxNumParticlesInCell = 4;
+    int kMaxNumParticlesInCell = 6;
     for (int i = 0; i < kMaxNumParticlesInCell - step; i += step) {
         if (step == 1)
             TransferToGridKernel_prune<1, false><<<grid, block>>>(
