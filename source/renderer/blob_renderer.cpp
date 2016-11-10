@@ -149,67 +149,6 @@ void main()
 
 } // Anonymous namespace.
 
-// For an unknown reason, every time after we created the VBO and registered
-// it to CUDA, there would be a while(a few seconds) during which the GPU
-// seemed to be very busy that the kernels can hardly run(at least on my
-// GTX 750). This issue will disappear without any particular efforts.
-//
-// For now, the only thing I can do is storing the VBO on the first time
-// I create it, so that the program will not get stuck other time again.
-//
-// As further debugging, I found that is related to the video memory load.
-class BlobRenderer::VboBugWorkaround
-{
-public:
-    VboBugWorkaround()
-    {
-        g_object_count++;
-        assert(g_object_count == 1); // Don't use more than 1 instance
-                                     // simultaneously.
-    }
-
-    ~VboBugWorkaround()
-    {
-        g_object_count--;
-    }
-
-    bool CreateVbo(int particle_count)
-    {
-        if (g_vbo && g_particle_count == particle_count)
-            return true;
-
-        if (g_vbo)
-            glDeleteBuffers(1, &g_vbo);
-
-        g_vbo = 0;
-        g_particle_count = 0;
-
-        GLuint vbo = CreateDynamicVbo(particle_count);
-        if (!vbo)
-            return false;
-
-        if (CudaMain::Instance()->RegisterGLBuffer(vbo)) {
-            glDeleteBuffers(1, &vbo);
-            return false;
-        }
-
-        g_particle_count = particle_count;
-        g_vbo = vbo;
-        return true;
-    }
-
-    GLuint vbo() const { return g_vbo; }
-
-private:
-    static GLuint g_vbo;
-    static int g_particle_count;
-    static int g_object_count;
-};
-
-GLuint BlobRenderer::VboBugWorkaround::g_vbo = 0;
-int BlobRenderer::VboBugWorkaround::g_particle_count = 0;
-int BlobRenderer::VboBugWorkaround::g_object_count = 0;
-
 BlobRenderer::BlobRenderer()
     : Renderer()
     , particle_count_(0)
@@ -223,18 +162,16 @@ BlobRenderer::BlobRenderer()
 
 BlobRenderer::~BlobRenderer()
 {
+    if (point_vbo_) {
+        CudaMain::Instance()->UnregisterGBuffer(point_vbo_);
+        glDeleteBuffers(1, &point_vbo_);
+        point_vbo_ = 0;
+    }
 }
 
 void BlobRenderer::Render(FluidBufferOwner* buf_owner)
 {
-    CudaMain::Instance()->CopyToVbo(
-        point_vbo_->vbo(),
-        buf_owner->GetParticlePosXField()->cuda_linear_mem(),
-        buf_owner->GetParticlePosYField()->cuda_linear_mem(),
-        buf_owner->GetParticlePosZField()->cuda_linear_mem(),
-        buf_owner->GetParticleDensityField()->cuda_linear_mem(),
-        buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
-        crit_density_, particle_count_);
+    CopyToVbo(buf_owner);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -264,7 +201,7 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
                              perspective_proj_ * model_view_proj_);
     blob_program->SetUniform("point_scale", point_scale_);
 
-    glBindBuffer(GL_ARRAY_BUFFER, point_vbo_->vbo());
+    glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
     glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
     glVertexAttribPointer(SlotPosition, 3, GL_HALF_FLOAT, GL_FALSE,
                           0, nullptr);
@@ -314,10 +251,40 @@ bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
     OnViewportSized(viewport_size);
 
     if (graphics_lib() == GRAPHICS_LIB_CUDA) {
-        return point_vbo_->CreateVbo(particle_count);
+        assert(!point_vbo_);
+
+        GLuint vbo = CreateDynamicVbo(particle_count);
+        if (!vbo)
+            return false;
+
+        if (CudaMain::Instance()->RegisterGLBuffer(vbo)) {
+            glDeleteBuffers(1, &vbo);
+            return false;
+        }
+
+        point_vbo_ = vbo;
+        return true;
     }
 
     return true;
+}
+
+void BlobRenderer::CopyToVbo(FluidBufferOwner* buf_owner)
+{
+    if (!buf_owner->GetParticlePosXField() ||
+            !buf_owner->GetParticlePosYField() ||
+            !buf_owner->GetParticlePosZField() ||
+            !buf_owner->GetParticleDensityField() ||
+            !buf_owner->GetActiveParticleCountMemPiece())
+        return;
+
+    CudaMain::Instance()->CopyToVbo(
+        point_vbo_, buf_owner->GetParticlePosXField()->cuda_linear_mem(),
+        buf_owner->GetParticlePosYField()->cuda_linear_mem(),
+        buf_owner->GetParticlePosZField()->cuda_linear_mem(),
+        buf_owner->GetParticleDensityField()->cuda_linear_mem(),
+        buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
+        crit_density_, particle_count_);
 }
 
 GLProgram* BlobRenderer::GetRenderProgram()

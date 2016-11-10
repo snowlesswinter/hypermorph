@@ -26,7 +26,6 @@
 
 #include "renderer/renderer.h"
 
-class FluidBufferOwner;
 class GLProgram;
 class GLSurface;
 class GraphicsVolume;

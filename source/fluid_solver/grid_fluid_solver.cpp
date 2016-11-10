@@ -153,6 +153,11 @@ bool GridFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
     if (!result)
         return false;
 
+    result = density_->Create(width, height, depth, 1, 2, 0);
+    assert(result);
+    if (!result)
+        return false;
+
     result = temperature_->Create(width, height, depth, 1, 2, 0);
     assert(result);
     if (!result)

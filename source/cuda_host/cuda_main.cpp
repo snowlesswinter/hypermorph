@@ -220,6 +220,12 @@ int CudaMain::RegisterGLBuffer(int vbo)
     return core_->RegisterGLBuffer(vbo, vbo_.get());
 }
 
+void CudaMain::UnregisterGBuffer(int vbo)
+{
+    if (vbo_)
+        core_->UnregisterGLResource(vbo_.get());
+}
+
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
                            std::shared_ptr<CudaVolume> fn,
                            std::shared_ptr<CudaVolume> vel_x,

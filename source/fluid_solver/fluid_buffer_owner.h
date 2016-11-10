@@ -27,7 +27,6 @@
 class GraphicsLinearMemU16;
 class GraphicsMemPiece;
 class GraphicsVolume;
-class PoissonSolver;
 class FluidBufferOwner
 {
 public:

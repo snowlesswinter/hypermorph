@@ -151,11 +151,6 @@ bool InitGraphics(int* argc, char** argv)
         return false;
     }
 
-    glClearColor(0.0, 0.0, 0.0, 1.0);
-    glDisable(GL_DEPTH_TEST);
-
-    // viewport
-    glViewport(0, 0, viewport_size_.x, viewport_size_.y);
     PrintDebugString("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     CudaMain::Instance();

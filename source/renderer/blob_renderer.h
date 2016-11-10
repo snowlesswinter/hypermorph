@@ -26,10 +26,7 @@
 
 #include "renderer/renderer.h"
 
-class FluidBufferOwner;
 class GLProgram;
-class GLSurface;
-class GraphicsVolume;
 class BlobRenderer : public Renderer
 {
 public:
@@ -45,8 +42,7 @@ public:
     void set_crit_density(float crit_density) { crit_density_ = crit_density; }
 
 private:
-    class VboBugWorkaround;
-
+    void CopyToVbo(FluidBufferOwner* buf_owner);
     GLProgram* GetRenderProgram();
 
     int particle_count_;
@@ -55,7 +51,7 @@ private:
     float point_scale_;
 
     std::shared_ptr<GLProgram> prog_;
-    std::shared_ptr<VboBugWorkaround> point_vbo_;
+    uint32_t point_vbo_;
     float crit_density_;
 };
 
