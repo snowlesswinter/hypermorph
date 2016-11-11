@@ -25,11 +25,12 @@
 
 #include <helper_math.h>
 
-#include "advection_method.h"
-#include "block_arrangement.h"
-#include "field_offset.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/advection_method.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/field_offset.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -504,4 +505,6 @@ void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                                   dissipation, volume_size,
                                                   mid_point, ba);
     }
+
+    DCHECK_KERNEL();
 }

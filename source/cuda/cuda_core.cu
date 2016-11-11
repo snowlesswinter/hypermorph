@@ -540,6 +540,8 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
         intensity, num_samples, kStepSize, num_light_samples, kLightScale,
         kAbsorptionTimesStepSize, density_factor, occlusion_factor,
         screen_size, normalized_size);
+
+    DCHECK_KERNEL();
 }
 
 namespace kern_launcher

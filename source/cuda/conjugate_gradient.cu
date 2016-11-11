@@ -26,10 +26,11 @@
 
 #include <helper_math.h>
 
-#include "aux_buffer_manager.h"
-#include "block_arrangement.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/aux_buffer_manager.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
@@ -193,6 +194,8 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
         ApplyStencilKernel<<<grid, block>>>(volume_size, outflow_handler);
     else
         ApplyStencilKernel<<<grid, block>>>(volume_size, neumann_handler);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,
@@ -212,6 +215,8 @@ void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,
     SchemeAlpha scheme;
     scheme.rho_ = rho;
     ReduceVolume(alpha, scheme, volume_size, ba, bm);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
@@ -230,6 +235,8 @@ void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
 
     SchemeDefault scheme;
     ReduceVolume(rho, scheme, volume_size, ba, bm);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
@@ -252,6 +259,8 @@ void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
     scheme.beta_ = beta;
     scheme.rho_ = rho;
     ReduceVolume(rho_new, scheme, volume_size, ba, bm);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
@@ -278,4 +287,6 @@ void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
     } else {
         ScaleVectorKernel<<<grid, block>>>(coef, volume_size);
     }
+
+    DCHECK_KERNEL();
 }

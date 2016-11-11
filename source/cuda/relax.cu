@@ -25,9 +25,10 @@
 
 #include <helper_math.h>
 
-#include "block_arrangement.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
@@ -638,6 +639,8 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
             DampedJacobiKernel<<<grid, block>>>(omega_over_beta, volume_size);
         }
     }
+
+    DCHECK_KERNEL();
 }
 
 void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
@@ -691,6 +694,8 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
                                                             neumann_handler);
         }
     }
+
+    DCHECK_KERNEL();
 }
 
 void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
@@ -725,4 +730,6 @@ void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
     RelaxWithZeroGuessKernel<<<grid, block>>>(minus_omega_over_beta,
                                               coef, omega_over_beta,
                                               volume_size);
+
+    DCHECK_KERNEL();
 }

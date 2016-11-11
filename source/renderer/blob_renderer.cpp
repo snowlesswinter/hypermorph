@@ -62,6 +62,7 @@ layout(triangle_strip)   out;
 layout(max_vertices = 4) out;
 
 uniform mat4 u_mvp_matrix;
+uniform float inv_aspect_ratio;
 
 in float vs_blob_size[];
 out vec2 gs_tex_coord;
@@ -73,19 +74,19 @@ void main()
     vec4 pos = u_mvp_matrix * gl_in[0].gl_Position;
     float blob_size = vs_blob_size[0];
 
-    gl_Position = pos + vec4(blob_size, -blob_size, 0, 0);
+    gl_Position = pos + vec4(blob_size * inv_aspect_ratio, -blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 0.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(blob_size, blob_size, 0, 0);
+    gl_Position = pos + vec4(blob_size * inv_aspect_ratio, blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 1.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(-blob_size, -blob_size, 0, 0);
+    gl_Position = pos + vec4(-blob_size * inv_aspect_ratio, -blob_size, 0, 0);
     gs_tex_coord = vec2(0.0f, 0.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(-blob_size, blob_size, 0, 0);
+    gl_Position = pos + vec4(-blob_size * inv_aspect_ratio, blob_size, 0, 0);
     gs_tex_coord = vec2(0.0f, 1.0f);
     EmitVertex();
 
@@ -200,6 +201,9 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
     blob_program->SetUniform("u_mvp_matrix",
                              perspective_proj_ * model_view_proj_);
     blob_program->SetUniform("point_scale", point_scale_);
+    blob_program->SetUniform(
+        "inv_aspect_ratio",
+        static_cast<float>(viewport_size().y) / viewport_size().x);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
     glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
@@ -232,6 +236,12 @@ void BlobRenderer::Update(float zoom, const glm::mat4& rotation)
     float far_pos      = eye_dist + half_diag;
     float aspect_ratio =
         static_cast<float>(viewport_size().x) / viewport_size().y;
+    if (aspect_ratio > 1.0f) {
+        float ¦È = std::atanf(std::tanf(fov() / 2.0f) * aspect_ratio);
+        eye_dist = half_diag / std::sinf(¦È);
+        near_pos = eye_dist - half_diag;
+        far_pos  = eye_dist + half_diag;
+    }
 
     glm::vec3 eye(0.0f, 0.0f, eye_dist + zoom);
     glm::vec3 up(0.0f, 1.0f, 0.0f);

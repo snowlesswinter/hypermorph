@@ -473,7 +473,7 @@ void EmitParticles(const FlipParticles& particles, float3 center_point,
                    float temperature, uint random_seed, uint3 volume_size,
                    BlockArrangement* ba)
 {
-    const int kHeatLayerThickness = 8;
+    const int kHeatLayerThickness = 6;
     dim3 block(volume_size.x, kHeatLayerThickness, 1);
     dim3 grid;
     ba->ArrangeGrid(&grid, block, volume_size);

@@ -25,9 +25,10 @@
 
 #include <helper_math.h>
 
-#include "block_arrangement.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -422,6 +423,8 @@ void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
                                              accel_factor, gravity,
                                              volume_size);
     }
+
+    DCHECK_KERNEL();
 }
 
 void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
@@ -474,6 +477,8 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
                                                      neumann_handler);
         }
     }
+
+    DCHECK_KERNEL();
 }
 
 void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
@@ -498,11 +503,14 @@ void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     ComputeResidualDiagnosisKernel<<<grid, block>>>(
         1.0f / (cell_size * cell_size), volume_size);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchRoundPassed(int* dest_array, int round, int x)
 {
     RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
+    DCHECK_KERNEL();
 }
 
 void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
@@ -548,4 +556,6 @@ void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                                                          volume_size);
     else
         SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
+
+    DCHECK_KERNEL();
 }

@@ -25,9 +25,10 @@
 
 #include <helper_math.h>
 
-#include "block_arrangement.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
@@ -127,6 +128,8 @@ void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
     ComputeResidualKernel<<<grid, block>>>(volume_size);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
@@ -145,6 +148,8 @@ void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
     ProlongateLerpKernel<<<grid, block>>>(volume_size_fine);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
@@ -169,6 +174,8 @@ void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
     ProlongateErrorLerpKernel<<<grid, block>>>(volume_size_fine);
+
+    DCHECK_KERNEL();
 }
 
 void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
@@ -186,4 +193,6 @@ void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     RestrictLerpKernel<<<grid, block>>>(volume_size);
+
+    DCHECK_KERNEL();
 }

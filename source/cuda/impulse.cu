@@ -25,9 +25,10 @@
 
 #include <helper_math.h>
 
-#include "block_arrangement.h"
-#include "cuda_common_host.h"
-#include "cuda_common_kern.h"
+#include "cuda/block_arrangement.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/cuda_common_kern.h"
+#include "cuda/cuda_debug.h"
 #include "fluid_impulse.h"
 
 surface<void, cudaSurfaceType3D> surf;
@@ -173,7 +174,7 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    const int kHeatLayerThickness = 8;
+    const int kHeatLayerThickness = 6;
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
             dim3 block(volume_size.x, kHeatLayerThickness, 1);
@@ -205,6 +206,7 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
             break;
         }
     }
+    DCHECK_KERNEL();
 }
 
 void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
@@ -247,4 +249,5 @@ void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
             break;
         }
     }
+    DCHECK_KERNEL();
 }
