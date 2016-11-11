@@ -127,6 +127,26 @@ __global__ void ClearVolumeHalf1Kernel(glm::vec4 value, uint3 volume_size)
                 cudaBoundaryModeTrap);
 }
 
+__global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
+                                uint16_t* pos_z, uint16_t* density,
+                                float crit_density,
+                                int* num_of_active_particles,
+                                int num_of_particles)
+{
+    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    if (i >= num_of_particles)
+        return;
+
+    int stride = 3;
+    bool skip = i >= *num_of_active_particles ||
+        __half2float(density[i]) < crit_density;
+
+    uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
+    buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
+    buf[i * stride + 1] = pos_y[i];
+    buf[i * stride + 2] = pos_z[i];
+}
+
 __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
                               glm::vec3 min_pos, glm::vec3 max_pos, float* near,
                               float* far)
@@ -145,13 +165,14 @@ __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
     return near <= far;
 }
 
-__global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
+__global__ void RaycastKernel(glm::mat4 inv_rotation, glm::vec2 viewport_size,
                               glm::vec3 eye_pos, float focal_length,
                               glm::vec2 offset, glm::vec3 light_pos,
                               glm::vec3 light_intensity, int num_samples,
                               float step_size, int num_light_samples,
                               float light_scale, float step_absorption,
-                              float density_factor, float occlusion_factor)
+                              float density_factor, float occlusion_factor,
+                              glm::vec2 screen_size, glm::vec3 normalized_size)
 {
     int x = VolumeX();
     int y = VolumeY();
@@ -160,20 +181,21 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
             y >= static_cast<int>(viewport_size.y))
         return;
 
-    glm::vec3 ray_dir;
+    glm::vec4 ray_dir4;
 
-    // Normalize ray direction vector and transfrom to world space.
-    ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
-    ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
-    ray_dir.z = -focal_length;
+    // Normalize ray direction vector and transform to model space.
+    ray_dir4.x = (2.0f * x / viewport_size.x - 1.0f) * screen_size.x;
+    ray_dir4.y = (2.0f * y / viewport_size.y - 1.0f) * screen_size.y;
+    ray_dir4.z = -focal_length; // Right handed, towards far end.
+    ray_dir4.w = 0.0f;
 
-    // Transform the ray direction vector to model-view space.
-    ray_dir = glm::normalize(ray_dir * model_view);
+    // Transform the ray direction vector to model space.
+    glm::vec3 ray_dir = glm::vec3(glm::normalize(inv_rotation * ray_dir4));
 
     // Ray origin is already in model space.
     float near;
     float far;
-    IntersectAABB(ray_dir, eye_pos, glm::vec3(-1.0f), glm::vec3(1.0f),
+    IntersectAABB(ray_dir, eye_pos, -normalized_size, normalized_size,
                   &near, &far);
     if (far - near < 0.0001f) {
         ushort4 raw = make_ushort4(0, __float2half_rn(1.0f), 0,
@@ -189,8 +211,8 @@ __global__ void RaycastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 ray_stop = eye_pos + ray_dir * far;
 
     // Transform to [0, 1) model space.
-    ray_start = 0.5f * (ray_start + 1.0f);
-    ray_stop = 0.5f * (ray_stop + 1.0f);
+    ray_start = 0.5f * (ray_start / normalized_size + 1.0f);
+    ray_stop = 0.5f * (ray_stop / normalized_size + 1.0f);
 
     glm::vec3 pos = ray_start;
     glm::vec3 step = glm::normalize(ray_stop - ray_start) * step_size;
@@ -258,7 +280,7 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
 
     glm::vec3 ray_dir;
 
-    // Normalize ray direction vector and transfrom to world space.
+    // Normalize ray direction vector and transform to world space.
     ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
     ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
     ray_dir.z = -focal_length;
@@ -277,7 +299,7 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
     glm::vec3 ray_start = eye_pos + ray_dir * near;
     glm::vec3 ray_stop = eye_pos + ray_dir * far;
 
-    // Transfrom to [0, 1) model space.
+    // Transform to [0, 1) model space.
     ray_start = 0.5f * (ray_start + 1.0f);
     ray_stop = 0.5f * (ray_stop + 1.0f);
 
@@ -330,7 +352,7 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
 
     glm::vec3 ray_dir;
 
-    // Normalize ray direction vector and transfrom to world space.
+    // Normalize ray direction vector and transform to world space.
     ray_dir.x = 2.0f * x / viewport_size.x - 1.0f;
     ray_dir.y = 2.0f * y / viewport_size.y - 1.0f;
     ray_dir.z = -focal_length;
@@ -349,7 +371,7 @@ __global__ void RaycastKernel_color(glm::mat3 model_view,
     glm::vec3 ray_start = eye_pos + ray_dir * near;
     glm::vec3 ray_stop = eye_pos + ray_dir * far;
 
-    // Transfrom to [0, 1) model space.
+    // Transform to [0, 1) model space.
     ray_start = 0.5f * (ray_start + 1.0f);
     ray_stop = 0.5f * (ray_stop + 1.0f);
 
@@ -471,13 +493,14 @@ void LaunchClearVolumeKernel(cudaArray* dest_array, const glm::vec4& value,
 }
 
 void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
-                         const glm::mat4& model_view,
+                         const glm::mat4& inv_rotation,
                          const glm::ivec2& surface_size,
                          const glm::vec3& eye_pos, const glm::vec3& light_color,
                          const glm::vec3& light_pos, float light_intensity,
-                         float focal_length, int num_samples,
-                         int num_light_samples, float absorption,
-                         float density_factor, float occlusion_factor)
+                         float focal_length, const glm::vec2& screen_size,
+                         int num_samples, int num_light_samples,
+                         float absorption, float density_factor,
+                         float occlusion_factor, const glm::vec3& volume_size)
 {
     if (BindCudaSurfaceToArray(&raycast_dest, dest_array) != cudaSuccess)
         return;
@@ -490,7 +513,6 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
     glm::vec2 viewport_size = surface_size;
     glm::ivec2 offset(0);
-    glm::mat3 m(model_view);
 
     dim3 block(32, 8, 1);
     dim3 grid((static_cast<int>(viewport_size.x) + block.x - 1) / block.x,
@@ -498,47 +520,26 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
     glm::vec3 intensity = glm::normalize(light_color);
     intensity *= light_intensity;
-    const float kMaxDistance = sqrt(2.0f);
+
+    float max_length =
+        glm::max(glm::max(volume_size.x, volume_size.y), volume_size.z);
+    glm::vec3 normalized_size = volume_size / max_length;
+    const float kMaxDistance = sqrt(3.0f);
     const float kStepSize = kMaxDistance / static_cast<float>(num_samples);
     const float kLightScale =
         kMaxDistance / static_cast<float>(num_light_samples);
     const float kAbsorptionTimesStepSize = absorption * kStepSize;
-    
-    const bool fast = false;
-    if (fast)
-        RaycastFastKernel<<<grid, block>>>(m, viewport_size, eye_pos,
-                                           focal_length, offset, intensity,
-                                           num_samples, kStepSize,
-                                           num_light_samples, kLightScale,
-                                           kAbsorptionTimesStepSize,
-                                           density_factor, occlusion_factor);
-    else
-        RaycastKernel<<<grid, block>>>(m, viewport_size, eye_pos, focal_length,
-                                       offset, light_pos, intensity,
-                                       num_samples, kStepSize,
-                                       num_light_samples, kLightScale,
-                                       kAbsorptionTimesStepSize, density_factor,
-                                       occlusion_factor);
-}
 
-__global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
-                                uint16_t* pos_z, uint16_t* density,
-                                float crit_density,
-                                int* num_of_active_particles,
-                                int num_of_particles)
-{
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= num_of_particles)
-        return;
+    bool rotate_light = false;
+    glm::vec3 light = light_pos;
+    if (!rotate_light)
+        light = glm::vec3(inv_rotation * glm::vec4(light_pos, 1));
 
-    int stride = 3;
-    bool skip = i >= *num_of_active_particles ||
-        __half2float(density[i]) < crit_density;
-
-    uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
-    buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
-    buf[i * stride + 1] = pos_y[i];
-    buf[i * stride + 2] = pos_z[i];
+    RaycastKernel<<<grid, block>>>(
+        inv_rotation, viewport_size, eye_pos, focal_length, offset, light,
+        intensity, num_samples, kStepSize, num_light_samples, kLightScale,
+        kAbsorptionTimesStepSize, density_factor, occlusion_factor,
+        screen_size, normalized_size);
 }
 
 namespace kern_launcher

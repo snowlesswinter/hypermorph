@@ -35,11 +35,12 @@
 
 VolumeRenderer::VolumeRenderer()
     : Renderer()
-    , model_view_proj_()
+    , inverse_rotation_proj_()
     , view_proj_()
     , perspective_proj_()
     , mvp_proj_()
     , eye_position_()
+    , screen_size_()
     , focal_length_(1.0f)
     , surf_()
     , render_texture_(new GLProgram())
@@ -93,11 +94,11 @@ void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
     if (graphics_lib() == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->Raycast(
             surf_, buf_owner->GetDensityVolume()->cuda_volume(),
-            model_view_proj_, eye_position_,
+            inverse_rotation_proj_, eye_position_,
             FluidConfig::Instance()->light_color(),
             FluidConfig::Instance()->light_position(),
             FluidConfig::Instance()->light_intensity(), focal_length_,
-            FluidConfig::Instance()->num_raycast_samples(),
+            screen_size_, FluidConfig::Instance()->num_raycast_samples(),
             FluidConfig::Instance()->num_raycast_light_samples(),
             FluidConfig::Instance()->light_absorption(),
             FluidConfig::Instance()->raycast_density_factor(),
@@ -125,14 +126,11 @@ void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
 void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
 {
     // Volume rendering uses normalized coordinates.
-    glm::vec3 half_size = grid_size() * 0.5f;
     float max_length =
-        std::max(std::max(half_size.x, half_size.y), half_size.z);
-    half_size /= max_length;
+        std::max(std::max(grid_size().x, grid_size().y), grid_size().z);
+    glm::vec3 half_size = grid_size() / max_length;
 
-    float half_diag = std::sqrtf(half_size.x * half_size.x +
-                                 half_size.y * half_size.y +
-                                 half_size.z * half_size.z);
+    float half_diag = glm::length(half_size);
 
     // Make sure the camera is able to capture every corner however the
     // rotation goes.
@@ -146,14 +144,15 @@ void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     view_proj_ = glm::lookAt(eye, target, up);
-
-    model_view_proj_ = view_proj_ * rotation;
     perspective_proj_ = glm::perspective(fov(), aspect_ratio, near_pos,
                                          far_pos);
-    mvp_proj_ = perspective_proj_ * model_view_proj_;
-    eye_position_ =
-        (glm::transpose(model_view_proj_) * glm::vec4(eye, 1.0f)).xyz();
+    mvp_proj_ = perspective_proj_ * view_proj_ * rotation;
+    eye_position_ = (glm::inverse(rotation) * glm::vec4(eye, 1.0f)).xyz();
+    inverse_rotation_proj_ = glm::inverse(rotation);
+
     focal_length_ = near_pos;
+    screen_size_.y = focal_length_ * tanf(fov() / 2.0f);
+    screen_size_.x = screen_size_.y * aspect_ratio;
 }
 
 bool VolumeRenderer::Init(const glm::ivec2& viewport_size)
@@ -233,7 +232,7 @@ void VolumeRenderer::RenderImplGlsl(GraphicsVolume* density_volume,
     GLProgram* raycast = GetRaycastProgram();
     raycast->Use();
     raycast->SetUniform("ModelviewProjection", mvp_proj_);
-    raycast->SetUniform("Modelview", model_view_proj_);
+    raycast->SetUniform("Modelview", inverse_rotation_proj_);
     raycast->SetUniform("ViewMatrix", view_proj_);
     raycast->SetUniform("ProjectionMatrix", perspective_proj_);
     raycast->SetUniform("RayOrigin", eye_position_);

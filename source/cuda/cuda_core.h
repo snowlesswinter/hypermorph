@@ -57,13 +57,14 @@ public:
     static void CopyVolumeAsync(cudaArray* dest, cudaArray* source,
                                 const glm::ivec3& volume_size);
     static void Raycast(GraphicsResource* dest, cudaArray* density,
-                        const glm::mat4& model_view,
+                        const glm::mat4& inv_rotation,
                         const glm::ivec2& surface_size,
                         const glm::vec3& eye_pos, const glm::vec3& light_color,
                         const glm::vec3& light_pos, float light_intensity,
-                        float focal_length, int num_samples,
-                        int num_light_samples, float absorption,
-                        float density_factor, float occlusion_factor);
+                        float focal_length, const glm::vec2& screen_size,
+                        int num_samples, int num_light_samples,
+                        float absorption, float density_factor,
+                        float occlusion_factor, const glm::vec3& volume_size);
 
     void ClearVolume(cudaArray* dest, const glm::vec4& value,
                      const glm::ivec3& volume_size);

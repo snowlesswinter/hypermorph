@@ -52,6 +52,7 @@ OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
 LARGE_INTEGER prev_time_;
 int g_diagnosis = 0;
+bool reverse_render_mode_ = false;
 FluidSimulator* sim_ = nullptr;
 Renderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
@@ -239,7 +240,15 @@ bool ResetRenderer()
 
     VolumeRenderer* vr = nullptr;
     BlobRenderer* br = nullptr;
-    if (FluidConfig::Instance()->render_mode() == RENDER_MODE_VOLUME) {
+    RenderMode mode = FluidConfig::Instance()->render_mode();
+    if (reverse_render_mode_) {
+        if (mode == RENDER_MODE_VOLUME)
+            mode = RENDER_MODE_BLOB;
+        else
+            mode = RENDER_MODE_VOLUME;
+    }
+
+    if (mode == RENDER_MODE_VOLUME) {
         vr = new VolumeRenderer();
         renderer_ = vr;
     } else {
@@ -356,6 +365,11 @@ void Keyboard(unsigned char key, int x, int y)
         case 'H':
             g_diagnosis = 0;
             sim_->set_diagnosis(g_diagnosis);
+            break;
+        case 'v':
+        case 'V':
+            reverse_render_mode_ = !reverse_render_mode_;
+            ResetRenderer();
             break;
         case 'r':
         case 'R':

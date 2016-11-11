@@ -44,15 +44,16 @@ extern void LaunchClearVolumeKernel(cudaArray* dest_array,
                                     BlockArrangement* ba);
 
 extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
-                                const glm::mat4& model_view,
+                                const glm::mat4& inv_rotation,
                                 const glm::ivec2& surface_size,
                                 const glm::vec3& eye_pos,
                                 const glm::vec3& light_color,
                                 const glm::vec3& light_pos,
                                 float light_intensity, float focal_length,
-                                int num_samples, int num_light_samples,
-                                float absorption, float density_factor,
-                                float occlusion_factor);
+                                const glm::vec2& screen_size, int num_samples,
+                                int num_light_samples, float absorption,
+                                float density_factor, float occlusion_factor,
+                                const glm::vec3& volume_size);
 namespace
 {
 uint3 FromGlmVector(const glm::ivec3& v)
@@ -347,13 +348,14 @@ void CudaCore::Sync()
 }
 
 void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
-                       const glm::mat4& model_view,
+                       const glm::mat4& inv_rotation,
                        const glm::ivec2& surface_size,
                        const glm::vec3& eye_pos, const glm::vec3& light_color,
                        const glm::vec3& light_pos, float light_intensity,
-                       float focal_length, int num_samples,
-                       int num_light_samples, float absorption,
-                       float density_factor, float occlusion_factor)
+                       float focal_length, const glm::vec2& screen_size,
+                       int num_samples, int num_light_samples, float absorption,
+                       float density_factor, float occlusion_factor,
+                       const glm::vec3& volume_size)
 {
     cudaGraphicsResource_t res[] = {
         dest->resource()
@@ -372,10 +374,11 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
     if (result != cudaSuccess)
         return;
 
-    LaunchRaycastKernel(dest_array, density, model_view, surface_size, eye_pos,
-                        light_color, light_pos, light_intensity, focal_length,
-                        num_samples, num_light_samples, absorption,
-                        density_factor, occlusion_factor);
+    LaunchRaycastKernel(dest_array, density, inv_rotation, surface_size,
+                        eye_pos, light_color, light_pos, light_intensity,
+                        focal_length, screen_size, num_samples,
+                        num_light_samples, absorption, density_factor,
+                        occlusion_factor, volume_size);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

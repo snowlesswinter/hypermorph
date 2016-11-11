@@ -51,11 +51,12 @@ private:
     void RenderImplCuda();
     void RenderImplGlsl(GraphicsVolume* density_volume, float focal_length);
 
-    glm::mat4 model_view_proj_;
+    glm::mat4 inverse_rotation_proj_;
     glm::mat4 view_proj_;
     glm::mat4 perspective_proj_;
     glm::mat4 mvp_proj_;
-    glm::vec3 eye_position_;
+    glm::vec3 eye_position_; // In object coordinates.
+    glm::vec2 screen_size_;  // In object coordinates.
     float focal_length_;
 
     std::shared_ptr<GLSurface> surf_;

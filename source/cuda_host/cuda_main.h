@@ -89,8 +89,8 @@ public:
                     std::shared_ptr<CudaVolume> source);
     int RegisterGLImage(std::shared_ptr<GLTexture> texture);
     void UnregisterGLImage(std::shared_ptr<GLTexture> texture);
-    int RegisterGLBuffer(int vbo);
-    void UnregisterGBuffer(int vbo);
+    int RegisterGLBuffer(uint32_t vbo);
+    void UnregisterGBuffer(uint32_t vbo);
 
     void AdvectField(std::shared_ptr<CudaVolume> fnp1,
                      std::shared_ptr<CudaVolume> fn,
@@ -259,9 +259,10 @@ public:
                    float crit_density, int num_of_particles);
     void Raycast(std::shared_ptr<GLSurface> dest,
                  std::shared_ptr<CudaVolume> density,
-                 const glm::mat4& model_view, const glm::vec3& eye_pos,
+                 const glm::mat4& inv_rotation, const glm::vec3& eye_pos,
                  const glm::vec3& light_color, const glm::vec3& light_pos,
-                 float light_intensity, float focal_length, int num_samples,
+                 float light_intensity, float focal_length,
+                 const glm::vec2& screen_size, int num_samples,
                  int num_light_samples, float absorption, float density_factor,
                  float occlusion_factor);
 
@@ -292,8 +293,7 @@ private:
     std::unique_ptr<FlipImplCuda> flip_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
-
-    std::unique_ptr<GraphicsResource> vbo_;
+    std::map<uint32_t, std::unique_ptr<GraphicsResource>> registerd_buffers_;
 };
 
 #endif // _CUDA_MAIN_H_

@@ -162,7 +162,7 @@ CudaMain::CudaMain()
         new FlipImplCuda(flip_ob_.get(), core_->block_arrangement(),
                          core_->buffer_manager(), core_->rand_helper()))
     , registerd_textures_()
-    , vbo_(new GraphicsResource(core_.get()))
+    , registerd_buffers_()
 {
 
 }
@@ -215,15 +215,29 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
     registerd_textures_.erase(i);
 }
 
-int CudaMain::RegisterGLBuffer(int vbo)
+int CudaMain::RegisterGLBuffer(uint32_t vbo)
 {
-    return core_->RegisterGLBuffer(vbo, vbo_.get());
+    if (registerd_buffers_.find(vbo) != registerd_buffers_.end())
+        return 0;
+
+    std::unique_ptr<GraphicsResource> g(new GraphicsResource(core_.get()));
+    int r = core_->RegisterGLBuffer(vbo, g.get());
+    if (r)
+        return r;
+
+    registerd_buffers_.insert(std::make_pair(vbo, std::move(g)));
+    return 0;
 }
 
-void CudaMain::UnregisterGBuffer(int vbo)
+void CudaMain::UnregisterGBuffer(uint32_t vbo)
 {
-    if (vbo_)
-        core_->UnregisterGLResource(vbo_.get());
+    auto i = registerd_buffers_.find(vbo);
+    assert(i != registerd_buffers_.end());
+    if (i == registerd_buffers_.end())
+        return;
+
+    core_->UnregisterGLResource(i->second.get());
+    registerd_buffers_.erase(i);
 }
 
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,
@@ -595,7 +609,12 @@ void CudaMain::CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
                          std::shared_ptr<CudaMemPiece> num_of_actives,
                          float crit_density, int num_of_particles)
 {
-    core_->CopyToVbo(vbo, vbo_->Receive(), pos_x->mem(), pos_y->mem(),
+    auto i = registerd_buffers_.find(vbo);
+    assert(i != registerd_buffers_.end());
+    if (i == registerd_buffers_.end())
+        return;
+
+    core_->CopyToVbo(vbo, i->second->Receive(), pos_x->mem(), pos_y->mem(),
                      pos_z->mem(), density->mem(), crit_density,
                      reinterpret_cast<int*>(num_of_actives->mem()),
                      num_of_particles);
@@ -603,10 +622,11 @@ void CudaMain::CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
                        std::shared_ptr<CudaVolume> density,
-                       const glm::mat4& model_view, const glm::vec3& eye_pos,
+                       const glm::mat4& inv_rotation, const glm::vec3& eye_pos,
                        const glm::vec3& light_color, const glm::vec3& light_pos,
                        float light_intensity, float focal_length,
-                       int num_samples, int num_light_samples, float absorption,
+                       const glm::vec2& screen_size, int num_samples,
+                       int num_light_samples, float absorption,
                        float density_factor, float occlusion_factor)
 {
     auto i = registerd_textures_.find(dest);
@@ -614,11 +634,11 @@ void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,
     if (i == registerd_textures_.end())
         return;
 
-    core_->Raycast(i->second.get(), density->dev_array(), model_view,
+    core_->Raycast(i->second.get(), density->dev_array(), inv_rotation,
                    dest->size(), eye_pos, light_color, light_pos,
-                   light_intensity, focal_length, num_samples,
+                   light_intensity, focal_length, screen_size, num_samples,
                    num_light_samples, absorption, density_factor,
-                   occlusion_factor);
+                   occlusion_factor, density->size());
 }
 
 void CudaMain::SetAdvectionMethod(AdvectionMethod method)

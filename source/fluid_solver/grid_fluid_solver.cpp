@@ -709,13 +709,12 @@ void GridFluidSolver::ImpulseDensity(const glm::vec3& position,
 
 void GridFluidSolver::ReviseDensity()
 {
-    //glm::vec3 pos = kImpulsePosition * grid_size_;
-    //if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-    //    if (CudaMain::IMPULSE_HOT_FLOOR ==
-    //            FluidConfig::Instance()->fluid_impluse())
-    //        CudaMain::Instance()->ReviseDensity(
-    //            density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
-    //}
+    return;
+    glm::vec3 pos(0.0f);
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ReviseDensity(
+            density_->cuda_volume(), pos, grid_size_.x * 0.5f, 0.1f);
+    }
 }
 
 void GridFluidSolver::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
