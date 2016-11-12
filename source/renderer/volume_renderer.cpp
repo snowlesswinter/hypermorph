@@ -134,14 +134,14 @@ void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
 
     // Make sure the camera is able to capture every corner however the
     // rotation goes.
-    float eye_dist     = half_diag / std::sinf(fov() / 2.0f);
+    float eye_dist     = half_diag / std::sin(fov() / 2.0f);
     float near_pos     = eye_dist - half_diag;
     float far_pos      = eye_dist + half_diag;
     float aspect_ratio =
         static_cast<float>(viewport_size().x) / viewport_size().y;
     if (aspect_ratio > 1.0f) {
-        float ¦È = std::atanf(std::tanf(fov() / 2.0f) * aspect_ratio);
-        eye_dist = half_diag / std::sinf(¦È);
+        float ¦È = std::atan(std::tan(fov() / 2.0f) * aspect_ratio);
+        eye_dist = half_diag / std::sin(¦È);
         near_pos = eye_dist - half_diag;
         far_pos = eye_dist + half_diag;
     }
@@ -157,7 +157,7 @@ void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
     inverse_rotation_proj_ = glm::inverse(rotation);
 
     focal_length_ = near_pos;
-    screen_size_.y = focal_length_ * tanf(fov() / 2.0f);
+    screen_size_.y = focal_length_ * tan(fov() / 2.0f);
     screen_size_.x = screen_size_.y * aspect_ratio;
 }
 

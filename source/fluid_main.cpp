@@ -46,7 +46,6 @@
 int timer_interval_ = 10; // ms
 int main_frame_handle_ = 0;
 Trackball* trackball_ = nullptr;
-float kFieldOfView_ = 1.0f;
 bool simulate_fluid_ = true;
 OverlayContent overlay_;
 LARGE_INTEGER time_freq_;
@@ -258,7 +257,7 @@ bool ResetRenderer()
 
     renderer_->set_graphics_lib(FluidConfig::Instance()->graphics_lib());
     renderer_->set_grid_size(FluidConfig::Instance()->grid_size());
-    renderer_->set_fov(kFieldOfView_);
+    renderer_->set_fov(FluidConfig::Instance()->field_of_view());
 
     bool result = true;
     if (br) {
@@ -306,11 +305,13 @@ void Display()
 
     if (watcher_->file_modified()) {
         RenderMode old_mode = FluidConfig::Instance()->render_mode();
+        float old_fov = FluidConfig::Instance()->field_of_view();
 
         FluidConfig::Instance()->Reload();
         watcher_->ResetState();
 
-        if (old_mode != FluidConfig::Instance()->render_mode())
+        if (old_mode != FluidConfig::Instance()->render_mode() ||
+                old_fov != FluidConfig::Instance()->field_of_view())
             ResetRenderer();
 
         sim_->NotifyConfigChanged();

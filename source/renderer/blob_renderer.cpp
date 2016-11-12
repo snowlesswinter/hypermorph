@@ -98,6 +98,7 @@ const char *blob_fs = STRINGIFY(
 
 uniform mat4 u_mv_matrix;
 uniform vec3 u_light_dir;
+uniform float grid_depth;
 
 in vec2 gs_tex_coord;
 in float gs_z;
@@ -143,7 +144,7 @@ void main()
     hsv_color.y += (1.0f - diffuse) * 0.09f;
     hsv_color.z -= (1.0f - diffuse) * 0.4f;
 
-    hsv_color.x += (gs_z / 96.0f) * (130.0f / 360.0f);
+    hsv_color.x += (gs_z / grid_depth) * (130.0f / 360.0f);
     out_color = vec4(hsv2rgb(hsv_color), 1.0f);
 }
 );
@@ -204,6 +205,7 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
     blob_program->SetUniform(
         "inv_aspect_ratio",
         static_cast<float>(viewport_size().y) / viewport_size().x);
+    blob_program->SetUniform("grid_depth", grid_size().z);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
     glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
@@ -231,14 +233,14 @@ void BlobRenderer::Update(float zoom, const glm::mat4& rotation)
 
     // Make sure the camera is able to capture every corner however the
     // rotation goes.
-    float eye_dist     = half_diag / std::sinf(fov() / 2.0f);
+    float eye_dist     = half_diag / std::sin(fov() / 2.0f);
     float near_pos     = eye_dist - half_diag;
     float far_pos      = eye_dist + half_diag;
     float aspect_ratio =
         static_cast<float>(viewport_size().x) / viewport_size().y;
     if (aspect_ratio > 1.0f) {
-        float ¦È = std::atanf(std::tanf(fov() / 2.0f) * aspect_ratio);
-        eye_dist = half_diag / std::sinf(¦È);
+        float ¦È = std::atan(std::tan(fov() / 2.0f) * aspect_ratio);
+        eye_dist = half_diag / std::sin(¦È);
         near_pos = eye_dist - half_diag;
         far_pos  = eye_dist + half_diag;
     }
@@ -252,7 +254,8 @@ void BlobRenderer::Update(float zoom, const glm::mat4& rotation)
     perspective_proj_ = glm::perspective(fov(), aspect_ratio, near_pos,
                                          far_pos);
 
-    point_scale_ = 100.0f / std::tanf(fov() / 2.0f);
+    float inv_tan_fov = std::tan(fov() / 2.0f);
+    point_scale_ = grid_size().y / inv_tan_fov / inv_tan_fov * 0.25f;
 }
 
 bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)

@@ -359,6 +359,7 @@ FluidConfig::FluidConfig()
     , light_absorption_(10.0f, "light absorption")
     , raycast_density_factor_(30.0f, "raycast density factor")
     , raycast_occlusion_factor_(15.0f, "raycast occlusion factor")
+    , field_of_view_(1.0f, "field of view")
     , time_stretch_(1.0f, "time stretch")
     , vorticity_confinement_(0.1f, "vorticity confinement")
     , num_jacobi_iterations_(40, "number of jacobi iterations")
@@ -469,6 +470,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         &light_absorption_,
         &raycast_density_factor_,
         &raycast_occlusion_factor_,
+        &field_of_view_,
         &time_stretch_,
         &vorticity_confinement_,
     };
@@ -537,6 +539,7 @@ void FluidConfig::Store(std::ostream& stream)
         light_absorption_,
         raycast_density_factor_,
         raycast_occlusion_factor_,
+        field_of_view_,
         time_stretch_,
         vorticity_confinement_,
     };
