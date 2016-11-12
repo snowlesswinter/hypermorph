@@ -93,22 +93,19 @@ GridFluidSolver::~GridFluidSolver()
 void GridFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& impulse_position,
                               const glm::vec3& hotspot, float impulse_density,
-                              float impulse_temperature)
+                              float impulse_temperature, float impulse_velocity)
 {
     
 
     ImpulseDensity(impulse_position, hotspot, splat_radius, impulse_density);
 
-    Impulse1(temperature_, impulse_position, hotspot, splat_radius,
-             impulse_temperature);
+    if (impulse_temperature > 0.0f)
+        ImpulseField(temperature_, impulse_position, hotspot, splat_radius,
+                     impulse_temperature);
 
-    //int t = static_cast<int>(seconds_elapsed / time_stretch);
-    //if (t % 2 && impulse == CudaMain::IMPULSE_BUOYANT_JET) {
-    //    float coef = static_cast<float>(sin(seconds_elapsed * 2.0 * 2.0 * ¦Ð));
-    //    float initial_velocity =
-    //        (1.0f + coef * 0.5f) * FluidConfig::Instance()->impulse_velocity();
-    //    Impulse1(velocity_->x(), pos, hotspot, splat_radius, initial_velocity);
-    //}
+    if (impulse_velocity > 0.0f)
+        ImpulseField(velocity_->x(), impulse_position, hotspot, splat_radius,
+                     impulse_velocity);
 }
 
 bool GridFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
@@ -659,10 +656,10 @@ void GridFluidSolver::DampedJacobi(std::shared_ptr<GraphicsVolume> pressure,
     }
 }
 
-void GridFluidSolver::Impulse1(std::shared_ptr<GraphicsVolume> dest,
-                              const glm::vec3& position,
-                              const glm::vec3& hotspot, float splat_radius,
-                              float value)
+void GridFluidSolver::ImpulseField(std::shared_ptr<GraphicsVolume> dest,
+                                   const glm::vec3& position,
+                                   const glm::vec3& hotspot, float splat_radius,
+                                   float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulse(dest->cuda_volume(),

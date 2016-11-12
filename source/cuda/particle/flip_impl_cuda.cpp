@@ -50,6 +50,7 @@ FlipImplCuda::FlipImplCuda(Observer* observer, BlockArrangement* ba,
     , bm_(bm)
     , rand_(rand)
     , cell_size_(0.15f)
+    , impulse_(IMPULSE_HOT_FLOOR)
 {
 
 }
@@ -92,12 +93,14 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
 void FlipImplCuda::Emit(const FlipParticles& particles,
                         const glm::vec3& center_point, const glm::vec3& hotspot,
                         float radius, float density, float temperature,
+                        const glm::vec3& velocity,
                         const glm::ivec3& volume_size)
 {
     kern_launcher::EmitParticles(
         particles, make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z), radius, density,
-        temperature, rand_->Iterate(), FromGlmVector(volume_size), ba_);
+        temperature, make_float3(velocity.x, velocity.y, velocity.z),
+        impulse_, rand_->Iterate(), FromGlmVector(volume_size), ba_);
 
     observer_->OnEmitted();
 }

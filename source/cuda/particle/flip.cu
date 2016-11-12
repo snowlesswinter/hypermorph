@@ -31,6 +31,7 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
+#include "cuda/fluid_impulse.h"
 #include "cuda/particle/flip_common.cuh"
 #include "flip.h"
 
@@ -60,6 +61,64 @@ __device__ bool IsCellActive(float v_x, float v_y, float v_z, float density,
     return !IsStopped(v_x, v_y, v_z) || density > kEpsilon ||
             temperature > kEpsilon;
 }
+
+struct HorizontalEmission
+{
+    __device__ static uint GetGridX()
+    {
+        return 1 + threadIdx.x;
+    }
+    __device__ static uint GetGridY()
+    {
+        return VolumeY();
+    }
+    __device__ static bool OutsideVolume(uint x, uint y, uint z,
+                                         const uint3& volume_size)
+    {
+        return y >= volume_size.y || z >= volume_size.z;
+    }
+    __device__ static float CalculateRadius(const float3& coord,
+                                            const float3& center,
+                                            const float3& hotspot)
+    {
+        float2 diff =
+            make_float2(coord.y, coord.z) - make_float2(center.y, center.z);
+        return hypotf(diff.x, diff.y);
+    }
+    __device__ static uint16_t GetVelX(const float3 velocity)
+    {
+        return __float2half_rn(velocity.x);
+    }
+};
+
+struct VerticalEmission
+{
+    __device__ static uint GetGridX()
+    {
+        return VolumeX();
+    }
+    __device__ static uint GetGridY()
+    {
+        return 1 + threadIdx.y;
+    }
+    __device__ static bool OutsideVolume(uint x, uint y, uint z,
+                                         const uint3& volume_size)
+    {
+        return x >= volume_size.x || z >= volume_size.z;
+    }
+    __device__ static float CalculateRadius(const float3& coord,
+                                            const float3& center,
+                                            const float3& hotspot)
+    {
+        float2 diff =
+            make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
+        return hypotf(diff.x, diff.y);
+    }
+    __device__ static uint16_t GetVelX(const float3 velocity)
+    {
+        return 0;
+    }
+};
 
 // NOTE: Assuming never overflows/underflows.
 template <int Increment>
@@ -162,23 +221,21 @@ __global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step)
 }
 
 // Fields should be available: cell_index, particle_count, particle_index.
-__global__ void EmitParticlesKernel(FlipParticles particles,
-                                    float3 center_point, float3 hotspot,
-                                    float radius, float density,
-                                    float temperature, uint random_seed,
-                                    uint3 volume_size)
+template <typename Emission>
+__global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
+                                    float3 hotspot, float radius, float density,
+                                    float temperature, float3 velocity,
+                                    uint random_seed, uint3 volume_size)
 {
-    uint x = VolumeX();
-    uint y = 1 + threadIdx.y;
+    uint x = Emission::GetGridX();
+    uint y = Emission::GetGridY();
     uint z = VolumeZ();
 
-    if (x >= volume_size.x || z >= volume_size.z)
+    if (Emission::OutsideVolume(x, y, z, volume_size))
         return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float2 diff =
-        make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
-    float d = hypotf(diff.x, diff.y);
+    float d = Emission::CalculateRadius(coord, center, hotspot);
     if (d >= radius)
         return;
 
@@ -207,7 +264,7 @@ __global__ void EmitParticlesKernel(FlipParticles particles,
             particles.position_x_ [index] = __float2half_rn(pos.x);
             particles.position_y_ [index] = __float2half_rn(pos.y);
             particles.position_z_ [index] = __float2half_rn(pos.z);
-            particles.velocity_x_ [index] = 0;
+            particles.velocity_x_ [index] = Emission::GetVelX(velocity);
             particles.velocity_y_ [index] = 0;
             particles.velocity_z_ [index] = 0;
             particles.density_    [index] = __float2half_rn(density);
@@ -216,7 +273,7 @@ __global__ void EmitParticlesKernel(FlipParticles particles,
     } else {
         uint p_index = particles.particle_index_[cell_index];
         for (int i = 0; i < count; i++) {
-            // TOOD: Reset velocity to 0?
+            particles.velocity_x_ [p_index + i] = Emission::GetVelX(velocity);
             particles.density_    [p_index + i] = __float2half_rn(density);
             particles.temperature_[p_index + i] = __float2half_rn(temperature);
         }
@@ -468,19 +525,36 @@ void DiffuseAndDecay(const FlipParticles& particles, float time_step,
     DiffuseAndDecayKernel<<<grid, block>>>(particles, time_step);
 }
 
-void EmitParticles(const FlipParticles& particles, float3 center_point,
+void EmitParticles(const FlipParticles& particles, float3 center,
                    float3 hotspot, float radius, float density,
-                   float temperature, uint random_seed, uint3 volume_size,
-                   BlockArrangement* ba)
+                   float temperature, float3 velocity, FluidImpulse impulse,
+                   uint random_seed, uint3 volume_size, BlockArrangement* ba)
 {
     const int kHeatLayerThickness = 6;
-    dim3 block(volume_size.x, kHeatLayerThickness, 1);
-    dim3 grid;
-    ba->ArrangeGrid(&grid, block, volume_size);
-    grid.y = 1;
-    EmitParticlesKernel<<<grid, block>>>(particles, center_point, hotspot,
-                                         radius, density, temperature,
-                                         random_seed, volume_size);
+
+    switch (impulse) {
+        case IMPULSE_HOT_FLOOR: {
+            dim3 block(volume_size.x, kHeatLayerThickness, 1);
+            dim3 grid;
+            ba->ArrangeGrid(&grid, block, volume_size);
+            grid.y = 1;
+            EmitParticlesKernel<VerticalEmission><<<grid, block>>>(
+                particles, center, hotspot, radius, density, temperature,
+                velocity, random_seed, volume_size);
+            break;
+        }
+        case IMPULSE_BUOYANT_JET: {
+            dim3 block(3, volume_size.y, 1);
+            dim3 grid;
+            ba->ArrangeGrid(&grid, block, volume_size);
+            grid.x = 1;
+            EmitParticlesKernel<HorizontalEmission><<<grid, block>>>(
+                particles, center, hotspot, radius, density, temperature,
+                velocity, random_seed, volume_size);
+            break;
+        }
+    }
+    
     DCHECK_KERNEL();
 }
 

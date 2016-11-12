@@ -24,6 +24,8 @@
 
 #include "third_party/glm/fwd.hpp"
 
+#include "cuda/fluid_impulse.h"
+
 struct cudaArray;
 struct FlipParticles;
 class AuxBufferManager;
@@ -57,10 +59,12 @@ public:
                 float time_step, const glm::ivec3& volume_size);
     void Emit(const FlipParticles& particles, const glm::vec3& center_point,
               const glm::vec3& hotspot, float radius, float density,
-              float temperature, const glm::ivec3& volume_size);
+              float temperature, const glm::vec3& velocity,
+              const glm::ivec3& volume_size);
     void Reset(const FlipParticles& particles, const glm::ivec3& volume_size);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
+    void set_fluid_impulse(FluidImpulse i) { impulse_ = i; }
 
 private:
     void CompactParticles(FlipParticles* particles, int* num_active_particles,
@@ -72,6 +76,7 @@ private:
     AuxBufferManager* bm_;
     RandomHelper* rand_;
     float cell_size_;
+    FluidImpulse impulse_;
 };
 
 #endif // _FLIP_IMPL_CUDA_H_

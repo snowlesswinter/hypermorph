@@ -170,15 +170,25 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         do_impulse = true;
     }
 
+    float initial_velocity = 0.0f;
     CudaMain::FluidImpulse impulse = FluidConfig::Instance()->fluid_impluse();
     if (impulse == CudaMain::IMPULSE_BUOYANT_JET) {
+        int t = static_cast<int>(seconds_elapsed / time_stretch);
+        if (t % 2) {
+            float coef = static_cast<float>(std::sin(seconds_elapsed * 4 * ¦Ð));
+            initial_velocity =
+                (1.0f + coef * 0.5f) *
+                FluidConfig::Instance()->impulse_velocity();
+        }
+
         pos.x = pos.y;
-        pos.y = splat_radius + 2;
+        pos.y = splat_radius + grid_size_.y * 0.2f;
+        impulse_temperature = 0.0f;
     }
 
     if (do_impulse)
         fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,
-        impulse_temperature);
+                               impulse_temperature, initial_velocity);
 
     fluid_solver_->Solve(proper_delta_time);
 }

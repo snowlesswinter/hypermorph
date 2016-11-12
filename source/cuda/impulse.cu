@@ -197,7 +197,7 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
             break;
         }
         case IMPULSE_BUOYANT_JET: {
-            dim3 block(kHeatLayerThickness, volume_size.y, 1);
+            dim3 block(3, volume_size.y, 1);
             dim3 grid;
             ba->ArrangeGrid(&grid, block, volume_size);
             grid.x = 1;

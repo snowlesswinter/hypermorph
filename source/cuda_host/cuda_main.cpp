@@ -571,10 +571,11 @@ void CudaMain::EmitParticles(FlipParticles* particles,
                              const glm::vec3& center_point,
                              const glm::vec3& hotspot, float radius,
                              float density, float temperature,
+                             const glm::vec3& velocity,
                              const glm::ivec3& volume_size)
 {
     flip_impl_->Emit(ToCudaFlipParticles(*particles), center_point, hotspot,
-                     radius, density, temperature, volume_size);
+                     radius, density, temperature, velocity, volume_size);
 }
 
 void CudaMain::MoveParticles(FlipParticles* particles,
@@ -667,6 +668,7 @@ void CudaMain::SetCellSize(float cell_size)
 void CudaMain::SetFluidImpulse(FluidImpulse impulse)
 {
     fluid_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
+    flip_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
 }
 
 void CudaMain::SetOutflow(bool outflow)

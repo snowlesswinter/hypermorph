@@ -145,7 +145,7 @@ FlipFluidSolver::~FlipFluidSolver()
 void FlipFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& impulse_position,
                               const glm::vec3& hotspot, float impulse_density,
-                              float impulse_temperature)
+                              float impulse_temperature, float impulse_velocity)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
 
@@ -155,6 +155,7 @@ void FlipFluidSolver::Impulse(float splat_radius,
         CudaMain::Instance()->EmitParticles(&p, impulse_position, hotspot,
                                             splat_radius, impulse_density,
                                             impulse_temperature,
+                                            glm::vec3(impulse_velocity),
                                             density_->cuda_volume()->size());
     }
 }

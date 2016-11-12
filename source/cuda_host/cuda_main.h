@@ -235,7 +235,8 @@ public:
     // Particles
     void EmitParticles(FlipParticles* particles, const glm::vec3& center_point,
                        const glm::vec3& hotspot, float radius, float density,
-                       float temperature, const glm::ivec3& volume_size);
+                       float temperature, const glm::vec3& velocity,
+                       const glm::ivec3& volume_size);
     void MoveParticles(FlipParticles* particles, int* num_active_particles,
                        const FlipParticles* aux_,
                        std::shared_ptr<CudaVolume> vnp1_x,
