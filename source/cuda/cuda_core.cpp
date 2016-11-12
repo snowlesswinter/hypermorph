@@ -32,28 +32,12 @@
 #include <helper_cuda_gl.h>
 #include <helper_math.h>
 
-#include "cuda_common_host.h"
-#include "graphics_resource.h"
-#include "kernel_launcher.h"
+#include "cuda/cuda_common_host.h"
+#include "cuda/graphics_resource.h"
+#include "cuda/kernel_launcher.h"
 #include "third_party/glm/mat4x4.hpp"
 #include "third_party/glm/vec3.hpp"
 
-extern void LaunchClearVolumeKernel(cudaArray* dest_array,
-                                    const glm::vec4& value,
-                                    const uint3& volume_size,
-                                    BlockArrangement* ba);
-
-extern void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
-                                const glm::mat4& inv_rotation,
-                                const glm::ivec2& surface_size,
-                                const glm::vec3& eye_pos,
-                                const glm::vec3& light_color,
-                                const glm::vec3& light_pos,
-                                float light_intensity, float focal_length,
-                                const glm::vec2& screen_size, int num_samples,
-                                int num_light_samples, float absorption,
-                                float density_factor, float occlusion_factor,
-                                const glm::vec3& volume_size);
 namespace
 {
 uint3 FromGlmVector(const glm::ivec3& v)
@@ -291,8 +275,9 @@ void CudaCore::FreeVolumeMemory(cudaArray* mem)
 void CudaCore::ClearVolume(cudaArray* dest, const glm::vec4& value,
                            const glm::ivec3& volume_size)
 {
-    LaunchClearVolumeKernel(dest, value, FromGlmVector(volume_size),
-                            &block_arrangement_);
+    kern_launcher::ClearVolume(dest,
+                               make_float4(value.x, value.y, value.z, value.w),
+                               FromGlmVector(volume_size), &block_arrangement_);
 
 }
 
@@ -374,11 +359,11 @@ void CudaCore::Raycast(GraphicsResource* dest, cudaArray* density,
     if (result != cudaSuccess)
         return;
 
-    LaunchRaycastKernel(dest_array, density, inv_rotation, surface_size,
-                        eye_pos, light_color, light_pos, light_intensity,
-                        focal_length, screen_size, num_samples,
-                        num_light_samples, absorption, density_factor,
-                        occlusion_factor, volume_size);
+    kern_launcher::Raycast(dest_array, density, inv_rotation, surface_size,
+                           eye_pos, light_color, light_pos, light_intensity,
+                           focal_length, screen_size, num_samples,
+                           num_light_samples, absorption, density_factor,
+                           occlusion_factor, volume_size);
 
     cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
 }

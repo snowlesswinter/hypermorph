@@ -27,6 +27,8 @@
 #include <cuda_runtime.h>
 #include <stdint.h>
 
+#include "third_party/glm/fwd.hpp"
+
 struct FlipParticles;
 class AuxBufferManager;
 class BlockArrangement;
@@ -73,7 +75,9 @@ extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
 // Particles.
 namespace kern_launcher
 {
+extern void ClearVolume(cudaArray* dest_array, const float4& value, const uint3& volume_size, BlockArrangement* ba);
 extern void CopyToVbo(void* point_vbo, void* extra_vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z, uint16_t* density, uint16_t* temperature, float crit_density, int* num_of_active_particles, int num_of_particles, BlockArrangement* ba);
+extern void Raycast(cudaArray* dest_array, cudaArray* density_array, const glm::mat4& inv_rotation, const glm::ivec2& surface_size, const glm::vec3& eye_pos, const glm::vec3& light_color, const glm::vec3& light_pos, float light_intensity, float focal_length, const glm::vec2& screen_size, int num_samples, int num_light_samples, float absorption, float density_factor, float occlusion_factor, const glm::vec3& volume_size);
 
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
