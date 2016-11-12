@@ -222,6 +222,7 @@ int CudaMain::RegisterGLBuffer(uint32_t vbo)
 
     std::unique_ptr<GraphicsResource> g(new GraphicsResource(core_.get()));
     int r = core_->RegisterGLBuffer(vbo, g.get());
+    assert(!r);
     if (r)
         return r;
 
@@ -602,22 +603,27 @@ void CudaMain::ResetParticles(FlipParticles* particles,
     flip_impl_->Reset(ToCudaFlipParticles(*particles), volume_size);
 }
 
-void CudaMain::CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+bool CudaMain::CopyToVbo(uint32_t point_vbo, uint32_t extra_vbo,
+                         std::shared_ptr<CudaLinearMemU16> pos_x,
                          std::shared_ptr<CudaLinearMemU16> pos_y,
                          std::shared_ptr<CudaLinearMemU16> pos_z,
                          std::shared_ptr<CudaLinearMemU16> density,
+                         std::shared_ptr<CudaLinearMemU16> temperature,
                          std::shared_ptr<CudaMemPiece> num_of_actives,
                          float crit_density, int num_of_particles)
 {
-    auto i = registerd_buffers_.find(vbo);
-    assert(i != registerd_buffers_.end());
-    if (i == registerd_buffers_.end())
-        return;
+    auto i = registerd_buffers_.find(point_vbo);
+    auto j = registerd_buffers_.find(extra_vbo);
+    assert(i != registerd_buffers_.end() && j != registerd_buffers_.end());
+    if (i == registerd_buffers_.end() || j == registerd_buffers_.end())
+        return false;
 
-    core_->CopyToVbo(vbo, i->second->Receive(), pos_x->mem(), pos_y->mem(),
-                     pos_z->mem(), density->mem(), crit_density,
+    core_->CopyToVbo(i->second.get(), j->second.get(), pos_x->mem(),
+                     pos_y->mem(), pos_z->mem(), density->mem(),
+                     temperature->mem(), crit_density,
                      reinterpret_cast<int*>(num_of_actives->mem()),
                      num_of_particles);
+    return true;
 }
 
 void CudaMain::Raycast(std::shared_ptr<GLSurface> dest,

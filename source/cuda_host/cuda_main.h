@@ -251,10 +251,12 @@ public:
                         const glm::ivec3& volume_size);
 
     // Rendering
-    void CopyToVbo(uint32_t vbo, std::shared_ptr<CudaLinearMemU16> pos_x,
+    bool CopyToVbo(uint32_t point_vbo, uint32_t extra_vbo,
+                   std::shared_ptr<CudaLinearMemU16> pos_x,
                    std::shared_ptr<CudaLinearMemU16> pos_y,
                    std::shared_ptr<CudaLinearMemU16> pos_z,
                    std::shared_ptr<CudaLinearMemU16> density,
+                   std::shared_ptr<CudaLinearMemU16> temperature,
                    std::shared_ptr<CudaMemPiece> num_of_actives,
                    float crit_density, int num_of_particles);
     void Raycast(std::shared_ptr<GLSurface> dest,

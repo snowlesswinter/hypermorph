@@ -321,6 +321,11 @@ GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosZField()
     return particles_->position_z_.get();
 }
 
+GraphicsLinearMemU16* FlipFluidSolver::GetParticleTemperatureField()
+{
+    return particles_->temperature_.get();
+}
+
 GraphicsVolume* FlipFluidSolver::GetTemperatureVolume()
 {
     return temperature_.get();

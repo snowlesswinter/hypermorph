@@ -41,9 +41,12 @@ const char* blob_vs = STRINGIFY(
     
 uniform mat4 u_mv_matrix;
 uniform float point_scale;
+uniform float grid_depth;
 
 in vec4 in_position;
+in float in_extra;
 out float vs_blob_size;
+out float vs_v;
 
 void main()
 {
@@ -52,6 +55,7 @@ void main()
     vs_blob_size = point_scale / dist;
 
     gl_Position = in_position;
+    vs_v = grid_depth - in_position.z;
 }
 );
 
@@ -65,12 +69,13 @@ uniform mat4 u_mvp_matrix;
 uniform float inv_aspect_ratio;
 
 in float vs_blob_size[];
+in float vs_v[];
 out vec2 gs_tex_coord;
-out float gs_z;
+out float gs_v;
 
 void main()
 {
-    gs_z = gl_in[0].gl_Position.z;
+    gs_v = vs_v[0];
     vec4 pos = u_mvp_matrix * gl_in[0].gl_Position;
     float blob_size = vs_blob_size[0];
 
@@ -101,7 +106,7 @@ uniform vec3 u_light_dir;
 uniform float grid_depth;
 
 in vec2 gs_tex_coord;
-in float gs_z;
+in float gs_v;
 out vec4 out_color;
 
 // HSV <-> RGB conversion from http://lolengine.net/blog/2013/07/27/rgb-to-hsv-in-glsl
@@ -144,11 +149,13 @@ void main()
     hsv_color.y += (1.0f - diffuse) * 0.09f;
     hsv_color.z -= (1.0f - diffuse) * 0.4f;
 
-    hsv_color.x += (gs_z / grid_depth) * (130.0f / 360.0f);
+    hsv_color.x += gs_v / grid_depth * (130.0f / 360.0f);
     out_color = vec4(hsv2rgb(hsv_color), 1.0f);
 }
 );
 
+const int kPointFieldCount = 3;
+const int kExtraFieldCount = 1;
 } // Anonymous namespace.
 
 BlobRenderer::BlobRenderer()
@@ -159,6 +166,7 @@ BlobRenderer::BlobRenderer()
     , point_scale_(1.0f)
     , prog_()
     , point_vbo_(0)
+    , extra_vbo_(0)
 {
 }
 
@@ -169,11 +177,18 @@ BlobRenderer::~BlobRenderer()
         glDeleteBuffers(1, &point_vbo_);
         point_vbo_ = 0;
     }
+
+    if (extra_vbo_) {
+        CudaMain::Instance()->UnregisterGBuffer(extra_vbo_);
+        glDeleteBuffers(1, &extra_vbo_);
+        extra_vbo_ = 0;
+    }
 }
 
 void BlobRenderer::Render(FluidBufferOwner* buf_owner)
 {
-    CopyToVbo(buf_owner);
+    if (!CopyToVbo(buf_owner))
+        return;
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -208,10 +223,17 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
     blob_program->SetUniform("grid_depth", grid_size().z);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
-    glVertexPointer(3, GL_HALF_FLOAT, 0, 0);
-    glVertexAttribPointer(SlotPosition, 3, GL_HALF_FLOAT, GL_FALSE,
-                          0, nullptr);
+    glVertexPointer(kPointFieldCount, GL_HALF_FLOAT, 0, 0);
+    glVertexAttribPointer(SlotPosition, kPointFieldCount, GL_HALF_FLOAT,
+                          GL_FALSE, 0, nullptr);
     glEnableVertexAttribArray(SlotPosition);
+
+    glBindBuffer(GL_ARRAY_BUFFER, extra_vbo_);
+    glVertexPointer(kExtraFieldCount, GL_HALF_FLOAT, 0, 0);
+    glVertexAttribPointer(SlotTexCoord, kExtraFieldCount, GL_HALF_FLOAT,
+                          GL_FALSE, 0, nullptr);
+    glEnableVertexAttribArray(SlotTexCoord);
+
     glEnableClientState(GL_VERTEX_ARRAY);
 
     glDrawArrays(GL_POINTS, 0, particle_count_);
@@ -266,7 +288,8 @@ bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
     if (graphics_lib() == GRAPHICS_LIB_CUDA) {
         assert(!point_vbo_);
 
-        GLuint vbo = CreateDynamicVbo(particle_count);
+        GLuint vbo = CreateDynamicVbo(particle_count, kPointFieldCount);
+        assert(vbo);
         if (!vbo)
             return false;
 
@@ -275,27 +298,44 @@ bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
             return false;
         }
 
+        GLuint vbo2 = CreateDynamicVbo(particle_count, kExtraFieldCount);
+        assert(vbo2);
+        if (!vbo2) {
+            glDeleteBuffers(1, &vbo);
+            return false;
+        }
+
+        if (CudaMain::Instance()->RegisterGLBuffer(vbo2)) {
+            glDeleteBuffers(1, &vbo);
+            glDeleteBuffers(1, &vbo2);
+            return false;
+        }
+
         point_vbo_ = vbo;
+        extra_vbo_ = vbo2;
         return true;
     }
 
     return true;
 }
 
-void BlobRenderer::CopyToVbo(FluidBufferOwner* buf_owner)
+bool BlobRenderer::CopyToVbo(FluidBufferOwner* buf_owner)
 {
-    if (!buf_owner->GetParticlePosXField() ||
+    if (!buf_owner->GetActiveParticleCountMemPiece() ||
+            !buf_owner->GetParticlePosXField() ||
             !buf_owner->GetParticlePosYField() ||
             !buf_owner->GetParticlePosZField() ||
             !buf_owner->GetParticleDensityField() ||
-            !buf_owner->GetActiveParticleCountMemPiece())
-        return;
+            !buf_owner->GetParticleTemperatureField())
+        return false;
 
-    CudaMain::Instance()->CopyToVbo(
-        point_vbo_, buf_owner->GetParticlePosXField()->cuda_linear_mem(),
+    return CudaMain::Instance()->CopyToVbo(
+        point_vbo_, extra_vbo_,
+        buf_owner->GetParticlePosXField()->cuda_linear_mem(),
         buf_owner->GetParticlePosYField()->cuda_linear_mem(),
         buf_owner->GetParticlePosZField()->cuda_linear_mem(),
         buf_owner->GetParticleDensityField()->cuda_linear_mem(),
+        buf_owner->GetParticleTemperatureField()->cuda_linear_mem(),
         buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
         crit_density_, particle_count_);
 }

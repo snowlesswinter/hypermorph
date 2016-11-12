@@ -361,6 +361,11 @@ GraphicsLinearMemU16* GridFluidSolver::GetParticlePosZField()
     return nullptr;
 }
 
+GraphicsLinearMemU16* GridFluidSolver::GetParticleTemperatureField()
+{
+    return nullptr;
+}
+
 GraphicsVolume* GridFluidSolver::GetTemperatureVolume()
 {
     return temperature_.get();

@@ -92,13 +92,13 @@ void ClearSurface(GLTexture* s, float v)
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
-GLuint CreateDynamicVbo(int point_number)
+GLuint CreateDynamicVbo(int point_number, int field_count)
 {
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, point_number * 3 * sizeof(uint16_t), 0,
-                 GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, point_number * field_count * sizeof(uint16_t),
+                 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     return vbo;
 }

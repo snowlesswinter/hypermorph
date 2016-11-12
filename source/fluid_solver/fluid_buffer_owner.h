@@ -38,6 +38,7 @@ public:
     virtual GraphicsLinearMemU16* GetParticlePosXField() = 0;
     virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;
     virtual GraphicsLinearMemU16* GetParticlePosZField() = 0;
+    virtual GraphicsLinearMemU16* GetParticleTemperatureField() = 0;
     virtual GraphicsVolume* GetTemperatureVolume() = 0;
 
 protected:

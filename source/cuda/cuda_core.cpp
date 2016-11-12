@@ -117,7 +117,8 @@ int CudaCore::RegisterGLBuffer(unsigned int buffer,
 
 void CudaCore::UnregisterGLResource(GraphicsResource* graphics_res)
 {
-    cudaGraphicsUnregisterResource(graphics_res->resource());
+    cudaError_t e = cudaGraphicsUnregisterResource(graphics_res->resource());
+    assert(e == cudaSuccess);
 }
 
 bool CudaCore::AllocLinearMem(void** result, int size)
@@ -390,23 +391,41 @@ void CudaCore::CopyVolumeAsync(cudaArray* dest, cudaArray* source,
     ::CopyVolumeAsync(dest, source, size);
 }
 
-void CudaCore::CopyToVbo(uint32_t vbo, cudaGraphicsResource** res,
-                         uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
-                         uint16_t* density, float crit_density,
-                         int* num_of_active_particles,
-                         int num_of_particles)
+void CudaCore::CopyToVbo(GraphicsResource* point_vbo,
+                         GraphicsResource* extra_vbo, uint16_t* pos_x,
+                         uint16_t* pos_y, uint16_t* pos_z, uint16_t* density,
+                         uint16_t* temperature, float crit_density,
+                         int* num_of_active_particles, int num_of_particles)
 {
-    cudaError_t e = cudaGraphicsMapResources(1, res, 0);
+    cudaGraphicsResource_t res[] = {
+        point_vbo->resource(),
+        extra_vbo->resource(),
+    };
+
+    cudaError_t e = cudaGraphicsMapResources(sizeof(res) / sizeof(res[0]),
+                                             res);
     assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
 
     void* p = nullptr;
     size_t bytes = 0;
-    e = cudaGraphicsResourceGetMappedPointer((void**)&p, &bytes, *res);
+    e = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&p),
+                                             &bytes, res[0]);
     assert(e == cudaSuccess);
-    
-    kern_launcher::CopyToVbo(p, pos_x, pos_y, pos_z, density, crit_density,
-                             num_of_active_particles, num_of_particles,
-                             &block_arrangement_);
-    e = cudaGraphicsUnmapResources(1, res, 0);
+    if (e != cudaSuccess)
+        return;
+
+    void* p1 = nullptr;
+    e = cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&p1),
+                                             &bytes, res[1]);
+    assert(e == cudaSuccess);
+    if (e != cudaSuccess)
+        return;
+
+    kern_launcher::CopyToVbo(p, p1, pos_x, pos_y, pos_z, density, temperature,
+                             crit_density, num_of_active_particles,
+                             num_of_particles, &block_arrangement_);
+    e = cudaGraphicsUnmapResources(sizeof(res) / sizeof(res[0]), res);
     assert(e == cudaSuccess);
 }

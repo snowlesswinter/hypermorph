@@ -40,7 +40,7 @@ void SetUniform(const char* name, float x, float y);
 void SetUniform(const char* name, glm::mat4 value);
 void SetUniform(const char* name, glm::vec3 value);
 TexturePod LoadTexture(const char* path);
-GLuint CreateDynamicVbo(int point_number);
+GLuint CreateDynamicVbo(int point_number, int field_count);
 GLuint CreatePointVbo(float x, float y, float z);
 GLuint CreateQuadVbo();
 MeshPod CreateQuadMesh(float left, float top, float right, float bottom);

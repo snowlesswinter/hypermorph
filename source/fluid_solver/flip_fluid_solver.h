@@ -58,6 +58,7 @@ public:
     virtual GraphicsLinearMemU16* GetParticlePosXField() override;
     virtual GraphicsLinearMemU16* GetParticlePosYField() override;
     virtual GraphicsLinearMemU16* GetParticlePosZField() override;
+    virtual GraphicsLinearMemU16* GetParticleTemperatureField() override;
     virtual GraphicsVolume* GetTemperatureVolume() override;
 
 private:

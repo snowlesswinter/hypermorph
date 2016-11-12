@@ -234,8 +234,10 @@ void RenderFrame()
 
 bool ResetRenderer()
 {
-    if (renderer_)
+    if (renderer_) {
         delete renderer_;
+        renderer_ = nullptr;
+    }
 
     VolumeRenderer* vr = nullptr;
     BlobRenderer* br = nullptr;

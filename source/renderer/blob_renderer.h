@@ -42,7 +42,7 @@ public:
     void set_crit_density(float crit_density) { crit_density_ = crit_density; }
 
 private:
-    void CopyToVbo(FluidBufferOwner* buf_owner);
+    bool CopyToVbo(FluidBufferOwner* buf_owner);
     GLProgram* GetRenderProgram();
 
     int particle_count_;
@@ -52,6 +52,7 @@ private:
 
     std::shared_ptr<GLProgram> prog_;
     uint32_t point_vbo_;
+    uint32_t extra_vbo_;
     float crit_density_;
 };
 

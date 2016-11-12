@@ -127,9 +127,10 @@ __global__ void ClearVolumeHalf1Kernel(glm::vec4 value, uint3 volume_size)
                 cudaBoundaryModeTrap);
 }
 
-__global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
+__global__ void CopyToVboKernel(void* point_vbo, void* extra_vbo,
+                                uint16_t* pos_x, uint16_t* pos_y,
                                 uint16_t* pos_z, uint16_t* density,
-                                float crit_density,
+                                uint16_t* temperature, float crit_density,
                                 int* num_of_active_particles,
                                 int num_of_particles)
 {
@@ -141,10 +142,14 @@ __global__ void CopyToVboKernel(void* vbo, uint16_t* pos_x, uint16_t* pos_y,
     bool skip = i >= *num_of_active_particles ||
         __half2float(density[i]) < crit_density;
 
-    uint16_t* buf = reinterpret_cast<uint16_t*>(vbo);
-    buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
-    buf[i * stride + 1] = pos_y[i];
-    buf[i * stride + 2] = pos_z[i];
+    uint16_t* p_buf = reinterpret_cast<uint16_t*>(point_vbo);
+    p_buf[i * stride    ] = skip ? __float2half_rn(-100000.0f) : pos_x[i];
+    p_buf[i * stride + 1] = pos_y[i];
+    p_buf[i * stride + 2] = pos_z[i];
+
+
+    uint16_t* e_buf = reinterpret_cast<uint16_t*>(extra_vbo);
+    e_buf[i] = temperature[i];
 }
 
 __device__ bool IntersectAABB(glm::vec3 ray_dir, glm::vec3 eye_pos,
@@ -546,17 +551,18 @@ void LaunchRaycastKernel(cudaArray* dest_array, cudaArray* density_array,
 
 namespace kern_launcher
 {
-void CopyToVbo(void* vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
-               uint16_t* density, float crit_density,
+void CopyToVbo(void* point_vbo, void* extra_vbo, uint16_t* pos_x,
+               uint16_t* pos_y, uint16_t* pos_z, uint16_t* density,
+               uint16_t* temperature, float crit_density,
                int* num_of_active_particles, int num_of_particles,
                BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, num_of_particles);
-    CopyToVboKernel<<<grid, block>>>(vbo, pos_x, pos_y, pos_z, density,
-                                     crit_density, num_of_active_particles,
-                                     num_of_particles);
+    CopyToVboKernel<<<grid, block>>>(point_vbo, extra_vbo, pos_x, pos_y, pos_z,
+                                     density, temperature, crit_density,
+                                     num_of_active_particles, num_of_particles);
     DCHECK_KERNEL();
 }
 }
