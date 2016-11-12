@@ -206,7 +206,10 @@ __global__ void CalculateNumberOfActiveParticles(FlipParticles particles,
         particles.particle_count_[last_cell_index];
 }
 
-__global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step)
+__global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step,
+                                      float velocity_dissipation,
+                                      float density_dissipation,
+                                      float temperature_dissipation)
 {
     FlipParticles& p = particles;
 
@@ -214,10 +217,11 @@ __global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step)
     if (i >= *p.num_of_actives_)
         return;
 
-    particles.temperature_[i] = __float2half_rn((1.0f - 0.25f * time_step) * __half2float(particles.temperature_[i]));
-    particles.velocity_x_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_x_[i]));
-    particles.velocity_y_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_y_[i]));
-    particles.velocity_z_[i]  = __float2half_rn((1.0f - 0.1f * time_step) * __half2float(particles.velocity_z_[i]));
+    particles.velocity_x_ [i] = __float2half_rn((1.0f - velocity_dissipation    * time_step) * __half2float(particles.velocity_x_[i]));
+    particles.velocity_y_ [i] = __float2half_rn((1.0f - velocity_dissipation    * time_step) * __half2float(particles.velocity_y_[i]));
+    particles.velocity_z_ [i] = __float2half_rn((1.0f - velocity_dissipation    * time_step) * __half2float(particles.velocity_z_[i]));
+    particles.density_    [i] = __float2half_rn((1.0f - density_dissipation     * time_step) * __half2float(particles.density_[i]));
+    particles.temperature_[i] = __float2half_rn((1.0f - temperature_dissipation * time_step) * __half2float(particles.temperature_[i]));
 }
 
 // Fields should be available: cell_index, particle_count, particle_index.
@@ -273,7 +277,6 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
     } else {
         uint p_index = particles.particle_index_[cell_index];
         for (int i = 0; i < count; i++) {
-            particles.velocity_x_ [p_index + i] = Emission::GetVelX(velocity);
             particles.density_    [p_index + i] = __float2half_rn(density);
             particles.temperature_[p_index + i] = __float2half_rn(temperature);
         }
@@ -516,13 +519,17 @@ void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size,
 }
 
 void DiffuseAndDecay(const FlipParticles& particles, float time_step,
-                     BlockArrangement* ba)
+                     float velocity_dissipation, float density_dissipation,
+                     float temperature_dissipation, BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
 
-    DiffuseAndDecayKernel<<<grid, block>>>(particles, time_step);
+    DiffuseAndDecayKernel<<<grid, block>>>(particles, time_step,
+                                           velocity_dissipation,
+                                           density_dissipation,
+                                           temperature_dissipation);
 }
 
 void EmitParticles(const FlipParticles& particles, float3 center,

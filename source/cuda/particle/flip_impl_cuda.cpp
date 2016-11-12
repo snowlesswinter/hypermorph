@@ -66,6 +66,8 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                           cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x,
                           cudaArray* vn_y, cudaArray* vn_z, cudaArray* density,
                           cudaArray* temperature, float time_step,
+                          float velocity_dissipation, float density_dissipation,
+                          float temperature_dissipation,
                           const glm::ivec3& volume_size)
 {
     kern_launcher::InterpolateDeltaVelocity(particles, vnp1_x, vnp1_y, vnp1_z,
@@ -75,7 +77,9 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
     kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
                             temperature, rand_->Iterate(),
                             FromGlmVector(volume_size), ba_);
-    kern_launcher::DiffuseAndDecay(particles, time_step, ba_);
+    kern_launcher::DiffuseAndDecay(particles, time_step, velocity_dissipation,
+                                   density_dissipation, temperature_dissipation,
+                                   ba_);
     observer_->OnResampled();
 
     kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,

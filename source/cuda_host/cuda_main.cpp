@@ -589,14 +589,17 @@ void CudaMain::MoveParticles(FlipParticles* particles,
                              std::shared_ptr<CudaVolume> vn_z,
                              std::shared_ptr<CudaVolume> density,
                              std::shared_ptr<CudaVolume> temperature,
-                             float time_step)
+                             float velocity_dissipation,
+                             float density_dissipation,
+                             float temperature_dissipation, float time_step)
 {
     flip_impl_->Advect(ToCudaFlipParticles(*particles), num_active_particles,
                        ToCudaFlipParticles(*aux), vnp1_x->dev_array(),
                        vnp1_y->dev_array(), vnp1_z->dev_array(),
                        vn_x->dev_array(), vn_y->dev_array(), vn_z->dev_array(),
                        density->dev_array(), temperature->dev_array(),
-                       time_step, vnp1_x->size());
+                       time_step, velocity_dissipation, density_dissipation,
+                       temperature_dissipation, vnp1_x->size());
 }
 
 void CudaMain::ResetParticles(FlipParticles* particles,

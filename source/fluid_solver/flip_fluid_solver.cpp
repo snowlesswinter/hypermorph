@@ -428,16 +428,15 @@ void FlipFluidSolver::MoveParticles(float delta_time)
         SetCudaParticles(&p, particles_);
         CudaMain::FlipParticles p_aux;
         SetCudaParticles(&p_aux, particles_aux_);
-        CudaMain::Instance()->MoveParticles(&p, &num_active_particles_, &p_aux,
-                                            velocity_->x()->cuda_volume(),
-                                            velocity_->y()->cuda_volume(),
-                                            velocity_->z()->cuda_volume(),
-                                            velocity_prev_->x()->cuda_volume(),
-                                            velocity_prev_->y()->cuda_volume(), 
-                                            velocity_prev_->z()->cuda_volume(),
-                                            density_->cuda_volume(),
-                                            temperature_->cuda_volume(),
-                                            delta_time);
+        CudaMain::Instance()->MoveParticles(
+            &p, &num_active_particles_, &p_aux, velocity_->x()->cuda_volume(),
+            velocity_->y()->cuda_volume(), velocity_->z()->cuda_volume(),
+            velocity_prev_->x()->cuda_volume(),
+            velocity_prev_->y()->cuda_volume(),
+            velocity_prev_->z()->cuda_volume(), density_->cuda_volume(),
+            temperature_->cuda_volume(), GetProperties().velocity_dissipation_,
+            GetProperties().density_dissipation_,
+            GetProperties().temperature_dissipation_, delta_time);
 
         SwapParticleFields(particles_.get(), particles_aux_.get());
     }

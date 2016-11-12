@@ -56,7 +56,9 @@ public:
                 const FlipParticles& aux, cudaArray* vnp1_x, cudaArray* vnp1_y,
                 cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
                 cudaArray* vn_z, cudaArray* density, cudaArray* temperature,
-                float time_step, const glm::ivec3& volume_size);
+                float time_step, float velocity_dissipation,
+                float density_dissipation, float temperature_dissipation,
+                const glm::ivec3& volume_size);
     void Emit(const FlipParticles& particles, const glm::vec3& center_point,
               const glm::vec3& hotspot, float radius, float density,
               float temperature, const glm::vec3& velocity,

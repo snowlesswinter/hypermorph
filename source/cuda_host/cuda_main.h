@@ -247,7 +247,8 @@ public:
                        std::shared_ptr<CudaVolume> vn_z,
                        std::shared_ptr<CudaVolume> density,
                        std::shared_ptr<CudaVolume> temperature,
-                       float time_step);
+                       float velocity_dissipation, float density_dissipation,
+                       float temperature_dissipation, float time_step);
     void ResetParticles(FlipParticles* particles,
                         const glm::ivec3& volume_size);
 
