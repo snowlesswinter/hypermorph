@@ -83,7 +83,9 @@ bool GLTexture::Create2dTexture(int width, int height, GLint internal_format,
 
         glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
                      format, GL_HALF_FLOAT, 0);
-        if (glGetError() != GL_NO_ERROR)
+        GLenum e = glGetError();
+        assert(e == GL_NO_ERROR);
+        if (e != GL_NO_ERROR)
             break;
 
         glBindTexture(GL_TEXTURE_2D, 0);

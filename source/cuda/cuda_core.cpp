@@ -109,8 +109,7 @@ int CudaCore::RegisterGLBuffer(unsigned int buffer,
     // something dirty with it. Just put as less as cpp code inside it
     // as possible.
     cudaError_t result = cudaGraphicsGLRegisterBuffer(
-        graphics_res->Receive(), buffer, cudaGraphicsRegisterFlagsNone);
-    result = cudaDeviceSynchronize();
+        graphics_res->Receive(), buffer, cudaGraphicsMapFlagsWriteDiscard);
     assert(result == cudaSuccess);
     return result == cudaSuccess ? 0 : -1;
 }

@@ -146,7 +146,7 @@ void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
         far_pos = eye_dist + half_diag;
     }
 
-    glm::vec3 eye(0.0f, 0.0f, eye_dist + zoom);
+    glm::vec3 eye(0.0f, 0.0f, eye_dist * (1.0f + zoom));
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     view_proj_ = glm::lookAt(eye, target, up);

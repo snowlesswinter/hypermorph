@@ -40,6 +40,7 @@ public:
     bool Init(int particle_count, const glm::ivec2& viewport_size);
 
     void set_crit_density(float crit_density) { crit_density_ = crit_density; }
+    void set_impulse_temperature(float t) { impulse_temperature_ = t; }
 
 private:
     bool CopyToVbo(FluidBufferOwner* buf_owner);
@@ -54,6 +55,7 @@ private:
     uint32_t point_vbo_;
     uint32_t extra_vbo_;
     float crit_density_;
+    float impulse_temperature_;
 };
 
 #endif // _BLOB_RENDERER_H_

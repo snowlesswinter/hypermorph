@@ -40,8 +40,9 @@ namespace
 const char* blob_vs = STRINGIFY(
     
 uniform mat4 u_mv_matrix;
-uniform float point_scale;
-uniform float grid_depth;
+uniform float u_point_scale;
+uniform float u_v_max;
+uniform float u_render_temp;
 
 in vec4 in_position;
 in float in_extra;
@@ -52,10 +53,12 @@ void main()
 {
     vec3 pos_in_eye_coord = vec3(u_mv_matrix * in_position);
     float dist = length(pos_in_eye_coord);
-    vs_blob_size = point_scale / dist;
+    vs_blob_size = u_point_scale / dist;
 
     gl_Position = in_position;
-    vs_v = grid_depth - in_position.z;
+    vs_v = u_v_max - in_position.z;
+    if (u_render_temp > 0.0f)
+        vs_v = in_extra;
 }
 );
 
@@ -66,7 +69,7 @@ layout(triangle_strip)   out;
 layout(max_vertices = 4) out;
 
 uniform mat4 u_mvp_matrix;
-uniform float inv_aspect_ratio;
+uniform float u_inv_aspect_ratio;
 
 in float vs_blob_size[];
 in float vs_v[];
@@ -79,19 +82,19 @@ void main()
     vec4 pos = u_mvp_matrix * gl_in[0].gl_Position;
     float blob_size = vs_blob_size[0];
 
-    gl_Position = pos + vec4(blob_size * inv_aspect_ratio, -blob_size, 0, 0);
+    gl_Position = pos + vec4(blob_size * u_inv_aspect_ratio, -blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 0.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(blob_size * inv_aspect_ratio, blob_size, 0, 0);
+    gl_Position = pos + vec4(blob_size * u_inv_aspect_ratio, blob_size, 0, 0);
     gs_tex_coord = vec2(1.0f, 1.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(-blob_size * inv_aspect_ratio, -blob_size, 0, 0);
+    gl_Position = pos + vec4(-blob_size * u_inv_aspect_ratio, -blob_size, 0, 0);
     gs_tex_coord = vec2(0.0f, 0.0f);
     EmitVertex();
 
-    gl_Position = pos + vec4(-blob_size * inv_aspect_ratio, blob_size, 0, 0);
+    gl_Position = pos + vec4(-blob_size * u_inv_aspect_ratio, blob_size, 0, 0);
     gs_tex_coord = vec2(0.0f, 1.0f);
     EmitVertex();
 
@@ -103,7 +106,7 @@ const char *blob_fs = STRINGIFY(
 
 uniform mat4 u_mv_matrix;
 uniform vec3 u_light_dir;
-uniform float grid_depth;
+uniform float u_v_max;
 
 in vec2 gs_tex_coord;
 in float gs_v;
@@ -149,13 +152,14 @@ void main()
     hsv_color.y += (1.0f - diffuse) * 0.09f;
     hsv_color.z -= (1.0f - diffuse) * 0.4f;
 
-    hsv_color.x += gs_v / grid_depth * (130.0f / 360.0f);
+    hsv_color.x += gs_v / u_v_max * (130.0f / 360.0f);
     out_color = vec4(hsv2rgb(hsv_color), 1.0f);
 }
 );
 
 const int kPointFieldCount = 3;
 const int kExtraFieldCount = 1;
+const float kRenderTemperature = -1.0f;
 } // Anonymous namespace.
 
 BlobRenderer::BlobRenderer()
@@ -167,6 +171,8 @@ BlobRenderer::BlobRenderer()
     , prog_()
     , point_vbo_(0)
     , extra_vbo_(0)
+    , crit_density_(0.1f)
+    , impulse_temperature_(1.0f)
 {
 }
 
@@ -216,20 +222,21 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
     blob_program->SetUniform("u_mv_matrix", model_view_proj_);
     blob_program->SetUniform("u_mvp_matrix",
                              perspective_proj_ * model_view_proj_);
-    blob_program->SetUniform("point_scale", point_scale_);
+    blob_program->SetUniform("u_point_scale", point_scale_);
     blob_program->SetUniform(
-        "inv_aspect_ratio",
+        "u_inv_aspect_ratio",
         static_cast<float>(viewport_size().y) / viewport_size().x);
-    blob_program->SetUniform("grid_depth", grid_size().z);
+    blob_program->SetUniform(
+        "u_v_max", kRenderTemperature > 0.0f ?
+            impulse_temperature_ : grid_size().z);
+    blob_program->SetUniform("u_render_temp", kRenderTemperature);
 
     glBindBuffer(GL_ARRAY_BUFFER, point_vbo_);
-    glVertexPointer(kPointFieldCount, GL_HALF_FLOAT, 0, 0);
     glVertexAttribPointer(SlotPosition, kPointFieldCount, GL_HALF_FLOAT,
                           GL_FALSE, 0, nullptr);
     glEnableVertexAttribArray(SlotPosition);
 
     glBindBuffer(GL_ARRAY_BUFFER, extra_vbo_);
-    glVertexPointer(kExtraFieldCount, GL_HALF_FLOAT, 0, 0);
     glVertexAttribPointer(SlotTexCoord, kExtraFieldCount, GL_HALF_FLOAT,
                           GL_FALSE, 0, nullptr);
     glEnableVertexAttribArray(SlotTexCoord);
@@ -267,14 +274,14 @@ void BlobRenderer::Update(float zoom, const glm::mat4& rotation)
         far_pos  = eye_dist + half_diag;
     }
 
-    glm::vec3 eye(0.0f, 0.0f, eye_dist + zoom);
+    glm::vec3 eye(0.0f, 0.0f, eye_dist * (1.0f + zoom));
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 target(0.0f);
     glm::mat4 look_at = glm::lookAt(eye, target, up);
 
     model_view_proj_ = look_at * rotation * translate;
     perspective_proj_ = glm::perspective(fov(), aspect_ratio, near_pos,
-                                         far_pos);
+                                         far_pos + half_diag * 2.0f);
 
     float inv_tan_fov = std::tan(fov() / 2.0f);
     point_scale_ = grid_size().y / inv_tan_fov / inv_tan_fov * 0.25f;

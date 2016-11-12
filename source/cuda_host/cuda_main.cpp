@@ -197,6 +197,7 @@ int CudaMain::RegisterGLImage(std::shared_ptr<GLTexture> texture)
     std::unique_ptr<GraphicsResource> g(new GraphicsResource(core_.get()));
     int r = core_->RegisterGLImage(texture->texture_handle(), texture->target(),
                                    g.get());
+    assert(!r);
     if (r)
         return r;
 
@@ -211,8 +212,8 @@ void CudaMain::UnregisterGLImage(std::shared_ptr<GLTexture> texture)
     if (i == registerd_textures_.end())
         return;
 
-    core_->UnregisterGLResource(i->second.get());
-    registerd_textures_.erase(i);
+    registerd_textures_.erase(i); // The resource will be unregistered in its
+                                  // dtor.
 }
 
 int CudaMain::RegisterGLBuffer(uint32_t vbo)
@@ -237,8 +238,8 @@ void CudaMain::UnregisterGBuffer(uint32_t vbo)
     if (i == registerd_buffers_.end())
         return;
 
-    core_->UnregisterGLResource(i->second.get());
-    registerd_buffers_.erase(i);
+    registerd_buffers_.erase(i); // The resource will be unregistered in its
+                                 // dtor.
 }
 
 void CudaMain::AdvectField(std::shared_ptr<CudaVolume> fnp1,

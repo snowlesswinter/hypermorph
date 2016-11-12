@@ -264,6 +264,8 @@ bool ResetRenderer()
     bool result = true;
     if (br) {
         br->set_crit_density(FluidConfig::Instance()->impulse_density() * 0.1f);
+        br->set_impulse_temperature(
+            FluidConfig::Instance()->impulse_temperature());
         result &= br->Init(FluidConfig::Instance()->max_num_particles(),
                            viewport_size_);
     } 
