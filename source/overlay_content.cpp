@@ -69,7 +69,7 @@ void OverlayContent::RenderText(const std::string& text, int viewport_width,
     if (!bitmap_buf.hbitmap_)
         return;
 
-    RECT bounds = {0, 0, width_, height_};
+    RECT bounds = {5, 0, width_, height_};
     HGDIOBJ old_bitmap = ::SelectObject(hdc, bitmap_buf.hbitmap_);
     ::SetBkMode(hdc, TRANSPARENT);
     ::SetTextColor(hdc, RGB(255, 255, 255));

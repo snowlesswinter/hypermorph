@@ -60,14 +60,6 @@ __device__ bool IsCellActive(float v_x, float v_y, float v_z, float density,
 
 struct HorizontalEmission
 {
-    __device__ static uint GetGridX()
-    {
-        return 1 + threadIdx.x;
-    }
-    __device__ static uint GetGridY()
-    {
-        return VolumeY();
-    }
     __device__ static bool OutsideVolume(uint x, uint y, uint z,
                                          const uint3& volume_size)
     {
@@ -81,22 +73,14 @@ struct HorizontalEmission
             make_float2(coord.y, coord.z) - make_float2(center.y, center.z);
         return hypotf(diff.x, diff.y);
     }
-    __device__ static uint16_t GetVelX(const float3 velocity)
+    __device__ static void SetVelX(uint16_t* vel_x, const float3 velocity)
     {
-        return __float2half_rn(velocity.x);
+        *vel_x = __float2half_rn(velocity.x);
     }
 };
 
 struct VerticalEmission
 {
-    __device__ static uint GetGridX()
-    {
-        return VolumeX();
-    }
-    __device__ static uint GetGridY()
-    {
-        return VolumeY();
-    }
     __device__ static bool OutsideVolume(uint x, uint y, uint z,
                                          const uint3& volume_size)
     {
@@ -110,9 +94,8 @@ struct VerticalEmission
             make_float2(coord.x, coord.z) - make_float2(hotspot.x, hotspot.z);
         return hypotf(diff.x, diff.y);
     }
-    __device__ static uint16_t GetVelX(const float3 velocity)
+    __device__ static void SetVelX(uint16_t* vel_x, const float3 velocity)
     {
-        return 0;
     }
 };
 
@@ -227,8 +210,8 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
                                     float temperature, float3 velocity,
                                     uint random_seed, uint3 volume_size)
 {
-    uint x = Emission::GetGridX();
-    uint y = Emission::GetGridY();
+    uint x = VolumeX();
+    uint y = VolumeY();
     uint z = VolumeZ();
 
     if (Emission::OutsideVolume(x, y, z, volume_size))
@@ -264,17 +247,21 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
             particles.position_x_ [index] = __float2half_rn(pos.x);
             particles.position_y_ [index] = __float2half_rn(pos.y);
             particles.position_z_ [index] = __float2half_rn(pos.z);
-            particles.velocity_x_ [index] = Emission::GetVelX(velocity);
+            particles.velocity_x_ [index] = 0;
             particles.velocity_y_ [index] = 0;
             particles.velocity_z_ [index] = 0;
             particles.density_    [index] = __float2half_rn(density);
             particles.temperature_[index] = __float2half_rn(temperature);
+
+            Emission::SetVelX(&particles.velocity_x_[index], velocity);
         }
     } else {
         uint p_index = particles.particle_index_[cell_index];
         for (int i = 0; i < count; i++) {
             particles.density_    [p_index + i] = __float2half_rn(density);
             particles.temperature_[p_index + i] = __float2half_rn(temperature);
+
+            Emission::SetVelX(&particles.velocity_x_[p_index + i], velocity);
         }
     }
 }

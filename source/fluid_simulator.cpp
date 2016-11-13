@@ -177,7 +177,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         if (t % 2) {
             float coef = static_cast<float>(std::sin(seconds_elapsed * 4 * ¦Ð));
             initial_velocity =
-                (1.0f + coef * 0.5f) *
+                (1.0f /*+ coef * 0.5f*/) *
                 FluidConfig::Instance()->impulse_velocity();
         }
 
