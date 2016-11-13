@@ -231,6 +231,7 @@ void Metrics::Reset()
 {
     time_stamps_.clear();
     last_operation_time_ = 0.0;
+    num_active_particles_ = 0;
     for (auto& i : operation_time_costs_)
         i.clear();
 }

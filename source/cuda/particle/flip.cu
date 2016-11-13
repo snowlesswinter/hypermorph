@@ -50,10 +50,6 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
-const uint32_t kMaxNumParticlesPerCell = 6;
-const uint32_t kMinNumParticlesPerCell = 2;
-const uint32_t kMaxNumSamplesForOneTime = 5;
-
 __device__ bool IsCellActive(float v_x, float v_y, float v_z, float density,
                              float temperature)
 {
@@ -99,7 +95,7 @@ struct VerticalEmission
     }
     __device__ static uint GetGridY()
     {
-        return 1 + threadIdx.y;
+        return VolumeY();
     }
     __device__ static bool OutsideVolume(uint x, uint y, uint z,
                                          const uint3& volume_size)

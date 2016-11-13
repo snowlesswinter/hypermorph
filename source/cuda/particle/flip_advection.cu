@@ -154,7 +154,7 @@ template <typename AdvectionImpl>
 __global__ void AdvectParticlesKernel(FlipParticles particles,
                                       uint3 volume_size,
                                       float time_step_over_cell_size,
-                                      AdvectionImpl advect)
+                                      bool outflow, AdvectionImpl advect)
 {
     FlipParticles& p = particles;
 
@@ -193,8 +193,12 @@ __global__ void AdvectParticlesKernel(FlipParticles particles,
     if (pos_x < 0.0f || pos_x >= volume_size.x)
         p.velocity_x_[i] = 0;
 
-    if (pos_y < 0.0f || pos_y >= volume_size.y)
-        p.velocity_y_[i] = 0;
+    if (pos_y < 0.0f || pos_y >= volume_size.y) {
+        if (outflow)
+            FreeParticle(particles, i);
+        else
+            p.velocity_y_[i] = 0;
+    }
 
     if (pos_z < 0.0f || pos_z >= volume_size.z)
         p.velocity_z_[i] = 0;
@@ -221,7 +225,8 @@ namespace kern_launcher
 {
 void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x,
                      cudaArray* vel_y, cudaArray* vel_z, float time_step,
-                     float cell_size, uint3 volume_size, BlockArrangement* ba)
+                     float cell_size, bool outflow, uint3 volume_size,
+                     BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
@@ -252,22 +257,22 @@ void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x,
         case 1:
             AdvectParticlesKernel<<<grid, block>>>(particles, volume_size,
                                                    time_step / cell_size,
-                                                   adv_fe);
+                                                   outflow, adv_fe);
             break;
         case 2:
             AdvectParticlesKernel<<<grid, block>>>(particles, volume_size,
                                                    time_step / cell_size,
-                                                   adv_mp);
+                                                   outflow, adv_mp);
             break;
         case 3:
             AdvectParticlesKernel<<<grid, block>>>(particles, volume_size,
                                                    time_step / cell_size,
-                                                   adv_bs);
+                                                   outflow, adv_bs);
             break;
         case 4:
             AdvectParticlesKernel<<<grid, block>>>(particles, volume_size,
                                                    time_step / cell_size,
-                                                   adv_rk4);
+                                                   outflow, adv_rk4);
             break;
     }
 

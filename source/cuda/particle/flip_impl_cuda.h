@@ -67,6 +67,7 @@ public:
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_fluid_impulse(FluidImpulse i) { impulse_ = i; }
+    void set_outflow(bool outflow) { outflow_ = outflow; }
 
 private:
     void CompactParticles(FlipParticles* particles, int* num_active_particles,
@@ -79,6 +80,7 @@ private:
     RandomHelper* rand_;
     float cell_size_;
     FluidImpulse impulse_;
+    bool outflow_;
 };
 
 #endif // _FLIP_IMPL_CUDA_H_

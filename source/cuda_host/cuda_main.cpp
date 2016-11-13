@@ -678,6 +678,7 @@ void CudaMain::SetOutflow(bool outflow)
 {
     fluid_impl_->set_outflow(outflow);
     poisson_impl_->set_outflow(outflow);
+    flip_impl_->set_outflow(outflow);
 }
 
 void CudaMain::SetStaggered(bool staggered)

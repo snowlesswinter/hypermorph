@@ -174,7 +174,7 @@ bool VolumeRenderer::Init(const glm::ivec2& viewport_size)
 
         std::shared_ptr<GLProgram> p(new GLProgram());
         if (!p->Load(RaycastShader::ApplyTextureVert(), "",
-            RaycastShader::ApplyTextureFrag()))
+                     RaycastShader::ApplyTextureFrag()))
             return false;
 
         CudaMain::Instance()->RegisterGLImage(s);

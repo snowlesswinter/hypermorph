@@ -11,9 +11,9 @@ density dissipation = 0.05
 // poisson ====================================================================
 poisson method = mgpcg
 number of jacobi iterations = 60
-num multigrid iterations = 2
+num multigrid iterations = 20
 num full multigrid iterations = 1
-num mgpcg iterations = 3
+num mgpcg iterations = 30
 
 // rendering ==================================================================
 light intensity = 18
@@ -48,5 +48,5 @@ density dissipation = 0.1
 splat radius factor = 0.2
 fixed time step = 0.07
 
-impulse temperature = 5
+impulse temperature = 6
 impulse density = 0.3

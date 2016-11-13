@@ -51,8 +51,8 @@ FlipImplCuda::FlipImplCuda(Observer* observer, BlockArrangement* ba,
     , rand_(rand)
     , cell_size_(0.15f)
     , impulse_(IMPULSE_HOT_FLOOR)
+    , outflow_(false)
 {
-
 }
 
 FlipImplCuda::~FlipImplCuda()
@@ -83,7 +83,8 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
     observer_->OnResampled();
 
     kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,
-                                   cell_size_, FromGlmVector(volume_size), ba_);
+                                   cell_size_, outflow_,
+                                   FromGlmVector(volume_size), ba_);
     observer_->OnAdvected();
 
     FlipParticles p = particles;

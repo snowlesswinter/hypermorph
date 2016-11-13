@@ -55,4 +55,8 @@ __device__ inline void FreeParticle(const FlipParticles& p, uint i)
     p.position_x_[i] = __float2half_rn(-1.0f);
 }
 
+const uint32_t kMaxNumParticlesPerCell = 6;
+const uint32_t kMinNumParticlesPerCell = 2;
+const uint32_t kMaxNumSamplesForOneTime = 5;
+
 #endif // _FLIP_COMMON_H_

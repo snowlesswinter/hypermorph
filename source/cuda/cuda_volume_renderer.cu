@@ -221,6 +221,14 @@ __global__ void RaycastFastKernel(glm::mat3 model_view, glm::vec2 viewport_size,
                 (y + offset.y), cudaBoundaryModeTrap);
 }
 
+__device__ float3 hsv2rgb(const float3& c)
+{
+    float4 K = make_float4(1.0f, 2.0f / 3.0f, 1.0f / 3.0f, 3.0f);
+    float3 fr = fracf(make_float3(c.x) + make_float3(K.x, K.y, K.z)) * 6.0f - make_float3(K.w);
+    float3 p = make_float3(fabsf(fr.x), fabsf(fr.y), fabsf(fr.z));
+    return c.z * lerp(make_float3(K.x), clamp(p - make_float3(K.x), 0.0f, 1.0f), c.y);
+}
+
 __global__ void RaycastKernel_dir_light(glm::mat4 inv_rotation, glm::vec2 viewport_size,
                                         glm::vec3 eye_pos, float focal_length,
                                         glm::vec2 offset, glm::vec3 light_dir,
@@ -307,11 +315,16 @@ __global__ void RaycastKernel_dir_light(glm::mat4 inv_rotation, glm::vec2 viewpo
             break;
     }
 
-    auto raw = make_ushort4(
-        __float2half_rn(light_intensity.x * luminance * step_size),
-        __float2half_rn(light_intensity.y * luminance * step_size),
-        __float2half_rn(light_intensity.z * luminance * step_size),
-        __float2half_rn(1.0f - visibility));
+    float3 hsv_color = make_float3(205.0f / 360.0f, 0.75f, 0.45f);
+    hsv_color.x += luminance * step_size * 100.0f / 360.0f;
+    hsv_color.y -= luminance * step_size * 6.5f;
+    hsv_color.z += luminance * step_size * 4.5f;
+
+    float3 rgb_color = hsv2rgb(hsv_color);
+    auto raw = make_ushort4(__float2half_rn(rgb_color.x),
+                            __float2half_rn(rgb_color.y),
+                            __float2half_rn(rgb_color.z),
+                            __float2half_rn(1.0f - visibility));
     surf2Dwrite(raw, raycast_dest, (x + offset.x) * sizeof(raw),
                 (y + offset.y), cudaBoundaryModeTrap);
 }

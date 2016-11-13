@@ -1430,8 +1430,7 @@ void TransferToGrid_iterative(cudaArray* vel_x, cudaArray* vel_y,
               1);
 
     int step = ba->GetSharedMemPerSMInKB() >= 96 ? 2 : 1;
-    int kMaxNumParticlesInCell = 4;
-    for (int i = 0; i < kMaxNumParticlesInCell - step; i += step) {
+    for (uint i = 0; i < kMaxNumParticlesPerCell - step; i += step) {
         if (step == 1)
             TransferToGridKernel_iterative<1, false><<<grid, block>>>(
                 particles, i, aux, volume_size);
@@ -1443,10 +1442,10 @@ void TransferToGrid_iterative(cudaArray* vel_x, cudaArray* vel_y,
     }
     if (step == 1)
         TransferToGridKernel_iterative<1, true><<<grid, block>>>(
-            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+            particles, kMaxNumParticlesPerCell - step, aux, volume_size);
     else if (step == 2)
         TransferToGridKernel_iterative<2, true><<<grid, block>>>(
-            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+            particles, kMaxNumParticlesPerCell - step, aux, volume_size);
 
     DCHECK_KERNEL();
 }
@@ -1508,8 +1507,7 @@ void TransferToGrid_prune(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
               1);
 
     int step = ba->GetSharedMemPerSMInKB() >= 96 ? 2 : 1;
-    int kMaxNumParticlesInCell = 6;
-    for (int i = 0; i < kMaxNumParticlesInCell - step; i += step) {
+    for (uint i = 0; i < kMaxNumParticlesPerCell - step; i += step) {
         if (step == 1)
             TransferToGridKernel_prune<1, false><<<grid, block>>>(
                 particles, i, aux, volume_size);
@@ -1521,10 +1519,10 @@ void TransferToGrid_prune(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     }
     if (step == 1)
         TransferToGridKernel_prune<1, true><<<grid, block>>>(
-            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+            particles, kMaxNumParticlesPerCell - step, aux, volume_size);
     else if (step == 2)
         TransferToGridKernel_prune<2, true><<<grid, block>>>(
-            particles, kMaxNumParticlesInCell - step, aux, volume_size);
+            particles, kMaxNumParticlesPerCell - step, aux, volume_size);
 
     DCHECK_KERNEL();
 }
@@ -1595,7 +1593,7 @@ void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                     const FlipParticles& particles, const FlipParticles& aux,
                     uint3 volume_size, BlockArrangement* ba)
 {
-    int transfer_scheme = 0;
+    int transfer_scheme = 1;
     switch (transfer_scheme) {
         case 0:
             TransferToGrid_prune(vel_x, vel_y, vel_z, density, temperature,
