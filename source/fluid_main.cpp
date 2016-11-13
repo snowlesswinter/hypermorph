@@ -1,8 +1,8 @@
 //
-// Fluid3d - Fluid Simulator for interactive applications
+// Hypermorph - Fluid Simulator for interactive applications
 // Copyright (C) 2016. JIANWEN TAN(jianwen.tan@gmail.com). All rights reserved.
 //
-// Fluid3d license (* see part 1 below)
+// Hypermorph license (* see part 1 below)
 // This software is provided 'as-is', without any express or implied
 // warranty.  In no event will the authors be held liable for any damages
 // arising from the use of this software.
@@ -137,7 +137,7 @@ bool InitGraphics(int* argc, char** argv)
 
     glm::ivec2 position = CalculateWindowPosition(viewport_size_);
     glutInitWindowPosition(position.x, position.y);
-    main_frame_handle_ = glutCreateWindow("Fluid Simulation");
+    main_frame_handle_ = glutCreateWindow("Hypermorph Fluid Simulation");
 
     // initialize necessary OpenGL extensions
     glewInit();

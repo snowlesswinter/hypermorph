@@ -7,9 +7,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testing", "source\testing\t
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cuda", "source\cuda\cuda.vcxproj", "{1DBA4BF2-A5A1-49BC-B010-7F893810A3C8}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fluid3d", "source\fluid3d.vcxproj", "{EA215366-78F3-4ABE-BF75-DC095B5CFE50}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hypermorph", "source\hypermorph.vcxproj", "{EA215366-78F3-4ABE-BF75-DC095B5CFE50}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fluid3d_app", "source\fluid3d_app.vcxproj", "{8AEFA7D0-673A-45D9-B24C-1F034B386F79}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hypermorph_app", "source\hypermorph_app.vcxproj", "{8AEFA7D0-673A-45D9-B24C-1F034B386F79}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

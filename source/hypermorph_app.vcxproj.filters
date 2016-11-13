@@ -10,12 +10,12 @@
     <Image Include="small.ico">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="fluid3d.ico">
+    <Image Include="hypermorph.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="fluid3d.rc">
+    <ResourceCompile Include="hypermorph.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

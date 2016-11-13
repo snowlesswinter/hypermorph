@@ -1,18 +1,17 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by fluid3d.rc
+// Used by hypermorph.rc
 //
 
 #define IDS_APP_TITLE            103
 
 #define IDR_MAINFRAME            128
-#define IDD_FLUID3D_DIALOG    102
 #define IDD_ABOUTBOX            103
 #define IDM_ABOUT                104
 #define IDM_EXIT                105
-#define IDI_FLUID3D            107
+#define IDI_HYPERMORPH            107
 #define IDI_SMALL                108
-#define IDC_FLUID3D            109
+#define IDC_HYPERMORPH            109
 #define IDC_MYICON                2
 #ifndef IDC_STATIC
 #define IDC_STATIC                -1
