@@ -89,11 +89,13 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                        const glm::ivec3& volume_size,
                                        VectorField field)
 {
+    kern_launcher::DecayVelocity(vel_x, vel_y, vel_z, time_step, dissipation,
+                                 FromGlmVector(volume_size), ba_);
     if (staggered_) {
         if (field == VECTOR_FIELD_VELOCITY) {
             LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
                                           fn_z, vel_x, vel_y, vel_z, aux,
-                                          cell_size_, time_step, dissipation,
+                                          cell_size_, time_step, 0.0f,
                                           advect_method_,
                                           FromGlmVector(volume_size),
                                           mid_point_, ba_);
@@ -108,7 +110,7 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
     } else {
         LaunchAdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z, vel_x,
                                 vel_y, vel_z, aux, cell_size_, time_step,
-                                dissipation, advect_method_,
+                                0.0f, advect_method_,
                                 FromGlmVector(volume_size), mid_point_, ba_);
     }
 }

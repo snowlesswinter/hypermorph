@@ -57,14 +57,12 @@ public:
     GraphicsLib graphics_lib() const { return graphics_lib_; }
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }
     void set_grid_size(const glm::ivec3& size) { grid_size_ = size; }
-    void set_cell_size(const float size) { cell_size_ = size; }
 
 private:
     PoissonSolver* GetPressureSolver();
     FluidSolver* GetFluidSolver();
     
     glm::ivec3 grid_size_;
-    float cell_size_;
     int data_byte_width_;
     GraphicsLib graphics_lib_;
     std::unique_ptr<FluidSolver> fluid_solver_;

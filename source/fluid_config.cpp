@@ -344,6 +344,7 @@ FluidConfig::FluidConfig()
     , light_position_(glm::vec3(1.5f, 0.7f, 0.0f), "light position")
     , grid_size_(glm::vec3(128, 128, 128), "grid size")
     , cell_size_(0.15f, "cell size")
+    , domain_size_(1.0f, "domain size")
     , ambient_temperature_(0.0f, "ambient temperature")
     , impulse_temperature_(40.0f, "impulse temperature")
     , impulse_density_(0.5f, "impulse density")
@@ -454,7 +455,7 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
     }
 
     ConfigField<float>* float_fields[] = {
-        &cell_size_,
+        &domain_size_,
         &ambient_temperature_,
         &impulse_temperature_,
         &impulse_density_,
@@ -523,7 +524,7 @@ void FluidConfig::Store(std::ostream& stream)
         stream << f << std::endl;
 
     ConfigField<float> float_fields[] = {
-        cell_size_,
+        domain_size_,
         ambient_temperature_,
         impulse_temperature_,
         impulse_density_,

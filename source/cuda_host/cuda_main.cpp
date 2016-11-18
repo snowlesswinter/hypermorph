@@ -666,6 +666,7 @@ void CudaMain::SetCellSize(float cell_size)
 {
     fluid_impl_->set_cell_size(cell_size);
     poisson_impl_->set_cell_size(cell_size);
+    flip_impl_->set_cell_size(cell_size);
 }
 
 void CudaMain::SetFluidImpulse(FluidImpulse impulse)

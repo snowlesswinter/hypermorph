@@ -47,7 +47,6 @@ const glm::vec3 kImpulsePosition(0.5f, 0.05f, 0.5f);
 
 FluidSimulator::FluidSimulator()
     : grid_size_(128)
-    , cell_size_(0.15f)
     , data_byte_width_(2)
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , fluid_solver_()
@@ -110,7 +109,11 @@ bool FluidSimulator::IsImpulsing() const
 
 void FluidSimulator::NotifyConfigChanged()
 {
-    CudaMain::Instance()->SetCellSize(FluidConfig::Instance()->cell_size());
+    float cell_size = FluidConfig::Instance()->domain_size();
+    glm::vec3 grid_size = FluidConfig::Instance()->grid_size();
+    cell_size /= std::max(std::max(grid_size.x, grid_size.y), grid_size.z);
+
+    CudaMain::Instance()->SetCellSize(cell_size);
     CudaMain::Instance()->SetStaggered(FluidConfig::Instance()->staggered());
     CudaMain::Instance()->SetMidPoint(FluidConfig::Instance()->mid_point());
     CudaMain::Instance()->SetOutflow(FluidConfig::Instance()->outflow());
@@ -152,10 +155,8 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     glm::vec3 pos = kImpulsePosition * glm::vec3(grid_size_);
     double ¦Ð = 3.1415926;
     float splat_radius = grid_size_.x * radius_factor;
-    float sin_factor =
-        static_cast<float>(sin(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
-    float cos_factor =
-        static_cast<float>(cos(seconds_elapsed / time_stretch * 2.0 * ¦Ð));
+    float sin_factor = static_cast<float>(sin(seconds_elapsed * 0.5 * ¦Ð));
+    float cos_factor = static_cast<float>(cos(seconds_elapsed * 0.5 * ¦Ð));
     float hotspot_x = pos.x; //cos_factor * splat_radius * 0.8f + pos.x;
     float hotspot_z = pos.z; //sin_factor * splat_radius * 0.8f + pos.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);

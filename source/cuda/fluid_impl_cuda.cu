@@ -120,6 +120,30 @@ __global__ void ApplyBuoyancyStaggeredKernel(float time_step,
     }
 }
 
+__global__ void DecayVelocityKernel(float velocity_dissipation,
+                                    uint3 volume_size)
+{
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+
+    float vel_x = tex3D(tex_x, coord.x, coord.y, coord.z) * velocity_dissipation;
+    float vel_y = tex3D(tex_y, coord.x, coord.y, coord.z) * velocity_dissipation;
+    float vel_z = tex3D(tex_z, coord.x, coord.y, coord.z) * velocity_dissipation;
+
+    auto r_x = __float2half_rn(vel_x);
+    surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+    auto r_y = __float2half_rn(vel_y);
+    surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+    auto r_z = __float2half_rn(vel_z);
+    surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
+}
+
 template <typename UpperBoundaryHandler>
 __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
                                         uint3 volume_size,
@@ -558,4 +582,45 @@ void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
         SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
 
     DCHECK_KERNEL();
+}
+
+namespace kern_launcher
+{
+void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                   float time_step, float velocity_dissipation,
+                   const uint3& volume_size, BlockArrangement* ba)
+{
+
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangeRowScan(&block, &grid, volume_size);
+    DecayVelocityKernel<<<grid, block>>>(
+        1.0f - velocity_dissipation * time_step, volume_size);
+
+    DCHECK_KERNEL();
+}
 }
