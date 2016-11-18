@@ -427,6 +427,7 @@ void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
                                                   dissipation, volume_size,
                                                   mid_point, ba);
     }
+    DCHECK_KERNEL();
 }
 
 void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
@@ -466,6 +467,7 @@ void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                                   dissipation, volume_size,
                                                   mid_point, ba);
     }
+    DCHECK_KERNEL();
 }
 
 void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,

@@ -343,6 +343,7 @@ FluidConfig::FluidConfig()
     , light_color_(glm::vec3(171, 160, 139), "light color")
     , light_position_(glm::vec3(1.5f, 0.7f, 0.0f), "light position")
     , grid_size_(glm::vec3(128, 128, 128), "grid size")
+    , emit_position_(glm::vec3(0.5f, 0.15f, 0.5f), "emit position")
     , cell_size_(0.15f, "cell size")
     , domain_size_(1.0f, "domain size")
     , ambient_temperature_(0.0f, "ambient temperature")
@@ -443,6 +444,11 @@ void FluidConfig::Parse(const std::string& key, const std::string& value)
         return;
     }
 
+    if (lower_trimmed == emit_position_.desc_) {
+        value_stream >> emit_position_;
+        return;
+    }
+
     ConfigField<std::string>* string_fields[] = {
         &preset_file_,
     };
@@ -515,6 +521,7 @@ void FluidConfig::Store(std::ostream& stream)
     stream << light_color_ << std::endl;
     stream << light_position_ << std::endl;
     stream << grid_size_ << std::endl;
+    stream << emit_position_ << std::endl;
 
     ConfigField<std::string> string_fields[] = {
         preset_file_,

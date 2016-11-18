@@ -283,7 +283,7 @@ __global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
     float3 coord = make_float3(x, y, z) + 0.5f;
     float3 diff = coord - center;
     float d = norm3df(diff.x, diff.y, diff.z);
-    if (d >= radius || d < radius * 0.6f)
+    if (d >= radius)
         return;
 
     uint cell_index = (z * volume_size.y + y) * volume_size.x + x;

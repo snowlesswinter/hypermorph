@@ -62,6 +62,7 @@ public:
     glm::vec3 light_color() const { return light_color_.value_; }
     glm::vec3 light_position() const { return light_position_.value_; }
     glm::vec3 grid_size() const { return grid_size_.value_; }
+    glm::vec3 emit_position() const { return emit_position_.value_; }
     float domain_size() const { return domain_size_.value_; }
     float ambient_temperature() const { return ambient_temperature_.value_; }
     float impulse_temperature() const { return impulse_temperature_.value_; }
@@ -129,6 +130,7 @@ private:
     ConfigField<glm::vec3> light_color_;
     ConfigField<glm::vec3> light_position_;
     ConfigField<glm::vec3> grid_size_;
+    ConfigField<glm::vec3> emit_position_;
     ConfigField<float> cell_size_;   // Obsolete
     ConfigField<float> domain_size_; // In meters.
     ConfigField<float> ambient_temperature_;

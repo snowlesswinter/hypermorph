@@ -43,7 +43,6 @@
 #include "utility.h"
 
 const float kMaxTimeStep = 0.3f;
-const glm::vec3 kImpulsePosition(0.5f, 0.15f, 0.5f);
 
 FluidSimulator::FluidSimulator()
     : grid_size_(128)
@@ -74,22 +73,7 @@ bool FluidSimulator::Init()
     PoissonSolver* pressure_solver = GetPressureSolver();
     FluidSolver* fluid_solver = GetFluidSolver();
 
-    FluidSolver::FluidProperties properties;
-    properties.ambient_temperature_ =
-        FluidConfig::Instance()->ambient_temperature();
-    properties.buoyancy_coef_ = FluidConfig::Instance()->smoke_buoyancy();
-    properties.density_dissipation_ =
-        FluidConfig::Instance()->density_dissipation();
-    properties.temperature_dissipation_ =
-        FluidConfig::Instance()->temperature_dissipation();
-    properties.velocity_dissipation_ =
-        FluidConfig::Instance()->velocity_dissipation();
-    properties.vorticity_confinement_ =
-        FluidConfig::Instance()->vorticity_confinement();
-    properties.weight_ =
-        FluidConfig::Instance()->smoke_weight();
-
-    fluid_solver->SetProperties(properties);
+    SetFluidProperties(fluid_solver);
     if (!fluid_solver->Initialize(graphics_lib_, width, height, depth))
         return false;
 
@@ -121,6 +105,8 @@ void FluidSimulator::NotifyConfigChanged()
         FluidConfig::Instance()->advection_method());
     CudaMain::Instance()->SetFluidImpulse(
         FluidConfig::Instance()->fluid_impluse());
+
+    SetFluidProperties(fluid_solver_.get());
 }
 
 void FluidSimulator::StartImpulsing(float x, float y)
@@ -152,7 +138,8 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     float impulse_density = FluidConfig::Instance()->impulse_density();
     float impulse_temperature = FluidConfig::Instance()->impulse_temperature();
 
-    glm::vec3 pos = kImpulsePosition * glm::vec3(grid_size_);
+    glm::vec3 pos =
+        FluidConfig::Instance()->emit_position() * glm::vec3(grid_size_);
     double ¦Ð = 3.1415926;
     float splat_radius = grid_size_.x * radius_factor;
     float sin_factor = static_cast<float>(sin(seconds_elapsed * 0.5 * ¦Ð));
@@ -293,4 +280,24 @@ FluidSolver* FluidSimulator::GetFluidSolver()
     }
 
     return fluid_solver_.get();
+}
+
+void FluidSimulator::SetFluidProperties(FluidSolver* fluid_solver)
+{
+    FluidSolver::FluidProperties properties;
+    properties.ambient_temperature_ =
+        FluidConfig::Instance()->ambient_temperature();
+    properties.buoyancy_coef_ = FluidConfig::Instance()->smoke_buoyancy();
+    properties.density_dissipation_ =
+        FluidConfig::Instance()->density_dissipation();
+    properties.temperature_dissipation_ =
+        FluidConfig::Instance()->temperature_dissipation();
+    properties.velocity_dissipation_ =
+        FluidConfig::Instance()->velocity_dissipation();
+    properties.vorticity_confinement_ =
+        FluidConfig::Instance()->vorticity_confinement();
+    properties.weight_ =
+        FluidConfig::Instance()->smoke_weight();
+
+    fluid_solver->SetProperties(properties);
 }
