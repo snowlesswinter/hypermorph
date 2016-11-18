@@ -314,23 +314,27 @@ void CudaMain::ApplyBuoyancy(std::shared_ptr<CudaVolume> vnp1_x,
                                gravity, vnp1_x->size());
 }
 
-void CudaMain::ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
-                                   const glm::vec3& center_point,
-                                   const glm::vec3& hotspot, float radius,
-                                   float value)
-{
-    fluid_impl_->ApplyImpulseDensity(density->dev_array(), center_point,
-                                     hotspot, radius, value, density->size());
-}
-
-void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> dest,
-                            std::shared_ptr<CudaVolume> source,
+void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> vnp1_x,
+                            std::shared_ptr<CudaVolume> vnp1_y,
+                            std::shared_ptr<CudaVolume> vnp1_z,
+                            std::shared_ptr<CudaVolume> d_np1,
+                            std::shared_ptr<CudaVolume> t_np1,
+                            std::shared_ptr<CudaVolume> vel_x,
+                            std::shared_ptr<CudaVolume> vel_y,
+                            std::shared_ptr<CudaVolume> vel_z,
+                            std::shared_ptr<CudaVolume> density,
+                            std::shared_ptr<CudaVolume> temperature,
                             const glm::vec3& center_point,
-                            const glm::vec3& hotspot, float radius, float value)
+                            const glm::vec3& hotspot, float radius,
+                            float vel_value, float d_value, float t_value)
 {
-    fluid_impl_->ApplyImpulse(dest->dev_array(), source->dev_array(),
-                              center_point, hotspot, radius, value,
-                              dest->size());
+    fluid_impl_->ApplyImpulse(vnp1_x->dev_array(), vnp1_y->dev_array(),
+                              vnp1_z->dev_array(), d_np1->dev_array(),
+                              t_np1->dev_array(), vel_x->dev_array(),
+                              vel_y->dev_array(), vel_z->dev_array(),
+                              density->dev_array(), temperature->dev_array(),
+                              center_point, hotspot, radius, vel_value,
+                              d_value, t_value, vnp1_x->size());
 }
 
 void CudaMain::ComputeDivergence(std::shared_ptr<CudaVolume> div,

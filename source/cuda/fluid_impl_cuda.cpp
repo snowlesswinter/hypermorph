@@ -128,29 +128,31 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
                         gravity, staggered_, FromGlmVector(volume_size), ba_);
 }
 
-void FluidImplCuda::ApplyImpulse(cudaArray* dest, cudaArray* source,
+void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
+                                 cudaArray* vnp1_z, cudaArray* d_np1,
+                                 cudaArray* t_np1, cudaArray* vel_x,
+                                 cudaArray* vel_y, cudaArray* vel_z,
+                                 cudaArray* density, cudaArray* temperature,
                                  const glm::vec3& center_point,
                                  const glm::vec3& hotspot, float radius,
-                                 float value, const glm::ivec3& volume_size)
+                                 float vel_value, float d_value, float t_value,
+                                 const glm::ivec3& volume_size)
 {
     LaunchImpulseScalar(
-        dest, source,
+        d_np1, density,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
-        radius, value, impulse_, FromGlmVector(volume_size), ba_);
-}
-
-void FluidImplCuda::ApplyImpulseDensity(cudaArray* density,
-                                        const glm::vec3& center_point,
-                                        const glm::vec3& hotspot,
-                                        float radius, float value,
-                                        const glm::ivec3& volume_size)
-{
+        radius, d_value, impulse_, FromGlmVector(volume_size), ba_);
     LaunchImpulseScalar(
-        density, density,
+        t_np1, temperature,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z), radius,
-        value, impulse_, FromGlmVector(volume_size), ba_);
+        t_value, impulse_, FromGlmVector(volume_size), ba_);
+
+    kern_launcher::ImpulseVelocity(
+        vnp1_x, vnp1_y, vnp1_z,
+        make_float3(center_point.x, center_point.y, center_point.z),
+        radius, vel_value, impulse_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyVorticityConfinement(cudaArray* vel_x,

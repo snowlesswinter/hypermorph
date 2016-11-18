@@ -266,6 +266,80 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
     }
 }
 
+// Fields should be available: cell_index, particle_count, particle_index.
+__global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
+                                              float3 center, float radius,
+                                              float density, float temperature,
+                                              float velocity, uint random_seed,
+                                              uint3 volume_size)
+{
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+    float3 diff = coord - center;
+    float d = norm3df(diff.x, diff.y, diff.z);
+    if (d >= radius || d < radius * 0.6f)
+        return;
+
+    uint cell_index = (z * volume_size.y + y) * volume_size.x + x;
+    int count = particles.particle_count_[cell_index];
+    if (!count) {
+        int new_particles = kMaxNumSamplesForOneTime;
+        int base_index = atomicAdd(particles.num_of_actives_, new_particles);
+        if (base_index + new_particles > particles.num_of_particles_) {
+            atomicAdd(particles.num_of_actives_, -new_particles);
+            return; // Not enough free particles.
+        }
+
+        particles.particle_count_[cell_index] += new_particles;
+        uint seed = random_seed;
+        for (int i = 0; i < new_particles; i++) {
+            float3 pos = coord + RandomCoord(&seed);
+
+            int index = base_index + i;
+
+            float3 dir = pos - center;
+            float3 vel = normalize(dir) * velocity;
+
+            // Not necessary to initialize the in_cell_index field.
+            // Particle-cell mapping will be done in the binding kernel.
+
+            // Assign a valid value to |cell_index_| to activate this particle.
+            particles.cell_index_ [index] = cell_index;
+            particles.position_x_ [index] = __float2half_rn(pos.x);
+            particles.position_y_ [index] = __float2half_rn(pos.y);
+            particles.position_z_ [index] = __float2half_rn(pos.z);
+            particles.velocity_x_ [index] = __float2half_rn(vel.x);
+            particles.velocity_y_ [index] = __float2half_rn(vel.y);
+            particles.velocity_z_ [index] = __float2half_rn(vel.z);
+            particles.density_    [index] = __float2half_rn(density);
+            particles.temperature_[index] = __float2half_rn(temperature);
+        }
+    } else {
+        uint p_index = particles.particle_index_[cell_index];
+        for (int i = 0; i < count; i++) {
+            float pos_x = __half2float(particles.position_x_[p_index + i]);
+            float pos_y = __half2float(particles.position_y_[p_index + i]);
+            float pos_z = __half2float(particles.position_z_[p_index + i]);
+            float3 pos = make_float3(pos_x, pos_y, pos_z);
+
+            float3 dir = pos - center;
+            float3 vel = normalize(dir) * velocity;
+
+            particles.velocity_x_ [p_index + i] = __float2half_rn(vel.x);
+            particles.velocity_y_ [p_index + i] = __float2half_rn(vel.y);
+            particles.velocity_z_ [p_index + i] = __float2half_rn(vel.z);
+            particles.density_    [p_index + i] = __float2half_rn(density);
+            particles.temperature_[p_index + i] = __float2half_rn(temperature);
+        }
+    }
+}
+
 // Should be invoked *BEFORE* resample kernel. Please read the comments of
 // ResampleKernel().
 // Active particles should be consecutive.
@@ -520,24 +594,41 @@ void EmitParticles(const FlipParticles& particles, float3 center,
                    float temperature, float3 velocity, FluidImpulse impulse,
                    uint random_seed, uint3 volume_size, BlockArrangement* ba)
 {
-    const int kHeatLayerThickness = 6;
 
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
-            dim3 block(volume_size.x, kHeatLayerThickness, 1);
+            const float kHeatLayerThickness = 0.025f * volume_size.y;
+            uint3 actual_size = volume_size;
+            actual_size.y = static_cast<uint>(std::ceil(kHeatLayerThickness));
+
+            dim3 block;
             dim3 grid;
-            ba->ArrangeGrid(&grid, block, volume_size);
-            grid.y = 1;
+            ba->ArrangeRowScan(&block, &grid, actual_size);
             EmitParticlesKernel<VerticalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
             break;
         }
-        case IMPULSE_BUOYANT_JET: {
-            dim3 block(3, volume_size.y, 1);
+        case IMPULSE_SPHERE: {
+            uint3 actual_size = volume_size;
+            actual_size.y = static_cast<uint>(std::ceil(radius + center.y));
+
+            dim3 block;
             dim3 grid;
-            ba->ArrangeGrid(&grid, block, volume_size);
-            grid.x = 1;
+            ba->ArrangeRowScan(&block, &grid, actual_size);
+            EmitParticlesFromSphereKernel<<<grid, block>>>(
+                particles, center, radius, density, temperature, velocity.x,
+                random_seed, volume_size);
+            break;
+        }
+        case IMPULSE_BUOYANT_JET: {
+            const float kHeatLayerThickness = 0.02f * volume_size.x;
+            uint3 actual_size = volume_size;
+            actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
+
+            dim3 block;
+            dim3 grid;
+            ba->ArrangeRowScan(&block, &grid, actual_size);
             EmitParticlesKernel<HorizontalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);

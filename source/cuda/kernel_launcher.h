@@ -80,6 +80,7 @@ extern void CopyToVbo(void* point_vbo, void* extra_vbo, uint16_t* pos_x, uint16_
 extern void Raycast(cudaArray* dest_array, cudaArray* density_array, const glm::mat4& inv_rotation, const glm::ivec2& surface_size, const glm::vec3& eye_pos, const glm::vec3& light_color, const glm::vec3& light_pos, float light_intensity, float focal_length, const glm::vec2& screen_size, int num_samples, int num_light_samples, float absorption, float density_factor, float occlusion_factor, const glm::vec3& volume_size);
 
 extern void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float velocity_dissipation, const uint3& volume_size, BlockArrangement* ba);
+extern void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, float3 center, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
 
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, bool outflow, uint3 volume_size, BlockArrangement* ba);
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);

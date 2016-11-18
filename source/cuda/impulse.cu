@@ -32,33 +32,10 @@
 #include "fluid_impulse.h"
 
 surface<void, cudaSurfaceType3D> surf;
+surface<void, cudaSurfaceType3D> surf_x;
+surface<void, cudaSurfaceType3D> surf_y;
+surface<void, cudaSurfaceType3D> surf_z;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
-
-__global__ void ApplyImpulse1Kernel(float3 center_point, float3 hotspot,
-                                    float radius, float value,
-                                    uint3 volume_size)
-{
-    int x = VolumeX();
-    int y = 1 + threadIdx.y;
-    int z = VolumeZ();
-
-    if (x >= volume_size.x || z >= volume_size.z)
-        return;
-
-    float3 coord = make_float3(x, y, z) + 0.5f;
-    float2 diff = make_float2(coord.x, coord.z) -
-        make_float2(center_point.x, center_point.z);
-    float d = hypotf(diff.x, diff.y);
-    if (d < radius) {
-        diff = make_float2(coord.x, coord.z) -
-            make_float2(hotspot.x, hotspot.z);
-        float scale = (radius - hypotf(diff.x, diff.y)) / radius;
-        scale = fmaxf(scale, 0.1f);
-        surf3Dwrite(__float2half_rn(scale * value), surf,
-                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
-        return;
-    }
-}
 
 __global__ void HotFloorKernel(float3 center_point, float3 hotspot,
                                float radius, float value, uint3 volume_size)
@@ -85,7 +62,7 @@ __global__ void ImpulseDensityKernel(float3 center_point, float radius,
                                      float value, uint3 volume_size)
 {
     int x = VolumeX();
-    int y = 1 + threadIdx.y;
+    int y = VolumeY();
     int z = VolumeZ();
 
     if (x >= volume_size.x || z >= volume_size.z)
@@ -115,28 +92,7 @@ __global__ void GenerateHeatSphereKernel(float3 center_point, float radius,
     float3 diff = make_float3(coord.x, coord.y, coord.z) -
         make_float3(center_point.x, center_point.y, center_point.z);
     float d = norm3df(diff.x, diff.y, diff.z);
-    if (d < radius && d > radius * 0.5f) {
-        surf3Dwrite(__float2half_rn(value), surf,
-                    x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
-        return;
-    }
-}
-
-__global__ void ImpulseDensitySphereKernel(float3 center_point, float radius,
-                                           float value, uint3 volume_size)
-{
-    int x = VolumeX();
-    int y = VolumeY();
-    int z = VolumeZ();
-
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 diff = make_float3(coord.x, coord.y, coord.z) -
-        make_float3(center_point.x, center_point.y, center_point.z);
-    float d = norm3df(diff.x, diff.y, diff.z);
-    if (d < radius && d > radius * 0.5f) {
+    if (d < radius && d > radius * 0.6f) {
         surf3Dwrite(__float2half_rn(value), surf,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
         return;
@@ -164,6 +120,32 @@ __global__ void BuoyantJetKernel(float3 hotspot, float radius, float value,
     }
 }
 
+__global__ void ImpulseVelocitySphereKernel(float3 center_point, float radius,
+                                            float value, uint3 volume_size)
+{
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
+
+    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
+        return;
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
+    float3 dir = coord - center_point;
+    float d = norm3df(dir.x, dir.y, dir.z);
+    if (d < radius && d > radius * 0.6f) {
+        float3 vel = normalize(dir) * value;
+
+        auto r_x = __float2half_rn(vel.x);
+        surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+        auto r_y = __float2half_rn(vel.y);
+        surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+        auto r_z = __float2half_rn(vel.z);
+        surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
+        return;
+    }
+}
+
 // =============================================================================
 
 void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
@@ -174,20 +156,23 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    const int kHeatLayerThickness = 6;
     switch (impulse) {
         case IMPULSE_HOT_FLOOR: {
-            dim3 block(volume_size.x, kHeatLayerThickness, 1);
+            const float kHeatLayerThickness = 0.025f * volume_size.y;
+            uint3 actual_size = volume_size;
+            actual_size.y = static_cast<uint>(std::ceil(kHeatLayerThickness));
+
+            dim3 block;
             dim3 grid;
-            ba->ArrangeGrid(&grid, block, volume_size);
-            grid.y = 1;
+            ba->ArrangeRowScan(&block, &grid, actual_size);
             HotFloorKernel<<<grid, block>>>(center_point, hotspot, radius,
                                             value, volume_size);
             break;
         }
         case IMPULSE_SPHERE: {
             uint3 actual_size = volume_size;
-            actual_size.y = static_cast<uint>(radius + center_point.y) + 1;
+            actual_size.y = static_cast<uint>(
+                std::ceil(radius + center_point.y));
 
             dim3 block;
             dim3 grid;
@@ -197,10 +182,13 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
             break;
         }
         case IMPULSE_BUOYANT_JET: {
-            dim3 block(3, volume_size.y, 1);
+            const float kHeatLayerThickness = 0.02f * volume_size.x;
+            uint3 actual_size = volume_size;
+            actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
+
+            dim3 block;
             dim3 grid;
-            ba->ArrangeGrid(&grid, block, volume_size);
-            grid.x = 1;
+            ba->ArrangeRowScan(&block, &grid, actual_size);
             BuoyantJetKernel<<<grid, block>>>(center_point, radius, value,
                                               volume_size);
             break;
@@ -227,27 +215,54 @@ void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
                                                   volume_size);
             break;
         }
+    }
+    DCHECK_KERNEL();
+}
+
+namespace kern_launcher
+{
+void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
+                     float3 center, float radius, float value,
+                     FluidImpulse impulse, uint3 volume_size,
+                     BlockArrangement* ba)
+{
+    switch (impulse) {
         case IMPULSE_SPHERE: {
+            if (BindCudaSurfaceToArray(&surf_x, vnp1_x) != cudaSuccess)
+                return;
+
+            if (BindCudaSurfaceToArray(&surf_y, vnp1_y) != cudaSuccess)
+                return;
+
+            if (BindCudaSurfaceToArray(&surf_z, vnp1_z) != cudaSuccess)
+                return;
+
             uint3 actual_size = volume_size;
-            actual_size.y = static_cast<uint>(radius + center_point.y) + 1;
+            actual_size.y = static_cast<uint>(std::ceil(radius + center.y));
 
             dim3 block;
             dim3 grid;
             ba->ArrangeRowScan(&block, &grid, actual_size);
-            grid.y = 1;
-            ImpulseDensitySphereKernel<<<grid, block>>>(center_point, radius,
-                                                        value, volume_size);
+            ImpulseVelocitySphereKernel<<<grid, block>>>(center, radius, value,
+                                                         volume_size);
             break;
         }
         case IMPULSE_BUOYANT_JET: {
-            dim3 block(2, volume_size.y, 1);
+            if (BindCudaSurfaceToArray(&surf, vnp1_x) != cudaSuccess)
+                return;
+
+            const float kHeatLayerThickness = 0.02f * volume_size.x;
+            uint3 actual_size = volume_size;
+            actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
+
+            dim3 block;
             dim3 grid;
-            ba->ArrangeGrid(&grid, block, volume_size);
-            grid.x = 1;
-            BuoyantJetKernel<<<grid, block>>>(center_point, radius, value,
+            ba->ArrangeRowScan(&block, &grid, actual_size);
+            BuoyantJetKernel<<<grid, block>>>(center, radius, value,
                                               volume_size);
             break;
         }
     }
     DCHECK_KERNEL();
+}
 }

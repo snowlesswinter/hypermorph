@@ -95,17 +95,30 @@ void GridFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& hotspot, float impulse_density,
                               float impulse_temperature, float impulse_velocity)
 {
-    
 
-    ImpulseDensity(impulse_position, hotspot, splat_radius, impulse_density);
+    if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+        CudaMain::Instance()->ApplyImpulse(velocity_->x()->cuda_volume(),
+                                           velocity_->y()->cuda_volume(),
+                                           velocity_->z()->cuda_volume(),
+                                           density_->cuda_volume(),
+                                           temperature_->cuda_volume(),
+                                           velocity_->x()->cuda_volume(),
+                                           velocity_->y()->cuda_volume(),
+                                           velocity_->z()->cuda_volume(),
+                                           density_->cuda_volume(),
+                                           temperature_->cuda_volume(),
+                                           impulse_position, hotspot,
+                                           splat_radius, impulse_velocity,
+                                           impulse_density,
+                                           impulse_temperature);
+    } else {
+        ImpulseDensity(impulse_position, hotspot, splat_radius,
+                       impulse_density);
 
-    if (impulse_temperature > 0.0f)
-        ImpulseField(temperature_, impulse_position, hotspot, splat_radius,
-                     impulse_temperature);
-
-    if (impulse_velocity > 0.0f)
-        ImpulseField(velocity_->x(), impulse_position, hotspot, splat_radius,
-                     impulse_velocity);
+        if (impulse_temperature > 0.0f)
+            ImpulseField(temperature_, impulse_position, hotspot, splat_radius,
+                         impulse_temperature);
+    }
 }
 
 bool GridFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
@@ -662,10 +675,6 @@ void GridFluidSolver::ImpulseField(std::shared_ptr<GraphicsVolume> dest,
                                    float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulse(dest->cuda_volume(),
-                                           dest->cuda_volume(),
-                                           position, hotspot, splat_radius,
-                                           value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 
@@ -688,9 +697,6 @@ void GridFluidSolver::ImpulseDensity(const glm::vec3& position,
                                      float splat_radius, float value)
 {
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyImpulseDensity(density_->cuda_volume(),
-                                                  position, hotspot,
-                                                  splat_radius, value);
     } else {
         glUseProgram(Programs.ApplyImpulse);
 

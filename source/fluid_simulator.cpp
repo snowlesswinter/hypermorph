@@ -43,7 +43,7 @@
 #include "utility.h"
 
 const float kMaxTimeStep = 0.3f;
-const glm::vec3 kImpulsePosition(0.5f, 0.05f, 0.5f);
+const glm::vec3 kImpulsePosition(0.5f, 0.15f, 0.5f);
 
 FluidSimulator::FluidSimulator()
     : grid_size_(128)
@@ -171,7 +171,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         do_impulse = true;
     }
 
-    float initial_velocity = 0.0f;
+    float initial_velocity = FluidConfig::Instance()->impulse_velocity();
     CudaMain::FluidImpulse impulse = FluidConfig::Instance()->fluid_impluse();
     if (impulse == CudaMain::IMPULSE_BUOYANT_JET) {
         int t = static_cast<int>(seconds_elapsed / time_stretch);
@@ -180,6 +180,8 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
             initial_velocity =
                 (1.0f /*+ coef * 0.5f*/) *
                 FluidConfig::Instance()->impulse_velocity();
+        } else {
+            initial_velocity = 0.0f;
         }
 
         pos.x = pos.y;

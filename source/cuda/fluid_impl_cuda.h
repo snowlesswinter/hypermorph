@@ -60,13 +60,13 @@ public:
                        float time_step, float ambient_temperature,
                        float accel_factor, float gravity,
                        const glm::ivec3& volume_size);
-    void ApplyImpulse(cudaArray* dest, cudaArray* source,
-                      const glm::vec3& center_point,
-                      const glm::vec3& hotspot, float radius, float value,
+    void ApplyImpulse(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
+                      cudaArray* d_np1, cudaArray* t_np1, cudaArray* vel_x,
+                      cudaArray* vel_y, cudaArray* vel_z, cudaArray* density,
+                      cudaArray* temperature, const glm::vec3& center_point,
+                      const glm::vec3& hotspot, float radius, float vel_value,
+                      float d_value, float t_value,
                       const glm::ivec3& volume_size);
-    void ApplyImpulseDensity(cudaArray* density, const glm::vec3& center_point,
-                             const glm::vec3& hotspot, float radius,
-                             float value, const glm::ivec3& volume_size);
     void ApplyVorticityConfinement(cudaArray* vel_x, cudaArray* vel_y,
                                    cudaArray* vel_z, cudaArray* conf_x,
                                    cudaArray* conf_y, cudaArray* conf_z,

@@ -128,14 +128,19 @@ public:
                        std::shared_ptr<CudaVolume> density, float time_step,
                        float ambient_temperature, float accel_factor,
                        float gravity);
-    void ApplyImpulseDensity(std::shared_ptr<CudaVolume> density,
-                             const glm::vec3& center_point,
-                             const glm::vec3& hotspot, float radius,
-                             float value);
-    void ApplyImpulse(std::shared_ptr<CudaVolume> dest,
-                      std::shared_ptr<CudaVolume> source,
+    void ApplyImpulse(std::shared_ptr<CudaVolume> vnp1_x,
+                      std::shared_ptr<CudaVolume> vnp1_y,
+                      std::shared_ptr<CudaVolume>vnp1_z,
+                      std::shared_ptr<CudaVolume> d_np1,
+                      std::shared_ptr<CudaVolume>t_np1,
+                      std::shared_ptr<CudaVolume>vel_x,
+                      std::shared_ptr<CudaVolume> vel_y,
+                      std::shared_ptr<CudaVolume>vel_z,
+                      std::shared_ptr<CudaVolume>density,
+                      std::shared_ptr<CudaVolume> temperature,
                       const glm::vec3& center_point,
-                      const glm::vec3& hotspot, float radius, float value);
+                      const glm::vec3& hotspot, float radius,
+                      float vel_value, float d_value, float t_value);
     void ComputeDivergence(std::shared_ptr<CudaVolume> div,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,
