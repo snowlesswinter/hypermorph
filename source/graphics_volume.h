@@ -53,7 +53,6 @@ private:
     GraphicsLib graphics_lib_;
     std::shared_ptr<GLVolume> gl_volume_;
     std::shared_ptr<CudaVolume> cuda_volume_;
-    int border_;
 };
 
 #endif // _GRAPHICS_VOLUME_H_

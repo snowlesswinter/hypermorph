@@ -36,9 +36,9 @@ public:
 
     void Clear();
     bool Create(int width, int height, int depth, int num_of_components,
-                int byte_width);
+                int byte_width, int border);
     bool CreateInPlace(int width, int height, int depth, int num_of_components,
-                       int byte_width);
+                       int byte_width, int border);
     bool HasSameProperties(const CudaVolume& other) const;
 
     cudaArray* dev_array() const { return dev_array_; }
@@ -58,6 +58,7 @@ private:
     int depth_;
     int num_of_components_;
     int byte_width_;
+    int border_;
 };
 
 #endif // _CUDA_VOLUME_H_

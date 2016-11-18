@@ -33,14 +33,12 @@ GraphicsVolume::GraphicsVolume(GraphicsLib lib)
     : graphics_lib_(lib)
     , gl_volume_()
     , cuda_volume_()
-    , border_(0)
 {
 }
 
 GraphicsVolume::~GraphicsVolume()
 {
 }
-
 
 void GraphicsVolume::Clear()
 {
@@ -59,11 +57,10 @@ bool GraphicsVolume::Create(int width, int height, int depth,
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         std::shared_ptr<CudaVolume> r(new CudaVolume());
-        bool result = r->Create(width + border, height + border, depth + border,
-                                num_of_components, byte_width);
+        bool result = r->Create(width, height, depth, num_of_components,
+                                byte_width, border);
         if (result) {
             cuda_volume_ = r;
-            border_ = border;
         }
 
         Clear(); // TODO
@@ -101,7 +98,6 @@ bool GraphicsVolume::Create(int width, int height, int depth,
             }
 
             gl_volume_ = r;
-            border_ = border;
         }
 
         return result;
@@ -125,9 +121,6 @@ std::shared_ptr<CudaVolume> GraphicsVolume::cuda_volume() const
 bool GraphicsVolume::HasSameProperties(const GraphicsVolume& other) const
 {
     if (graphics_lib_ != other.graphics_lib_)
-        return false;
-
-    if (border_ != other.border_)
         return false;
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA)
@@ -156,9 +149,9 @@ int GraphicsVolume::GetWidth() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->width() - border_;
+        return gl_volume_->width();
     else
-        return cuda_volume_->width() - border_;
+        return cuda_volume_->width();
 }
 
 int GraphicsVolume::GetHeight() const
@@ -168,9 +161,9 @@ int GraphicsVolume::GetHeight() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->height() - border_;
+        return gl_volume_->height();
     else
-        return cuda_volume_->height() - border_;
+        return cuda_volume_->height();
 }
 
 int GraphicsVolume::GetDepth() const
@@ -180,9 +173,9 @@ int GraphicsVolume::GetDepth() const
         return 0;
 
     if (gl_volume_)
-        return gl_volume_->depth() - border_;
+        return gl_volume_->depth();
     else
-        return cuda_volume_->depth() - border_;
+        return cuda_volume_->depth();
 }
 
 int GraphicsVolume::GetByteWidth() const

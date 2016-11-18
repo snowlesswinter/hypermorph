@@ -37,8 +37,8 @@ CudaVolume::CudaVolume()
     , depth_(0)
     , num_of_components_(0)
     , byte_width_(0)
+    , border_(0)
 {
-
 }
 
 CudaVolume::~CudaVolume()
@@ -57,40 +57,43 @@ CudaVolume::~CudaVolume()
 void CudaVolume::Clear()
 {
     if (dev_array_) {
-        CudaMain::Instance()->ClearVolume(this, glm::vec4(0.0f),
-                                          glm::ivec3(width_, height_, depth_));
+        CudaMain::Instance()->ClearVolume(
+            this, glm::vec4(0.0f),
+            glm::ivec3(width_, height_, depth_) + border_);
     }
 }
 
 bool CudaVolume::Create(int width, int height, int depth, int num_of_components,
-                        int byte_width)
+                        int byte_width, int border)
 {
     assert(!dev_array_);
     if (dev_array_)
         return false;
 
     bool result = CudaCore::AllocVolumeMemory(
-        &dev_array_, glm::ivec3(width, height, depth), num_of_components,
-        byte_width);
+        &dev_array_, glm::ivec3(width, height, depth) + border,
+        num_of_components, byte_width);
     if (result) {
         width_ = width;
         height_ = height;
         depth_ = depth;
         num_of_components_ = num_of_components;
         byte_width_ = byte_width;
+        border_ = border;
     }
     return result;
 }
 
 bool CudaVolume::CreateInPlace(int width, int height, int depth,
-                               int num_of_components, int byte_width)
+                               int num_of_components, int byte_width,
+                               int border)
 {
     assert(!dev_mem_);
     if (dev_mem_)
         return false;
 
     bool result = CudaCore::AllocVolumeInPlaceMemory(
-        &dev_mem_, glm::ivec3(width, height, depth), num_of_components,
+        &dev_mem_, glm::ivec3(width, height, depth) + border, num_of_components,
         byte_width);
     if (result) {
         width_ = width;
@@ -98,6 +101,7 @@ bool CudaVolume::CreateInPlace(int width, int height, int depth,
         depth_ = depth;
         num_of_components_ = num_of_components;
         byte_width_ = byte_width;
+        border_ = border;
     }
     return result;
 }
@@ -107,7 +111,8 @@ bool CudaVolume::HasSameProperties(const CudaVolume& other) const
     return width_ == other.width_ && height_ == other.height_ &&
         depth_ == other.depth_ &&
         num_of_components_ == other.num_of_components_ &&
-        byte_width_ == other.byte_width_;
+        byte_width_ == other.byte_width_ &&
+        border_ == other.border_;
 }
 
 glm::ivec3 CudaVolume::size() const
