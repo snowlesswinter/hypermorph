@@ -60,19 +60,19 @@ bool PreconditionedConjugateGradient::Initialize(int width, int height,
                                      minimum_grid_width))
         return false;
 
-    alpha_ = core_->CreateMemPiece(sizeof(float));
+    alpha_ = core_->CreateMemPiece(sizeof(double));
     if (!alpha_)
         return false;
 
-    beta_ = core_->CreateMemPiece(sizeof(float));
+    beta_ = core_->CreateMemPiece(sizeof(double));
     if (!beta_)
         return false;
 
-    rho_ = core_->CreateMemPiece(sizeof(float));
+    rho_ = core_->CreateMemPiece(sizeof(double));
     if (!rho_)
         return false;
 
-    rho_new_ = core_->CreateMemPiece(sizeof(float));
+    rho_new_ = core_->CreateMemPiece(sizeof(double));
     if (!rho_new_)
         return false;
 

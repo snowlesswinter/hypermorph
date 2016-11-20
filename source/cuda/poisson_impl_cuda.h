@@ -52,15 +52,15 @@ public:
     // Conjugate gradient.
     void ApplyStencil(cudaArray* aux, cudaArray* search,
                       const glm::ivec3& volume_size);
-    void ComputeAlpha(float* alpha, float* rho, cudaArray* aux,
+    void ComputeAlpha(double* alpha, double* rho, cudaArray* aux,
                       cudaArray* search, const glm::ivec3& volume_size);
-    void ComputeRho(float* rho, cudaArray* search, cudaArray* residual,
+    void ComputeRho(double* rho, cudaArray* search, cudaArray* residual,
                     const glm::ivec3& volume_size);
-    void ComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
+    void ComputeRhoAndBeta(double* beta, double* rho_new, double* rho,
                            cudaArray* aux, cudaArray* residual,
                            const glm::ivec3& volume_size);
-    void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
-                   float sign, const glm::ivec3& volume_size);
+    void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, double* coef,
+                   double sign, const glm::ivec3& volume_size);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_outflow(bool outflow) { outflow_ = outflow; }

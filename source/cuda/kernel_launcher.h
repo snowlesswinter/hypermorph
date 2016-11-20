@@ -58,10 +58,10 @@ extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size
 
 // Conjugate gradient.
 extern void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef, float sign, uint3 volume_size, BlockArrangement* ba);
+extern void LaunchComputeAlpha(double* alpha, double* rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void LaunchComputeRho(double* rho, cudaArray* search, cudaArray* residual, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void LaunchComputeRhoAndBeta(double* beta, double* rho_new, double* rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, double* coef, double sign, uint3 volume_size, BlockArrangement* ba);
 
 // Vorticity.
 extern void LaunchAddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);

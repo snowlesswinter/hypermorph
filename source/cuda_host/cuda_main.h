@@ -186,10 +186,10 @@ public:
     void ScaledAdd(std::shared_ptr<CudaVolume> dest,
                    std::shared_ptr<CudaVolume> v0,
                    std::shared_ptr<CudaVolume> v1,
-                   std::shared_ptr<CudaMemPiece> coef, float sign);
+                   std::shared_ptr<CudaMemPiece> coef, double sign);
     void ScaleVector(std::shared_ptr<CudaVolume> dest,
                      std::shared_ptr<CudaVolume> v,
-                     std::shared_ptr<CudaMemPiece> coef, float sign);
+                     std::shared_ptr<CudaMemPiece> coef, double sign);
 
     // Vorticity.
     void AddCurlPsi(std::shared_ptr<CudaVolume> vel_x,

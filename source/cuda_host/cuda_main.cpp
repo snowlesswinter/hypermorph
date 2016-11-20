@@ -421,8 +421,8 @@ void CudaMain::ComputeAlpha(std::shared_ptr<CudaMemPiece> alpha,
                             std::shared_ptr<CudaVolume> aux,
                             std::shared_ptr<CudaVolume> search)
 {
-    poisson_impl_->ComputeAlpha(reinterpret_cast<float*>(alpha->mem()),
-                                reinterpret_cast<float*>(rho->mem()),
+    poisson_impl_->ComputeAlpha(reinterpret_cast<double*>(alpha->mem()),
+                                reinterpret_cast<double*>(rho->mem()),
                                 aux->dev_array(), search->dev_array(),
                                 aux->size());
 }
@@ -432,7 +432,7 @@ void CudaMain::ComputeRho(std::shared_ptr<CudaMemPiece> rho,
                           std::shared_ptr<CudaVolume> residual)
 {
     poisson_impl_->ComputeRho(
-        reinterpret_cast<float*>(rho->mem()), search->dev_array(),
+        reinterpret_cast<double*>(rho->mem()), search->dev_array(),
         residual->dev_array(), search->size());
 }
 
@@ -442,9 +442,9 @@ void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
                                  std::shared_ptr<CudaVolume> aux,
                                  std::shared_ptr<CudaVolume> residual)
 {
-    poisson_impl_->ComputeRhoAndBeta(reinterpret_cast<float*>(beta->mem()),
-                                     reinterpret_cast<float*>(rho_new->mem()),
-                                     reinterpret_cast<float*>(rho->mem()),
+    poisson_impl_->ComputeRhoAndBeta(reinterpret_cast<double*>(beta->mem()),
+                                     reinterpret_cast<double*>(rho_new->mem()),
+                                     reinterpret_cast<double*>(rho->mem()),
                                      aux->dev_array(), residual->dev_array(),
                                      aux->size());
 }
@@ -452,20 +452,20 @@ void CudaMain::ComputeRhoAndBeta(std::shared_ptr<CudaMemPiece> beta,
 void CudaMain::ScaledAdd(std::shared_ptr<CudaVolume> dest,
                          std::shared_ptr<CudaVolume> v0,
                          std::shared_ptr<CudaVolume> v1,
-                         std::shared_ptr<CudaMemPiece> coef, float sign)
+                         std::shared_ptr<CudaMemPiece> coef, double sign)
 {
     poisson_impl_->ScaledAdd(dest->dev_array(), v0->dev_array(),
                              v1->dev_array(),
-                             reinterpret_cast<float*>(coef->mem()), sign,
+                             reinterpret_cast<double*>(coef->mem()), sign,
                              dest->size());
 }
 
 void CudaMain::ScaleVector(std::shared_ptr<CudaVolume> dest,
                            std::shared_ptr<CudaVolume> v,
-                           std::shared_ptr<CudaMemPiece> coef, float sign)
+                           std::shared_ptr<CudaMemPiece> coef, double sign)
 {
     poisson_impl_->ScaledAdd(dest->dev_array(), nullptr, v->dev_array(),
-                             reinterpret_cast<float*>(coef->mem()), sign,
+                             reinterpret_cast<double*>(coef->mem()), sign,
                              dest->size());
 }
 

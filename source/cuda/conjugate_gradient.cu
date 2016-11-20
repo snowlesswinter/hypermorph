@@ -88,7 +88,7 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ScaleVectorKernel(float* coef, uint3 volume_size)
+__global__ void ScaleVectorKernel(double* coef, uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -97,13 +97,13 @@ __global__ void ScaleVectorKernel(float* coef, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float e1 = tex3D(tex_1, x, y, z);
+    double e1 = tex3D(tex_1, x, y, z);
 
     auto r = __float2half_rn(*coef * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ScaledAddKernel(float* coef, float sign, uint3 volume_size)
+__global__ void ScaledAddKernel(double* coef, double sign, uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -112,36 +112,38 @@ __global__ void ScaledAddKernel(float* coef, float sign, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float e0 = tex3D(tex_0, x, y, z);
-    float e1 = tex3D(tex_1, x, y, z);
+    double e0 = tex3D(tex_0, x, y, z);
+    double e1 = tex3D(tex_1, x, y, z);
 
     auto r = __float2half_rn(e0 + *coef * sign * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
+template <typename FPType>
 struct SchemeDefault
 {
-    __device__ float Load(uint i, uint row_stride, uint slice_stride)
+    __device__ FPType Load(uint i, uint row_stride, uint slice_stride)
     {
         uint z = i / slice_stride;
         uint y = (i % slice_stride) / row_stride;
         uint x = i % row_stride;
 
-        float ¦Õ0 = tex3D(tex_0, static_cast<float>(x), static_cast<float>(y),
-                         static_cast<float>(z));
-        float ¦Õ1 = tex3D(tex_1, static_cast<float>(x), static_cast<float>(y),
-                         static_cast<float>(z));
+        FPType ¦Õ0 = tex3D(tex_0, static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(z));
+        FPType ¦Õ1 = tex3D(tex_1, static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(z));
         return ¦Õ0 * ¦Õ1;
     }
-    __device__ void Save(float* dest, float result)
+    __device__ void Save(FPType* dest, FPType result)
     {
         *dest = result;
     }
 };
 
-struct SchemeAlpha : public SchemeDefault
+template <typename FPType>
+struct SchemeAlpha : public SchemeDefault<FPType>
 {
-    __device__ void Save(float* dest, float result)
+    __device__ void Save(FPType* dest, FPType result)
     {
         if (result > 0.00000001f || result < -0.00000001f)
             *dest = *rho_ / result;
@@ -149,24 +151,25 @@ struct SchemeAlpha : public SchemeDefault
             *dest = 0.0f;
     }
 
-    float* rho_;
+    FPType* rho_;
 };
 
-struct SchemeBeta : public SchemeDefault
+template <typename FPType>
+struct SchemeBeta : public SchemeDefault<FPType>
 {
-    __device__ void Save(float* dest, float result)
+    __device__ void Save(FPType* dest, FPType result)
     {
         *dest = result;
 
-        float t = *rho_;
+        FPType t = *rho_;
         if (t > 0.00000001f || t < -0.00000001f)
             *beta_ = result / t;
         else
             *beta_ = 0;
     }
 
-    float* rho_;
-    float* beta_;
+    FPType* rho_;
+    FPType* beta_;
 };
 
 #include "volume_reduction.cuh"
@@ -198,7 +201,7 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     DCHECK_KERNEL();
 }
 
-void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,
+void LaunchComputeAlpha(double* alpha, double* rho, cudaArray* vec0,
                         cudaArray* vec1, uint3 volume_size,
                         BlockArrangement* ba, AuxBufferManager* bm)
 {
@@ -212,14 +215,14 @@ void LaunchComputeAlpha(float* alpha, float* rho, cudaArray* vec0,
     if (bound_1.error() != cudaSuccess)
         return;
 
-    SchemeAlpha scheme;
+    SchemeAlpha<double> scheme;
     scheme.rho_ = rho;
     ReduceVolume(alpha, scheme, volume_size, ba, bm);
 
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
+void LaunchComputeRho(double* rho, cudaArray* search, cudaArray* residual,
                       uint3 volume_size, BlockArrangement* ba,
                       AuxBufferManager* bm)
 {
@@ -233,13 +236,13 @@ void LaunchComputeRho(float* rho, cudaArray* search, cudaArray* residual,
     if (bound_1.error() != cudaSuccess)
         return;
 
-    SchemeDefault scheme;
+    SchemeDefault<double> scheme;
     ReduceVolume(rho, scheme, volume_size, ba, bm);
 
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
+void LaunchComputeRhoAndBeta(double* beta, double* rho_new, double* rho,
                              cudaArray* vec0, cudaArray* vec1,
                              uint3 volume_size, BlockArrangement* ba,
                              AuxBufferManager* bm)
@@ -255,7 +258,7 @@ void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
     if (bound_1.error() != cudaSuccess)
         return;
 
-    SchemeBeta scheme;
+    SchemeBeta<double> scheme;
     scheme.beta_ = beta;
     scheme.rho_ = rho;
     ReduceVolume(rho_new, scheme, volume_size, ba, bm);
@@ -263,8 +266,9 @@ void LaunchComputeRhoAndBeta(float* beta, float* rho_new, float* rho,
     DCHECK_KERNEL();
 }
 
-void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, float* coef,
-                     float sign, uint3 volume_size, BlockArrangement* ba)
+void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
+                     double* coef, double sign, uint3 volume_size,
+                     BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;

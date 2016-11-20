@@ -20,8 +20,9 @@ Parallel reduction kernels
 #ifndef _VOLUME_REDUCTION_H_
 #define _VOLUME_REDUCTION_H_
 
-template <uint BlockSize>
-__device__ void ReduceBlock(volatile float *sdata, float my_sum, const uint tid)
+template <uint BlockSize, typename FPType>
+__device__ void ReduceBlock(volatile FPType *sdata, FPType my_sum,
+                            const uint tid)
 {
     sdata[tid] = my_sum;
     __syncthreads();
@@ -95,17 +96,17 @@ __device__ void ReduceBlock(volatile float *sdata, float my_sum, const uint tid)
     }
 }
 
-template <uint BlockSize, bool IsPow2, typename DataScheme>
-__device__ void ReduceBlocks(float* block_results, uint total_elements,
+template <uint BlockSize, bool IsPow2, typename FPType, typename DataScheme>
+__device__ void ReduceBlocks(FPType* block_results, uint total_elements,
                              uint row_stride, uint slice_stride,
                              DataScheme scheme)
 {
-    extern __shared__ float sdata[];
+    extern __shared__ FPType sdata[];
 
     uint tid = threadIdx.x;
     uint i = blockIdx.x * (BlockSize * 2) + threadIdx.x;
     uint grid_size = BlockSize * 2 * gridDim.x;
-    float my_sum = 0.0f;
+    FPType my_sum = 0.0f;
 
     while (i < total_elements) {
         my_sum += scheme.Load(i, row_stride, slice_stride);
@@ -123,8 +124,8 @@ __device__ void ReduceBlocks(float* block_results, uint total_elements,
 
 __device__ uint retirement_count = 0;
 
-template <uint BlockSize, bool IsPow2, typename DataScheme>
-__global__ void ReduceVolumeKernel(float* dest, float* block_results,
+template <uint BlockSize, bool IsPow2, typename FPType, typename DataScheme>
+__global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
                                    uint total_elements, uint row_stride,
                                    uint slice_stride, DataScheme scheme)
 {
@@ -133,7 +134,7 @@ __global__ void ReduceVolumeKernel(float* dest, float* block_results,
 
     const uint tid = threadIdx.x;
     __shared__ bool last_block;
-    extern float __shared__ smem[];
+    extern FPType __shared__ smem[];
 
     __threadfence();
 
@@ -146,7 +147,7 @@ __global__ void ReduceVolumeKernel(float* dest, float* block_results,
 
     if (last_block) {
         int i = tid;
-        float my_sum = 0.0f;
+        FPType my_sum = 0.0f;
 
         while (i < gridDim.x) {
             my_sum += block_results[i];
@@ -164,8 +165,8 @@ __global__ void ReduceVolumeKernel(float* dest, float* block_results,
 
 // =============================================================================
 
-template <typename DataScheme>
-void ReduceVolume(float* dest, const DataScheme& scheme, uint3 volume_size,
+template <typename FPType, typename DataScheme>
+void ReduceVolume(FPType* dest, const DataScheme& scheme, uint3 volume_size,
                   BlockArrangement* ba, AuxBufferManager* bm)
 {
     uint total_elements = volume_size.x * volume_size.y * volume_size.z;
@@ -174,12 +175,12 @@ void ReduceVolume(float* dest, const DataScheme& scheme, uint3 volume_size,
     dim3 grid;
     ba->ArrangeSequential(&block, &grid, volume_size);
 
-    std::unique_ptr<float, std::function<void(void*)>> block_results(
-        reinterpret_cast<float*>(bm->Allocate(grid.x * sizeof(float))),
+    std::unique_ptr<FPType, std::function<void(void*)>> block_results(
+        reinterpret_cast<FPType*>(bm->Allocate(grid.x * sizeof(FPType))),
         [&bm](void* p) { bm->Free(p); });
 
     uint num_of_threads = block.x;
-    uint smem_size = num_of_threads * sizeof(float);
+    uint smem_size = num_of_threads * sizeof(FPType);
     uint row_stride = volume_size.x;
     uint slice_stride = volume_size.x * volume_size.y;
 
