@@ -563,6 +563,9 @@ void SmokeSolver3D::set_bc()
 		}
 	});
 }
+
+// NOTE(tanjianwen): This function will only be called in IVOCK mode, which
+//                   seems to double the divergence.
 void SmokeSolver3D::getDivergence()
 {
 	int compute_elements = _div._blockx*_div._blocky*_div._blockz;

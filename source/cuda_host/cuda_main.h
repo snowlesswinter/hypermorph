@@ -286,6 +286,8 @@ public:
     void ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
                                   std::shared_ptr<CudaVolume> u,
                                   std::shared_ptr<CudaVolume> b);
+    void CopyFromVolume(void* cpu_buf, size_t pitch,
+                        std::shared_ptr<CudaVolume> volume);
     void PrintVolume(std::shared_ptr<CudaVolume> volume,
                      const std::string& name);
     void RoundPassed(int round);

@@ -701,6 +701,13 @@ void CudaMain::ComputeResidualDiagnosis(std::shared_ptr<CudaVolume> residual,
     PrintVolume(residual, "||residual||");
 }
 
+void CudaMain::CopyFromVolume(void* cpu_buf, size_t pitch,
+                              std::shared_ptr<CudaVolume> volume)
+{
+    CudaCore::CopyFromVolume(cpu_buf, pitch, volume->dev_array(),
+                             volume->size());
+}
+
 void CudaMain::PrintVolume(std::shared_ptr<CudaVolume> volume,
                            const std::string& name)
 {
