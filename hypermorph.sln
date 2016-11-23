@@ -11,6 +11,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hypermorph", "source\hyperm
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hypermorph_app", "source\hypermorph_app.vcxproj", "{8AEFA7D0-673A-45D9-B24C-1F034B386F79}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "(third_party)", "(third_party)", "{212F5230-8ACD-407A-B469-3DF86734339B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "smoke_solver", "source\third_party\ivock\smoke_solver\smoke_solver.vcxproj", "{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -45,8 +49,17 @@ Global
 		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|Win32.ActiveCfg = Release|Win32
 		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|Win32.Build.0 = Release|Win32
 		{8AEFA7D0-673A-45D9-B24C-1F034B386F79}.Release|x64.ActiveCfg = Release|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Debug|Win32.Build.0 = Debug|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Debug|x64.ActiveCfg = Debug|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Release|Win32.ActiveCfg = Release|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Release|Win32.Build.0 = Release|Win32
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{5D10D3AC-3AD7-498B-AAE1-26FB10AACDAD} = {212F5230-8ACD-407A-B469-3DF86734339B}
 	EndGlobalSection
 EndGlobal

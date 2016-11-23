@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="GeometricLevelGen.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Smoke_solver3D.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeometricLevelGen.h" />
+    <ClInclude Include="OpenBC.h" />
+    <ClInclude Include="pcg_solver.h" />
+    <ClInclude Include="Smoke_solver3D.h" />
+    <ClInclude Include="sparse_matrix.h" />
+    <ClInclude Include="util.h" />
+    <ClInclude Include="vec.h" />
+    <ClInclude Include="AlgebraicMultigrid.h" />
+    <ClInclude Include="array1.h" />
+    <ClInclude Include="array2.h" />
+    <ClInclude Include="array2_utils.h" />
+    <ClInclude Include="array3.h" />
+    <ClInclude Include="array3_utils.h" />
+    <ClInclude Include="blas_wrapper.h" />
+    <ClInclude Include="fluid_particle.h" />
+  </ItemGroup>
+</Project>
