@@ -56,7 +56,7 @@ public:
     virtual void Solve(float delta_time) = 0;
 
 protected:
-    const FluidProperties& GetProperties() const { return properties_;  }
+    const FluidProperties& GetProperties() const { return properties_; }
 
 private:
     FluidProperties properties_;

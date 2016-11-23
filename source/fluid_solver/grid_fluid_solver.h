@@ -84,8 +84,7 @@ private:
                         float value);
     void ReviseDensity();
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
-                       std::shared_ptr<GraphicsVolume> divergence,
-                       int num_iterations);
+                       std::shared_ptr<GraphicsVolume> divergence);
     void SubtractGradient(std::shared_ptr<GraphicsVolume> pressure);
 
     // Vorticity.

@@ -73,6 +73,8 @@ bool FluidSimulator::Init()
     PoissonSolver* pressure_solver = GetPressureSolver();
     FluidSolver* fluid_solver = GetFluidSolver();
 
+    SetPoissonSolverIterations(pressure_solver);
+
     SetFluidProperties(fluid_solver);
     if (!fluid_solver->Initialize(graphics_lib_, width, height, depth))
         return false;
@@ -107,6 +109,8 @@ void FluidSimulator::NotifyConfigChanged()
         FluidConfig::Instance()->fluid_impluse());
 
     SetFluidProperties(fluid_solver_.get());
+
+    SetPoissonSolverIterations(pressure_solver_.get());
 }
 
 void FluidSimulator::StartImpulsing(float x, float y)
@@ -204,17 +208,11 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
             multigrid_core_.reset(new PoissonCoreGlsl());
     }
 
-    int num_iterations = 0;
-    int num_nested_iterations =
-        FluidConfig::Instance()->num_multigrid_iterations();
     switch (solver_choice_) {
         case POISSON_SOLVER_JACOBI:
         case POISSON_SOLVER_GAUSS_SEIDEL:
         case POISSON_SOLVER_DAMPED_JACOBI: {
-            //num_iterations =
-            //    FluidConfig::Instance()->num_jacobi_iterations();
-            //DampedJacobi(pressure, divergence, cell_size,
-            //             num_iterations);
+            //DampedJacobi(pressure, divergence);
             break;
         }
         case POISSON_SOLVER_MULTI_GRID: {
@@ -225,8 +223,6 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                                              grid_size_.z, data_byte_width_,
                                              32);
             }
-            num_iterations =
-                FluidConfig::Instance()->num_multigrid_iterations();
             break;
         }
         case POISSON_SOLVER_FULL_MULTI_GRID: {
@@ -237,8 +233,6 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                                              grid_size_.z, data_byte_width_,
                                              32);
             }
-            num_iterations =
-                FluidConfig::Instance()->num_full_multigrid_iterations();
             break;
         }
         case POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT: {
@@ -249,17 +243,12 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                                              grid_size_.z, data_byte_width_,
                                              32);
             }
-            num_iterations =
-                FluidConfig::Instance()->num_mgpcg_iterations();
             break;
         }
         default: {
             break;
         }
     }
-
-    if (pressure_solver_)
-        pressure_solver_->SetNestedSolverIterations(num_nested_iterations);
 
     return pressure_solver_.get();
 }
@@ -300,4 +289,46 @@ void FluidSimulator::SetFluidProperties(FluidSolver* fluid_solver)
         FluidConfig::Instance()->smoke_weight();
 
     fluid_solver->SetProperties(properties);
+}
+
+void FluidSimulator::SetPoissonSolverIterations(PoissonSolver* poisson_solver)
+{
+    int num_iterations = 1;
+    int num_nested_iterations = 1;
+    switch (solver_choice_) {
+        case POISSON_SOLVER_JACOBI:
+        case POISSON_SOLVER_GAUSS_SEIDEL:
+        case POISSON_SOLVER_DAMPED_JACOBI: {
+            num_iterations =
+                FluidConfig::Instance()->num_jacobi_iterations();
+            break;
+        }
+        case POISSON_SOLVER_MULTI_GRID: {
+            num_iterations =
+                FluidConfig::Instance()->num_multigrid_iterations();
+            break;
+        }
+        case POISSON_SOLVER_FULL_MULTI_GRID: {
+            num_iterations =
+                FluidConfig::Instance()->num_full_multigrid_iterations();
+            num_nested_iterations =
+                FluidConfig::Instance()->num_multigrid_iterations();
+            break;
+        }
+        case POISSON_SOLVER_MULTI_GRID_PRECONDITIONED_CONJUGATE_GRADIENT: {
+            num_iterations =
+                FluidConfig::Instance()->num_mgpcg_iterations();
+            num_nested_iterations =
+                FluidConfig::Instance()->num_full_multigrid_iterations();
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+
+    assert(pressure_solver_);
+    if (pressure_solver_)
+        pressure_solver_->SetNumOfIterations(num_iterations,
+                                             num_nested_iterations);
 }

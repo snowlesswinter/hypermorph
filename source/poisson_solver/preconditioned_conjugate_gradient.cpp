@@ -40,6 +40,7 @@ PreconditionedConjugateGradient::PreconditionedConjugateGradient(
     , residual_()
     , aux_()
     , search_()
+    , num_iterations_(1)
     , num_nested_iterations_(2)
     , diagnosis_(false)
 {
@@ -105,15 +106,16 @@ void PreconditionedConjugateGradient::SetDiagnosis(bool diagnosis)
     diagnosis_ = diagnosis;
 }
 
-void PreconditionedConjugateGradient::SetNestedSolverIterations(
-    int num_iterations)
+void PreconditionedConjugateGradient::SetNumOfIterations(int num_iterations,
+                                                         int nested_solver)
 {
-    num_nested_iterations_ = num_iterations;
+    num_iterations_ = num_iterations;
+    num_nested_iterations_ = nested_solver;
+
 }
 
 void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
-                                            std::shared_ptr<GraphicsVolume> b,
-                                            int iteration_times)
+                                            std::shared_ptr<GraphicsVolume> b)
 {
     bool initialized = false;
     std::shared_ptr<GraphicsVolume> r = b;
@@ -121,7 +123,7 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
     // |residual_| is actually not necessary in solving the pressure. It is
     // diagnosing that require an extra buffer to store the temporary data so
     // that |b| can be used to compute residual later.
-    if (diagnosis_ && iteration_times > 1) {
+    if (diagnosis_ && num_iterations_ > 1) {
         if (!residual_) {
             residual_ = core_->CreateVolume(b->GetWidth(), b->GetHeight(),
                                             b->GetDepth(), 1,
@@ -140,15 +142,15 @@ void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,
 
     preconditioner_->set_num_finest_level_iteration_per_pass(
         num_nested_iterations_);
-    preconditioner_->Solve(search_, r, 1);
+    preconditioner_->Solve(search_, r);
     core_->ComputeRho(*rho_, *search_, *r);
-    for (int i = 0; i < iteration_times - 1; i++) {
+    for (int i = 0; i < num_iterations_ - 1; i++) {
         core_->ApplyStencil(*aux_, *search_);
 
         core_->ComputeAlpha(*alpha_, *rho_, *aux_, *search_);
         core_->ScaledAdd(*r, *r, *aux_, *alpha_, -1.0f);
 
-        preconditioner_->Solve(aux_, r, 1);
+        preconditioner_->Solve(aux_, r);
 
         core_->ComputeRhoAndBeta(*beta_, *rho_new_, *rho_, *aux_, *r);
         std::swap(rho_new_, rho_);

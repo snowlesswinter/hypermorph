@@ -40,10 +40,10 @@ public:
     virtual void SetAuxiliaryVolumes(
         const std::vector<std::shared_ptr<GraphicsVolume>>& volumes) override;
     virtual void SetDiagnosis(bool diagnosis) override;
-    virtual void SetNestedSolverIterations(int num_iterations) override;
+    virtual void SetNumOfIterations(int num_iterations,
+                                    int nested_solver) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b,
-                       int iteration_times) override;
+                       std::shared_ptr<GraphicsVolume> b) override;
 
 private:
     typedef std::pair<std::shared_ptr<GraphicsVolume>,
@@ -56,6 +56,7 @@ private:
     PoissonCore* core_;
     std::unique_ptr<MultigridPoissonSolver> solver_;
     std::vector<VolumePair> volume_resource_;
+    int num_iterations_;
     int num_nested_iterations_;
 };
 

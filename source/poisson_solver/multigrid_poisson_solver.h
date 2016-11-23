@@ -41,10 +41,10 @@ public:
     virtual void SetAuxiliaryVolumes(
         const std::vector<std::shared_ptr<GraphicsVolume>>& volumes) override;
     virtual void SetDiagnosis(bool diagnosis) override;
-    virtual void SetNestedSolverIterations(int num_iterations) override;
+    virtual void SetNumOfIterations(int num_iterations,
+                                    int nested_solver) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b,
-                       int iteration_times) override;
+                       std::shared_ptr<GraphicsVolume> b) override;
 
     void set_num_finest_level_iteration_per_pass(int n) {
         num_finest_level_iteration_per_pass_ = n;
@@ -59,6 +59,7 @@ private:
     PoissonCore* core_;
     std::vector<std::shared_ptr<GraphicsVolume3>> volume_resource_;
     std::shared_ptr<GraphicsVolume> residual_volume_;
+    int num_iterations_;
     int num_finest_level_iteration_per_pass_;
     bool diagnosis_;
 

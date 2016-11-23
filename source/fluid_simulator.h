@@ -63,6 +63,7 @@ private:
     FluidSolver* GetFluidSolver();
 
     void SetFluidProperties(FluidSolver* fluid_solver);
+    void SetPoissonSolverIterations(PoissonSolver* poisson_solver);
     
     glm::ivec3 grid_size_;
     int data_byte_width_;

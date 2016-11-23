@@ -50,6 +50,7 @@ MultigridPoissonSolver::MultigridPoissonSolver(PoissonCore* core)
     : core_(core)
     , volume_resource_()
     , residual_volume_()
+    , num_iterations_(1)
     , num_finest_level_iteration_per_pass_(2)
     , diagnosis_(false)
     , diagnosis_volume_()
@@ -98,19 +99,21 @@ void MultigridPoissonSolver::SetDiagnosis(bool diagnosis)
 
 }
 
-void MultigridPoissonSolver::SetNestedSolverIterations(int num_iterations)
-{
 
+void MultigridPoissonSolver::SetNumOfIterations(int num_iterations,
+                                                int nested_solver)
+{
+    num_iterations_ = num_iterations;
 }
 
+
 void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
-                                   std::shared_ptr<GraphicsVolume> b,
-                                   int iteration_times)
+                                   std::shared_ptr<GraphicsVolume> b)
 {
     if (!ValidateVolume(u) || !ValidateVolume(b))
         return;
 
-    for (int i = 0; i < iteration_times; i++)
+    for (int i = 0; i < num_iterations_; i++)
         Iterate(u, b, !i);
 }
 

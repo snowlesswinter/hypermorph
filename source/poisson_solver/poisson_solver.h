@@ -37,10 +37,9 @@ public:
     virtual void SetAuxiliaryVolumes(
         const std::vector<std::shared_ptr<GraphicsVolume>>& volumes) = 0;
     virtual void SetDiagnosis(bool diagnosis) = 0;
-    virtual void SetNestedSolverIterations(int num_iterations) = 0;
+    virtual void SetNumOfIterations(int num_iterations, int nested_solver) = 0;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b,
-                       int iteration_times) = 0;
+                       std::shared_ptr<GraphicsVolume> b) = 0;
 };
 
 #endif // _POISSON_SOLVER_H_

@@ -41,10 +41,10 @@ public:
     virtual void SetAuxiliaryVolumes(
         const std::vector<std::shared_ptr<GraphicsVolume>>& volumes) override;
     virtual void SetDiagnosis(bool diagnosis) override;
-    virtual void SetNestedSolverIterations(int num_iterations) override;
+    virtual void SetNumOfIterations(int num_iterations,
+                                    int nested_solver) override;
     virtual void Solve(std::shared_ptr<GraphicsVolume> u,
-                       std::shared_ptr<GraphicsVolume> b,
-                       int iteration_times) override;
+                       std::shared_ptr<GraphicsVolume> b) override;
 
 private:
     void UpdateU(const GraphicsVolume& u, const GraphicsVolume& search,
@@ -59,6 +59,7 @@ private:
     std::shared_ptr<GraphicsVolume> residual_;
     std::shared_ptr<GraphicsVolume> aux_;
     std::shared_ptr<GraphicsVolume> search_;
+    int num_iterations_;
     int num_nested_iterations_;
     bool diagnosis_;
 };

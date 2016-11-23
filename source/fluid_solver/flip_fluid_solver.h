@@ -74,8 +74,7 @@ private:
                                   std::shared_ptr<GraphicsVolume> divergence);
     void MoveParticles(float delta_time);
     void SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
-                       std::shared_ptr<GraphicsVolume> divergence,
-                       int num_iterations);
+                       std::shared_ptr<GraphicsVolume> divergence);
     void SubtractGradient(std::shared_ptr<GraphicsVolume> pressure);
     void SwapParticleFields(FlipParticles* particles, FlipParticles* aux);
 

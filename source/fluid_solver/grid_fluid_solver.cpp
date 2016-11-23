@@ -297,7 +297,7 @@ void GridFluidSolver::Solve(float delta_time)
     Metrics::Instance()->OnDivergenceComputed();
 
     // Solve pressure-velocity Poisson equation
-    SolvePressure(general1b_, general1a_, 1);
+    SolvePressure(general1b_, general1a_);
     Metrics::Instance()->OnPressureSolved();
 
     // Rectify velocity via the gradient of pressure
@@ -726,12 +726,11 @@ void GridFluidSolver::ReviseDensity()
 }
 
 void GridFluidSolver::SolvePressure(std::shared_ptr<GraphicsVolume> pressure,
-                                    std::shared_ptr<GraphicsVolume> divergence,
-                                    int num_iterations)
+                                    std::shared_ptr<GraphicsVolume> divergence)
 {
     if (pressure_solver_) {
         pressure_solver_->SetDiagnosis(diagnosis_ == DIAG_PRESSURE);
-        pressure_solver_->Solve(pressure, divergence, num_iterations);
+        pressure_solver_->Solve(pressure, divergence);
     }
 
     ComputeResidualDiagnosis(pressure, divergence);
@@ -943,7 +942,7 @@ void GridFluidSolver::SolvePsi(const GraphicsVolume3& psi,
         for (int i = 0; i < psi.num_of_volumes(); i++) {
             psi[i]->Clear();
             for (int j = 0; j < num_iterations; j++)
-                pressure_solver_->Solve(psi[i], delta_vort[i], !j);
+                pressure_solver_->Solve(psi[i], delta_vort[i]);
         }
 
         if (diagnosis_ == DIAG_PSI) {

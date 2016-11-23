@@ -36,6 +36,7 @@ FullMultigridPoissonSolver::FullMultigridPoissonSolver(PoissonCore* core)
     : core_(core)
     , solver_(new MultigridPoissonSolver(core))
     , volume_resource_()
+    , num_iterations_(1)
     , num_nested_iterations_(2)
 {
 
@@ -95,21 +96,22 @@ void FullMultigridPoissonSolver::SetDiagnosis(bool diagnosis)
 
 }
 
-void FullMultigridPoissonSolver::SetNestedSolverIterations(int num_iterations)
+void FullMultigridPoissonSolver::SetNumOfIterations(int num_iterations,
+                                                    int nested_solver)
 {
-    num_nested_iterations_ = num_iterations;
+    num_iterations_ = num_iterations;
+    num_nested_iterations_ = nested_solver;
 }
 
 void FullMultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
-                                       std::shared_ptr<GraphicsVolume> b,
-                                       int iteration_times)
+                                       std::shared_ptr<GraphicsVolume> b)
 {
     if (u->GetWidth() < 32) {
-            solver_->Solve(u, b, true);
+        solver_->Solve(u, b);
         return;
     }
 
-    for (int i = 0; i < iteration_times; i++)
+    for (int i = 0; i < num_iterations_; i++)
         Iterate(u, b, !i);
 }
 
@@ -149,14 +151,13 @@ void FullMultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
 
     core_->Relax(*coarsest.first, *coarsest.second, 16);
 
-    int times_to_iterate = 1;
     for (int j = num_of_levels - 2; j >= 0; j--) {
         VolumePair coarse_volume = volume_resource_[j + 1];
         VolumePair fine_volume = volume_resource_[j];
 
         core_->Prolongate(*fine_volume.first, *coarse_volume.first);
 
-        solver_->Solve(fine_volume.first, fine_volume.second, times_to_iterate);
+        solver_->Solve(fine_volume.first, fine_volume.second);
 
         // For comparison.
         // 
@@ -169,6 +170,5 @@ void FullMultigridPoissonSolver::Iterate(std::shared_ptr<GraphicsVolume> u,
         // Experiments revealed that iterations in different levels almost
         // equally contribute to the final result, thus we are not going to
         // reduce the iteration times in coarsen level.
-        times_to_iterate += 0;
     }
 }
