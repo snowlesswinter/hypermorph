@@ -110,8 +110,8 @@ std::istream& operator >>(std::istream& is, FluidConfig::ConfigField<T>& field)
 }
 
 template <>
-std::istream& operator >> <GraphicsLib>(
-    std::istream& is, FluidConfig::ConfigField<GraphicsLib>& field)
+std::istream& operator >>(std::istream& is,
+                          FluidConfig::ConfigField<GraphicsLib>& field)
 {
     std::string lib;
     std::getline(is, lib);
@@ -124,9 +124,8 @@ std::istream& operator >> <GraphicsLib>(
 }
 
 template <>
-std::istream& operator >> <PoissonSolverEnum>(
-    std::istream& is,
-    FluidConfig::ConfigField<PoissonSolverEnum>& field)
+std::istream& operator >>(std::istream& is,
+                          FluidConfig::ConfigField<PoissonSolverEnum>& field)
 {
     std::string method;
     std::getline(is, method);
@@ -139,7 +138,7 @@ std::istream& operator >> <PoissonSolverEnum>(
 }
 
 template <>
-std::istream& operator >> <CudaMain::AdvectionMethod>(
+std::istream& operator >>(
     std::istream& is,
     FluidConfig::ConfigField<CudaMain::AdvectionMethod>& field)
 {
@@ -154,9 +153,8 @@ std::istream& operator >> <CudaMain::AdvectionMethod>(
 }
 
 template <>
-std::istream& operator >> <CudaMain::FluidImpulse>(
-    std::istream& is,
-    FluidConfig::ConfigField<CudaMain::FluidImpulse>& field)
+std::istream& operator >>(
+    std::istream& is, FluidConfig::ConfigField<CudaMain::FluidImpulse>& field)
 {
     std::string impulse;
     std::getline(is, impulse);
@@ -169,9 +167,8 @@ std::istream& operator >> <CudaMain::FluidImpulse>(
 }
 
 template <>
-std::istream& operator >> <RenderMode>(
-    std::istream& is,
-    FluidConfig::ConfigField<RenderMode>& field)
+std::istream& operator >>(std::istream& is,
+                          FluidConfig::ConfigField<RenderMode>& field)
 {
     std::string mode;
     std::getline(is, mode);
@@ -184,8 +181,8 @@ std::istream& operator >> <RenderMode>(
 }
 
 template <>
-std::istream& operator >> <glm::vec3>(
-    std::istream& is, FluidConfig::ConfigField<glm::vec3>& field)
+std::istream& operator >>(std::istream& is,
+                          FluidConfig::ConfigField<glm::vec3>& field)
 {
     std::string color;
     std::getline(is, color);
@@ -215,8 +212,8 @@ std::ostream& operator <<(std::ostream& os, FluidConfig::ConfigField<T>& field)
 }
 
 template <>
-std::ostream& operator << <GraphicsLib>(
-    std::ostream& os, FluidConfig::ConfigField<GraphicsLib>& field)
+std::ostream& operator <<(std::ostream& os,
+                          FluidConfig::ConfigField<GraphicsLib>& field)
 {
     os << field.desc_ << " = ";
     for (auto i : lib_enum_desc)
@@ -227,9 +224,8 @@ std::ostream& operator << <GraphicsLib>(
 }
 
 template <>
-std::ostream& operator << <PoissonSolverEnum>(
-    std::ostream& os,
-    FluidConfig::ConfigField<PoissonSolverEnum>& field)
+std::ostream& operator <<(std::ostream& os,
+                          FluidConfig::ConfigField<PoissonSolverEnum>& field)
 {
     os << field.desc_ << " = ";
     for (auto i : method_enum_desc)
@@ -240,7 +236,7 @@ std::ostream& operator << <PoissonSolverEnum>(
 }
 
 template <>
-std::ostream& operator << <CudaMain::AdvectionMethod>(
+std::ostream& operator <<(
     std::ostream& os,
     FluidConfig::ConfigField<CudaMain::AdvectionMethod>& field)
 {
@@ -253,7 +249,7 @@ std::ostream& operator << <CudaMain::AdvectionMethod>(
 }
 
 template <>
-std::ostream& operator << <CudaMain::FluidImpulse>(
+std::ostream& operator <<(
     std::ostream& os,
     FluidConfig::ConfigField<CudaMain::FluidImpulse>& field)
 {
@@ -266,9 +262,8 @@ std::ostream& operator << <CudaMain::FluidImpulse>(
 }
 
 template <>
-std::ostream& operator << <RenderMode>(
-    std::ostream& os,
-    FluidConfig::ConfigField<RenderMode>& field)
+std::ostream& operator <<(std::ostream& os,
+                          FluidConfig::ConfigField<RenderMode>& field)
 {
     os << field.desc_ << " = ";
     for (auto i : render_mode_desc)
@@ -279,8 +274,8 @@ std::ostream& operator << <RenderMode>(
 }
 
 template <>
-std::ostream& operator << <glm::vec3>(
-    std::ostream& os, FluidConfig::ConfigField<glm::vec3>& field)
+std::ostream& operator <<(std::ostream& os,
+                          FluidConfig::ConfigField<glm::vec3>& field)
 {
     os << field.desc_ << " = (" << field.value_.x << ", " << field.value_.y <<
         ", " << field.value_.z << ")";

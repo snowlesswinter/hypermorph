@@ -38,6 +38,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_0;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_1;
 texture<float, cudaTextureType3D, cudaReadModeElementType> texf;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd;
 
 struct UpperBoundaryHandlerNeumann
 {
@@ -71,19 +72,21 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     uint y = VolumeY();
     uint z = VolumeZ();
 
+    typedef typename Tex3d<FPType>::ValType ValType;
+
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
     Tex3d<FPType> t3d;
-    float near =   t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z - 1.0f);
-    float south =  t3d(TexSel<FPType>::Tex(texf, tex), x,        y - 1.0f, z);
-    float west =   t3d(TexSel<FPType>::Tex(texf, tex), x - 1.0f, y,        z);
-    float center = t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z);
-    float east =   t3d(TexSel<FPType>::Tex(texf, tex), x + 1.0f, y,        z);
-    float north =  t3d(TexSel<FPType>::Tex(texf, tex), x,        y + 1.0f, z);
-    float far =    t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z + 1.0f);
+    ValType near   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z - 1.0f);
+    ValType south  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y - 1.0f, z);
+    ValType west   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x - 1.0f, y,        z);
+    ValType center = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z);
+    ValType east   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x + 1.0f, y,        z);
+    ValType north  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
+    ValType far    = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
 
-    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
+    //handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
     float v = (north + south + east + west + far + near - 6.0f * center);
@@ -185,9 +188,9 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, search, false, cudaFilterModePoint,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound = SelectiveBind(search, false, cudaFilterModePoint,
+                               cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound)
         return;
 
     dim3 block;
