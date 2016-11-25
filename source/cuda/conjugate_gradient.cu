@@ -31,11 +31,13 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
+#include "cuda/multi_precision_texture.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_0;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_1;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf;
 
 struct UpperBoundaryHandlerNeumann
 {
@@ -61,7 +63,7 @@ struct UpperBoundaryHandlerOutflow
 
 // =============================================================================
 
-template <typename UpperBoundaryHandler>
+template <typename FPType, typename UpperBoundaryHandler>
 __global__ void ApplyStencilKernel(uint3 volume_size,
                                    UpperBoundaryHandler handler)
 {
@@ -72,13 +74,14 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =   tex3D(tex, x,        y,        z - 1.0f);
-    float south =  tex3D(tex, x,        y - 1.0f, z);
-    float west =   tex3D(tex, x - 1.0f, y,        z);
-    float center = tex3D(tex, x,        y,        z);
-    float east =   tex3D(tex, x + 1.0f, y,        z);
-    float north =  tex3D(tex, x,        y + 1.0f, z);
-    float far =    tex3D(tex, x,        y,        z + 1.0f);
+    Tex3d<FPType> t3d;
+    float near =   t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z - 1.0f);
+    float south =  t3d(TexSel<FPType>::Tex(texf, tex), x,        y - 1.0f, z);
+    float west =   t3d(TexSel<FPType>::Tex(texf, tex), x - 1.0f, y,        z);
+    float center = t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z);
+    float east =   t3d(TexSel<FPType>::Tex(texf, tex), x + 1.0f, y,        z);
+    float north =  t3d(TexSel<FPType>::Tex(texf, tex), x,        y + 1.0f, z);
+    float far =    t3d(TexSel<FPType>::Tex(texf, tex), x,        y,        z + 1.0f);
 
     handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
@@ -194,9 +197,9 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     UpperBoundaryHandlerOutflow outflow_handler;
     UpperBoundaryHandlerNeumann neumann_handler;
     if (outflow)
-        ApplyStencilKernel<<<grid, block>>>(volume_size, outflow_handler);
+        ApplyStencilKernel<ushort><<<grid, block>>>(volume_size, outflow_handler);
     else
-        ApplyStencilKernel<<<grid, block>>>(volume_size, neumann_handler);
+        ApplyStencilKernel<ushort><<<grid, block>>>(volume_size, neumann_handler);
 
     DCHECK_KERNEL();
 }

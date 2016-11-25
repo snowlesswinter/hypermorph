@@ -22,6 +22,7 @@
 #include "stdafx.h"
 #include "preconditioned_conjugate_gradient.h"
 
+#include <algorithm>
 #include <cassert>
 
 #include "graphics_mem_piece.h"
@@ -60,19 +61,22 @@ bool PreconditionedConjugateGradient::Initialize(int width, int height,
                                      minimum_grid_width))
         return false;
 
-    alpha_ = core_->CreateMemPiece(sizeof(double));
+    size_t scalar_byte_width = std::max(sizeof(float),
+                                        static_cast<size_t>(byte_width));
+
+    alpha_ = core_->CreateMemPiece(scalar_byte_width);
     if (!alpha_)
         return false;
 
-    beta_ = core_->CreateMemPiece(sizeof(double));
+    beta_ = core_->CreateMemPiece(scalar_byte_width);
     if (!beta_)
         return false;
 
-    rho_ = core_->CreateMemPiece(sizeof(double));
+    rho_ = core_->CreateMemPiece(scalar_byte_width);
     if (!rho_)
         return false;
 
-    rho_new_ = core_->CreateMemPiece(sizeof(double));
+    rho_new_ = core_->CreateMemPiece(scalar_byte_width);
     if (!rho_new_)
         return false;
 
@@ -111,7 +115,6 @@ void PreconditionedConjugateGradient::SetNumOfIterations(int num_iterations,
 {
     num_iterations_ = num_iterations;
     num_nested_iterations_ = nested_solver;
-
 }
 
 void PreconditionedConjugateGradient::Solve(std::shared_ptr<GraphicsVolume> u,

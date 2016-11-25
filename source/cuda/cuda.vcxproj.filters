@@ -65,6 +65,7 @@
     <ClInclude Include="particle\flip_common.cuh">
       <Filter>particle</Filter>
     </ClInclude>
+    <ClInclude Include="multi_precision_texture.cuh" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">

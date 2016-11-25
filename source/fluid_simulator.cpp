@@ -319,7 +319,7 @@ void FluidSimulator::SetPoissonSolverIterations(PoissonSolver* poisson_solver)
             num_iterations =
                 FluidConfig::Instance()->num_mgpcg_iterations();
             num_nested_iterations =
-                FluidConfig::Instance()->num_full_multigrid_iterations();
+                FluidConfig::Instance()->num_multigrid_iterations();
             break;
         }
         default: {

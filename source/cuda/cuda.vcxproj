@@ -244,6 +244,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="particle\flip_impl_cuda.h" />
     <ClInclude Include="poisson_impl_cuda.h" />
     <ClInclude Include="random_helper.h" />
+    <ClInclude Include="multi_precision_texture.cuh" />
     <ClInclude Include="volume_reduction.cuh" />
   </ItemGroup>
   <ItemGroup>

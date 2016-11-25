@@ -33,62 +33,66 @@
 
 surface<void, cudaSurfaceType3D> clear_volume;
 
-__global__ void ClearVolume4Kernel(float4 value, uint3 volume_size)
+template <typename T>
+struct VolumeElementConstructor
+{ 
+    __device__ static inline T Construct(const float4& value)
+    {
+        return value.x;
+    }
+};
+
+template <>
+struct VolumeElementConstructor<float2>
 {
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
+    __device__ static inline float2 Construct(const float4& value)
+    {
+        return make_float2(value.x, value.y);
+    }
+};
 
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    surf3Dwrite(value, clear_volume, x * sizeof(value), y, z, cudaBoundaryModeTrap);
-}
-
-__global__ void ClearVolume2Kernel(float4 value, uint3 volume_size)
+template <>
+struct VolumeElementConstructor<float4>
 {
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
+    __device__ static inline float4 Construct(const float4& value)
+    {
+        return value;
+    }
+};
 
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    auto raw = make_float2(value.x, value.y);
-    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
-}
-
-__global__ void ClearVolume1Kernel(float4 value, uint3 volume_size)
+template <>
+struct VolumeElementConstructor<ushort>
 {
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
+    __device__ static inline ushort Construct(const float4& value)
+    {
+        return __float2half_rn(value.x);
+    }
+};
 
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    surf3Dwrite(value.x, clear_volume, x * sizeof(value.x), y, z,
-                cudaBoundaryModeTrap);
-}
-
-__global__ void ClearVolumeHalf4Kernel(float4 value, uint3 volume_size)
+template <>
+struct VolumeElementConstructor<ushort2>
 {
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
+    __device__ static inline ushort2 Construct(const float4& value)
+    {
+        return make_ushort2(__float2half_rn(value.x),
+                            __float2half_rn(value.y));
+    }
+};
 
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    auto raw = make_ushort4(__float2half_rn(value.x),
+template <>
+struct VolumeElementConstructor<ushort4>
+{
+    __device__ static inline ushort4 Construct(const float4& value)
+    {
+        return make_ushort4(__float2half_rn(value.x),
                             __float2half_rn(value.y),
                             __float2half_rn(value.z),
                             __float2half_rn(value.w));
-    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
-                cudaBoundaryModeTrap);
-}
+    }
+};
 
-__global__ void ClearVolumeHalf2Kernel(float4 value, uint3 volume_size)
+template <typename VolumeElementType>
+__global__ void ClearVolumeKernel(float4 value, uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -97,24 +101,9 @@ __global__ void ClearVolumeHalf2Kernel(float4 value, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    auto raw = make_ushort2(__float2half_rn(value.x),
-                            __float2half_rn(value.y));
-    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
-                cudaBoundaryModeTrap);
-}
-
-__global__ void ClearVolumeHalf1Kernel(float4 value, uint3 volume_size)
-{
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
-
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    auto raw = make_ushort1(__float2half_rn(value.x));
-    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z,
-                cudaBoundaryModeTrap);
+    VolumeElementType raw =
+        VolumeElementConstructor<VolumeElementType>::Construct(value);
+    surf3Dwrite(raw, clear_volume, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
 }
 
 __global__ void CopyToVboKernel(void* point_vbo, void* extra_vbo,
@@ -192,22 +181,22 @@ void ClearVolume(cudaArray* dest_array, const float4& value,
     assert(IsCompliant(desc));
     if (desc.x == 16 && desc.y == 0 && desc.z == 0 && desc.w == 0 &&
             desc.f == cudaChannelFormatKindFloat)
-        ClearVolumeHalf1Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<ushort><<<grid, block>>>(value, volume_size);
     else if (desc.x == 16 && desc.y == 16 && desc.z == 0 && desc.w == 0 &&
              desc.f == cudaChannelFormatKindFloat)
-        ClearVolumeHalf2Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<ushort2><<<grid, block>>>(value, volume_size);
     else if (desc.x == 16 && desc.y == 16 && desc.z == 16 && desc.w == 16 &&
              desc.f == cudaChannelFormatKindFloat)
-        ClearVolumeHalf4Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<ushort4><<<grid, block>>>(value, volume_size);
     else if (desc.x == 32 && desc.y == 0 && desc.z == 0 && desc.w == 0 &&
             desc.f == cudaChannelFormatKindFloat)
-        ClearVolume1Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<float><<<grid, block>>>(value, volume_size);
     else if (desc.x == 32 && desc.y == 32 && desc.z == 0 && desc.w == 0 &&
              desc.f == cudaChannelFormatKindFloat)
-        ClearVolume2Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<float2><<<grid, block>>>(value, volume_size);
     else if (desc.x == 32 && desc.y == 32 && desc.z == 32 && desc.w == 32 &&
              desc.f == cudaChannelFormatKindFloat)
-        ClearVolume4Kernel<<<grid, block>>>(value, volume_size);
+        ClearVolumeKernel<float4><<<grid, block>>>(value, volume_size);
 }
 
 void CopyToVbo(void* point_vbo, void* extra_vbo, uint16_t* pos_x,

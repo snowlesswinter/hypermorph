@@ -99,13 +99,11 @@ void MultigridPoissonSolver::SetDiagnosis(bool diagnosis)
 
 }
 
-
 void MultigridPoissonSolver::SetNumOfIterations(int num_iterations,
                                                 int nested_solver)
 {
     num_iterations_ = num_iterations;
 }
-
 
 void MultigridPoissonSolver::Solve(std::shared_ptr<GraphicsVolume> u,
                                    std::shared_ptr<GraphicsVolume> b)
