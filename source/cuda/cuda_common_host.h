@@ -59,6 +59,11 @@ template <typename TextureType>
 class AutoUnbind
 {
 public:
+    AutoUnbind()
+        : tex_(nullptr)
+        , error_(cudaErrorUnknown)
+    {
+    }
     AutoUnbind(TextureType* tex, cudaArray* cuda_array, bool normalize,
                cudaTextureFilterMode filter_mode,
                cudaTextureAddressMode addr_mode)
@@ -69,8 +74,10 @@ public:
     {
     }
     AutoUnbind(AutoUnbind<TextureType>&& obj)
+        : tex_(nullptr)
+        , error_(cudaErrorUnknown)
     {
-        Take(obj);
+        Take(std::move(obj));
     }
 
     ~AutoUnbind()
@@ -92,6 +99,7 @@ public:
         obj.tex_ = nullptr;
     }
 
+    TextureType* tex() const { return tex_; }
     cudaError_t error() const { return error_; }
 
 private:

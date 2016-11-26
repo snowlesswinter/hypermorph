@@ -22,6 +22,8 @@
 #ifndef _MULTI_PRECISION_TEXTURE_H_
 #define _MULTI_PRECISION_TEXTURE_H_
 
+#include <cassert>
+
 template <typename T>
 struct TexType
 {
@@ -47,7 +49,8 @@ struct TexTraits
 };
 
 template <>
-struct TexTraits<texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat>>
+struct TexTraits<
+    texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat>>
 {
     typedef ushort EleType;
 
@@ -140,52 +143,84 @@ struct Tex3d<long2>
     }
 };
 
-template <typename T>
-std::unique_ptr<void, std::function<void(void*)>> BindImpl(
-    cudaArray* volume, bool normalize, cudaTextureFilterMode filter_mode,
-    cudaTextureAddressMode addr_mode, TexType<T>::Type* t)
+// Sanity check ================================================================
+
+template<typename T, typename...>
+struct not_same : std::true_type
 {
-    auto auto_unbind = new AutoUnbind<typename TexType<T>::Type>(t, volume,
-                                                                 normalize,
-                                                                 filter_mode,
-                                                                 addr_mode);
-    auto release_func = [](void* ptr) {
-        delete reinterpret_cast<AutoUnbind<typename TexType<T>::Type>*>(ptr);
-    };
-    auto r = std::unique_ptr<void, std::function<void(void*)>>(
-        auto_unbind, std::move(release_func));
-    if (auto_unbind->error() != cudaSuccess)
-        return std::unique_ptr<void, std::function<void(void*)>>();
+};
 
-    return std::move(r);
-}
-
-template <typename TexType>
-std::unique_ptr<void, std::function<void(void*)>>
-    SelectiveBind(cudaArray* volume, bool normalize,
-                  cudaTextureFilterMode filter_mode,
-                  cudaTextureAddressMode addr_mode, TexType* t)
+template<typename T, typename U, typename... Ts>
+struct not_same<T, U, Ts...>
+    : std::integral_constant<
+        bool, !std::is_same<T, U>::value && not_same<T, Ts...>::value>
 {
-    cudaChannelFormatDesc desc;
-    cudaGetChannelDesc(&desc, volume);
-    cudaChannelFormatDesc tex_desc = t->channelDesc;
+};
 
-    // Please refer to the comments in TexTraits.
-    tex_desc.f = TexTraits<TexType>::channel_format;
-    if (memcmp(&tex_desc, &desc, sizeof(desc)))
-        return std::unique_ptr<void, std::function<void(void*)>>();
+// Auto unbind =================================================================
 
-    return BindImpl<TexTraits<TexType>::EleType>(volume, normalize, filter_mode,
-                                                 addr_mode, t);
+template <typename...>
+struct TexBound
+{
+    bool Succeeded() const { return false; }
+};
+
+template <typename TexType, typename... TextureTypes>
+struct TexBound<TexType, TextureTypes...> : public TexBound<TextureTypes...>
+{
+    typedef TexBound<TextureTypes...> BaseType;
+
+    TexBound(cudaArray* volume, bool normalize,
+                 cudaTextureFilterMode filter_mode,
+                 cudaTextureAddressMode addr_mode, TexType* t)
+        : TexBound<TextureTypes...>()
+        , auto_unbind(t, volume, normalize, filter_mode, addr_mode)
+    {
+    }
+    TexBound(TexBound<TexType, TextureTypes...>&& obj)
+        : TexBound<TextureTypes...>(static_cast<BaseType&&>(obj))
+        , auto_unbind(std::move(obj.auto_unbind))
+    {
+    }
+    TexBound(TexBound<TextureTypes...>&& obj)
+        : TexBound<TextureTypes...>(std::move(obj))
+        , auto_unbind()
+    {
+    }
+    TexBound()
+        : TexBound<TextureTypes...>()
+        , auto_unbind()
+    {
+    }
+
+    bool Succeeded() const
+    {
+        bool r = static_cast<const BaseType*>(this)->Succeeded();
+        return r || auto_unbind.tex() && auto_unbind.error() == cudaSuccess;
+    }
+
+    AutoUnbind<TexType> auto_unbind;
+};
+
+// Texture binding =============================================================
+
+template <typename...>
+TexBound<> SelectiveBindImpl(cudaArray* volume, bool normalize,
+                             cudaTextureFilterMode filter_mode,
+                             cudaTextureAddressMode addr_mode)
+{
+    return TexBound<>();
 }
 
 template <typename TexType, typename... TextureTypes>
-std::unique_ptr<void, std::function<void(void*)>>
-    SelectiveBind(cudaArray* volume, bool normalize,
-                  cudaTextureFilterMode filter_mode,
-                  cudaTextureAddressMode addr_mode, TexType* t,
-                  TextureTypes... textures)
+TexBound<TexType, TextureTypes...> SelectiveBindImpl(
+    cudaArray* volume, bool normalize, cudaTextureFilterMode filter_mode,
+    cudaTextureAddressMode addr_mode, TexType* t, TextureTypes*... textures)
 {
+    // Sanity check. Not imperative, just in case the stupid things.
+    static_assert(not_same<TexType, TextureTypes...>::value,
+                  "same texture type detected.");
+
     cudaChannelFormatDesc desc;
     cudaGetChannelDesc(&desc, volume);
     cudaChannelFormatDesc tex_desc = t->channelDesc;
@@ -193,11 +228,27 @@ std::unique_ptr<void, std::function<void(void*)>>
     // Please refer to the comments in TexTraits.
     tex_desc.f = TexTraits<TexType>::channel_format;
     if (memcmp(&tex_desc, &desc, sizeof(desc)))
-        return SelectiveBind(volume, normalize, filter_mode, addr_mode,
-                             textures...);
+        return TexBound<TexType, TextureTypes...>(
+            SelectiveBindImpl(volume, normalize, filter_mode, addr_mode,
+                              textures...));
 
-    return BindImpl<TexTraits<TexType>::EleType>(volume, normalize, filter_mode,
-                                                 addr_mode, t);
+    return TexBound<TexType, TextureTypes...>(volume, normalize, filter_mode,
+                                              addr_mode, t);
+}
+
+template <typename TexType, typename... TextureTypes>
+TexBound<TexType, TextureTypes...>
+    SelectiveBind(cudaArray* volume, bool normalize,
+                  cudaTextureFilterMode filter_mode,
+                  cudaTextureAddressMode addr_mode, TexType* t,
+                  TextureTypes*... textures)
+{
+    TexBound<TexType, TextureTypes...> b = SelectiveBindImpl(volume, normalize,
+                                                             filter_mode,
+                                                             addr_mode, t,
+                                                             textures...);
+    assert(b.Succeeded());
+    return b;
 }
 
 #endif  // _MULTI_PRECISION_TEXTURE_H_

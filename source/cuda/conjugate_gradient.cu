@@ -86,7 +86,7 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     ValType north  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
     ValType far    = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
 
-    //handler.HandleUpperBoundary(&north, center, y, volume_size.y);
+    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
     float v = (north + south + east + west + far + near - 6.0f * center);
@@ -190,7 +190,7 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
 
     auto bound = SelectiveBind(search, false, cudaFilterModePoint,
                                cudaAddressModeClamp, &tex, &texf, &texd);
-    if (!bound)
+    if (!bound.Succeeded())
         return;
 
     dim3 block;
