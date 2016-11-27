@@ -54,7 +54,7 @@ template <>
 struct TexTraits<
     texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat>>
 {
-    typedef ushort EleType;
+    typedef ushort StorageType;
 
     // NOTE: Be ware that this format initialized by the runtime is
     //       'cudaChannelFormatKindUnsigned'.
@@ -65,7 +65,7 @@ struct TexTraits<
 template <>
 struct TexTraits<texture<float, cudaTextureType3D, cudaReadModeElementType>>
 {
-    typedef float EleType;
+    typedef float StorageType;
     static const cudaChannelFormatKind channel_format =
         cudaChannelFormatKindFloat;
 };
@@ -73,7 +73,7 @@ struct TexTraits<texture<float, cudaTextureType3D, cudaReadModeElementType>>
 template <>
 struct TexTraits<texture<long2, cudaTextureType3D, cudaReadModeElementType>>
 {
-    typedef long2 EleType;
+    typedef long2 StorageType;
     static const cudaChannelFormatKind channel_format =
         cudaChannelFormatKindUnsigned;
 };
@@ -81,7 +81,7 @@ struct TexTraits<texture<long2, cudaTextureType3D, cudaReadModeElementType>>
 template <>
 struct TexTraits<NullTexType>
 {
-    typedef NullTexType EleType;
+    typedef NullTexType StorageType;
 };
 
 template <typename T>
@@ -322,40 +322,6 @@ ScalarPack CreateScalarPack(const MemPiece& piece)
 
 // Reduction invoker ===========================================================
 
-template <template <typename S> class SchemeType, typename ScalarPackType,
-    typename... MorePacks>
-void InvokeReductionImpl(const ScalarPackType& dest, uint3 volume_size,
-                         BlockArrangement* ba, AuxBufferManager* bm,
-                         int recur_point, const MorePacks&... packs)
-{
-    assert(recur_point > 0);
-    if (recur_point <= 0)
-        return;
-
-    using ScalarType = typename ScalarPackType::ThisScalarType;
-    if (dest.piece) {
-        SchemeType<ScalarType> scheme;
-        scheme.Init(packs...);
-        ReduceVolume(dest.piece, scheme, volume_size, ba, bm);
-        return;
-    }
-
-    using NextScalarType = typename ScalarPackType::BaseType;
-    InvokeReductionImpl<SchemeType>(static_cast<const NextScalarType&>(dest),
-                                    volume_size, ba, bm, recur_point - 1,
-                                    packs...);
-}
-
-template <template <typename S> class SchemeType, typename ScalarPackType,
-    typename... MorePacks>
-void InvokeReduction(const ScalarPackType& dest, uint3 volume_size,
-                     BlockArrangement* ba, AuxBufferManager* bm,
-                     const MorePacks&... packs)
-{
-    int n = sizeof(dest) / sizeof(dest.piece) - 1;
-    InvokeReductionImpl<SchemeType>(dest, volume_size, ba, bm, n, packs...);
-}
-
 template <typename ScalarType, typename ScalarPackType>
 void AssignScalarImpl(ScalarType** scalar, const ScalarPackType& pack,
                       int recur_point)
@@ -380,6 +346,50 @@ template <typename ScalarType, typename ScalarPackType>
 void AssignScalar(ScalarType** scalar, const ScalarPackType& pack)
 {
     AssignScalarImpl(scalar, pack, sizeof(pack) / sizeof(pack.piece) - 1);
+}
+
+template <template <typename S> class SchemeType, typename ScalarPackType,
+    typename BoundType, typename... MorePacks>
+void InvokeReductionImpl(const ScalarPackType& dest, const BoundType& bound,
+                         uint3 volume_size, BlockArrangement* ba,
+                         AuxBufferManager* bm, int recur_point,
+                         const MorePacks&... packs)
+{
+    assert(recur_point > 0);
+    if (recur_point <= 0)
+        return;
+
+    using StorageType =
+        typename TexTraits<typename BoundType::ThisTexType>::StorageType;
+    using FPType = typename Tex3d<StorageType>::ValType;
+    if (bound.Bound()) {
+        SchemeType<StorageType> scheme;
+        scheme.Init(packs...);
+
+        FPType* dest_fp = nullptr;
+        AssignScalar(&dest_fp, dest);
+        assert(dest_fp);
+
+        ReduceVolume(dest_fp, scheme, volume_size, ba, bm);
+        return;
+    }
+
+    using NextBoundType = typename BoundType::BaseType;
+    InvokeReductionImpl<SchemeType>(dest,
+                                    static_cast<const NextBoundType&>(bound),
+                                    volume_size, ba, bm, recur_point - 1,
+                                    packs...);
+}
+
+template <template <typename S> class SchemeType, typename ScalarPackType,
+    typename BoundType, typename... MorePacks>
+void InvokeReduction(const ScalarPackType& dest, const BoundType& bound,
+                     uint3 volume_size, BlockArrangement* ba,
+                     AuxBufferManager* bm, const MorePacks&... packs)
+{
+    int n = sizeof(bound) / sizeof(bound.auto_unbind);
+    InvokeReductionImpl<SchemeType>(dest, bound, volume_size, ba, bm, n,
+                                    packs...);
 }
 
 // Under construction ==========================================================

@@ -69,11 +69,11 @@ struct UpperBoundaryHandlerOutflow
 
 // =============================================================================
 
-template <typename FPType, typename UpperBoundaryHandler>
+template <typename StorageType, typename UpperBoundaryHandler>
 __global__ void ApplyStencilKernel(uint3 volume_size,
                                    UpperBoundaryHandler handler)
 {
-    using ValType = typename Tex3d<FPType>::ValType;
+    using FPType = typename Tex3d<StorageType>::ValType;
 
     uint x = VolumeX();
     uint y = VolumeY();
@@ -82,27 +82,28 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    Tex3d<FPType> t3d;
-    ValType near   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z - 1.0f);
-    ValType south  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y - 1.0f, z);
-    ValType west   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x - 1.0f, y,        z);
-    ValType center = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z);
-    ValType east   = t3d(TexSel<FPType>::Tex(tex, texf, texd), x + 1.0f, y,        z);
-    ValType north  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
-    ValType far    = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
+    Tex3d<StorageType> t3d;
+    FPType near   = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y,        z - 1.0f);
+    FPType south  = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y - 1.0f, z);
+    FPType west   = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x - 1.0f, y,        z);
+    FPType center = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y,        z);
+    FPType east   = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x + 1.0f, y,        z);
+    FPType north  = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
+    FPType far    = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
 
     //handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
-    float v = (north + south + east + west + far + near - 6.0f * center);
+    FPType v = (north + south + east + west + far + near - 6.0f * center);
     auto r = __float2half_rn(v);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-template <typename FPType, typename T>
-__global__ void ScaleVectorKernel(T* coef, uint3 volume_size)
+template <typename StorageType>
+__global__ void ScaleVectorKernel(Tex3d<StorageType>::ValType* coef,
+                                  uint3 volume_size)
 {
-    using ValType = typename Tex3d<FPType>::ValType;
+    using FPType = typename Tex3d<StorageType>::ValType;
 
     uint x = VolumeX();
     uint y = VolumeY();
@@ -111,17 +112,18 @@ __global__ void ScaleVectorKernel(T* coef, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    Tex3d<FPType> t3d;
-    ValType e1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), x, y, z);
+    Tex3d<StorageType> t3d;
+    FPType e1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
     auto r = __float2half_rn(*coef * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-template <typename FPType, typename T>
-__global__ void ScaledAddKernel(T* coef, float sign, uint3 volume_size)
+template <typename StorageType>
+__global__ void ScaledAddKernel(Tex3d<StorageType>::ValType* coef, float sign,
+                                uint3 volume_size)
 {
-    using ValType = typename Tex3d<FPType>::ValType;
+    using FPType = typename Tex3d<StorageType>::ValType;
 
     uint x = VolumeX();
     uint y = VolumeY();
@@ -130,17 +132,18 @@ __global__ void ScaledAddKernel(T* coef, float sign, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    Tex3d<FPType> t3d;
-    ValType e0 = t3d(TexSel<FPType>::Tex(tex_0, texf_0, texd_0), x, y, z);
-    ValType e1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), x, y, z);
+    Tex3d<StorageType> t3d;
+    FPType e0 = t3d(TexSel<StorageType>::Tex(tex_0, texf_0, texd_0), x, y, z);
+    FPType e1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
     auto r = __float2half_rn(e0 + *coef * sign * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-template <typename FPType>
+template <typename StorageType>
 struct SchemeDefault
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
     __device__ FPType Load(uint i, uint row_stride, uint slice_stride)
     {
         uint z = i / slice_stride;
@@ -151,11 +154,9 @@ struct SchemeDefault
         float yf = static_cast<float>(y);
         float zf = static_cast<float>(z);
 
-        using ValType = typename Tex3d<FPType>::ValType;
-
-        Tex3d<FPType> t3d;
-        FPType ¦Õ0 = t3d(TexSel<FPType>::Tex(tex_0, texf_0, texd_0), xf, yf, zf);
-        FPType ¦Õ1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), xf, yf, zf);
+        Tex3d<StorageType> t3d;
+        FPType ¦Õ0 = t3d(TexSel<StorageType>::Tex(tex_0, texf_0, texd_0), xf, yf, zf);
+        FPType ¦Õ1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), xf, yf, zf);
         return ¦Õ0 * ¦Õ1;
     }
     __device__ void Save(FPType* dest, FPType result)
@@ -166,9 +167,10 @@ struct SchemeDefault
     __host__ void Init() {}
 };
 
-template <typename FPType>
-struct SchemeAlpha : public SchemeDefault<FPType>
+template <typename StorageType>
+struct SchemeAlpha : public SchemeDefault<StorageType>
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
     __device__ void Save(FPType* dest, FPType result)
     {
         if (result > 0.00000001f || result < -0.00000001f)
@@ -186,9 +188,10 @@ struct SchemeAlpha : public SchemeDefault<FPType>
     FPType* rho_;
 };
 
-template <typename FPType>
-struct SchemeBeta : public SchemeDefault<FPType>
+template <typename StorageType>
+struct SchemeBeta : public SchemeDefault<StorageType>
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
     __device__ void Save(FPType* dest, FPType result)
     {
         *dest = result;
@@ -215,7 +218,7 @@ struct SchemeBeta : public SchemeDefault<FPType>
 
 // =============================================================================
 
-template <typename FPType, typename TupleType>
+template <typename StorageType, typename TupleType>
 struct ApplyStencilWrapper
 {
     static void Invoke(const TupleType& params)
@@ -228,20 +231,20 @@ struct ApplyStencilWrapper
         UpperBoundaryHandlerOutflow outflow_handler;
         UpperBoundaryHandlerNeumann neumann_handler;
         if (outflow)
-            ApplyStencilKernel<FPType><<<grid, block>>>(volume_size,
-                                                        outflow_handler);
+            ApplyStencilKernel<StorageType><<<grid, block>>>(volume_size,
+                                                             outflow_handler);
         else
-            ApplyStencilKernel<FPType><<<grid, block>>>(volume_size,
-                                                        neumann_handler);
+            ApplyStencilKernel<StorageType><<<grid, block>>>(volume_size,
+                                                             neumann_handler);
     }
 };
 
-template <typename FPType, typename TupleType>
+template <typename StorageType, typename TupleType>
 struct ScaledAddWrapper
 {
     static void Invoke(const TupleType& params)
     {
-        using SampleType = typename Tex3d<FPType>::ValType;
+        using FPType = typename Tex3d<StorageType>::ValType;
 
         dim3 grid = std::get<0>(params);
         dim3 block = std::get<1>(params);
@@ -249,35 +252,36 @@ struct ScaledAddWrapper
         float sign = std::get<3>(params);
         uint3 volume_size = std::get<4>(params);
 
-        ScaledAddKernel<FPType><<<grid, block>>>(coef.AsType<SampleType>(),
-                                                 sign, volume_size);
+        ScaledAddKernel<StorageType><<<grid, block>>>(coef.AsType<FPType>(),
+                                                      sign, volume_size);
     }
 };
 
-template <typename FPType, typename TupleType>
+template <typename StorageType, typename TupleType>
 struct ScaleVectorWrapper
 {
     static void Invoke(const TupleType& params)
     {
-        using SampleType = typename Tex3d<FPType>::ValType;
+        using FPType = typename Tex3d<StorageType>::ValType;
 
         dim3 grid = std::get<0>(params);
         dim3 block = std::get<1>(params);
         MemPiece coef = std::get<2>(params);
         uint3 volume_size = std::get<3>(params);
 
-        ScaleVectorKernel<FPType><<<grid, block>>>(coef.AsType<SampleType>(),
-                                                   volume_size);
+        ScaleVectorKernel<StorageType><<<grid, block>>>(
+            coef.AsType<FPType>(), volume_size);
     }
 };
 
-template <template <typename T, typename P> class Kern, typename BoundType,
+template <template <typename S, typename P> class Kern, typename BoundType,
     typename TupleType>
 void InvokeKernel(const BoundType& bound, const TupleType& params)
 {
-    using FPType = typename TexTraits<typename BoundType::ThisTexType>::EleType;
+    using StorageType =
+        typename TexTraits<typename BoundType::ThisTexType>::StorageType;
     if (bound.Bound()) {
-        Kern<FPType, TupleType>::Invoke(params);
+        Kern<StorageType, TupleType>::Invoke(params);
         return;
     }
 
@@ -326,7 +330,8 @@ void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
     ScalarPack alpha_typed = CreateScalarPack(alpha);
     ScalarPack rho_typed   = CreateScalarPack(rho);
 
-    InvokeReduction<SchemeAlpha>(alpha_typed, volume_size, ba, bm, rho_typed);
+    InvokeReduction<SchemeAlpha>(alpha_typed, bound_0, volume_size, ba, bm,
+                                 rho_typed);
     DCHECK_KERNEL();
 }
 
@@ -348,7 +353,7 @@ void LaunchComputeRho(const MemPiece& rho, cudaArray* search,
 
     ScalarPack rho_typed = CreateScalarPack(rho);
 
-    InvokeReduction<SchemeDefault>(rho_typed, volume_size, ba, bm);
+    InvokeReduction<SchemeDefault>(rho_typed, bound_0, volume_size, ba, bm);
     DCHECK_KERNEL();
 }
 
@@ -373,9 +378,8 @@ void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
     ScalarPack beta_typed    = CreateScalarPack(beta);
     ScalarPack rho_typed     = CreateScalarPack(rho);
 
-    InvokeReduction<SchemeBeta>(rho_new_typed, volume_size, ba, bm, beta_typed,
-                                rho_typed);
-    DCHECK_KERNEL();
+    InvokeReduction<SchemeBeta>(rho_new_typed, bound_0, volume_size, ba, bm,
+                                beta_typed, rho_typed);
 }
 
 void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
