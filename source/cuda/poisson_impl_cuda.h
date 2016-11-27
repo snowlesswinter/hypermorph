@@ -31,6 +31,7 @@ class AuxBufferManager;
 class BlockArrangement;
 class CudaVolume;
 class GraphicsResource;
+class MemPiece;
 class PoissonImplCuda
 {
 public:
@@ -52,15 +53,17 @@ public:
     // Conjugate gradient.
     void ApplyStencil(cudaArray* aux, cudaArray* search,
                       const glm::ivec3& volume_size);
-    void ComputeAlpha(double* alpha, double* rho, cudaArray* aux,
-                      cudaArray* search, const glm::ivec3& volume_size);
-    void ComputeRho(double* rho, cudaArray* search, cudaArray* residual,
+    void ComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
+                      cudaArray* aux, cudaArray* search,
+                      const glm::ivec3& volume_size);
+    void ComputeRho(const MemPiece& rho, cudaArray* search, cudaArray* residual,
                     const glm::ivec3& volume_size);
-    void ComputeRhoAndBeta(double* beta, double* rho_new, double* rho,
-                           cudaArray* aux, cudaArray* residual,
-                           const glm::ivec3& volume_size);
-    void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, double* coef,
-                   double sign, const glm::ivec3& volume_size);
+    void ComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
+                           const MemPiece& rho, cudaArray* aux,
+                           cudaArray* residual, const glm::ivec3& volume_size);
+    void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
+                   const MemPiece& coef, float sign,
+                   const glm::ivec3& volume_size);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_outflow(bool outflow) { outflow_ = outflow; }

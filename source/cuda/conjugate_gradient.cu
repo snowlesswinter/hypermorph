@@ -31,14 +31,19 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
-#include "cuda/multi_precision_texture.cuh"
+#include "cuda/mem_piece.h"
+#include "cuda/multi_precision.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_0;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_1;
 texture<float, cudaTextureType3D, cudaReadModeElementType> texf;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_0;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_1;
 texture<long2, cudaTextureType3D, cudaReadModeElementType> texd;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_0;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_1;
 
 struct UpperBoundaryHandlerNeumann
 {
@@ -68,11 +73,11 @@ template <typename FPType, typename UpperBoundaryHandler>
 __global__ void ApplyStencilKernel(uint3 volume_size,
                                    UpperBoundaryHandler handler)
 {
+    using ValType = typename Tex3d<FPType>::ValType;
+
     uint x = VolumeX();
     uint y = VolumeY();
     uint z = VolumeZ();
-
-    typedef typename Tex3d<FPType>::ValType ValType;
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
@@ -86,7 +91,7 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     ValType north  = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
     ValType far    = t3d(TexSel<FPType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
 
-    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
+    //handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
     float v = (north + south + east + west + far + near - 6.0f * center);
@@ -94,8 +99,11 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ScaleVectorKernel(double* coef, uint3 volume_size)
+template <typename FPType, typename T>
+__global__ void ScaleVectorKernel(T* coef, uint3 volume_size)
 {
+    using ValType = typename Tex3d<FPType>::ValType;
+
     uint x = VolumeX();
     uint y = VolumeY();
     uint z = VolumeZ();
@@ -103,14 +111,18 @@ __global__ void ScaleVectorKernel(double* coef, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    double e1 = tex3D(tex_1, x, y, z);
+    Tex3d<FPType> t3d;
+    ValType e1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
     auto r = __float2half_rn(*coef * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-__global__ void ScaledAddKernel(double* coef, double sign, uint3 volume_size)
+template <typename FPType, typename T>
+__global__ void ScaledAddKernel(T* coef, float sign, uint3 volume_size)
 {
+    using ValType = typename Tex3d<FPType>::ValType;
+
     uint x = VolumeX();
     uint y = VolumeY();
     uint z = VolumeZ();
@@ -118,8 +130,9 @@ __global__ void ScaledAddKernel(double* coef, double sign, uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    double e0 = tex3D(tex_0, x, y, z);
-    double e1 = tex3D(tex_1, x, y, z);
+    Tex3d<FPType> t3d;
+    ValType e0 = t3d(TexSel<FPType>::Tex(tex_0, texf_0, texd_0), x, y, z);
+    ValType e1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
     auto r = __float2half_rn(e0 + *coef * sign * e1);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
@@ -134,16 +147,23 @@ struct SchemeDefault
         uint y = (i % slice_stride) / row_stride;
         uint x = i % row_stride;
 
-        FPType ¦Õ0 = tex3D(tex_0, static_cast<float>(x), static_cast<float>(y),
-                          static_cast<float>(z));
-        FPType ¦Õ1 = tex3D(tex_1, static_cast<float>(x), static_cast<float>(y),
-                          static_cast<float>(z));
+        float xf = static_cast<float>(x);
+        float yf = static_cast<float>(y);
+        float zf = static_cast<float>(z);
+
+        using ValType = typename Tex3d<FPType>::ValType;
+
+        Tex3d<FPType> t3d;
+        FPType ¦Õ0 = t3d(TexSel<FPType>::Tex(tex_0, texf_0, texd_0), xf, yf, zf);
+        FPType ¦Õ1 = t3d(TexSel<FPType>::Tex(tex_1, texf_1, texd_1), xf, yf, zf);
         return ¦Õ0 * ¦Õ1;
     }
     __device__ void Save(FPType* dest, FPType result)
     {
         *dest = result;
     }
+
+    __host__ void Init() {}
 };
 
 template <typename FPType>
@@ -155,6 +175,12 @@ struct SchemeAlpha : public SchemeDefault<FPType>
             *dest = *rho_ / result;
         else
             *dest = 0.0f;
+    }
+
+    template <typename ScalarPackType>
+    __host__ void Init(const ScalarPackType& rho)
+    {
+        AssignScalar<FPType>(&rho_, rho);
     }
 
     FPType* rho_;
@@ -174,6 +200,13 @@ struct SchemeBeta : public SchemeDefault<FPType>
             *beta_ = 0;
     }
 
+    template <typename ScalarPackType>
+    __host__ void Init(const ScalarPackType& beta, const ScalarPackType& rho)
+    {
+        AssignScalar<FPType>(&beta_, beta);
+        AssignScalar<FPType>(&rho_, rho);
+    }
+
     FPType* rho_;
     FPType* beta_;
 };
@@ -181,6 +214,77 @@ struct SchemeBeta : public SchemeDefault<FPType>
 #include "volume_reduction.cuh"
 
 // =============================================================================
+
+template <typename FPType, typename TupleType>
+struct ApplyStencilWrapper
+{
+    static void Invoke(const TupleType& params)
+    {
+        dim3 grid = std::get<0>(params);
+        dim3 block = std::get<1>(params);
+        uint3 volume_size = std::get<2>(params);
+        bool outflow = std::get<3>(params);
+
+        UpperBoundaryHandlerOutflow outflow_handler;
+        UpperBoundaryHandlerNeumann neumann_handler;
+        if (outflow)
+            ApplyStencilKernel<FPType><<<grid, block>>>(volume_size,
+                                                        outflow_handler);
+        else
+            ApplyStencilKernel<FPType><<<grid, block>>>(volume_size,
+                                                        neumann_handler);
+    }
+};
+
+template <typename FPType, typename TupleType>
+struct ScaledAddWrapper
+{
+    static void Invoke(const TupleType& params)
+    {
+        using SampleType = typename Tex3d<FPType>::ValType;
+
+        dim3 grid = std::get<0>(params);
+        dim3 block = std::get<1>(params);
+        MemPiece coef = std::get<2>(params);
+        float sign = std::get<3>(params);
+        uint3 volume_size = std::get<4>(params);
+
+        ScaledAddKernel<FPType><<<grid, block>>>(coef.AsType<SampleType>(),
+                                                 sign, volume_size);
+    }
+};
+
+template <typename FPType, typename TupleType>
+struct ScaleVectorWrapper
+{
+    static void Invoke(const TupleType& params)
+    {
+        using SampleType = typename Tex3d<FPType>::ValType;
+
+        dim3 grid = std::get<0>(params);
+        dim3 block = std::get<1>(params);
+        MemPiece coef = std::get<2>(params);
+        uint3 volume_size = std::get<3>(params);
+
+        ScaleVectorKernel<FPType><<<grid, block>>>(coef.AsType<SampleType>(),
+                                                   volume_size);
+    }
+};
+
+template <template <typename T, typename P> class Kern, typename BoundType,
+    typename TupleType>
+void InvokeKernel(const BoundType& bound, const TupleType& params)
+{
+    using FPType = typename TexTraits<typename BoundType::ThisTexType>::EleType;
+    if (bound.Bound()) {
+        Kern<FPType, TupleType>::Invoke(params);
+        return;
+    }
+
+    using NextBoundType = typename BoundType::BaseType;
+    InvokeKernel<Kern, NextBoundType>(static_cast<const NextBoundType&>(bound),
+                                      params);
+}
 
 void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
                         uint3 volume_size, BlockArrangement* ba)
@@ -197,105 +301,111 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
 
-    UpperBoundaryHandlerOutflow outflow_handler;
-    UpperBoundaryHandlerNeumann neumann_handler;
-    if (outflow)
-        ApplyStencilKernel<ushort><<<grid, block>>>(volume_size, outflow_handler);
-    else
-        ApplyStencilKernel<ushort><<<grid, block>>>(volume_size, neumann_handler);
+    auto params = std::make_tuple(grid, block, volume_size, outflow);
 
+    InvokeKernel<ApplyStencilWrapper>(bound, params);
     DCHECK_KERNEL();
 }
 
-void LaunchComputeAlpha(double* alpha, double* rho, cudaArray* vec0,
-                        cudaArray* vec1, uint3 volume_size,
+void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
+                        cudaArray* vec0, cudaArray* vec1, uint3 volume_size,
                         BlockArrangement* ba, AuxBufferManager* bm)
 {
-    auto bound_0 = BindHelper::Bind(&tex_0, vec0, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_0.error() != cudaSuccess)
+    auto bound_0 = SelectiveBind(vec0, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_0, &texf_0,
+                                 &texd_0);
+    if (!bound_0.Succeeded())
         return;
 
-    auto bound_1 = BindHelper::Bind(&tex_1, vec1, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_1.error() != cudaSuccess)
+    auto bound_1 = SelectiveBind(vec1, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_1, &texf_1,
+                                 &texd_1);
+    if (!bound_1.Succeeded())
         return;
 
-    SchemeAlpha<double> scheme;
-    scheme.rho_ = rho;
-    ReduceVolume(alpha, scheme, volume_size, ba, bm);
+    ScalarPack alpha_typed = CreateScalarPack(alpha);
+    ScalarPack rho_typed   = CreateScalarPack(rho);
 
+    InvokeReduction<SchemeAlpha>(alpha_typed, volume_size, ba, bm, rho_typed);
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRho(double* rho, cudaArray* search, cudaArray* residual,
-                      uint3 volume_size, BlockArrangement* ba,
-                      AuxBufferManager* bm)
+void LaunchComputeRho(const MemPiece& rho, cudaArray* search,
+                      cudaArray* residual, uint3 volume_size,
+                      BlockArrangement* ba, AuxBufferManager* bm)
 {
-    auto bound_0 = BindHelper::Bind(&tex_0, search, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_0.error() != cudaSuccess)
+    auto bound_0 = SelectiveBind(search, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_0, &texf_0,
+                                 &texd_0);
+    if (!bound_0.Succeeded())
         return;
 
-    auto bound_1 = BindHelper::Bind(&tex_1, residual, false,
-                                    cudaFilterModePoint, cudaAddressModeClamp);
-    if (bound_1.error() != cudaSuccess)
+    auto bound_1 = SelectiveBind(residual, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_1, &texf_1,
+                                 &texd_1);
+    if (!bound_1.Succeeded())
         return;
 
-    SchemeDefault<double> scheme;
-    ReduceVolume(rho, scheme, volume_size, ba, bm);
+    ScalarPack rho_typed = CreateScalarPack(rho);
 
+    InvokeReduction<SchemeDefault>(rho_typed, volume_size, ba, bm);
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRhoAndBeta(double* beta, double* rho_new, double* rho,
-                             cudaArray* vec0, cudaArray* vec1,
-                             uint3 volume_size, BlockArrangement* ba,
-                             AuxBufferManager* bm)
+void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
+                             const MemPiece& rho, cudaArray* vec0,
+                             cudaArray* vec1, uint3 volume_size,
+                             BlockArrangement* ba, AuxBufferManager* bm)
 {
-    
-    auto bound_0 = BindHelper::Bind(&tex_0, vec0, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_0.error() != cudaSuccess)
+    auto bound_0 = SelectiveBind(vec0, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_0, &texf_0,
+                                 &texd_0);
+    if (!bound_0.Succeeded())
         return;
 
-    auto bound_1 = BindHelper::Bind(&tex_1, vec1, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_1.error() != cudaSuccess)
+    auto bound_1 = SelectiveBind(vec1, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_1, &texf_1,
+                                 &texd_1);
+    if (!bound_1.Succeeded())
         return;
 
-    SchemeBeta<double> scheme;
-    scheme.beta_ = beta;
-    scheme.rho_ = rho;
-    ReduceVolume(rho_new, scheme, volume_size, ba, bm);
+    ScalarPack rho_new_typed = CreateScalarPack(rho_new);
+    ScalarPack beta_typed    = CreateScalarPack(beta);
+    ScalarPack rho_typed     = CreateScalarPack(rho);
 
+    InvokeReduction<SchemeBeta>(rho_new_typed, volume_size, ba, bm, beta_typed,
+                                rho_typed);
     DCHECK_KERNEL();
 }
 
 void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
-                     double* coef, double sign, uint3 volume_size,
+                     const MemPiece& coef, float sign, uint3 volume_size,
                      BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
 
-    auto bound_1 = BindHelper::Bind(&tex_1, v1, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_1.error() != cudaSuccess)
+    auto bound_1 = SelectiveBind(v1, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_1, &texf_1,
+                                 &texd_1);
+    if (!bound_1.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
     if (v0) {
-        auto bound_0 = BindHelper::Bind(&tex_0, v0, false, cudaFilterModePoint,
-                                        cudaAddressModeClamp);
-        if (bound_0.error() != cudaSuccess)
+        auto bound_0 = SelectiveBind(v0, false, cudaFilterModePoint,
+                                     cudaAddressModeClamp, &tex_0, &texf_0,
+                                     &texd_0);
+        if (!bound_0.Succeeded())
             return;
 
-        ScaledAddKernel<<<grid, block>>>(coef, sign, volume_size);
+        auto params = std::make_tuple(grid, block, coef, sign, volume_size);
+        InvokeKernel<ScaledAddWrapper>(bound_0, params);
     } else {
-        ScaleVectorKernel<<<grid, block>>>(coef, volume_size);
+        auto params = std::make_tuple(grid, block, coef, volume_size);
+        InvokeKernel<ScaleVectorWrapper>(bound_1, params);
     }
 
     DCHECK_KERNEL();

@@ -239,12 +239,13 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="fluid_impulse.h" />
     <ClInclude Include="graphics_resource.h" />
     <ClInclude Include="kernel_launcher.h" />
+    <ClInclude Include="mem_piece.h" />
+    <ClInclude Include="multi_precision.cuh" />
     <ClInclude Include="particle\flip.h" />
     <ClInclude Include="particle\flip_common.cuh" />
     <ClInclude Include="particle\flip_impl_cuda.h" />
     <ClInclude Include="poisson_impl_cuda.h" />
     <ClInclude Include="random_helper.h" />
-    <ClInclude Include="multi_precision_texture.cuh" />
     <ClInclude Include="volume_reduction.cuh" />
   </ItemGroup>
   <ItemGroup>
@@ -254,6 +255,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="cuda_core.cpp" />
     <ClCompile Include="fluid_impl_cuda.cpp" />
     <ClCompile Include="graphics_resource.cpp" />
+    <ClCompile Include="mem_piece.cpp" />
     <ClCompile Include="particle\flip_impl_cuda.cpp" />
     <ClCompile Include="particle\test_prefix_sum.cpp" />
     <ClCompile Include="poisson_impl_cuda.cpp" />

@@ -93,15 +93,15 @@ void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
     LaunchApplyStencil(aux, search, outflow_, FromGlmVector(volume_size), ba_);
 }
 
-void PoissonImplCuda::ComputeAlpha(double* alpha, double* rho, cudaArray* aux,
-                                   cudaArray* search,
+void PoissonImplCuda::ComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
+                                   cudaArray* aux, cudaArray* search,
                                    const glm::ivec3& volume_size)
 {
     LaunchComputeAlpha(alpha, rho, aux, search, FromGlmVector(volume_size), ba_,
                        bm_);
 }
 
-void PoissonImplCuda::ComputeRho(double* rho, cudaArray* search,
+void PoissonImplCuda::ComputeRho(const MemPiece& rho, cudaArray* search,
                                  cudaArray* residual,
                                  const glm::ivec3& volume_size)
 {
@@ -109,8 +109,9 @@ void PoissonImplCuda::ComputeRho(double* rho, cudaArray* search,
                      bm_);
 }
 
-void PoissonImplCuda::ComputeRhoAndBeta(double* beta, double* rho_new,
-                                        double* rho, cudaArray* aux,
+void PoissonImplCuda::ComputeRhoAndBeta(const MemPiece& beta,
+                                        const MemPiece& rho_new,
+                                        const MemPiece& rho, cudaArray* aux,
                                         cudaArray* residual,
                                         const glm::ivec3& volume_size)
 {
@@ -119,7 +120,7 @@ void PoissonImplCuda::ComputeRhoAndBeta(double* beta, double* rho_new,
 }
 
 void PoissonImplCuda::ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
-                                double* coef, double sign,
+                                const MemPiece& coef, float sign,
                                 const glm::ivec3& volume_size)
 {
     LaunchScaledAdd(dest, v0, v1, coef, sign, FromGlmVector(volume_size), ba_);

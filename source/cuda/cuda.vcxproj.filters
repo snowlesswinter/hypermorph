@@ -39,6 +39,7 @@
     <ClCompile Include="particle\flip_impl_cuda.cpp">
       <Filter>particle</Filter>
     </ClCompile>
+    <ClCompile Include="mem_piece.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="advection_method.h" />
@@ -65,7 +66,8 @@
     <ClInclude Include="particle\flip_common.cuh">
       <Filter>particle</Filter>
     </ClInclude>
-    <ClInclude Include="multi_precision_texture.cuh" />
+    <ClInclude Include="mem_piece.h" />
+    <ClInclude Include="multi_precision.cuh" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">

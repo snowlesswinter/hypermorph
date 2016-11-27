@@ -19,26 +19,35 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_MEM_PIECE_H_
-#define _CUDA_MEM_PIECE_H_
+#include "stdafx.h"
+#include "mem_piece.h"
 
-class CudaMemPiece
+#include <cassert>
+
+namespace internal
 {
-public:
-    CudaMemPiece();
-    ~CudaMemPiece();
+MemPieceBase::MemPieceBase(void* mem, int byte_width)
+    : mem_(mem)
+    , byte_width_(byte_width)
+{
+}
 
-    bool Create(int size);
+MemPieceBase::~MemPieceBase()
+{
+}
 
-    void* mem() const { return mem_; }
-    int size() const { return size_; }
+void MemPieceBase::CheckType(int byte_width) const
+{
+    // TODO: Floating point check.
+    assert(byte_width_ == byte_width);
+}
+}
 
-private:
-    CudaMemPiece(const CudaMemPiece&);
-    void operator=(const CudaMemPiece&);
+MemPiece::MemPiece(void* mem, int byte_width)
+    : MemPieceBase(mem, byte_width)
+{
+}
 
-    void* mem_;
-    int size_;
-};
-
-#endif // _CUDA_MEM_PIECE_H_
+MemPiece::~MemPiece()
+{
+}

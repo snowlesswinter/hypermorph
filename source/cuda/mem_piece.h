@@ -19,26 +19,44 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _CUDA_MEM_PIECE_H_
-#define _CUDA_MEM_PIECE_H_
+#ifndef _MEM_PIECE_H_
+#define _MEM_PIECE_H_
 
-class CudaMemPiece
+namespace internal
+{
+class MemPieceBase
 {
 public:
-    CudaMemPiece();
-    ~CudaMemPiece();
+    virtual ~MemPieceBase();
 
-    bool Create(int size);
+    int byte_width() const { return byte_width_; }
 
+protected:
+    MemPieceBase(void* mem, int byte_width);
+
+    void CheckType(int byte_width) const;
     void* mem() const { return mem_; }
-    int size() const { return size_; }
 
 private:
-    CudaMemPiece(const CudaMemPiece&);
-    void operator=(const CudaMemPiece&);
-
     void* mem_;
-    int size_;
+    int byte_width_;
+};
+} // namespace internal
+
+// A simple wrapping class holds type information. Not responsible for
+// ownership management.
+class MemPiece : public internal::MemPieceBase
+{
+public:
+    MemPiece(void* mem, int byte_width);
+    virtual ~MemPiece();
+
+    template <typename T>
+    T* AsType() const
+    {
+        CheckType(sizeof(T));
+        return reinterpret_cast<T*>(mem());
+    }
 };
 
-#endif // _CUDA_MEM_PIECE_H_
+#endif // _MEM_PIECE_H_

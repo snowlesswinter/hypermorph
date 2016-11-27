@@ -21,9 +21,10 @@ Parallel reduction kernels
 #define _VOLUME_REDUCTION_H_
 
 template <uint BlockSize, typename FPType>
-__device__ void ReduceBlock(volatile FPType *sdata, FPType my_sum,
+__device__ void ReduceBlock(volatile uint* sdata_raw, FPType my_sum,
                             const uint tid)
 {
+    volatile FPType* sdata = reinterpret_cast<volatile FPType*>(sdata_raw);
     sdata[tid] = my_sum;
     __syncthreads();
 
@@ -101,7 +102,8 @@ __device__ void ReduceBlocks(FPType* block_results, uint total_elements,
                              uint row_stride, uint slice_stride,
                              DataScheme scheme)
 {
-    extern __shared__ FPType sdata[];
+    extern __shared__ uint sdata_raw[];
+    FPType* sdata = reinterpret_cast<FPType*>(sdata_raw);
 
     uint tid = threadIdx.x;
     uint i = blockIdx.x * (BlockSize * 2) + threadIdx.x;
@@ -116,7 +118,7 @@ __device__ void ReduceBlocks(FPType* block_results, uint total_elements,
         i += grid_size;
     }
 
-    ReduceBlock<BlockSize>(sdata, my_sum, tid);
+    ReduceBlock<BlockSize>(sdata_raw, my_sum, tid);
 
     if (tid == 0)
         block_results[blockIdx.x] = sdata[0];
@@ -134,7 +136,7 @@ __global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
 
     const uint tid = threadIdx.x;
     __shared__ bool last_block;
-    extern FPType __shared__ smem[];
+    extern uint __shared__ smem[];
 
     __threadfence();
 
@@ -157,7 +159,7 @@ __global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
         ReduceBlock<BlockSize>(smem, my_sum, tid);
 
         if (tid == 0) {
-            scheme.Save(dest, smem[0]);
+            scheme.Save(dest, reinterpret_cast<FPType*>(smem)[0]);
             retirement_count = 0;
         }
     }
