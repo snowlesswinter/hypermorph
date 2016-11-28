@@ -218,16 +218,12 @@ struct SchemeBeta : public SchemeDefault<StorageType>
 
 // =============================================================================
 
-template <typename StorageType, typename TupleType>
-struct ApplyStencilWrapper
+template <typename StorageType>
+struct ApplyStencilMeta
 {
-    static void Invoke(const TupleType& params)
+    static void Invoke(const dim3& grid, const dim3& block,
+                       const uint3& volume_size, bool outflow)
     {
-        dim3 grid = std::get<0>(params);
-        dim3 block = std::get<1>(params);
-        uint3 volume_size = std::get<2>(params);
-        bool outflow = std::get<3>(params);
-
         UpperBoundaryHandlerOutflow outflow_handler;
         UpperBoundaryHandlerNeumann neumann_handler;
         if (outflow)
@@ -239,56 +235,18 @@ struct ApplyStencilWrapper
     }
 };
 
-template <typename StorageType, typename TupleType>
-struct ScaledAddWrapper
-{
-    static void Invoke(const TupleType& params)
-    {
-        using FPType = typename Tex3d<StorageType>::ValType;
+DECLARE_KERNEL_META(
+    ScaledAddKernel,
+    MAKE_INVOKE_DECLARATION(const MemPiece& coef, float sign,
+                            const uint3& volume_size),
+    coef.AsType<FPType>(), sign, volume_size);
 
-        dim3 grid = std::get<0>(params);
-        dim3 block = std::get<1>(params);
-        MemPiece coef = std::get<2>(params);
-        float sign = std::get<3>(params);
-        uint3 volume_size = std::get<4>(params);
+DECLARE_KERNEL_META(
+    ScaleVectorKernel,
+    MAKE_INVOKE_DECLARATION(const MemPiece& coef, const uint3& volume_size),
+    coef.AsType<FPType>(), volume_size);
 
-        ScaledAddKernel<StorageType><<<grid, block>>>(coef.AsType<FPType>(),
-                                                      sign, volume_size);
-    }
-};
-
-template <typename StorageType, typename TupleType>
-struct ScaleVectorWrapper
-{
-    static void Invoke(const TupleType& params)
-    {
-        using FPType = typename Tex3d<StorageType>::ValType;
-
-        dim3 grid = std::get<0>(params);
-        dim3 block = std::get<1>(params);
-        MemPiece coef = std::get<2>(params);
-        uint3 volume_size = std::get<3>(params);
-
-        ScaleVectorKernel<StorageType><<<grid, block>>>(
-            coef.AsType<FPType>(), volume_size);
-    }
-};
-
-template <template <typename S, typename P> class Kern, typename BoundType,
-    typename TupleType>
-void InvokeKernel(const BoundType& bound, const TupleType& params)
-{
-    using StorageType =
-        typename TexTraits<typename BoundType::ThisTexType>::StorageType;
-    if (bound.Bound()) {
-        Kern<StorageType, TupleType>::Invoke(params);
-        return;
-    }
-
-    using NextBoundType = typename BoundType::BaseType;
-    InvokeKernel<Kern, NextBoundType>(static_cast<const NextBoundType&>(bound),
-                                      params);
-}
+// =============================================================================
 
 void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
                         uint3 volume_size, BlockArrangement* ba)
@@ -305,9 +263,7 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
 
-    auto params = std::make_tuple(grid, block, volume_size, outflow);
-
-    InvokeKernel<ApplyStencilWrapper>(bound, params);
+    InvokeKernel<ApplyStencilMeta>(bound, grid, block, volume_size, outflow);
     DCHECK_KERNEL();
 }
 
@@ -327,8 +283,8 @@ void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
     if (!bound_1.Succeeded())
         return;
 
-    ScalarPack alpha_typed = CreateScalarPack(alpha);
-    ScalarPack rho_typed   = CreateScalarPack(rho);
+    ScalarPieces alpha_typed = CreateScalarPieces(alpha);
+    ScalarPieces rho_typed   = CreateScalarPieces(rho);
 
     InvokeReduction<SchemeAlpha>(alpha_typed, bound_0, volume_size, ba, bm,
                                  rho_typed);
@@ -351,7 +307,7 @@ void LaunchComputeRho(const MemPiece& rho, cudaArray* search,
     if (!bound_1.Succeeded())
         return;
 
-    ScalarPack rho_typed = CreateScalarPack(rho);
+    ScalarPieces rho_typed = CreateScalarPieces(rho);
 
     InvokeReduction<SchemeDefault>(rho_typed, bound_0, volume_size, ba, bm);
     DCHECK_KERNEL();
@@ -374,9 +330,9 @@ void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
     if (!bound_1.Succeeded())
         return;
 
-    ScalarPack rho_new_typed = CreateScalarPack(rho_new);
-    ScalarPack beta_typed    = CreateScalarPack(beta);
-    ScalarPack rho_typed     = CreateScalarPack(rho);
+    ScalarPieces rho_new_typed = CreateScalarPieces(rho_new);
+    ScalarPieces beta_typed    = CreateScalarPieces(beta);
+    ScalarPieces rho_typed     = CreateScalarPieces(rho);
 
     InvokeReduction<SchemeBeta>(rho_new_typed, bound_0, volume_size, ba, bm,
                                 beta_typed, rho_typed);
@@ -405,11 +361,11 @@ void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
         if (!bound_0.Succeeded())
             return;
 
-        auto params = std::make_tuple(grid, block, coef, sign, volume_size);
-        InvokeKernel<ScaledAddWrapper>(bound_0, params);
+        InvokeKernel<ScaledAddKernelMeta>(bound_1, grid, block, coef, sign,
+                                          volume_size);
     } else {
-        auto params = std::make_tuple(grid, block, coef, volume_size);
-        InvokeKernel<ScaleVectorWrapper>(bound_1, params);
+        InvokeKernel<ScaleVectorKernelMeta>(bound_1, grid, block, coef,
+                                            volume_size);
     }
 
     DCHECK_KERNEL();

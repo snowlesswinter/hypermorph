@@ -19,12 +19,10 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _MULTI_PRECISION_TEXTURE_H_
-#define _MULTI_PRECISION_TEXTURE_H_
+#ifndef _MULTI_PRECISION_H_
+#define _MULTI_PRECISION_H_
 
 #include <cassert>
-
-struct NullTexType {};
 
 template <typename T>
 struct TexType
@@ -76,12 +74,6 @@ struct TexTraits<texture<long2, cudaTextureType3D, cudaReadModeElementType>>
     typedef long2 StorageType;
     static const cudaChannelFormatKind channel_format =
         cudaChannelFormatKindUnsigned;
-};
-
-template <>
-struct TexTraits<NullTexType>
-{
-    typedef NullTexType StorageType;
 };
 
 template <typename T>
@@ -170,10 +162,6 @@ struct not_same<T, U, Ts...>
 template <typename...>
 struct TexBound
 {
-    typedef TexBound BaseType;
-    typedef NullTexType ThisTexType;
-
-    bool Bound() const { return false; }
     bool Succeeded() const { return false; }
 };
 
@@ -271,150 +259,165 @@ TexBound<TexType, TextureTypes...>
 
 // Simple scalar ===============================================================
 
-template <typename...>
-struct ScalarPieces
-{
-    typedef ScalarPieces BaseType;
-    typedef float ThisScalarType; // Ugly, but works.
-    float* piece;
-};
+typedef std::tuple<float*, double*> ScalarPieces;
 
-template <typename T, typename... Ts>
-struct ScalarPieces<T, Ts...> : public ScalarPieces<Ts...>
-{
-    typedef ScalarPieces<Ts...> BaseType;
-    typedef T ThisScalarType;
-    ScalarPieces(T* p)
-        : ScalarPieces<Ts...>()
-        , piece(p)
-    {
-    }
-    ScalarPieces(const ScalarPieces<T, Ts...>& p)
-        : ScalarPieces<Ts...>(static_cast<const BaseType&>(p))
-        , piece(p.piece)
-    {
-    }
-    ScalarPieces(const ScalarPieces<Ts...>& p)
-        : ScalarPieces<Ts...>(p)
-        , piece(nullptr)
-    {
-    }
-    ScalarPieces()
-        : ScalarPieces<Ts...>()
-        , piece(nullptr)
-    {
-    }
-
-    T* piece;
-};
-
-typedef ScalarPieces<float, double> ScalarPack;
-
-ScalarPack CreateScalarPack(const MemPiece& piece)
+ScalarPieces CreateScalarPieces(const MemPiece& piece)
 {
     if (piece.byte_width() == sizeof(float))
-        return ScalarPack(piece.AsType<float>());
+        return ScalarPieces(piece.AsType<float>(), nullptr);
     else if (piece.byte_width() == sizeof(double))
-        return ScalarPack(ScalarPieces<double>(piece.AsType<double>()));
+        return ScalarPieces(nullptr, piece.AsType<double>());
     else
-        return ScalarPack();
+        return ScalarPieces();
 }
 
 // Reduction invoker ===========================================================
 
-template <typename ScalarType, typename ScalarPackType>
-void AssignScalarImpl(ScalarType** scalar, const ScalarPackType& pack,
-                      int recur_point)
-{
-    assert(recur_point > 0);
-    if (recur_point <= 0)
-        return;
+// C++ has not yet supported partial specializing function template.
+// http://stackoverflow.com/questions/8992853/terminating-function-template-recursion
 
-    using CurrentScalarType = typename ScalarPackType::ThisScalarType;
-    bool same_type = std::is_same<ScalarType, CurrentScalarType>::value;
-    if (pack.piece && same_type) {
-        *scalar = reinterpret_cast<ScalarType*>(pack.piece);
-        return;
+template <typename ScalarType, std::size_t index>
+struct AssignScalarImpl;
+
+template <typename ScalarType>
+struct AssignScalarImpl<ScalarType, 0>
+{
+    static void Assign(ScalarType** scalar, const ScalarPieces& pack) { }
+};
+
+template <typename ScalarType, std::size_t index>
+struct AssignScalarImpl
+{
+    static void Assign(ScalarType** scalar, const ScalarPieces& pack)
+    {
+        std::size_t const n = std::tuple_size<ScalarPieces>::value;
+        std::size_t const i = n - index;
+        using ScalarPtr = typename std::tuple_element<i, ScalarPieces>::type;
+        bool same_type = std::is_same<ScalarType*, ScalarPtr>::value;
+        if (std::get<i>(pack) != nullptr && same_type)
+        {
+            *scalar = reinterpret_cast<ScalarType*>(std::get<i>(pack));
+            return;
+        }
+
+        AssignScalarImpl<ScalarType, index - 1>::Assign(scalar, pack);
     }
+};
 
-    using BaseScalarType = typename ScalarPackType::BaseType;
-    return AssignScalarImpl<ScalarType>(
-        scalar, static_cast<const BaseScalarType&>(pack), recur_point - 1);
+template <typename ScalarType>
+void AssignScalar(ScalarType** scalar, const ScalarPieces& pack)
+{
+    static std::size_t const size = std::tuple_size<ScalarPieces>::value;
+    AssignScalarImpl<ScalarType, size>::Assign(scalar, pack);
 }
 
-template <typename ScalarType, typename ScalarPackType>
-void AssignScalar(ScalarType** scalar, const ScalarPackType& pack)
+template <template <typename S> class SchemeType, typename BoundType,
+          std::size_t index, typename... MorePacks>
+struct InvokeReductionImpl;
+
+template <template <typename S> class SchemeType, typename BoundType,
+          typename... MorePacks>
+struct InvokeReductionImpl<SchemeType, BoundType, 0, MorePacks...>
 {
-    AssignScalarImpl(scalar, pack, sizeof(pack) / sizeof(pack.piece) - 1);
-}
+    static void Invoke(const ScalarPieces& dest, const BoundType& bound,
+                       uint3 volume_size, BlockArrangement* ba,
+                       AuxBufferManager* bm, const MorePacks&... packs) {}
+};
 
-template <template <typename S> class SchemeType, typename ScalarPackType,
-    typename BoundType, typename... MorePacks>
-void InvokeReductionImpl(const ScalarPackType& dest, const BoundType& bound,
-                         uint3 volume_size, BlockArrangement* ba,
-                         AuxBufferManager* bm, int recur_point,
-                         const MorePacks&... packs)
+template <template <typename S> class SchemeType, typename BoundType,
+          std::size_t index, typename... MorePacks>
+struct InvokeReductionImpl
 {
-    assert(recur_point > 0);
-    if (recur_point <= 0)
-        return;
+    static void Invoke(const ScalarPieces& dest, const BoundType& bound,
+                       uint3 volume_size, BlockArrangement* ba,
+                       AuxBufferManager* bm, const MorePacks&... packs)
+    {
+        using StorageType =
+            typename TexTraits<typename BoundType::ThisTexType>::StorageType;
+        using FPType = typename Tex3d<StorageType>::ValType;
+        if (bound.Bound()) {
+            SchemeType<StorageType> scheme;
+            scheme.Init(packs...);
 
-    using StorageType =
-        typename TexTraits<typename BoundType::ThisTexType>::StorageType;
-    using FPType = typename Tex3d<StorageType>::ValType;
-    if (bound.Bound()) {
-        SchemeType<StorageType> scheme;
-        scheme.Init(packs...);
+            FPType* dest_fp = nullptr;
+            AssignScalar(&dest_fp, dest);
+            assert(dest_fp);
 
-        FPType* dest_fp = nullptr;
-        AssignScalar(&dest_fp, dest);
-        assert(dest_fp);
+            ReduceVolume(dest_fp, scheme, volume_size, ba, bm);
+            return;
+        }
 
-        ReduceVolume(dest_fp, scheme, volume_size, ba, bm);
-        return;
+        using NextBoundType = typename BoundType::BaseType;
+        InvokeReductionImpl<SchemeType, NextBoundType, index - 1,
+                            MorePacks...>::Invoke(dest, bound, volume_size, ba,
+                                                  bm, packs...);
     }
+};
 
-    using NextBoundType = typename BoundType::BaseType;
-    InvokeReductionImpl<SchemeType>(dest,
-                                    static_cast<const NextBoundType&>(bound),
-                                    volume_size, ba, bm, recur_point - 1,
-                                    packs...);
-}
-
-template <template <typename S> class SchemeType, typename ScalarPackType,
-    typename BoundType, typename... MorePacks>
-void InvokeReduction(const ScalarPackType& dest, const BoundType& bound,
+template <template <typename S> class SchemeType, typename BoundType,
+          typename... MorePacks>
+void InvokeReduction(const ScalarPieces& dest, const BoundType& bound,
                      uint3 volume_size, BlockArrangement* ba,
                      AuxBufferManager* bm, const MorePacks&... packs)
 {
-    int n = sizeof(bound) / sizeof(bound.auto_unbind);
-    InvokeReductionImpl<SchemeType>(dest, bound, volume_size, ba, bm, n,
-                                    packs...);
+    static std::size_t const n = sizeof(bound) / sizeof(bound.auto_unbind);
+    InvokeReductionImpl<SchemeType, BoundType, n, MorePacks...>::Invoke(
+        dest, bound, volume_size, ba, bm, packs...);
 }
 
-// Under construction ==========================================================
+// Kernel invoker ==============================================================
 
-// template <typename> struct KernelParams;
-// 
-// template <typename... Args>
-// struct KernelParams<void(*)(Args...)>
-// {
-//     std::tuple<Args...>   params;
-//     void(*fun)(Args...);
-//     template <typename... Params>
-//     KernelParams(void(*fun)(Args...), Params&&... params)
-//         : params(std::forward<Params>(params)...)
-//         , fun(fun)
-//     {
-//     }
-// };
-// 
-// template <typename... Args, typename... Params>
-// KernelParams<void(*)(Args...)> BindKernelParams(void(*fun)(Args...),
-//                                         Params&&... params)
-// {
-//     return KernelParams<void(*)(Args...)>(
-//         fun, std::forward<Params>(params)...);
-// }
+template <template <typename S> class KernMeta, typename BoundType,
+          std::size_t index, typename... Params>
+struct InvokeKernelImpl;
 
-#endif  // _MULTI_PRECISION_TEXTURE_H_
+template <template <typename S> class KernMeta, typename BoundType,
+          typename... Params>
+struct InvokeKernelImpl<KernMeta, BoundType, 0, Params...>
+{
+    static void Invoke(const BoundType& bound, Params... params) {}
+};
+
+template <template <typename S> class KernMeta, typename BoundType,
+          std::size_t index, typename... Params>
+struct InvokeKernelImpl
+{
+    static void Invoke(const BoundType& bound, Params... params)
+    {
+        using StorageType =
+            typename TexTraits<typename BoundType::ThisTexType>::StorageType;
+        if (bound.Bound()) {
+            KernMeta<StorageType>::Invoke(params...);
+            return;
+        }
+
+        using NextBoundType = typename BoundType::BaseType;
+        InvokeKernelImpl<KernMeta, NextBoundType, index - 1, Params...>::Invoke(
+            bound, params...);
+    }
+};
+
+template <template <typename S> class KernMeta, typename BoundType,
+          typename... Params>
+void InvokeKernel(const BoundType& bound, Params... params)
+{
+    static std::size_t const n = sizeof(bound) / sizeof(bound.auto_unbind);
+    InvokeKernelImpl<KernMeta, BoundType, n, Params...>::Invoke(bound,
+                                                                params...);
+}
+
+#define MAKE_INVOKE_DECLARATION(...)                          \
+    (const dim3& grid, const dim3& block, __VA_ARGS__)
+
+#define DECLARE_KERNEL_META(kern_name, params_decl, ...)      \
+template <typename StorageType>                               \
+struct kern_name##Meta                                        \
+{                                                             \
+    static void Invoke params_decl                            \
+    {                                                         \
+        using FPType = typename Tex3d<StorageType>::ValType;  \
+        kern_name<StorageType><<<grid, block>>>(__VA_ARGS__); \
+    }                                                         \
+}
+
+#endif  // _MULTI_PRECISION_H_
