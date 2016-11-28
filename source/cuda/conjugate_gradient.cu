@@ -45,17 +45,19 @@ texture<long2, cudaTextureType3D, cudaReadModeElementType> texd;
 texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_0;
 texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_1;
 
+template <typename FPType>
 struct UpperBoundaryHandlerNeumann
 {
-    __device__ void HandleUpperBoundary(float* north, float center, int y,
+    __device__ void HandleUpperBoundary(FPType* north, FPType center, int y,
                                         int height)
     {
     }
 };
 
+template <typename FPType>
 struct UpperBoundaryHandlerOutflow
 {
-    __device__ void HandleUpperBoundary(float* north, float center, int y,
+    __device__ void HandleUpperBoundary(FPType* north, FPType center, int y,
                                         int height)
     {
         if (y == height - 1) {
@@ -91,12 +93,11 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
     FPType north  = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y + 1.0f, z);
     FPType far    = t3d(TexSel<StorageType>::Tex(tex, texf, texd), x,        y,        z + 1.0f);
 
-    //handler.HandleUpperBoundary(&north, center, y, volume_size.y);
+    handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
     FPType v = (north + south + east + west + far + near - 6.0f * center);
-    auto r = __float2half_rn(v);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    t3d.Store(v, surf, x, y, z);
 }
 
 template <typename StorageType>
@@ -115,8 +116,7 @@ __global__ void ScaleVectorKernel(Tex3d<StorageType>::ValType* coef,
     Tex3d<StorageType> t3d;
     FPType e1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
-    auto r = __float2half_rn(*coef * e1);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    t3d.Store(*coef * e1, surf, x, y, z);
 }
 
 template <typename StorageType>
@@ -136,8 +136,7 @@ __global__ void ScaledAddKernel(Tex3d<StorageType>::ValType* coef, float sign,
     FPType e0 = t3d(TexSel<StorageType>::Tex(tex_0, texf_0, texd_0), x, y, z);
     FPType e1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), x, y, z);
 
-    auto r = __float2half_rn(e0 + *coef * sign * e1);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    t3d.Store(e0 + *coef * sign * e1, surf, x, y, z);
 }
 
 template <typename StorageType>
@@ -224,8 +223,9 @@ struct ApplyStencilMeta
     static void Invoke(const dim3& grid, const dim3& block,
                        const uint3& volume_size, bool outflow)
     {
-        UpperBoundaryHandlerOutflow outflow_handler;
-        UpperBoundaryHandlerNeumann neumann_handler;
+        using FPType = typename Tex3d<StorageType>::ValType;
+        UpperBoundaryHandlerOutflow<FPType> outflow_handler;
+        UpperBoundaryHandlerNeumann<FPType> neumann_handler;
         if (outflow)
             ApplyStencilKernel<StorageType><<<grid, block>>>(volume_size,
                                                              outflow_handler);

@@ -50,13 +50,6 @@ extern void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outfl
 extern void LaunchRoundPassed(int* dest_array, int round, int x);
 extern void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, bool staggered, uint3 volume_size, BlockArrangement* ba);
 
-// Multigrid.
-extern void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchProlongate(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
-extern void LaunchProlongateError(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
-extern void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size, BlockArrangement* ba);
-
 // Conjugate gradient.
 extern void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
@@ -73,7 +66,6 @@ extern void LaunchComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y, 
 extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* div, float time_step, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
 
-// Particles.
 namespace kern_launcher
 {
 extern void ClearVolume(cudaArray* dest_array, const float4& value, const uint3& volume_size, BlockArrangement* ba);
@@ -83,6 +75,14 @@ extern void Raycast(cudaArray* dest_array, cudaArray* density_array, const glm::
 extern void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float velocity_dissipation, const uint3& volume_size, BlockArrangement* ba);
 extern void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, float3 center, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
 
+// Multigrid.
+extern void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
+extern void Prolongate(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
+extern void ProlongateError(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
+extern void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
+extern void Restrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size, BlockArrangement* ba);
+
+// Particles.
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, bool outflow, uint3 volume_size, BlockArrangement* ba);
 extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);

@@ -22,7 +22,15 @@
 #ifndef _MULTI_PRECISION_H_
 #define _MULTI_PRECISION_H_
 
+#include <algorithm>
 #include <cassert>
+#include <tuple>
+
+#include "third_party/opengl/glew.h"
+
+#include <helper_math.h>
+
+#include "cuda/cuda_common_host.h"
 
 template <typename T>
 struct TexType
@@ -118,6 +126,13 @@ struct Tex3d
     {
         return tex3D(t, x, y, z);
     }
+
+    __device__ inline void Store(ValType v,
+                                 surface<void, cudaSurfaceType3D> surf,
+                                 uint x, uint y, uint z)
+    {
+        surf3Dwrite(v, surf, x * sizeof(v), y, z, cudaBoundaryModeTrap);
+    }
 };
 
 template <>
@@ -128,6 +143,14 @@ struct Tex3d<ushort>
                                        float y, float z)
     {
         return tex3D(t, x, y, z);
+    }
+
+    __device__ inline void Store(ValType v,
+                                 surface<void, cudaSurfaceType3D> surf,
+                                 uint x, uint y, uint z)
+    {
+        auto r = __float2half_rn(v);
+        surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
     }
 };
 
@@ -140,6 +163,13 @@ struct Tex3d<long2>
     {
         long2 raw = tex3D(t, x, y, z);
         return __hiloint2double(raw.x, raw.y);
+    }
+
+    __device__ inline void Store(ValType v,
+                                 surface<void, cudaSurfaceType3D> surf,
+                                 uint x, uint y, uint z)
+    {
+        surf3Dwrite(v, surf, x * sizeof(v), y, z, cudaBoundaryModeTrap);
     }
 };
 
@@ -261,15 +291,8 @@ TexBound<TexType, TextureTypes...>
 
 typedef std::tuple<float*, double*> ScalarPieces;
 
-ScalarPieces CreateScalarPieces(const MemPiece& piece)
-{
-    if (piece.byte_width() == sizeof(float))
-        return ScalarPieces(piece.AsType<float>(), nullptr);
-    else if (piece.byte_width() == sizeof(double))
-        return ScalarPieces(nullptr, piece.AsType<double>());
-    else
-        return ScalarPieces();
-}
+class MemPiece;
+ScalarPieces CreateScalarPieces(const MemPiece& piece);
 
 // Reduction invoker ===========================================================
 
@@ -310,6 +333,9 @@ void AssignScalar(ScalarType** scalar, const ScalarPieces& pack)
     static std::size_t const size = std::tuple_size<ScalarPieces>::value;
     AssignScalarImpl<ScalarType, size>::Assign(scalar, pack);
 }
+
+class AuxBufferManager;
+class BlockArrangement;
 
 template <template <typename S> class SchemeType, typename BoundType,
           std::size_t index, typename... MorePacks>

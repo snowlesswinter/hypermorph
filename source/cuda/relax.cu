@@ -35,7 +35,7 @@ texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_u;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 
-const float kOmega = 1.1f;
+const float kOmega = 1.0f;
 const float kBeta  = 6.0f;
 
 struct UpperBoundaryHandlerNeumann
@@ -709,8 +709,11 @@ void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
                                  volume_size, ba);
 }
 
-void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
-                              BlockArrangement* ba)
+
+namespace kern_launcher
+{
+void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
+                        BlockArrangement* ba)
 {
     float minus_omega_over_beta = -kOmega / kBeta;
     float omega_over_beta       =  kOmega / kBeta;
@@ -732,4 +735,5 @@ void LaunchRelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
                                               volume_size);
 
     DCHECK_KERNEL();
+}
 }

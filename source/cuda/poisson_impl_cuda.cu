@@ -29,14 +29,24 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
+#include "cuda/multi_precision.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_fine;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_b;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_fine;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_b;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_fine;
 
+template <typename StorageType>
 __global__ void ComputeResidualKernel(uint3 volume_size)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -44,24 +54,28 @@ __global__ void ComputeResidualKernel(uint3 volume_size)
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =   tex3D(tex, x, y, z - 1.0f);
-    float south =  tex3D(tex, x, y - 1.0f, z);
-    float west =   tex3D(tex, x - 1.0f, y, z);
-    float center = tex3D(tex, x, y, z);
-    float east =   tex3D(tex, x + 1.0f, y, z);
-    float north =  tex3D(tex, x, y + 1.0f, z);
-    float far =    tex3D(tex, x, y, z + 1.0f);
-    float b =      tex3D(tex_b, x, y, z);
+    Tex3d<StorageType> t3d;
+    FPType near   = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x,        y,        z - 1.0f);
+    FPType south  = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x,        y - 1.0f, z);
+    FPType west   = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x - 1.0f, y,        z);
+    FPType center = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x,        y,        z);
+    FPType east   = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x + 1.0f, y,        z);
+    FPType north  = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x,        y + 1.0f, z);
+    FPType far    = t3d(TexSel<StorageType>::Tex(tex, texf, texd),       x,        y,        z + 1.0f);
+    FPType b      = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), x,        y,        z);
 
     // TODO: Should enforce the same boundary conditions as in relax kernel.
 
-    float v = b - (north + south + east + west + far + near - 6.0f * center);
-    auto r = __float2half_rn(v);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    FPType v = b - (north + south + east + west + far + near - 6.0f * center);
+    t3d.Store(v, surf, x, y, z);
 }
 
+// TODO: Support fp64.
+template <typename StorageType>
 __global__ void ProlongateLerpKernel(uint3 volume_size)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -70,29 +84,38 @@ __global__ void ProlongateLerpKernel(uint3 volume_size)
         return;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
-    auto raw = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z));
-    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
+
+    Tex3d<StorageType> t3d;
+    FPType v = t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z);
+    t3d.Store(v, surf, x, y, z);
 }
 
+template <typename StorageType>
 __global__ void ProlongateErrorLerpKernel(uint3 volume_size)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int z = blockIdx.z * blockDim.z + threadIdx.z;
+    using FPType = typename Tex3d<StorageType>::ValType;
+
+    int x = VolumeX();
+    int y = VolumeY();
+    int z = VolumeZ();
 
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 0.5f;
 
-    float coarse = tex3D(tex, coord.x, coord.y, coord.z);
-    float fine = tex3D(tex_fine, x, y, z);
-    auto raw = __float2half_rn(fine + coarse);
-    surf3Dwrite(raw, surf, x * sizeof(raw), y, z, cudaBoundaryModeTrap);
+    Tex3d<StorageType> t3d;
+    FPType coarse = t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z);
+    FPType fine   = t3d(TexSel<StorageType>::Tex(tex_fine, texf_fine, texd_fine), x, y, z);
+
+    t3d.Store(fine + coarse, surf, x, y, z);
 }
 
+template <typename StorageType>
 __global__ void RestrictLerpKernel(uint3 volume_size)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -102,97 +125,121 @@ __global__ void RestrictLerpKernel(uint3 volume_size)
 
     float3 coord = (make_float3(x, y, z) + 0.5f) * 2.0f;
 
-    auto r = __float2half_rn(tex3D(tex, coord.x, coord.y, coord.z) * 4.0f);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    Tex3d<StorageType> t3d;
+    FPType v = t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z) * 4.0f;
+
+    t3d.Store(v, surf, x, y, z);
 }
 
 // =============================================================================
 
-void LaunchComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
-                           uint3 volume_size, BlockArrangement* ba)
+DECLARE_KERNEL_META(
+    ComputeResidualKernel,
+    MAKE_INVOKE_DECLARATION(const uint3& volume_size),
+    volume_size);
+
+DECLARE_KERNEL_META(
+    ProlongateLerpKernel,
+    MAKE_INVOKE_DECLARATION(const uint3& volume_size),
+    volume_size);
+
+DECLARE_KERNEL_META(
+    ProlongateErrorLerpKernel,
+    MAKE_INVOKE_DECLARATION(const uint3& volume_size),
+    volume_size);
+
+DECLARE_KERNEL_META(
+    RestrictLerpKernel,
+    MAKE_INVOKE_DECLARATION(const uint3& volume_size),
+    volume_size);
+
+// =============================================================================
+namespace kern_launcher
+{
+void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
+                     uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, r) != cudaSuccess)
         return;
 
-    auto bound_u = BindHelper::Bind(&tex, u, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_u.error() != cudaSuccess)
+    auto bound_u = SelectiveBind(u, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound_u.Succeeded())
         return;
 
-    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_b.error() != cudaSuccess)
+    auto bound_b = SelectiveBind(b, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_b, &texf_b,
+                                 &texd_b);
+    if (!bound_b.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
-    ComputeResidualKernel<<<grid, block>>>(volume_size);
 
+    InvokeKernel<ComputeResidualKernelMeta>(bound_u, grid, block, volume_size);
     DCHECK_KERNEL();
 }
 
-void LaunchProlongate(cudaArray* fine, cudaArray* coarse,
-                      uint3 volume_size_fine, BlockArrangement* ba)
+void Prolongate(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine,
+                BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, fine) != cudaSuccess)
         return;
 
-    auto bound_coarse = BindHelper::Bind(&tex, coarse, false,
-                                         cudaFilterModeLinear,
-                                         cudaAddressModeClamp);
-    if (bound_coarse.error() != cudaSuccess)
+    auto bound_coarse = SelectiveBind(coarse, false, cudaFilterModeLinear,
+                                      cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound_coarse.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateLerpKernel<<<grid, block>>>(volume_size_fine);
-
+    InvokeKernel<ProlongateLerpKernelMeta>(bound_coarse, grid, block,
+                                           volume_size_fine);
     DCHECK_KERNEL();
 }
 
-void LaunchProlongateError(cudaArray* fine, cudaArray* coarse,
-                           uint3 volume_size_fine, BlockArrangement* ba)
+void ProlongateError(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine,
+                     BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, fine) != cudaSuccess)
         return;
 
-    auto bound_coarse = BindHelper::Bind(&tex, coarse, false,
-                                         cudaFilterModeLinear,
-                                         cudaAddressModeClamp);
-    if (bound_coarse.error() != cudaSuccess)
+    auto bound_coarse = SelectiveBind(coarse, false, cudaFilterModeLinear,
+                                      cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound_coarse.Succeeded())
         return;
 
-    auto bound_fine = BindHelper::Bind(&tex_fine, fine, false,
-                                       cudaFilterModePoint,
-                                       cudaAddressModeClamp);
-    if (bound_fine.error() != cudaSuccess)
+    auto bound_fine = SelectiveBind(fine, false, cudaFilterModePoint,
+                                    cudaAddressModeClamp, &tex_fine, &texf_fine,
+                                    &texd_fine);
+    if (!bound_fine.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
-    ProlongateErrorLerpKernel<<<grid, block>>>(volume_size_fine);
-
+    InvokeKernel<ProlongateErrorLerpKernelMeta>(bound_coarse, grid, block,
+                                                volume_size_fine);
     DCHECK_KERNEL();
 }
 
-void LaunchRestrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
-                    BlockArrangement* ba)
+void Restrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
+              BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, coarse) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex, fine, false, cudaFilterModeLinear,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound = SelectiveBind(fine, false, cudaFilterModeLinear,
+                               cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    RestrictLerpKernel<<<grid, block>>>(volume_size);
-
+    InvokeKernel<RestrictLerpKernelMeta>(bound, grid, block, volume_size);
     DCHECK_KERNEL();
+}
 }

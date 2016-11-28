@@ -60,31 +60,32 @@ void PoissonImplCuda::ComputeResidual(cudaArray* r, cudaArray* u,
                                       cudaArray* b,
                                       const glm::ivec3& volume_size)
 {
-    LaunchComputeResidual(r, u, b, FromGlmVector(volume_size), ba_);
+    kern_launcher::ComputeResidual(r, u, b, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::Prolongate(cudaArray* fine, cudaArray* coarse,
                                  const glm::ivec3& volume_size)
 {
-    LaunchProlongate(fine, coarse, FromGlmVector(volume_size), ba_);
+    kern_launcher::Prolongate(fine, coarse, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::ProlongateError(cudaArray* fine, cudaArray* coarse,
                                       const glm::ivec3& volume_size)
 {
-    LaunchProlongateError(fine, coarse, FromGlmVector(volume_size), ba_);
+    kern_launcher::ProlongateError(fine, coarse, FromGlmVector(volume_size),
+                                   ba_);
 }
 
 void PoissonImplCuda::RelaxWithZeroGuess(cudaArray* u, cudaArray* b,
                                          const glm::ivec3& volume_size)
 {
-    LaunchRelaxWithZeroGuess(u, b, FromGlmVector(volume_size), ba_);
+    kern_launcher::RelaxWithZeroGuess(u, b, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
                                const glm::ivec3& volume_size)
 {
-    LaunchRestrict(coarse, fine, FromGlmVector(volume_size), ba_);
+    kern_launcher::Restrict(coarse, fine, FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
