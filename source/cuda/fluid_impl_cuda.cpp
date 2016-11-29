@@ -210,8 +210,8 @@ void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
                           int num_of_iterations, const glm::ivec3& volume_size)
 {
-    LaunchRelax(unp1, un, b, outflow_, num_of_iterations,
-                FromGlmVector(volume_size), ba_);
+    kern_launcher::Relax(unp1, un, b, outflow_, num_of_iterations,
+                         FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ReviseDensity(cudaArray* density,

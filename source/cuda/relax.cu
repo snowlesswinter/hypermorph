@@ -29,26 +29,33 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
+#include "cuda/multi_precision.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 texture<ushort2, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_packed;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_u;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_u;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_b;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_u;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_b;
 
 const float kOmega = 1.0f;
 const float kBeta  = 6.0f;
 
+template <typename FPType>
 struct UpperBoundaryHandlerNeumann
 {
-    __device__ void HandleUpperBoundary(float* north, float center, int y,
+    __device__ void HandleUpperBoundary(FPType* north, FPType center, int y,
                                         int height)
     {
     }
 };
 
+template <typename FPType>
 struct UpperBoundaryHandlerOutflow
 {
-    __device__ void HandleUpperBoundary(float* north, float center, int y,
+    __device__ void HandleUpperBoundary(FPType* north, FPType center, int y,
                                         int height)
     {
         if (y == height - 1) {
@@ -518,12 +525,13 @@ __global__ void DampedJacobiKernel_smem_no_halo_storage(float omega_over_beta,
     surf3Dwrite(raw, surf, x * sizeof(ushort2), y, z, cudaBoundaryModeTrap);
 }
 
-template <typename UpperBoundaryHandler>
-__global__ void RelaxRedBlackGaussSeidelKernel(float one_minus_omega,
-                                               float omega_over_beta,
+template <typename StorageType, typename UpperBoundaryHandler>
+__global__ void RelaxRedBlackGaussSeidelKernel(float inv_beta,
                                                uint3 volume_size, uint offset,
                                                UpperBoundaryHandler handler)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     uint x = VolumeX();
     uint y = VolumeY();
     uint z = VolumeZ();
@@ -533,23 +541,22 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float one_minus_omega,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float near =   tex3D(tex_u, x,        y,        z - 1.0f);
-    float south =  tex3D(tex_u, x,        y - 1.0f, z);
-    float west =   tex3D(tex_u, x - 1.0f, y,        z);
-    float center = tex3D(tex_u, x,        y,        z);
-    float east =   tex3D(tex_u, x + 1.0f, y,        z);
-    float north =  tex3D(tex_u, x,        y + 1.0f, z);
-    float far =    tex3D(tex_u, x,        y,        z + 1.0f);
-    float b =      tex3D(tex_b, x,        y,        z);
+    Tex3d<StorageType> t3d;
+    FPType near   = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x,        y,        z - 1.0f);
+    FPType south  = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x,        y - 1.0f, z);
+    FPType west   = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x - 1.0f, y,        z);
+    FPType center = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x,        y,        z);
+    FPType east   = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x + 1.0f, y,        z);
+    FPType north  = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x,        y + 1.0f, z);
+    FPType far    = t3d(TexSel<StorageType>::Tex(tex_u, texf_u, texd_u), x,        y,        z + 1.0f);
+    FPType b      = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), x,        y,        z);
 
     handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
-    float u = one_minus_omega * center +
-        (west + east + south + north + far + near - b) * omega_over_beta;
+    FPType u = (west + east + south + north + far + near - b) * inv_beta;
 
-    auto r = __float2half_rn(u);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    t3d.Store(u, surf, x, y, z);
 }
 
 __global__ void RelaxWithZeroGuessKernel(float minus_omega_over_beta,
@@ -583,6 +590,26 @@ __global__ void RelaxWithZeroGuessKernel(float minus_omega_over_beta,
     auto r = __float2half_rn(u);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
+
+// =============================================================================
+
+template <typename StorageType>
+struct RelaxRedBlackGaussSeidelKernelMeta
+{
+    static void Invoke(const dim3& grid, const dim3& block, float inv_beta,
+                       const uint3& volume_size, uint offset, bool outflow)
+    {
+        using FPType = typename Tex3d<StorageType>::ValType;
+        UpperBoundaryHandlerOutflow<FPType> outflow_handler;
+        UpperBoundaryHandlerNeumann<FPType> neumann_handler;
+        if (outflow)
+            RelaxRedBlackGaussSeidelKernel<StorageType><<<grid, block>>>(
+                inv_beta, volume_size, offset, outflow_handler);
+        else
+            RelaxRedBlackGaussSeidelKernel<StorageType><<<grid, block>>>(
+                inv_beta, volume_size, offset, neumann_handler);
+    }
+};
 
 // =============================================================================
 
@@ -650,18 +677,19 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
     if (BindCudaSurfaceToArray(&surf, unp1) != cudaSuccess)
         return;
 
-    auto bound_u = BindHelper::Bind(&tex_u, un, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_u.error() != cudaSuccess)
+    auto bound_u = SelectiveBind(un, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_u, &texf_u,
+                                 &texd_u);
+    if (!bound_u.Succeeded())
         return;
 
-    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_b.error() != cudaSuccess)
+    auto bound_b = SelectiveBind(b, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_b, &texf_b,
+                                 &texd_b);
+    if (!bound_b.Succeeded())
         return;
 
-    float omega_over_beta = kOmega / kBeta;
-    float one_minus_omega = 1.0f - kOmega;
+    float inv_beta = 1.0f / kBeta;
 
     uint3 half_size = volume_size;
     half_size.x /= 2;
@@ -669,37 +697,21 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, half_size);
 
-    UpperBoundaryHandlerOutflow outflow_handler;
-    UpperBoundaryHandlerNeumann neumann_handler;
-    if (outflow) {
-        for (int i = 0; i < num_of_iterations; i++) {
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
-                                                            omega_over_beta,
-                                                            volume_size, 0,
-                                                            outflow_handler);
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
-                                                            omega_over_beta,
-                                                            volume_size, 1,
-                                                            outflow_handler);
-        }
-    } else {
-        for (int i = 0; i < num_of_iterations; i++) {
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
-                                                            omega_over_beta,
-                                                            volume_size, 0,
-                                                            neumann_handler);
-            RelaxRedBlackGaussSeidelKernel<<<grid, block>>>(one_minus_omega,
-                                                            omega_over_beta,
-                                                            volume_size, 1,
-                                                            neumann_handler);
-        }
+    for (int i = 0; i < num_of_iterations; i++) {
+        InvokeKernel<RelaxRedBlackGaussSeidelKernelMeta>(bound_u,  grid, block,
+                                                         inv_beta, volume_size,
+                                                         0, outflow);
+        InvokeKernel<RelaxRedBlackGaussSeidelKernelMeta>(bound_u, grid, block,
+                                                         inv_beta, volume_size,
+                                                         1, outflow);
     }
-
     DCHECK_KERNEL();
 }
 
-void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
-                 int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
+namespace kern_launcher
+{
+void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
+           int num_of_iterations, uint3 volume_size, BlockArrangement* ba)
 {
     bool jacobi = false;
     if (jacobi)
@@ -709,9 +721,6 @@ void LaunchRelax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow,
                                  volume_size, ba);
 }
 
-
-namespace kern_launcher
-{
 void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
                         BlockArrangement* ba)
 {
