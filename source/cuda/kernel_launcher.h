@@ -41,13 +41,8 @@ extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cud
 extern void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
 extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
 extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, bool staggered, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, bool outflow, bool staggered, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
 extern void LaunchImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point, float3 hotspot, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchRoundPassed(int* dest_array, int round, int x);
-extern void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, bool staggered, uint3 volume_size, BlockArrangement* ba);
 
 // Conjugate gradient.
 extern void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow, uint3 volume_size, BlockArrangement* ba);
@@ -71,9 +66,14 @@ extern void ClearVolume(cudaArray* dest_array, const float4& value, const uint3&
 extern void CopyToVbo(void* point_vbo, void* extra_vbo, uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z, uint16_t* density, uint16_t* temperature, float crit_density, int* num_of_active_particles, int num_of_particles, BlockArrangement* ba);
 extern void Raycast(cudaArray* dest_array, cudaArray* density_array, const glm::mat4& inv_rotation, const glm::ivec2& surface_size, const glm::vec3& eye_pos, const glm::vec3& light_color, const glm::vec3& light_pos, float light_intensity, float focal_length, const glm::vec2& screen_size, int num_samples, int num_light_samples, float absorption, float density_factor, float occlusion_factor, const glm::vec3& volume_size);
 
+extern void ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, cudaArray* temperature, cudaArray* density, float time_step, float ambient_temperature, float accel_factor, float gravity, bool staggered, uint3 volume_size, BlockArrangement* ba);
+extern void ComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, bool outflow, bool staggered, uint3 volume_size, BlockArrangement* ba);
+extern void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float velocity_dissipation, const uint3& volume_size, BlockArrangement* ba);
 extern void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, float3 center, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
 extern void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow, int num_of_iterations, uint3 volume_size, BlockArrangement* ba);
+extern void RoundPassed(int* dest_array, int round, int x);
+extern void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, bool staggered, uint3 volume_size, BlockArrangement* ba);
 
 // Multigrid.
 extern void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);

@@ -123,9 +123,10 @@ void FluidImplCuda::ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
                                   float accel_factor, float gravity,
                                   const glm::ivec3& volume_size)
 {
-    LaunchApplyBuoyancy(vnp1_x, vnp1_y, vnp1_z, vn_x, vn_y, vn_z, temperature,
-                        density, time_step, ambient_temperature, accel_factor,
-                        gravity, staggered_, FromGlmVector(volume_size), ba_);
+    kern_launcher::ApplyBuoyancy(vnp1_x, vnp1_y, vnp1_z, vn_x, vn_y, vn_z,
+                                 temperature, density, time_step,
+                                 ambient_temperature, accel_factor, gravity,
+                                 staggered_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
@@ -195,16 +196,17 @@ void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
                                       cudaArray* vel_y, cudaArray* vel_z,
                                       const glm::ivec3& volume_size)
 {
-    LaunchComputeDivergence(div, vel_x, vel_y, vel_z, cell_size_, outflow_,
-                            staggered_, FromGlmVector(volume_size), ba_);
+    kern_launcher::ComputeDivergence(div, vel_x, vel_y, vel_z, cell_size_,
+                                     outflow_, staggered_,
+                                     FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
                                              cudaArray* b,
                                              const glm::ivec3& volume_size)
 {
-    LaunchComputeResidualDiagnosis(residual, u, b, cell_size_,
-                                   FromGlmVector(volume_size), ba_);
+    kern_launcher::ComputeResidualDiagnosis(residual, u, b, cell_size_,
+                                            FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::Relax(cudaArray* unp1, cudaArray* un, cudaArray* b,
@@ -228,8 +230,9 @@ void FluidImplCuda::SubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
                                      cudaArray* vel_z, cudaArray* pressure,
                                      const glm::ivec3& volume_size)
 {
-    LaunchSubtractGradient(vel_x, vel_y, vel_z, pressure, cell_size_,
-                           staggered_, FromGlmVector(volume_size), ba_);
+    kern_launcher::SubtractGradient(vel_x, vel_y, vel_z, pressure, cell_size_,
+                                    staggered_, FromGlmVector(volume_size),
+                                    ba_);
 }
 
 void FluidImplCuda::AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y,
@@ -282,7 +285,7 @@ void FluidImplCuda::RoundPassed(int round)
     if (result != cudaSuccess)
         return;
 
-    LaunchRoundPassed(dest_array, round, 3);
+    kern_launcher::RoundPassed(dest_array, round, 3);
 
     cudaFree(dest_array);
 }

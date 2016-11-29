@@ -29,30 +29,37 @@
 #include "cuda/cuda_common_host.h"
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
+#include "cuda/multi_precision.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
 surface<void, cudaSurfaceType3D> surf_y;
 surface<void, cudaSurfaceType3D> surf_z;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_b;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf;
+texture<float, cudaTextureType3D, cudaReadModeElementType> texf_b;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd;
+texture<long2, cudaTextureType3D, cudaReadModeElementType> texd_b;
 
+template <typename FPType>
 struct UpperBoundaryHandlerNeumann
 {
-    __device__ void HandleUpperBoundary(float* diff_ns, float base_y)
+    __device__ void HandleUpperBoundary(FPType* diff_ns, FPType base_y)
     {
         *diff_ns = -base_y;
     }
 };
 
+template <typename FPType>
 struct UpperBoundaryHandlerOutflow
 {
-    __device__ void HandleUpperBoundary(float* diff_ns, float base_y)
+    __device__ void HandleUpperBoundary(FPType* diff_ns, FPType base_y)
     {
         if (base_y < 0.0f)
             *diff_ns = -base_y;
@@ -196,11 +203,13 @@ __global__ void ComputeDivergenceKernel(float half_inverse_cell_size,
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
-template <typename UpperBoundaryHandler>
+template <typename StorageType, typename UpperBoundaryHandler>
 __global__ void ComputeDivergenceStaggeredKernel(float cell_size,
                                                  uint3 volume_size,
                                                  UpperBoundaryHandler handler)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -210,16 +219,16 @@ __global__ void ComputeDivergenceStaggeredKernel(float cell_size,
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
-    float base_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
-    float base_y = tex3D(tex_y, coord.x,        coord.y,        coord.z);
-    float base_z = tex3D(tex_z, coord.x,        coord.y,        coord.z);
-    float east =   tex3D(tex_x, coord.x + 1.0f, coord.y,        coord.z);
-    float north =  tex3D(tex_y, coord.x,        coord.y + 1.0f, coord.z);
-    float far =    tex3D(tex_z, coord.x,        coord.y,        coord.z + 1.0f);
+    FPType base_x = tex3D(tex_x, coord.x,        coord.y,        coord.z);
+    FPType base_y = tex3D(tex_y, coord.x,        coord.y,        coord.z);
+    FPType base_z = tex3D(tex_z, coord.x,        coord.y,        coord.z);
+    FPType east =   tex3D(tex_x, coord.x + 1.0f, coord.y,        coord.z);
+    FPType north =  tex3D(tex_y, coord.x,        coord.y + 1.0f, coord.z);
+    FPType far =    tex3D(tex_z, coord.x,        coord.y,        coord.z + 1.0f);
 
-    float diff_ew = east  - base_x;
-    float diff_ns = north - base_y;
-    float diff_fn = far   - base_z;
+    FPType diff_ew = east  - base_x;
+    FPType diff_ns = north - base_y;
+    FPType diff_fn = far   - base_z;
 
     // Handle boundary problem
     if (x >= volume_size.x - 1)
@@ -233,13 +242,18 @@ __global__ void ComputeDivergenceStaggeredKernel(float cell_size,
 
     // NOTE: Premultiply h^2 to get a uniformed cell size at all levels
     //       of multigrid hierarchy.
-    float div = cell_size * (diff_ew + diff_ns + diff_fn);
-    auto r = __float2half_rn(div);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    FPType div = cell_size * (diff_ew + diff_ns + diff_fn);
+
+    Tex3d<StorageType> t3d;
+    t3d.Store(div, surf, x, y, z);
 }
 
+template <typename StorageType>
 __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
-                                               uint3 volume_size){
+                                               uint3 volume_size)
+{
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -249,14 +263,15 @@ __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
 
     float3 coord = make_float3(x, y, z);
 
-    float near =   tex3D(tex, coord.x, coord.y, coord.z - 1.0f);
-    float south =  tex3D(tex, coord.x, coord.y - 1.0f, coord.z);
-    float west =   tex3D(tex, coord.x - 1.0f, coord.y, coord.z);
-    float center = tex3D(tex, coord.x, coord.y, coord.z);
-    float east =   tex3D(tex, coord.x + 1.0f, coord.y, coord.z);
-    float north =  tex3D(tex, coord.x, coord.y + 1.0f, coord.z);
-    float far =    tex3D(tex, coord.x, coord.y, coord.z + 1.0f);
-    float b =      tex3D(tex_b, coord.x, coord.y, coord.z);
+    Tex3d<StorageType> t3d;
+    FPType near =   t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z - 1.0f);
+    FPType south =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y - 1.0f, coord.z);
+    FPType west =   t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x - 1.0f, coord.y, coord.z);
+    FPType center = t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z);
+    FPType east =   t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x + 1.0f, coord.y, coord.z);
+    FPType north =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y + 1.0f, coord.z);
+    FPType far =    t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x, coord.y, coord.z + 1.0f);
+    FPType b =      t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x, coord.y, coord.z);
 
     if (coord.y == volume_size.y - 1)
         north = center;
@@ -276,8 +291,10 @@ __global__ void ComputeResidualDiagnosisKernel(float inverse_h_square,
     if (coord.z == 0)
         near = center;
 
-    float v = (b - (north + south + east + west + far + near - 6.0 * center)) *
+    FPType v = (b - (north + south + east + west + far + near - 6.0 * center)) *
         inverse_h_square;
+
+    // Destination is a fp32 volume.
     surf3Dwrite(fabsf(v), surf, x * sizeof(float), y, z, cudaBoundaryModeTrap);
 }
 
@@ -349,9 +366,12 @@ __global__ void SubtractGradientKernel(float half_inverse_cell_size,
     surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
+template <typename StorageType>
 __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
                                                 uint3 volume_size)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -359,15 +379,16 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float3 coord = make_float3(x, y, z) + 0.5f;
+    float3 coord = make_float3(x, y, z);
     
-    float near =  tex3D(tex, coord.x,        coord.y,          coord.z - 1.0f);
-    float south = tex3D(tex, coord.x,        coord.y - 1.0f,   coord.z);
-    float west =  tex3D(tex, coord.x - 1.0f, coord.y,          coord.z);
-    float base =  tex3D(tex, coord.x,        coord.y,          coord.z);
+    Tex3d<StorageType> t3d;
+    FPType near =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x,        coord.y,          coord.z - 1.0f);
+    FPType south = t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x,        coord.y - 1.0f,   coord.z);
+    FPType west =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x - 1.0f, coord.y,          coord.z);
+    FPType base =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x,        coord.y,          coord.z);
 
     // Handle boundary problem.
-    float mask = 1.0f;
+    FPType mask = 1.0f;
     if (x <= 0)
         mask = 0;
 
@@ -377,34 +398,65 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     if (z <= 0)
         mask = 0;
 
-    float old_x = tex3D(tex_x, coord.x, coord.y, coord.z);
-    float grad_x = (base - west) * inverse_cell_size;
-    float new_x = old_x - grad_x;
+    FPType old_x = tex3D(tex_x, coord.x, coord.y, coord.z);
+    FPType grad_x = (base - west) * inverse_cell_size;
+    FPType new_x = old_x - grad_x;
     auto r_x = __float2half_rn(new_x * mask);
     surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
 
-    float old_y = tex3D(tex_y, coord.x, coord.y, coord.z);
-    float grad_y = (base - south) * inverse_cell_size;
-    float new_y = old_y - grad_y;
+    FPType old_y = tex3D(tex_y, coord.x, coord.y, coord.z);
+    FPType grad_y = (base - south) * inverse_cell_size;
+    FPType new_y = old_y - grad_y;
     auto r_y = __float2half_rn(new_y * mask);
     surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
 
-    float old_z = tex3D(tex_z, coord.x, coord.y, coord.z);
-    float grad_z = (base - near) * inverse_cell_size;
-    float new_z = old_z - grad_z;
+    FPType old_z = tex3D(tex_z, coord.x, coord.y, coord.z);
+    FPType grad_z = (base - near) * inverse_cell_size;
+    FPType new_z = old_z - grad_z;
     auto r_z = __float2half_rn(new_z * mask);
     surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
 }
 
 // =============================================================================
 
-void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
-                         cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
-                         cudaArray* vn_z, cudaArray* temperature,
-                         cudaArray* density, float time_step,
-                         float ambient_temperature, float accel_factor,
-                         float gravity, bool staggered, uint3 volume_size,
-                         BlockArrangement* ba)
+template <typename StorageType>
+struct ComputeDivergenceStaggeredKernelMeta
+{
+    static void Invoke(const dim3& grid, const dim3& block, float cell_size,
+                       const uint3& volume_size, bool outflow)
+    {
+        using FPType = typename Tex3d<StorageType>::ValType;
+        UpperBoundaryHandlerOutflow<FPType> outflow_handler;
+        UpperBoundaryHandlerNeumann<FPType> neumann_handler;
+        if (outflow)
+            ComputeDivergenceStaggeredKernel<StorageType><<<grid, block>>>(
+                cell_size, volume_size, outflow_handler);
+        else
+            ComputeDivergenceStaggeredKernel<StorageType><<<grid, block>>>(
+                cell_size, volume_size, neumann_handler);
+    }
+};
+
+DECLARE_KERNEL_META(
+    ComputeResidualDiagnosisKernel,
+    MAKE_INVOKE_DECLARATION(float inverse_h_square, const uint3& volume_size),
+    inverse_h_square, volume_size);
+
+DECLARE_KERNEL_META(
+    SubtractGradientStaggeredKernel,
+    MAKE_INVOKE_DECLARATION(float inverse_cell_size, const uint3& volume_size),
+    inverse_cell_size, volume_size);
+
+// =============================================================================
+
+namespace kern_launcher
+{
+void ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
+                   cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
+                   cudaArray* temperature, cudaArray* density, float time_step,
+                   float ambient_temperature, float accel_factor,
+                   float gravity, bool staggered, uint3 volume_size,
+                   BlockArrangement* ba)
 {
     if (vnp1_x != vn_x)
         CopyVolumeAsync(vnp1_x, vn_x, volume_size);
@@ -451,12 +503,18 @@ void LaunchApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y,
     DCHECK_KERNEL();
 }
 
-void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, float cell_size, bool outflow,
-                             bool staggered, uint3 volume_size,
-                             BlockArrangement* ba)
+void ComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
+                       cudaArray* vel_z, float cell_size, bool outflow,
+                       bool staggered, uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, div) != cudaSuccess)
+        return;
+
+    // A lazy way making selective dispatching. Hope not to hurt the
+    // performance.
+    auto bound = SelectiveBind(div, false, cudaFilterModePoint,
+                               cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound.Succeeded())
         return;
 
     auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
@@ -478,19 +536,12 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
 
-    UpperBoundaryHandlerOutflow outflow_handler;
-    UpperBoundaryHandlerNeumann neumann_handler;
     if (staggered) {
-        if (outflow) {
-            ComputeDivergenceStaggeredKernel<<<grid, block>>>(cell_size,
-                                                              volume_size,
-                                                              outflow_handler);
-        } else {
-            ComputeDivergenceStaggeredKernel<<<grid, block>>>(cell_size,
-                                                              volume_size,
-                                                              neumann_handler);
-        }
+        InvokeKernel<ComputeDivergenceStaggeredKernelMeta>(
+            bound, grid, block, cell_size, volume_size, outflow);
     } else {
+        UpperBoundaryHandlerOutflow<float> outflow_handler;
+        UpperBoundaryHandlerNeumann<float> neumann_handler;
         if (outflow) {
             ComputeDivergenceKernel<<<grid, block>>>(0.5f / cell_size,
                                                      volume_size,
@@ -505,87 +556,33 @@ void LaunchComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     DCHECK_KERNEL();
 }
 
-void LaunchComputeResidualDiagnosis(cudaArray* residual, cudaArray* u,
-                                    cudaArray* b, float cell_size,
-                                    uint3 volume_size, BlockArrangement* ba)
+void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b,
+                              float cell_size, uint3 volume_size,
+                              BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, residual) != cudaSuccess)
         return;
 
-    auto bound_u = BindHelper::Bind(&tex, u, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_u.error() != cudaSuccess)
+    auto bound_u = SelectiveBind(u, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound_u.Succeeded())
         return;
 
-    auto bound_b = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
-                                    cudaAddressModeClamp);
-    if (bound_b.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    ComputeResidualDiagnosisKernel<<<grid, block>>>(
-        1.0f / (cell_size * cell_size), volume_size);
-
-    DCHECK_KERNEL();
-}
-
-void LaunchRoundPassed(int* dest_array, int round, int x)
-{
-    RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
-    DCHECK_KERNEL();
-}
-
-void LaunchSubtractGradient(cudaArray* vel_x, cudaArray* vel_y,
-                            cudaArray* vel_z, cudaArray* pressure,
-                            float cell_size, bool staggered, uint3 volume_size,
-                            BlockArrangement* ba)
-{
-    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
-        return;
-
-    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
-        return;
-
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_x.error() != cudaSuccess)
-        return;
-
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_y.error() != cudaSuccess)
-        return;
-
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_z.error() != cudaSuccess)
-        return;
-
-    auto bound = BindHelper::Bind(&tex, pressure, false, cudaFilterModeLinear,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound_b = SelectiveBind(b, false, cudaFilterModePoint,
+                                 cudaAddressModeClamp, &tex_b, &texf_b,
+                                 &texd_b);
+    if (!bound_b.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
 
-    if (staggered)
-        SubtractGradientStaggeredKernel<<<grid, block>>>(1.0f / cell_size,
-                                                         volume_size);
-    else
-        SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
-
+    InvokeKernel<ComputeResidualDiagnosisKernelMeta>(
+        bound_u, grid, block, 1.0f / (cell_size * cell_size), volume_size);
     DCHECK_KERNEL();
 }
 
-namespace kern_launcher
-{
 void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
                    float time_step, float velocity_dissipation,
                    const uint3& volume_size, BlockArrangement* ba)
@@ -620,6 +617,59 @@ void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     ba->ArrangeRowScan(&block, &grid, volume_size);
     DecayVelocityKernel<<<grid, block>>>(
         1.0f - velocity_dissipation * time_step, volume_size);
+
+    DCHECK_KERNEL();
+}
+
+void RoundPassed(int* dest_array, int round, int x)
+{
+    RoundPassedKernel<<<1, 1>>>(dest_array, round, x);
+    DCHECK_KERNEL();
+}
+
+void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                      cudaArray* pressure, float cell_size, bool staggered,
+                      uint3 volume_size, BlockArrangement* ba)
+{
+    if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_y, vel_y) != cudaSuccess)
+        return;
+
+    if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
+        return;
+
+    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_x.error() != cudaSuccess)
+        return;
+
+    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_y.error() != cudaSuccess)
+        return;
+
+    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+                                    cudaAddressModeClamp);
+    if (bound_z.error() != cudaSuccess)
+        return;
+
+    auto bound = SelectiveBind(pressure, false, cudaFilterModePoint,
+                               cudaAddressModeClamp, &tex, &texf, &texd);
+    if (!bound.Succeeded())
+        return;
+
+    dim3 block;
+    dim3 grid;
+    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+
+    if (staggered)
+        InvokeKernel<SubtractGradientStaggeredKernelMeta>(bound, grid, block,
+                                                          1.0f / cell_size,
+                                                          volume_size);
+    else
+        SubtractGradientKernel<<<grid, block>>>(0.5f / cell_size, volume_size);
 
     DCHECK_KERNEL();
 }
