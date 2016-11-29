@@ -280,12 +280,12 @@ bool UnittestCommon::InitializeSimulators(GridFluidSolver* sim_cuda,
 {
     do
     {
-        bool result = sim_cuda->Initialize(GRAPHICS_LIB_CUDA, 1, 1, 1);
+        bool result = sim_cuda->Initialize(GRAPHICS_LIB_CUDA, 1, 1, 1, 2);
         assert(result);
         if (!result)
             break;
 
-        result = sim_glsl->Initialize(GRAPHICS_LIB_GLSL, 1, 1, 1);
+        result = sim_glsl->Initialize(GRAPHICS_LIB_GLSL, 1, 1, 1, 2);
         assert(result);
         if (!result)
             break;

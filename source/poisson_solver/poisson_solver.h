@@ -32,6 +32,20 @@ public:
     PoissonSolver();
     virtual ~PoissonSolver();
 
+    // The convergence rates of Poisson solvers are sensitive to the precision
+    // of data presentation. Experiment results indicate that, fp16 data type
+    // always leads to very slow convergence, and the solvers would sometimes
+    // stop converging further since a small iteration number.
+    //
+    // When I turn to fp32, the convergence rate start to raise as expected,
+    // and MGPCG solver is then able to achieve a better result if I increase
+    // the iteration times.
+    //
+    // However, in practice, the high precision solution seems not to bring
+    // much more visual details compares to its expensive computation. Hence,
+    // I still stick to fp16 for performance consideration, and switch to
+    // higher precision mode for algorithm verification.
+
     virtual bool Initialize(int width, int height, int depth,
                             int byte_width, int minimum_grid_width) = 0;
     virtual void SetAuxiliaryVolumes(

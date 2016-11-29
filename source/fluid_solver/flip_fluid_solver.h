@@ -46,7 +46,7 @@ public:
                          float impulse_temperature,
                          float impulse_velocity) override;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
-                            int depth) override;
+                            int depth, int poisson_byte_width) override;
     virtual void Reset() override;
     virtual void SetDiagnosis(int diagnosis) override;
     virtual void SetPressureSolver(PoissonSolver* solver) override;

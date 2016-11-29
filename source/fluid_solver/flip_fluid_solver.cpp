@@ -161,7 +161,7 @@ void FlipFluidSolver::Impulse(float splat_radius,
 }
 
 bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
-                                 int height, int depth)
+                                 int height, int depth, int poisson_byte_width)
 {
     velocity_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
     velocity_prev_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
@@ -192,12 +192,12 @@ bool FlipFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
     if (!result)
         return false;
 
-    result = general1a_->Create(width, height, depth, 1, 2, 0);
+    result = general1a_->Create(width, height, depth, 1, poisson_byte_width, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1b_->Create(width, height, depth, 1, 2, 0);
+    result = general1b_->Create(width, height, depth, 1, poisson_byte_width, 0);
     assert(result);
     if (!result)
         return false;

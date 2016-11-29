@@ -122,7 +122,7 @@ void GridFluidSolver::Impulse(float splat_radius,
 }
 
 bool GridFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
-                                 int height, int depth)
+                                 int height, int depth, int poisson_byte_width)
 {
     velocity_       = std::make_shared<GraphicsVolume3>(graphics_lib_);
     velocity_prime_ = std::make_shared<GraphicsVolume3>(graphics_lib_);
@@ -183,12 +183,12 @@ bool GridFluidSolver::Initialize(GraphicsLib graphics_lib, int width,
     if (!result)
         return false;
 
-    result = general1c_->Create(width, height, depth, 1, 2, 0);
+    result = general1c_->Create(width, height, depth, 1, poisson_byte_width, 0);
     assert(result);
     if (!result)
         return false;
 
-    result = general1d_->Create(width, height, depth, 1, 2, 0);
+    result = general1d_->Create(width, height, depth, 1, poisson_byte_width, 0);
     assert(result);
     if (!result)
         return false;
@@ -293,15 +293,15 @@ void GridFluidSolver::Solve(float delta_time)
     Metrics::Instance()->OnFrameUpdateBegins();
 
     // Calculate divergence.
-    ComputeDivergence(general1a_);
+    ComputeDivergence(general1c_);
     Metrics::Instance()->OnDivergenceComputed();
 
     // Solve pressure-velocity Poisson equation
-    SolvePressure(general1b_, general1a_);
+    SolvePressure(general1d_, general1c_);
     Metrics::Instance()->OnPressureSolved();
 
     // Rectify velocity via the gradient of pressure
-    SubtractGradient(general1b_);
+    SubtractGradient(general1d_);
     Metrics::Instance()->OnVelocityRectified();
 
     // Advect density and temperature

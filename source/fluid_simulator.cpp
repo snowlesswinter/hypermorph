@@ -46,7 +46,7 @@ const float kMaxTimeStep = 0.3f;
 
 FluidSimulator::FluidSimulator()
     : grid_size_(128)
-    , data_byte_width_(2)
+    , poisson_byte_width_(2)
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , fluid_solver_()
     , buf_owner_(nullptr)
@@ -76,7 +76,8 @@ bool FluidSimulator::Init()
     SetPoissonSolverIterations(pressure_solver);
 
     SetFluidProperties(fluid_solver);
-    if (!fluid_solver->Initialize(graphics_lib_, width, height, depth))
+    if (!fluid_solver->Initialize(graphics_lib_, width, height, depth,
+                                  poisson_byte_width_))
         return false;
 
     fluid_solver->SetPressureSolver(pressure_solver);
@@ -220,7 +221,7 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                 pressure_solver_.reset(
                     new MultigridPoissonSolver(multigrid_core_.get()));
                 pressure_solver_->Initialize(grid_size_.x, grid_size_.y,
-                                             grid_size_.z, data_byte_width_,
+                                             grid_size_.z, poisson_byte_width_,
                                              32);
             }
             break;
@@ -230,7 +231,7 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                 pressure_solver_.reset(
                     new FullMultigridPoissonSolver(multigrid_core_.get()));
                 pressure_solver_->Initialize(grid_size_.x, grid_size_.y,
-                                             grid_size_.z, data_byte_width_,
+                                             grid_size_.z, poisson_byte_width_,
                                              32);
             }
             break;
@@ -240,7 +241,7 @@ PoissonSolver* FluidSimulator::GetPressureSolver()
                 pressure_solver_.reset(
                     new PreconditionedConjugateGradient(multigrid_core_.get()));
                 pressure_solver_->Initialize(grid_size_.x, grid_size_.y,
-                                             grid_size_.z, data_byte_width_,
+                                             grid_size_.z, poisson_byte_width_,
                                              32);
             }
             break;
@@ -306,6 +307,8 @@ void FluidSimulator::SetPoissonSolverIterations(PoissonSolver* poisson_solver)
         case POISSON_SOLVER_MULTI_GRID: {
             num_iterations =
                 FluidConfig::Instance()->num_multigrid_iterations();
+            num_nested_iterations =
+                FluidConfig::Instance()->num_jacobi_iterations();
             break;
         }
         case POISSON_SOLVER_FULL_MULTI_GRID: {

@@ -61,9 +61,11 @@ bool GraphicsVolume3::Assign(const std::shared_ptr<GraphicsVolume>& x,
     if (!x)
         return false;
 
+    assert(!y || y->HasSameProperties(*x));
     if (!y || !y->HasSameProperties(*x))
         return false;
 
+    assert(!z || z->HasSameProperties(*y));
     if (!z || !z->HasSameProperties(*y))
         return false;
 

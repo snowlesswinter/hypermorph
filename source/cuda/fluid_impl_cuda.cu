@@ -379,7 +379,7 @@ __global__ void SubtractGradientStaggeredKernel(float inverse_cell_size,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float3 coord = make_float3(x, y, z);
+    float3 coord = make_float3(x, y, z) + 0.5f;
     
     Tex3d<StorageType> t3d;
     FPType near =  t3d(TexSel<StorageType>::Tex(tex, texf, texd), coord.x,        coord.y,          coord.z - 1.0f);

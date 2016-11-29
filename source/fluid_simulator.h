@@ -66,7 +66,7 @@ private:
     void SetPoissonSolverIterations(PoissonSolver* poisson_solver);
     
     glm::ivec3 grid_size_;
-    int data_byte_width_;
+    int poisson_byte_width_;
     GraphicsLib graphics_lib_;
     std::unique_ptr<FluidSolver> fluid_solver_;
     FluidBufferOwner* buf_owner_;

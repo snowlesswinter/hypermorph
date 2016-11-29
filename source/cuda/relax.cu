@@ -559,10 +559,13 @@ __global__ void RelaxRedBlackGaussSeidelKernel(float inv_beta,
     t3d.Store(u, surf, x, y, z);
 }
 
+template <typename StorageType>
 __global__ void RelaxWithZeroGuessKernel(float minus_omega_over_beta,
                                          float coef, float omega_over_beta,
                                          uint3 volume_size)
 {
+    using FPType = typename Tex3d<StorageType>::ValType;
+
     int x = VolumeX();
     int y = VolumeY();
     int z = VolumeZ();
@@ -572,23 +575,23 @@ __global__ void RelaxWithZeroGuessKernel(float minus_omega_over_beta,
 
     float3 coord = make_float3(x, y, z);
 
-    float near   = tex3D(tex_b, coord.x,        coord.y,        coord.z - 1.0f);
-    float south  = tex3D(tex_b, coord.x,        coord.y - 1.0f, coord.z);
-    float west   = tex3D(tex_b, coord.x - 1.0f, coord.y,        coord.z);
-    float center = tex3D(tex_b, coord.x,        coord.y,        coord.z);
-    float east   = tex3D(tex_b, coord.x + 1.0f, coord.y,        coord.z);
-    float north  = tex3D(tex_b, coord.x,        coord.y + 1.0f, coord.z);
-    float far    = tex3D(tex_b, coord.x,        coord.y,        coord.z + 1.0f);
+    Tex3d<StorageType> t3d;
+    FPType near   = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x,        coord.y,        coord.z - 1.0f);
+    FPType south  = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x,        coord.y - 1.0f, coord.z);
+    FPType west   = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x - 1.0f, coord.y,        coord.z);
+    FPType center = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x,        coord.y,        coord.z);
+    FPType east   = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x + 1.0f, coord.y,        coord.z);
+    FPType north  = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x,        coord.y + 1.0f, coord.z);
+    FPType far    = t3d(TexSel<StorageType>::Tex(tex_b, texf_b, texd_b), coord.x,        coord.y,        coord.z + 1.0f);
 
     // TODO: boundary condition.
 
-    float v = coef * center;
-    float u = (minus_omega_over_beta *
+    FPType v = coef * center;
+    FPType u = (minus_omega_over_beta *
         (north + south + east + west + far + near) - center) * omega_over_beta +
         v;
 
-    auto r = __float2half_rn(u);
-    surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
+    t3d.Store(u, surf, x, y, z);
 }
 
 // =============================================================================
@@ -610,6 +613,12 @@ struct RelaxRedBlackGaussSeidelKernelMeta
                 inv_beta, volume_size, offset, neumann_handler);
     }
 };
+
+DECLARE_KERNEL_META(
+    RelaxWithZeroGuessKernel,
+    MAKE_INVOKE_DECLARATION(float minus_omega_over_beta, float coef,
+                            float omega_over_beta, const uint3& volume_size),
+    minus_omega_over_beta, coef, omega_over_beta, volume_size);
 
 // =============================================================================
 
@@ -731,18 +740,18 @@ void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
     if (BindCudaSurfaceToArray(&surf, u) != cudaSuccess)
         return;
 
-    auto bound = BindHelper::Bind(&tex_b, b, false, cudaFilterModePoint,
-                                  cudaAddressModeClamp);
-    if (bound.error() != cudaSuccess)
+    auto bound = SelectiveBind(b, false, cudaFilterModePoint,
+                               cudaAddressModeClamp, &tex_b, &texf_b, &texd_b);
+    if (!bound.Succeeded())
         return;
 
     dim3 block;
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
-    RelaxWithZeroGuessKernel<<<grid, block>>>(minus_omega_over_beta,
-                                              coef, omega_over_beta,
-                                              volume_size);
 
+    InvokeKernel<RelaxWithZeroGuessKernelMeta>(bound, grid, block,
+                                               minus_omega_over_beta, coef,
+                                               omega_over_beta, volume_size);
     DCHECK_KERNEL();
 }
 }
