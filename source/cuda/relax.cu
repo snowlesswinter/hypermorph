@@ -587,7 +587,12 @@ __global__ void RelaxRedBlackGaussSeidelKernel(uint3 volume_size, uint offset,
     ModifyBoundaryCoef(&beta, x, y, z, volume_size);
 
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
-    FPType u = (west + east + south + north + far + near - b) / beta;
+    //
+    // Using omega = 1.3 performs better than the default iteration(also tested
+    // in fp32 mode). Experiments showed that the former had a higher
+    // convergence rate in the boundary cells.
+    FPType u = -0.3f * center +
+        (west + east + south + north + far + near - b) * 1.3f / beta;
 
     t3d.Store(u, surf, x, y, z);
 }

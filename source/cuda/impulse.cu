@@ -148,10 +148,12 @@ __global__ void ImpulseVelocitySphereKernel(float3 center_point, float radius,
 
 // =============================================================================
 
-void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
-                         float3 center_point, float3 hotspot, float radius,
-                         float value, FluidImpulse impulse, uint3 volume_size,
-                         BlockArrangement* ba)
+namespace kern_launcher
+{
+void ImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point,
+                   float3 hotspot, float radius, float value,
+                   FluidImpulse impulse, uint3 volume_size,
+                   BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
@@ -197,10 +199,9 @@ void LaunchImpulseScalar(cudaArray* dest, cudaArray* original,
     DCHECK_KERNEL();
 }
 
-void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
-                          float3 center_point, float radius, float value,
-                          FluidImpulse impulse, uint3 volume_size,
-                          BlockArrangement* ba)
+void ImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point,
+                    float radius, float value, FluidImpulse impulse,
+                    uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
@@ -219,8 +220,6 @@ void LaunchImpulseDensity(cudaArray* dest, cudaArray* original,
     DCHECK_KERNEL();
 }
 
-namespace kern_launcher
-{
 void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
                      float3 center, float radius, float value,
                      FluidImpulse impulse, uint3 volume_size,

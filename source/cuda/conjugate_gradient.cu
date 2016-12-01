@@ -69,6 +69,29 @@ struct UpperBoundaryHandlerOutflow
     }
 };
 
+template <typename FPType>
+__device__ void ModifyBoundaryCoef(FPType* coef, uint x, uint y, uint z,
+                                   const uint3& volume_size)
+{
+    if (x == 0)
+        *coef -= 1.0f;
+
+    if (y == 0)
+        *coef -= 1.0f;
+
+    if (z == 0)
+        *coef -= 1.0f;
+
+    if (x == volume_size.x - 1)
+        *coef -= 1.0f;
+
+    if (y == volume_size.y - 1)
+        *coef -= 1.0f;
+
+    if (z == volume_size.z - 1)
+        *coef -= 1.0f;
+}
+
 // =============================================================================
 
 template <typename StorageType, typename UpperBoundaryHandler>
@@ -95,8 +118,15 @@ __global__ void ApplyStencilKernel(uint3 volume_size,
 
     handler.HandleUpperBoundary(&north, center, y, volume_size.y);
 
+    FPType beta = 6.0f;
+
+    // FIXME: If the boundary conditions are handled as in relaxation kernels,
+    //        we will somehow get a worse average residual result. I need some
+    //        time to figure this out.
+    // ModifyBoundaryCoef(&beta, x, y, z, volume_size);
+
     // NOTE: The coefficient 'h^2' is premultiplied in the divergence kernel.
-    FPType v = (north + south + east + west + far + near - 6.0f * center);
+    FPType v = (north + south + east + west + far + near - beta * center);
     t3d.Store(v, surf, x, y, z);
 }
 
@@ -218,7 +248,7 @@ struct SchemeBeta : public SchemeDefault<StorageType>
 // =============================================================================
 
 template <typename StorageType>
-struct ApplyStencilMeta
+struct ApplyStencilKernelMeta
 {
     static void Invoke(const dim3& grid, const dim3& block,
                        const uint3& volume_size, bool outflow)
@@ -248,8 +278,10 @@ DECLARE_KERNEL_META(
 
 // =============================================================================
 
-void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
-                        uint3 volume_size, BlockArrangement* ba)
+namespace kern_launcher
+{
+void ApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
+                  uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
         return;
@@ -263,13 +295,14 @@ void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     dim3 grid;
     ba->ArrangeRowScan(&block, &grid, volume_size);
 
-    InvokeKernel<ApplyStencilMeta>(bound, grid, block, volume_size, outflow);
+    InvokeKernel<ApplyStencilKernelMeta>(bound, grid, block, volume_size,
+                                         outflow);
     DCHECK_KERNEL();
 }
 
-void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
-                        cudaArray* vec0, cudaArray* vec1, uint3 volume_size,
-                        BlockArrangement* ba, AuxBufferManager* bm)
+void ComputeAlpha(const MemPiece& alpha, const MemPiece& rho, cudaArray* vec0,
+                  cudaArray* vec1, uint3 volume_size, BlockArrangement* ba,
+                  AuxBufferManager* bm)
 {
     auto bound_0 = SelectiveBind(vec0, false, cudaFilterModePoint,
                                  cudaAddressModeClamp, &tex_0, &texf_0,
@@ -291,9 +324,8 @@ void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRho(const MemPiece& rho, cudaArray* search,
-                      cudaArray* residual, uint3 volume_size,
-                      BlockArrangement* ba, AuxBufferManager* bm)
+void ComputeRho(const MemPiece& rho, cudaArray* search, cudaArray* residual,
+                uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm)
 {
     auto bound_0 = SelectiveBind(search, false, cudaFilterModePoint,
                                  cudaAddressModeClamp, &tex_0, &texf_0,
@@ -313,10 +345,10 @@ void LaunchComputeRho(const MemPiece& rho, cudaArray* search,
     DCHECK_KERNEL();
 }
 
-void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
-                             const MemPiece& rho, cudaArray* vec0,
-                             cudaArray* vec1, uint3 volume_size,
-                             BlockArrangement* ba, AuxBufferManager* bm)
+void ComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
+                       const MemPiece& rho, cudaArray* vec0, cudaArray* vec1,
+                       uint3 volume_size, BlockArrangement* ba,
+                       AuxBufferManager* bm)
 {
     auto bound_0 = SelectiveBind(vec0, false, cudaFilterModePoint,
                                  cudaAddressModeClamp, &tex_0, &texf_0,
@@ -338,9 +370,9 @@ void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new,
                                 beta_typed, rho_typed);
 }
 
-void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
-                     const MemPiece& coef, float sign, uint3 volume_size,
-                     BlockArrangement* ba)
+void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
+               const MemPiece& coef, float sign, uint3 volume_size,
+               BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf, dest) != cudaSuccess)
         return;
@@ -369,4 +401,5 @@ void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
     }
 
     DCHECK_KERNEL();
+}
 }

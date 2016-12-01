@@ -36,30 +36,6 @@ class MemPiece;
 enum AdvectionMethod;
 enum FluidImpulse;
 
-extern void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
-extern void LaunchImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point, float3 hotspot, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
-
-// Conjugate gradient.
-extern void LaunchApplyStencil(cudaArray* aux, cudaArray* search, bool outflow, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeAlpha(const MemPiece& alpha, const MemPiece& rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchComputeRho(const MemPiece& rho, cudaArray* search, cudaArray* residual, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new, const MemPiece& rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
-extern void LaunchScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, const MemPiece& coef, float sign, uint3 volume_size, BlockArrangement* ba);
-
-// Vorticity.
-extern void LaunchAddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchApplyVorticityConfinementStaggered(cudaArray* vel_x, cudaArray* vely, cudaArray* vel_z, cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchBuildVorticityConfinementStaggered(cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float coeff, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y, cudaArray* delta_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* div, float time_step, uint3 volume_size, BlockArrangement* ba);
-extern void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
-
 namespace kern_launcher
 {
 extern void ClearVolume(cudaArray* dest_array, const float4& value, const uint3& volume_size, BlockArrangement* ba);
@@ -75,12 +51,36 @@ extern void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow, in
 extern void RoundPassed(int* dest_array, int round, int x);
 extern void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, bool staggered, uint3 volume_size, BlockArrangement* ba);
 
+extern void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
+extern void AdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
+extern void AdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
+extern void AdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
+extern void AdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z, cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux, float cell_size, float time_step, float dissipation, AdvectionMethod method, uint3 volume_size, bool mid_point, BlockArrangement* ba);
+extern void ImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
+extern void ImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point, float3 hotspot, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
+
 // Multigrid.
 extern void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
 extern void Prolongate(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
 extern void ProlongateError(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine, BlockArrangement* ba);
 extern void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size, BlockArrangement* ba);
 extern void Restrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size, BlockArrangement* ba);
+
+// Conjugate gradient.
+extern void ApplyStencil(cudaArray* aux, cudaArray* search, bool outflow, uint3 volume_size, BlockArrangement* ba);
+extern void ComputeAlpha(const MemPiece& alpha, const MemPiece& rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void ComputeRho(const MemPiece& rho, cudaArray* search, cudaArray* residual, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void ComputeRhoAndBeta(const MemPiece& beta, const MemPiece& rho_new, const MemPiece& rho, cudaArray* vec0, cudaArray* vec1, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
+extern void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1, const MemPiece& coef, float sign, uint3 volume_size, BlockArrangement* ba);
+
+// Vorticity.
+extern void AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void ApplyVorticityConfinementStaggered(cudaArray* vel_x, cudaArray* vely, cudaArray* vel_z, cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, uint3 volume_size, BlockArrangement* ba);
+extern void BuildVorticityConfinementStaggered(cudaArray* conf_x, cudaArray* conf_y, cudaArray* conf_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float coeff, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void ComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, uint3 volume_size, BlockArrangement* ba);
+extern void ComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y, cudaArray* delta_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size, BlockArrangement* ba);
+extern void DecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, cudaArray* div, float time_step, uint3 volume_size, BlockArrangement* ba);
+extern void StretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* vort_x, cudaArray* vort_y, cudaArray* vort_z, float cell_size, float time_step, uint3 volume_size, BlockArrangement* ba);
 
 // Particles.
 extern void AdvectParticles(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float cell_size, bool outflow, uint3 volume_size, BlockArrangement* ba);

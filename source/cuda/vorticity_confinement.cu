@@ -374,9 +374,11 @@ __global__ void StretchVorticesStaggeredKernel(float scale, uint3 volume_size)
 
 // =============================================================================
 
-void LaunchAddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
-                      cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z,
-                      float cell_size, uint3 volume_size, BlockArrangement* ba)
+namespace kern_launcher
+{
+void AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                cudaArray* psi_x, cudaArray* psi_y, cudaArray* psi_z,
+                float cell_size, uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;
@@ -426,14 +428,10 @@ void LaunchAddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     AddCurlPsiKernel<<<grid, block>>>(1.0f / cell_size, volume_size);
 }
 
-void LaunchApplyVorticityConfinementStaggered(cudaArray* vel_x,
-                                              cudaArray* vel_y,
-                                              cudaArray* vel_z,
-                                              cudaArray* conf_x,
-                                              cudaArray* conf_y,
-                                              cudaArray* conf_z,
-                                              uint3 volume_size,
-                                              BlockArrangement* ba)
+void ApplyVorticityConfinementStaggered(cudaArray* vel_x, cudaArray* vel_y,
+                                        cudaArray* vel_z, cudaArray* conf_x,
+                                        cudaArray* conf_y, cudaArray* conf_z,
+                                        uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;
@@ -483,15 +481,11 @@ void LaunchApplyVorticityConfinementStaggered(cudaArray* vel_x,
     ApplyVorticityConfinementStaggeredKernel<<<grid, block>>>(volume_size);
 }
 
-void LaunchBuildVorticityConfinementStaggered(cudaArray* conf_x,
-                                              cudaArray* conf_y,
-                                              cudaArray* conf_z,
-                                              cudaArray* vort_x,
-                                              cudaArray* vort_y,
-                                              cudaArray* vort_z,
-                                              float coeff, float cell_size,
-                                              uint3 volume_size,
-                                              BlockArrangement* ba)
+void BuildVorticityConfinementStaggered(cudaArray* conf_x, cudaArray* conf_y,
+                                        cudaArray* conf_z, cudaArray* vort_x,
+                                        cudaArray* vort_y, cudaArray* vort_z,
+                                        float coeff, float cell_size,
+                                        uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, conf_x) != cudaSuccess)
         return;
@@ -525,11 +519,10 @@ void LaunchBuildVorticityConfinementStaggered(cudaArray* conf_x,
                                                               volume_size);
 }
 
-void LaunchComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y,
-                                cudaArray* vort_z, cudaArray* vel_x,
-                                cudaArray* vel_y, cudaArray* vel_z,
-                                float cell_size, uint3 volume_size,
-                                BlockArrangement* ba)
+void ComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y,
+                          cudaArray* vort_z, cudaArray* vel_x, cudaArray* vel_y,
+                          cudaArray* vel_z, float cell_size, uint3 volume_size,
+                          BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vort_x) != cudaSuccess)
         return;
@@ -579,10 +572,10 @@ void LaunchComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y,
     ComputeCurlStaggeredKernel<<<grid, block>>>(volume_size, 1.0f / cell_size);
 }
 
-void LaunchComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
-                                 cudaArray* delta_z,  cudaArray* vn_x,
-                                 cudaArray* vn_y, cudaArray* vn_z,
-                                 uint3 volume_size, BlockArrangement* ba)
+void ComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
+                           cudaArray* delta_z,  cudaArray* vn_x,
+                           cudaArray* vn_y, cudaArray* vn_z, uint3 volume_size,
+                           BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, delta_x) != cudaSuccess)
         return;
@@ -629,10 +622,9 @@ void LaunchComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
     ComputeDeltaVorticityKernel<<<grid, block>>>(volume_size);
 }
 
-void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
-                                  cudaArray* vort_z, cudaArray* div,
-                                  float time_step, uint3 volume_size,
-                                  BlockArrangement* ba)
+void DecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
+                            cudaArray* vort_z, cudaArray* div, float time_step,
+                            uint3 volume_size, BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vort_x) != cudaSuccess)
         return;
@@ -669,13 +661,13 @@ void LaunchDecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
     DecayVorticesStaggeredKernel<<<grid, block>>>(time_step, volume_size);
 }
 
-void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
-                                    cudaArray* vnp1_z, cudaArray* vel_x,
-                                    cudaArray* vel_y, cudaArray* vel_z,
-                                    cudaArray* vort_x, cudaArray* vort_y,
-                                    cudaArray* vort_z, float cell_size,
-                                    float time_step, uint3 volume_size,
-                                    BlockArrangement* ba)
+void StretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
+                              cudaArray* vnp1_z, cudaArray* vel_x,
+                              cudaArray* vel_y, cudaArray* vel_z,
+                              cudaArray* vort_x, cudaArray* vort_y,
+                              cudaArray* vort_z, float cell_size,
+                              float time_step, uint3 volume_size,
+                              BlockArrangement* ba)
 {
     if (BindCudaSurfaceToArray(&surf_x, vnp1_x) != cudaSuccess)
         return;
@@ -725,4 +717,5 @@ void LaunchStretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
     dim3 grid;
     ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
     StretchVorticesStaggeredKernel<<<grid, block>>>(scale, volume_size);
+}
 }

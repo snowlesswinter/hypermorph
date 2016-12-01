@@ -396,14 +396,15 @@ void AdvectFieldsSemiLagrangianStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
     }
 }
 
-void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
-                                      cudaArray* vel_x, cudaArray* vel_y,
-                                      cudaArray* vel_z, cudaArray* aux,
-                                      float cell_size, float time_step,
-                                      float dissipation,
-                                      AdvectionMethod method,
-                                      uint3 volume_size, bool mid_point,
-                                      BlockArrangement* ba)
+namespace kern_launcher
+{
+void AdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
+                                cudaArray* vel_x, cudaArray* vel_y,
+                                cudaArray* vel_z, cudaArray* aux,
+                                float cell_size, float time_step,
+                                float dissipation, AdvectionMethod method,
+                                uint3 volume_size, bool mid_point,
+                                BlockArrangement* ba)
 {
     cudaArray* fnp1s[] = {fnp1};
     cudaArray* fns[] = {fn};
@@ -430,16 +431,14 @@ void LaunchAdvectScalarFieldStaggered(cudaArray* fnp1, cudaArray* fn,
     DCHECK_KERNEL();
 }
 
-void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                                   cudaArray* fnp1_z, cudaArray* fn_x,
-                                   cudaArray* fn_y, cudaArray* fn_z,
-                                   cudaArray* vel_x, cudaArray* vel_y,
-                                   cudaArray* vel_z, cudaArray* aux,
-                                   float cell_size, float time_step,
-                                   float dissipation,
-                                   AdvectionMethod method,
-                                   uint3 volume_size, bool mid_point,
-                                   BlockArrangement* ba)
+void AdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                             cudaArray* fnp1_z, cudaArray* fn_x,
+                             cudaArray* fn_y, cudaArray* fn_z, cudaArray* vel_x,
+                             cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
+                             float cell_size, float time_step,
+                             float dissipation, AdvectionMethod method,
+                             uint3 volume_size, bool mid_point,
+                             BlockArrangement* ba)
 {
     cudaArray* fnp1s[] = {fnp1_x, fnp1_y, fnp1_z};
     cudaArray* fns[] = {fn_x, fn_y, fn_z};
@@ -470,16 +469,14 @@ void LaunchAdvectVelocityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
     DCHECK_KERNEL();
 }
 
-void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                                    cudaArray* fnp1_z, cudaArray* fn_x,
-                                    cudaArray* fn_y, cudaArray* fn_z,
-                                    cudaArray* vel_x, cudaArray* vel_y,
-                                    cudaArray* vel_z, cudaArray* aux,
-                                    float cell_size, float time_step, 
-                                    float dissipation,
-                                    AdvectionMethod method,
-                                    uint3 volume_size, bool mid_point,
-                                    BlockArrangement* ba)
+void AdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
+                              cudaArray* fnp1_z, cudaArray* fn_x,
+                              cudaArray* fn_y, cudaArray* fn_z,
+                              cudaArray* vel_x, cudaArray* vel_y,
+                              cudaArray* vel_z, cudaArray* aux, float cell_size,
+                              float time_step,  float dissipation,
+                              AdvectionMethod method, uint3 volume_size,
+                              bool mid_point, BlockArrangement* ba)
 {
     cudaArray* fnp1s[] = {fnp1_x, fnp1_y, fnp1_z};
     cudaArray* fns[] = {fn_x, fn_y, fn_z};
@@ -509,4 +506,5 @@ void LaunchAdvectVorticityStaggered(cudaArray* fnp1_x, cudaArray* fnp1_y,
     }
 
     DCHECK_KERNEL();
+}
 }

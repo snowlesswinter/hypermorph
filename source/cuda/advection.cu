@@ -465,13 +465,13 @@ void AdvectFieldsSemiLagrangian(cudaArray** fnp1, cudaArray** fn,
     }
 }
 
-void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn,
-                             cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, cudaArray* aux, float cell_size,
-                             float time_step, float dissipation,
-                             AdvectionMethod method,
-                             uint3 volume_size, bool mid_point,
-                             BlockArrangement* ba)
+namespace kern_launcher
+{
+void AdvectScalarField(cudaArray* fnp1, cudaArray* fn, cudaArray* vel_x,
+                       cudaArray* vel_y, cudaArray* vel_z, cudaArray* aux,
+                       float cell_size, float time_step, float dissipation,
+                       AdvectionMethod method, uint3 volume_size,
+                       bool mid_point, BlockArrangement* ba)
 {
     cudaArray* fnp1s[] = {fnp1};
     cudaArray* fns[] = {fn};
@@ -491,15 +491,12 @@ void LaunchAdvectScalarField(cudaArray* fnp1, cudaArray* fn,
     }
 }
 
-void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y,
-                             cudaArray* fnp1_z, cudaArray* fn_x,
-                             cudaArray* fn_y, cudaArray* fn_z,
-                             cudaArray* vel_x, cudaArray* vel_y,
-                             cudaArray* vel_z, cudaArray* aux, float cell_size,
-                             float time_step, float dissipation,
-                             AdvectionMethod method,
-                             uint3 volume_size, bool mid_point,
-                             BlockArrangement* ba)
+void AdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y, cudaArray* fnp1_z,
+                       cudaArray* fn_x, cudaArray* fn_y, cudaArray* fn_z,
+                       cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                       cudaArray* aux, float cell_size, float time_step,
+                       float dissipation, AdvectionMethod method,
+                       uint3 volume_size, bool mid_point, BlockArrangement* ba)
 {
     cudaArray* fnp1s[] = {fnp1_x, fnp1_y, fnp1_z};
     cudaArray* fns[] = {fn_x, fn_y, fn_z};
@@ -517,4 +514,5 @@ void LaunchAdvectVectorField(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                    vel_z, cell_size, time_step, dissipation,
                                    volume_size, mid_point, ba);
     }
+}
 }

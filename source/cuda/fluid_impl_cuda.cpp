@@ -69,15 +69,17 @@ void FluidImplCuda::AdvectScalarField(cudaArray* fnp1, cudaArray* fn,
                                       const glm::ivec3& volume_size)
 {
     if (staggered_)
-        LaunchAdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z, aux,
+        kern_launcher::AdvectScalarFieldStaggered(fnp1, fn, vel_x, vel_y, vel_z,
+                                                  aux, cell_size_, time_step,
+                                                  dissipation, advect_method_,
+                                                  FromGlmVector(volume_size),
+                                                  mid_point_, ba_);
+    else
+        kern_launcher::AdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux,
                                          cell_size_, time_step, dissipation,
                                          advect_method_,
                                          FromGlmVector(volume_size), mid_point_,
                                          ba_);
-    else
-        LaunchAdvectScalarField(fnp1, fn, vel_x, vel_y, vel_z, aux, cell_size_,
-                                time_step, dissipation, advect_method_,
-                                FromGlmVector(volume_size), mid_point_, ba_);
 }
 
 void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
@@ -93,25 +95,29 @@ void FluidImplCuda::AdvectVectorFields(cudaArray* fnp1_x, cudaArray* fnp1_y,
                                  FromGlmVector(volume_size), ba_);
     if (staggered_) {
         if (field == VECTOR_FIELD_VELOCITY) {
-            LaunchAdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
-                                          fn_z, vel_x, vel_y, vel_z, aux,
-                                          cell_size_, time_step, 0.0f,
-                                          advect_method_,
-                                          FromGlmVector(volume_size),
-                                          mid_point_, ba_);
+            kern_launcher::AdvectVelocityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x,
+                                                   fn_y, fn_z, vel_x, vel_y,
+                                                   vel_z, aux, cell_size_,
+                                                   time_step, 0.0f,
+                                                   advect_method_,
+                                                   FromGlmVector(volume_size),
+                                                   mid_point_, ba_);
         } else if (field == VECTOR_FIELD_VORTICITY) {
-            LaunchAdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
-                                           fn_z, vel_x, vel_y, vel_z, aux,
-                                           cell_size_, time_step, dissipation,
-                                           advect_method_,
-                                           FromGlmVector(volume_size),
-                                           mid_point_, ba_);
+            kern_launcher::AdvectVorticityStaggered(fnp1_x, fnp1_y, fnp1_z,
+                                                    fn_x, fn_y, fn_z, vel_x,
+                                                    vel_y, vel_z, aux,
+                                                    cell_size_, time_step,
+                                                    dissipation, advect_method_,
+                                                    FromGlmVector(volume_size),
+                                                    mid_point_, ba_);
         }
     } else {
-        LaunchAdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y, fn_z, vel_x,
-                                vel_y, vel_z, aux, cell_size_, time_step,
-                                0.0f, advect_method_,
-                                FromGlmVector(volume_size), mid_point_, ba_);
+        kern_launcher::AdvectVectorField(fnp1_x, fnp1_y, fnp1_z, fn_x, fn_y,
+                                         fn_z, vel_x, vel_y, vel_z, aux,
+                                         cell_size_, time_step, 0.0f,
+                                         advect_method_,
+                                         FromGlmVector(volume_size), mid_point_,
+                                         ba_);
     }
 }
 
@@ -139,12 +145,12 @@ void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
                                  float vel_value, float d_value, float t_value,
                                  const glm::ivec3& volume_size)
 {
-    LaunchImpulseScalar(
+    kern_launcher::ImpulseScalar(
         d_np1, density,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, d_value, impulse_, FromGlmVector(volume_size), ba_);
-    LaunchImpulseScalar(
+    kern_launcher::ImpulseScalar(
         t_np1, temperature,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z), radius,
@@ -164,9 +170,9 @@ void FluidImplCuda::ApplyVorticityConfinement(cudaArray* vel_x,
                                               cudaArray* conf_z,
                                               const glm::ivec3& volume_size)
 {
-    LaunchApplyVorticityConfinementStaggered(vel_x, vel_y, vel_z, conf_x,
-                                             conf_y, conf_z,
-                                             FromGlmVector(volume_size), ba_);
+    kern_launcher::ApplyVorticityConfinementStaggered(
+        vel_x, vel_y, vel_z, conf_x, conf_y, conf_z, FromGlmVector(volume_size),
+        ba_);
 }
 
 void FluidImplCuda::BuildVorticityConfinement(cudaArray* conf_x,
@@ -177,9 +183,9 @@ void FluidImplCuda::BuildVorticityConfinement(cudaArray* conf_x,
                                               cudaArray* vort_z, float coeff,
                                               const glm::ivec3& volume_size)
 {
-    LaunchBuildVorticityConfinementStaggered(conf_x, conf_y, conf_z, vort_x,
-                                             vort_y, vort_z, coeff, cell_size_,
-                                             FromGlmVector(volume_size), ba_);
+    kern_launcher::BuildVorticityConfinementStaggered(
+        conf_x, conf_y, conf_z, vort_x, vort_y, vort_z, coeff, cell_size_,
+        FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeCurl(cudaArray* vort_x, cudaArray* vort_y,
@@ -187,9 +193,9 @@ void FluidImplCuda::ComputeCurl(cudaArray* vort_x, cudaArray* vort_y,
                                 cudaArray* vel_y, cudaArray* vel_z,
                                 const glm::ivec3& volume_size)
 {
-    LaunchComputeCurlStaggered(vort_x, vort_y, vort_z, vel_x, vel_y,
-                               vel_z, cell_size_, FromGlmVector(volume_size),
-                               ba_);
+    kern_launcher::ComputeCurlStaggered(vort_x, vort_y, vort_z, vel_x, vel_y,
+                                        vel_z, cell_size_,
+                                        FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeDivergence(cudaArray* div, cudaArray* vel_x,
@@ -220,7 +226,7 @@ void FluidImplCuda::ReviseDensity(cudaArray* density,
                                   const glm::vec3& center_point, float radius,
                                   float value, const glm::ivec3& volume_size)
 {
-    LaunchImpulseDensity(
+    kern_launcher::ImpulseDensity(
         density, density,
         make_float3(center_point.x, center_point.y, center_point.z), radius,
         value, impulse_, FromGlmVector(volume_size), ba_);
@@ -240,8 +246,8 @@ void FluidImplCuda::AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y,
                                cudaArray* psi_y, cudaArray* psi_z,
                                const glm::ivec3& volume_size)
 {
-    LaunchAddCurlPsi(vel_x, vel_y, vel_z, psi_x, psi_y, psi_z, cell_size_,
-                     FromGlmVector(volume_size), ba_);
+    kern_launcher::AddCurlPsi(vel_x, vel_y, vel_z, psi_x, psi_y, psi_z,
+                              cell_size_, FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ComputeDeltaVorticity(cudaArray* delta_x,
@@ -251,9 +257,9 @@ void FluidImplCuda::ComputeDeltaVorticity(cudaArray* delta_x,
                                           cudaArray* vort_y, cudaArray* vort_z,
                                           const glm::ivec3& volume_size)
 {
-    LaunchComputeDeltaVorticity(delta_x, delta_y, delta_z, vort_x,
-                                vort_y, vort_z, FromGlmVector(volume_size),
-                                ba_);
+    kern_launcher::ComputeDeltaVorticity(delta_x, delta_y, delta_z, vort_x,
+                                         vort_y, vort_z,
+                                         FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::DecayVortices(cudaArray* vort_x, cudaArray* vort_y,
@@ -261,8 +267,9 @@ void FluidImplCuda::DecayVortices(cudaArray* vort_x, cudaArray* vort_y,
                                   float time_step,
                                   const glm::ivec3& volume_size)
 {
-    LaunchDecayVorticesStaggered(vort_x, vort_y, vort_z, div, time_step,
-                                 FromGlmVector(volume_size), ba_);
+    kern_launcher::DecayVorticesStaggered(vort_x, vort_y, vort_z, div,
+                                          time_step, FromGlmVector(volume_size),
+                                          ba_);
 }
 
 void FluidImplCuda::StretchVortices(cudaArray* vnp1_x, cudaArray* vnp1_y,
@@ -272,9 +279,10 @@ void FluidImplCuda::StretchVortices(cudaArray* vnp1_x, cudaArray* vnp1_y,
                                     cudaArray* vort_z, float time_step,
                                     const glm::ivec3& volume_size)
 {
-    LaunchStretchVorticesStaggered(vnp1_x, vnp1_y, vnp1_z, vel_x, vel_y, vel_z,
-                                   vort_x, vort_y, vort_z, cell_size_,
-                                   time_step, FromGlmVector(volume_size), ba_);
+    kern_launcher::StretchVorticesStaggered(vnp1_x, vnp1_y, vnp1_z, vel_x,
+                                            vel_y, vel_z, vort_x, vort_y,
+                                            vort_z, cell_size_, time_step,
+                                            FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::RoundPassed(int round)

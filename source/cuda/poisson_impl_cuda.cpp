@@ -91,23 +91,24 @@ void PoissonImplCuda::Restrict(cudaArray* coarse, cudaArray* fine,
 void PoissonImplCuda::ApplyStencil(cudaArray* aux, cudaArray* search,
                                    const glm::ivec3& volume_size)
 {
-    LaunchApplyStencil(aux, search, outflow_, FromGlmVector(volume_size), ba_);
+    kern_launcher::ApplyStencil(aux, search, outflow_,
+                                FromGlmVector(volume_size), ba_);
 }
 
 void PoissonImplCuda::ComputeAlpha(const MemPiece& alpha, const MemPiece& rho,
                                    cudaArray* aux, cudaArray* search,
                                    const glm::ivec3& volume_size)
 {
-    LaunchComputeAlpha(alpha, rho, aux, search, FromGlmVector(volume_size), ba_,
-                       bm_);
+    kern_launcher::ComputeAlpha(alpha, rho, aux, search,
+                                FromGlmVector(volume_size), ba_, bm_);
 }
 
 void PoissonImplCuda::ComputeRho(const MemPiece& rho, cudaArray* search,
                                  cudaArray* residual,
                                  const glm::ivec3& volume_size)
 {
-    LaunchComputeRho(rho, search, residual, FromGlmVector(volume_size), ba_,
-                     bm_);
+    kern_launcher::ComputeRho(rho, search, residual, FromGlmVector(volume_size),
+                              ba_, bm_);
 }
 
 void PoissonImplCuda::ComputeRhoAndBeta(const MemPiece& beta,
@@ -116,13 +117,14 @@ void PoissonImplCuda::ComputeRhoAndBeta(const MemPiece& beta,
                                         cudaArray* residual,
                                         const glm::ivec3& volume_size)
 {
-    LaunchComputeRhoAndBeta(beta, rho_new, rho, aux, residual,
-                            FromGlmVector(volume_size), ba_, bm_);
+    kern_launcher::ComputeRhoAndBeta(beta, rho_new, rho, aux, residual,
+                                     FromGlmVector(volume_size), ba_, bm_);
 }
 
 void PoissonImplCuda::ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
                                 const MemPiece& coef, float sign,
                                 const glm::ivec3& volume_size)
 {
-    LaunchScaledAdd(dest, v0, v1, coef, sign, FromGlmVector(volume_size), ba_);
+    kern_launcher::ScaledAdd(dest, v0, v1, coef, sign,
+                             FromGlmVector(volume_size), ba_);
 }
