@@ -120,6 +120,7 @@
     <ClInclude Include="renderer\renderer.h" />
     <ClInclude Include="renderer\rendering.h" />
     <ClInclude Include="renderer\volume_renderer.h" />
+    <ClInclude Include="scene.h" />
     <ClInclude Include="shader\fluid_shader.h" />
     <ClInclude Include="shader\multigrid_shader.h" />
     <ClInclude Include="shader\overlay_shader.h" />
@@ -158,6 +159,7 @@
     <ClCompile Include="renderer\blob_renderer.cpp" />
     <ClCompile Include="renderer\renderer.cpp" />
     <ClCompile Include="renderer\volume_renderer.cpp" />
+    <ClCompile Include="scene.cpp" />
     <ClCompile Include="shader\fluid_shader.cpp" />
     <ClCompile Include="shader\multigrid_shader.cpp" />
     <ClCompile Include="shader\overlay_shader.cpp" />
