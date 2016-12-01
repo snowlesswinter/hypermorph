@@ -54,7 +54,6 @@ __global__ void HotFloorKernel(float3 center_point, float3 hotspot,
     if (d < radius) {
         surf3Dwrite(__float2half_rn(value), surf, x * sizeof(ushort), y, z,
                     cudaBoundaryModeTrap);
-        return;
     }
 }
 
@@ -89,13 +88,11 @@ __global__ void GenerateHeatSphereKernel(float3 center_point, float radius,
         return;
 
     float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 diff = make_float3(coord.x, coord.y, coord.z) -
-        make_float3(center_point.x, center_point.y, center_point.z);
+    float3 diff = coord - center_point;
     float d = norm3df(diff.x, diff.y, diff.z);
     if (d < radius && d > radius * 0.6f) {
         surf3Dwrite(__float2half_rn(value), surf,
                     x * sizeof(ushort), y, z, cudaBoundaryModeTrap);
-        return;
     }
 }
 
@@ -116,11 +113,25 @@ __global__ void BuoyantJetKernel(float3 hotspot, float radius, float value,
     if (d < radius) {
         surf3Dwrite(__float2half_rn(value), surf, x * sizeof(ushort), y, z,
                     cudaBoundaryModeTrap);
-        return;
     }
 }
 
-__global__ void ImpulseVelocitySphereKernel(float3 center_point, float radius,
+__device__ bool ImpulseVelField(float3* vel, const float3& coord,
+                                const float3& offset, const float3& center,
+                                float radius, float value)
+{
+    float3 vel_c = coord + offset;
+    float3 dir = vel_c - center;
+    float d = norm3df(dir.x, dir.y, dir.z);
+    if (d <= radius) {
+        *vel = normalize(dir) * value;
+        return true;
+    }
+
+    return false;
+}
+
+__global__ void ImpulseVelocitySphereKernel(float3 center, float radius,
                                             float value, uint3 volume_size)
 {
     int x = VolumeX();
@@ -130,19 +141,25 @@ __global__ void ImpulseVelocitySphereKernel(float3 center_point, float radius,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
-    float3 coord = make_float3(x, y, z) + 0.5f;
-    float3 dir = coord - center_point;
-    float d = norm3df(dir.x, dir.y, dir.z);
-    if (d < radius) {
-        float3 vel = normalize(dir) * value;
+    float3 coord = make_float3(x, y, z);
 
+    float3 vel;
+    if (ImpulseVelField(&vel, coord, make_float3(0.0f, 0.5f, 0.5f), center,
+                        radius, value)) {
         auto r_x = __float2half_rn(vel.x);
         surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
+    }
+        
+    if (ImpulseVelField(&vel, coord, make_float3(0.5f, 0.0f, 0.5f), center,
+                        radius, value)) {
         auto r_y = __float2half_rn(vel.y);
         surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
+    }
+
+    if (ImpulseVelField(&vel, coord, make_float3(0.5f, 0.5f, 0.0f), center,
+                        radius, value)) {
         auto r_z = __float2half_rn(vel.z);
         surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
-        return;
     }
 }
 
@@ -236,8 +253,7 @@ void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
             if (BindCudaSurfaceToArray(&surf_z, vnp1_z) != cudaSuccess)
                 return;
 
-            uint3 actual_size = volume_size;
-            actual_size.y = static_cast<uint>(std::ceil(radius + center.y));
+            uint3 actual_size = volume_size; // TODO
 
             dim3 grid;
             dim3 block;

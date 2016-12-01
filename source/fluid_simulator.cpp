@@ -146,7 +146,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     glm::vec3 pos =
         FluidConfig::Instance()->emit_position() * glm::vec3(grid_size_);
     double ¦Ð = 3.1415926;
-    float splat_radius = grid_size_.x * radius_factor;
+    float splat_radius = std::min(grid_size_.x, grid_size_.y) * radius_factor;
     float sin_factor = static_cast<float>(sin(seconds_elapsed * 0.5 * ¦Ð));
     float cos_factor = static_cast<float>(cos(seconds_elapsed * 0.5 * ¦Ð));
     float hotspot_x = pos.x; //cos_factor * splat_radius * 0.8f + pos.x;
