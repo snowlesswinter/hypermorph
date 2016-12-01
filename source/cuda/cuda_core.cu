@@ -174,9 +174,9 @@ void ClearVolume(cudaArray* dest_array, const float4& value,
     if (result != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeRowScan(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeRowScan(&grid, &block, volume_size);
 
     assert(IsCompliant(desc));
     if (desc.x == 16 && desc.y == 0 && desc.z == 0 && desc.w == 0 &&

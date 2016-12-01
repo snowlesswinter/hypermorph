@@ -40,10 +40,10 @@ public:
     void ArrangeLinearReduction(dim3* grid, dim3* block, int* num_of_blocks,
                                 int* np2_last_block, int* elements_last_block,
                                 int* threads_last_block, int num_of_elements);
-    void ArrangePrefer3dLocality(dim3* block, dim3* grid,
+    void ArrangePrefer3dLocality(dim3* grid, dim3* block,
                                  const uint3& volume_size);
-    void ArrangeRowScan(dim3* block, dim3* grid, const uint3& volume_size);
-    void ArrangeSequential(dim3* block, dim3* grid, const uint3& volume_size);
+    void ArrangeRowScan(dim3* grid, dim3* block, const uint3& volume_size);
+    void ArrangeSequential(dim3* grid, dim3* block, const uint3& volume_size);
 
     // TODO: Kernel strategy?
     int GetSharedMemPerSMInKB() const;

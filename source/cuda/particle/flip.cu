@@ -601,9 +601,9 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             uint3 actual_size = volume_size;
             actual_size.y = static_cast<uint>(std::ceil(kHeatLayerThickness));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             EmitParticlesKernel<VerticalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
@@ -613,9 +613,9 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             uint3 actual_size = volume_size;
             actual_size.y = static_cast<uint>(std::ceil(radius + center.y));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             EmitParticlesFromSphereKernel<<<grid, block>>>(
                 particles, center, radius, density, temperature, velocity.x,
                 random_seed, volume_size);
@@ -626,9 +626,9 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             uint3 actual_size = volume_size;
             actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             EmitParticlesKernel<HorizontalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
@@ -720,9 +720,9 @@ void Resample(const FlipParticles& particles, cudaArray* vel_x,
     if (bound_t.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     ResampleKernel<<<grid, block>>>(particles, random_seed, volume_size);
     DCHECK_KERNEL();
 }

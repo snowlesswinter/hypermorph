@@ -492,9 +492,9 @@ void ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
                                                       accel_factor, gravity,
                                                       volume_size);
     } else {
-        dim3 block;
         dim3 grid;
-        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+        dim3 block;
+        ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
         ApplyBuoyancyKernel<<<grid, block>>>(time_step, ambient_temperature,
                                              accel_factor, gravity,
                                              volume_size);
@@ -532,9 +532,9 @@ void ComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
 
     if (staggered) {
         InvokeKernel<ComputeDivergenceStaggeredKernelMeta>(
@@ -574,9 +574,9 @@ void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b,
     if (!bound_b.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
 
     InvokeKernel<ComputeResidualDiagnosisKernelMeta>(
         bound_u, grid, block, 1.0f / (cell_size * cell_size), volume_size);
@@ -612,9 +612,9 @@ void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     if (BindCudaSurfaceToArray(&surf_z, vel_z) != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeRowScan(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeRowScan(&grid, &block, volume_size);
     DecayVelocityKernel<<<grid, block>>>(
         1.0f - velocity_dissipation * time_step, volume_size);
 
@@ -660,9 +660,9 @@ void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     if (!bound.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
 
     if (staggered)
         InvokeKernel<SubtractGradientStaggeredKernelMeta>(bound, grid, block,

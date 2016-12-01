@@ -291,9 +291,9 @@ void ApplyStencil(cudaArray* aux, cudaArray* search, bool outflow,
     if (!bound.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeRowScan(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeRowScan(&grid, &block, volume_size);
 
     InvokeKernel<ApplyStencilKernelMeta>(bound, grid, block, volume_size,
                                          outflow);
@@ -383,9 +383,9 @@ void ScaledAdd(cudaArray* dest, cudaArray* v0, cudaArray* v1,
     if (!bound_1.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeRowScan(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeRowScan(&grid, &block, volume_size);
     if (v0) {
         auto bound_0 = SelectiveBind(v0, false, cudaFilterModePoint,
                                      cudaAddressModeClamp, &tex_0, &texf_0,

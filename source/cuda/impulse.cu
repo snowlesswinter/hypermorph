@@ -164,9 +164,9 @@ void ImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point,
             uint3 actual_size = volume_size;
             actual_size.y = static_cast<uint>(std::ceil(kHeatLayerThickness));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             HotFloorKernel<<<grid, block>>>(center_point, hotspot, radius,
                                             value, volume_size);
             break;
@@ -176,9 +176,9 @@ void ImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point,
             actual_size.y = static_cast<uint>(
                 std::ceil(radius + center_point.y));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             GenerateHeatSphereKernel<<<grid, block>>>(center_point, radius,
                                                       value, volume_size);
             break;
@@ -188,9 +188,9 @@ void ImpulseScalar(cudaArray* dest, cudaArray* original, float3 center_point,
             uint3 actual_size = volume_size;
             actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             BuoyantJetKernel<<<grid, block>>>(center_point, radius, value,
                                               volume_size);
             break;
@@ -239,9 +239,9 @@ void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
             uint3 actual_size = volume_size;
             actual_size.y = static_cast<uint>(std::ceil(radius + center.y));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             ImpulseVelocitySphereKernel<<<grid, block>>>(center, radius, value,
                                                          volume_size);
             break;
@@ -254,9 +254,9 @@ void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
             uint3 actual_size = volume_size;
             actual_size.x = static_cast<uint>(std::ceil(kHeatLayerThickness));
 
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, actual_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, actual_size);
             BuoyantJetKernel<<<grid, block>>>(center, radius, value,
                                               volume_size);
             break;

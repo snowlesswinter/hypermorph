@@ -422,9 +422,9 @@ void AddCurlPsi(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     AddCurlPsiKernel<<<grid, block>>>(1.0f / cell_size, volume_size);
 }
 
@@ -475,9 +475,9 @@ void ApplyVorticityConfinementStaggered(cudaArray* vel_x, cudaArray* vel_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     ApplyVorticityConfinementStaggeredKernel<<<grid, block>>>(volume_size);
 }
 
@@ -511,9 +511,9 @@ void BuildVorticityConfinementStaggered(cudaArray* conf_x, cudaArray* conf_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     BuildVorticityConfinementStaggeredKernel<<<grid, block>>>(coeff, cell_size,
                                                               0.5f / cell_size,
                                                               volume_size);
@@ -566,9 +566,9 @@ void ComputeCurlStaggered(cudaArray* vort_x, cudaArray* vort_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     ComputeCurlStaggeredKernel<<<grid, block>>>(volume_size, 1.0f / cell_size);
 }
 
@@ -616,9 +616,9 @@ void ComputeDeltaVorticity(cudaArray* delta_x, cudaArray* delta_y,
     if (bound_zp.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     ComputeDeltaVorticityKernel<<<grid, block>>>(volume_size);
 }
 
@@ -655,9 +655,9 @@ void DecayVorticesStaggered(cudaArray* vort_x, cudaArray* vort_y,
     if (bound_z.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     DecayVorticesStaggeredKernel<<<grid, block>>>(time_step, volume_size);
 }
 
@@ -713,9 +713,9 @@ void StretchVorticesStaggered(cudaArray* vnp1_x, cudaArray* vnp1_y,
 
     float scale = time_step / (cell_size * 2.0f);
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     StretchVorticesStaggeredKernel<<<grid, block>>>(scale, volume_size);
 }
 }

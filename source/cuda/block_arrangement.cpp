@@ -118,10 +118,10 @@ void BlockArrangement::ArrangeLinearReduction(dim3* grid, dim3* block,
         *threads_last_block = threads_last_block_temp;
 }
 
-void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
+void BlockArrangement::ArrangePrefer3dLocality(dim3* grid, dim3* block,
                                                const uint3& volume_size)
 {
-    if (!block || !grid)
+    if (!grid || !block)
         return;
 
     int bw = 8;
@@ -132,10 +132,10 @@ void BlockArrangement::ArrangePrefer3dLocality(dim3* block, dim3* grid,
                  (volume_size.z + bd - 1) / bd);
 }
 
-void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
+void BlockArrangement::ArrangeRowScan(dim3* grid, dim3* block, 
                                       const uint3& volume_size)
 {
-    if (!block || !grid || !volume_size.x)
+    if (!grid || !block || !volume_size.x)
         return;
 
     int max_threads = dev_prop_->maxThreadsPerBlock >> 1;
@@ -150,7 +150,7 @@ void BlockArrangement::ArrangeRowScan(dim3* block, dim3* grid,
                  (volume_size.z + bd - 1) / bd);
 }
 
-void BlockArrangement::ArrangeSequential(dim3* block, dim3* grid,
+void BlockArrangement::ArrangeSequential(dim3* grid, dim3* block,
                                          const uint3& volume_size)
 {
     if (!block || !grid || !volume_size.x)

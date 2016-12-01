@@ -173,9 +173,9 @@ void ReduceVolume(FPType* dest, const DataScheme& scheme, uint3 volume_size,
 {
     uint total_elements = volume_size.x * volume_size.y * volume_size.z;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeSequential(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeSequential(&grid, &block, volume_size);
 
     std::unique_ptr<FPType, std::function<void(void*)>> block_results(
         reinterpret_cast<FPType*>(bm->Allocate(grid.x * sizeof(FPType))),

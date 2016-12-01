@@ -1470,9 +1470,9 @@ void TransferToGrid_naive(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
     if (BindCudaSurfaceToArray(&surf_t, temperature) != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     TransferToGridKernel<<<grid, block>>>(particles, volume_size);
     DCHECK_KERNEL();
 }
@@ -1556,8 +1556,8 @@ void TransferToGrid_smem(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
         temperature,
     };
 
-    dim3 block;
     dim3 grid;
+    dim3 block;
     int smem = 1;
     if (smem) {
         dim3 block(32, 6, 1);
@@ -1576,7 +1576,7 @@ void TransferToGrid_smem(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
             DCHECK_KERNEL();
         }
     } else {
-        ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+        ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
         for (int i = 0; i < sizeof(fields) / sizeof(*fields); i++) {
             if (BindCudaSurfaceToArray(&surf, surfs[i]) != cudaSuccess)
                 return;

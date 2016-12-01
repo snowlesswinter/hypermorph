@@ -294,9 +294,9 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
     if (bound_vz.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     for (int i = 0; i < num_of_fields; i++) {
         // Pass 1: Calculate ¦Õ_n_plus_1_hat, and store in |fnp1[i]|.
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
@@ -384,9 +384,9 @@ void AdvectFieldsMacCormack(cudaArray** fnp1, cudaArray** fn,
     if (bound_a.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     for (int i = 0; i < num_of_fields; i++) {
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
@@ -442,9 +442,9 @@ void AdvectFieldsSemiLagrangian(cudaArray** fnp1, cudaArray** fn,
     if (bound_vz.error() != cudaSuccess)
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     for (int i = 0; i < num_of_fields; i++) {
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;

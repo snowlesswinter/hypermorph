@@ -727,16 +727,16 @@ void RelaxDampedJacobi(cudaArray* unp1, cudaArray* un, cudaArray* b,
                     omega_over_beta, 0, 2, 1, volume_size.z, volume_size);
             
         } else if (smem) {
-            dim3 block;
             dim3 grid;
-            ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+            dim3 block;
+            ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
             DampedJacobiKernel_smem_assist_thread<<<grid, block>>>(
                 omega_over_beta);
         } else {
             float omega = 2.0f / 3.0f;
-            dim3 block;
             dim3 grid;
-            ba->ArrangeRowScan(&block, &grid, volume_size);
+            dim3 block;
+            ba->ArrangeRowScan(&grid, &block, volume_size);
             InvokeKernel<DampedJacobiKernelMeta>(bound_u, grid, block, omega,
                                                  volume_size, outflow);
         }
@@ -766,9 +766,9 @@ void RelaxRedBlackGaussSeidel(cudaArray* unp1, cudaArray* un, cudaArray* b,
 
     uint3 half_size = volume_size;
     half_size.x /= 2;
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, half_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, half_size);
 
     for (int i = 0; i < num_of_iterations; i++) {
         InvokeKernel<RelaxRedBlackGaussSeidelKernelMeta>(bound_u,  grid, block,
@@ -810,9 +810,9 @@ void RelaxWithZeroGuess(cudaArray* u, cudaArray* b, uint3 volume_size,
     if (!bound.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
 
     InvokeKernel<RelaxWithZeroGuessKernelMeta>(bound, grid, block, omega, coef,
                                                omega_over_beta, volume_size);

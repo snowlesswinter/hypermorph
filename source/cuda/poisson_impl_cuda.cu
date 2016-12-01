@@ -173,9 +173,9 @@ void ComputeResidual(cudaArray* r, cudaArray* u, cudaArray* b,
     if (!bound_b.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangeRowScan(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangeRowScan(&grid, &block, volume_size);
 
     InvokeKernel<ComputeResidualKernelMeta>(bound_u, grid, block, volume_size);
     DCHECK_KERNEL();
@@ -192,9 +192,9 @@ void Prolongate(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine,
     if (!bound_coarse.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size_fine);
     InvokeKernel<ProlongateLerpKernelMeta>(bound_coarse, grid, block,
                                            volume_size_fine);
     DCHECK_KERNEL();
@@ -217,9 +217,9 @@ void ProlongateError(cudaArray* fine, cudaArray* coarse, uint3 volume_size_fine,
     if (!bound_fine.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size_fine);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size_fine);
     InvokeKernel<ProlongateErrorLerpKernelMeta>(bound_coarse, grid, block,
                                                 volume_size_fine);
     DCHECK_KERNEL();
@@ -236,9 +236,9 @@ void Restrict(cudaArray* coarse, cudaArray* fine, uint3 volume_size,
     if (!bound.Succeeded())
         return;
 
-    dim3 block;
     dim3 grid;
-    ba->ArrangePrefer3dLocality(&block, &grid, volume_size);
+    dim3 block;
+    ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     InvokeKernel<RestrictLerpKernelMeta>(bound, grid, block, volume_size);
     DCHECK_KERNEL();
 }
