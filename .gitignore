@@ -12,3 +12,4 @@
 /*.user
 /cuda/*.user
 /source/cuda/*.user
+*.user

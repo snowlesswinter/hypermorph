@@ -48,7 +48,8 @@ public:
     void NotifyConfigChanged();
     void StartImpulsing(float x, float y);
     void StopImpulsing();
-    void Update(float delta_time, double seconds_elapsed, int frame_count);
+    void Update(float delta_time, double seconds_elapsed, int frame_count,
+                const glm::vec3* source);
     void UpdateImpulsing(float x, float y);
 
     FluidBufferOwner* buf_owner() const { return buf_owner_; }

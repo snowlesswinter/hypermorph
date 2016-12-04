@@ -35,6 +35,7 @@
 #include "overlay_content.h"
 #include "renderer/blob_renderer.h"
 #include "renderer/volume_renderer.h"
+#include "scene.h"
 #include "shader/fluid_shader.h"
 #include "shader/raycast_shader.h"
 #include "third_party/glm/gtc/matrix_transform.hpp"
@@ -56,6 +57,7 @@ FluidSimulator* sim_ = nullptr;
 Renderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 glm::ivec2 viewport_size_(0);
+Scene* scene_;
 
 
 struct
@@ -172,9 +174,12 @@ void UpdateFrame(unsigned int microseconds)
     frame_count++;
 
     if (simulate_fluid_) {
+        scene_->Advance(FluidConfig::Instance()->fixed_time_step());
+        glm::vec3 pos = scene_->GetDancerPos();
+
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
-        sim_->Update(delta_time, time_elapsed, frame_count);
+        sim_->Update(delta_time, time_elapsed, frame_count, &pos);
     }
 }
 
@@ -458,6 +463,10 @@ void TimerProc(int value)
 
 bool Initialize()
 {
+    scene_ = new Scene();
+    if (!scene_->Init())
+        return false;
+
     if (!ResetSimulator())
         return false;
 

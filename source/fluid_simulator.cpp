@@ -125,7 +125,7 @@ void FluidSimulator::StopImpulsing()
 }
 
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
-                            int frame_count)
+                            int frame_count, const glm::vec3* source)
 {
     int debug = 0;
     if (debug) {
@@ -180,6 +180,9 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         pos.y = splat_radius + grid_size_.y * 0.2f;
         impulse_temperature = 0.0f;
     }
+
+    if (source)
+        pos = *source * glm::vec3(grid_size_);
 
     if (do_impulse)
         fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,

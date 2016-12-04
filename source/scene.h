@@ -24,13 +24,19 @@
 
 #include <memory>
 
+#include "third_party/glm/fwd.hpp"
+
 class Scene
 {
 public:
     Scene();
     ~Scene();
 
+    void Advance(float time_step);
     bool Init();
+
+    // TODO:
+    glm::vec3 GetDancerPos() const;
 
 private:
     class Dancer;
