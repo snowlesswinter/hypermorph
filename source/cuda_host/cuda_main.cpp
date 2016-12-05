@@ -31,6 +31,7 @@
 #include "cuda/mem_piece.h"
 #include "cuda/particle/flip.h"
 #include "cuda/particle/flip_impl_cuda.h"
+#include "cuda/particle/particle_impl_cuda.h"
 #include "cuda/poisson_impl_cuda.h"
 #include "cuda_mem_piece.h"
 #include "cuda_volume.h"
@@ -135,6 +136,19 @@ public:
     }
 };
 
+class CudaMain::ParticleObserver : public ParticleImplCuda::Observer
+{
+public:
+    virtual void OnEmitted() override
+    {
+        //Metrics::Instance()->OnParticleEmitted();
+    }
+    virtual void OnAdvected() override
+    {
+        //Metrics::Instance()->OnParticleAdvected();
+    }
+};
+
 CudaMain* CudaMain::Instance()
 {
     static CudaMain* instance = nullptr;
@@ -162,6 +176,10 @@ CudaMain::CudaMain()
     , flip_impl_(
         new FlipImplCuda(flip_ob_.get(), core_->block_arrangement(),
                          core_->buffer_manager(), core_->rand_helper()))
+    , particle_ob_(std::make_shared<ParticleObserver>())
+    , particle_impl_(
+        new ParticleImplCuda(particle_ob_.get(), core_->block_arrangement(),
+                             core_->buffer_manager(), core_->rand_helper()))
     , registerd_textures_()
     , registerd_buffers_()
 {
@@ -573,31 +591,31 @@ void CudaMain::StretchVortices(std::shared_ptr<CudaVolume> vnp1_x,
                                  vnp1_x->size());
 }
 
-void CudaMain::EmitParticles(FlipParticles* particles,
-                             const glm::vec3& center_point,
-                             const glm::vec3& hotspot, float radius,
-                             float density, float temperature,
-                             const glm::vec3& velocity,
-                             const glm::ivec3& volume_size)
+void CudaMain::EmitFlipParticles(FlipParticles* particles,
+                                 const glm::vec3& center_point,
+                                 const glm::vec3& hotspot, float radius,
+                                 float density, float temperature,
+                                 const glm::vec3& velocity,
+                                 const glm::ivec3& volume_size)
 {
     flip_impl_->Emit(ToCudaFlipParticles(*particles), center_point, hotspot,
                      radius, density, temperature, velocity, volume_size);
 }
 
-void CudaMain::MoveParticles(FlipParticles* particles,
-                             int* num_active_particles,
-                             const FlipParticles* aux,
-                             std::shared_ptr<CudaVolume> vnp1_x,
-                             std::shared_ptr<CudaVolume> vnp1_y,
-                             std::shared_ptr<CudaVolume> vnp1_z,
-                             std::shared_ptr<CudaVolume> vn_x,
-                             std::shared_ptr<CudaVolume> vn_y,
-                             std::shared_ptr<CudaVolume> vn_z,
-                             std::shared_ptr<CudaVolume> density,
-                             std::shared_ptr<CudaVolume> temperature,
-                             float velocity_dissipation,
-                             float density_dissipation,
-                             float temperature_dissipation, float time_step)
+void CudaMain::MoveFlipParticles(FlipParticles* particles,
+                                 int* num_active_particles,
+                                 const FlipParticles* aux,
+                                 std::shared_ptr<CudaVolume> vnp1_x,
+                                 std::shared_ptr<CudaVolume> vnp1_y,
+                                 std::shared_ptr<CudaVolume> vnp1_z,
+                                 std::shared_ptr<CudaVolume> vn_x,
+                                 std::shared_ptr<CudaVolume> vn_y,
+                                 std::shared_ptr<CudaVolume> vn_z,
+                                 std::shared_ptr<CudaVolume> density,
+                                 std::shared_ptr<CudaVolume> temperature,
+                                 float velocity_dissipation,
+                                 float density_dissipation,
+                                 float temperature_dissipation, float time_step)
 {
     flip_impl_->Advect(ToCudaFlipParticles(*particles), num_active_particles,
                        ToCudaFlipParticles(*aux), vnp1_x->dev_array(),
@@ -608,10 +626,48 @@ void CudaMain::MoveParticles(FlipParticles* particles,
                        temperature_dissipation, vnp1_x->size());
 }
 
-void CudaMain::ResetParticles(FlipParticles* particles,
-                              const glm::ivec3& volume_size)
+void CudaMain::ResetFlipParticles(FlipParticles* particles,
+                                  const glm::ivec3& volume_size)
 {
     flip_impl_->Reset(ToCudaFlipParticles(*particles), volume_size);
+}
+
+void CudaMain::EmitParticles(std::shared_ptr<CudaLinearMemU16> pos_x,
+                             std::shared_ptr<CudaLinearMemU16> pos_y,
+                             std::shared_ptr<CudaLinearMemU16> pos_z,
+                             std::shared_ptr<CudaLinearMemU16> density,
+                             std::shared_ptr<CudaLinearMemU16> life,
+                             std::shared_ptr<CudaMemPiece> tail,
+                             int num_of_particles, int num_to_emit,
+                             const glm::vec3& location, float radius,
+                             float density_value)
+{
+    particle_impl_->Emit(pos_x->mem(), pos_y->mem(), pos_z->mem(),
+                         density->mem(), life->mem(),
+                         reinterpret_cast<int*>(tail->mem()), num_of_particles,
+                         num_to_emit, location, radius, density_value);
+}
+
+void CudaMain::MoveParticles(std::shared_ptr<CudaLinearMemU16> pos_x,
+                             std::shared_ptr<CudaLinearMemU16> pos_y,
+                             std::shared_ptr<CudaLinearMemU16> pos_z,
+                             std::shared_ptr<CudaLinearMemU16> density,
+                             std::shared_ptr<CudaLinearMemU16> life,
+                             int num_of_particles,
+                             std::shared_ptr<CudaVolume> vel_x,
+                             std::shared_ptr<CudaVolume> vel_y,
+                             std::shared_ptr<CudaVolume> vel_z, float time_step)
+{
+    particle_impl_->Advect(pos_x->mem(), pos_y->mem(), pos_z->mem(),
+                           density->mem(), life->mem(), num_of_particles,
+                           vel_x->dev_array(), vel_y->dev_array(),
+                           vel_z->dev_array(), time_step, vel_x->size());
+}
+
+void CudaMain::ResetParticles(std::shared_ptr<CudaLinearMemU16> life,
+                              int num_of_particles)
+{
+    particle_impl_->Reset(life->mem(), num_of_particles);
 }
 
 bool CudaMain::CopyToVbo(uint32_t point_vbo, uint32_t extra_vbo,
@@ -629,11 +685,12 @@ bool CudaMain::CopyToVbo(uint32_t point_vbo, uint32_t extra_vbo,
     if (i == registerd_buffers_.end() || j == registerd_buffers_.end())
         return false;
 
+    uint16_t* temp_field = temperature ? temperature->mem() : nullptr;
+    int* count = num_of_actives ?
+        reinterpret_cast<int*>(num_of_actives->mem()) : nullptr;
     core_->CopyToVbo(i->second.get(), j->second.get(), pos_x->mem(),
                      pos_y->mem(), pos_z->mem(), density->mem(),
-                     temperature->mem(), crit_density,
-                     reinterpret_cast<int*>(num_of_actives->mem()),
-                     num_of_particles);
+                     temp_field, crit_density, count, num_of_particles);
     return true;
 }
 
@@ -673,12 +730,14 @@ void CudaMain::SetCellSize(float cell_size)
     fluid_impl_->set_cell_size(cell_size);
     poisson_impl_->set_cell_size(cell_size);
     flip_impl_->set_cell_size(cell_size);
+    particle_impl_->set_cell_size(cell_size);
 }
 
 void CudaMain::SetFluidImpulse(FluidImpulse impulse)
 {
     fluid_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
     flip_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
+    particle_impl_->set_fluid_impulse(ToCudaFluidImpulse(impulse));
 }
 
 void CudaMain::SetOutflow(bool outflow)
@@ -686,6 +745,7 @@ void CudaMain::SetOutflow(bool outflow)
     fluid_impl_->set_outflow(outflow);
     poisson_impl_->set_outflow(outflow);
     flip_impl_->set_outflow(outflow);
+    particle_impl_->set_outflow(outflow);
 }
 
 void CudaMain::SetStaggered(bool staggered)

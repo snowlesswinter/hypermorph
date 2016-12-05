@@ -55,6 +55,7 @@ public:
     // Overridden from FluidBufferOwner:
     virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
     virtual GraphicsVolume* GetDensityVolume() override;
+    virtual GraphicsVolume3* GetVelocityField() override;
     virtual GraphicsLinearMemU16* GetParticleDensityField() override;
     virtual GraphicsLinearMemU16* GetParticlePosXField() override;
     virtual GraphicsLinearMemU16* GetParticlePosYField() override;
@@ -95,6 +96,7 @@ private:
     std::unique_ptr<FlipParticles> particles_;
     std::unique_ptr<FlipParticles> particles_aux_;
 
+    bool need_buoyancy_;
     int frame_;
     int num_active_particles_;
 };

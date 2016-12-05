@@ -121,6 +121,7 @@
       <Filter>renderer</Filter>
     </ClInclude>
     <ClInclude Include="scene.h" />
+    <ClInclude Include="particles.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -212,5 +213,6 @@
       <Filter>renderer</Filter>
     </ClCompile>
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="particles.cpp" />
   </ItemGroup>
 </Project>

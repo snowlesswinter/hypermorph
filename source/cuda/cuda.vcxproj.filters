@@ -24,6 +24,12 @@
     </CudaCompile>
     <CudaCompile Include="cuda_volume_renderer.cu" />
     <CudaCompile Include="multi_precision.cu" />
+    <CudaCompile Include="particle\particle_emission.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
+    <CudaCompile Include="particle\particle_advection.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />
@@ -41,6 +47,9 @@
       <Filter>particle</Filter>
     </ClCompile>
     <ClCompile Include="mem_piece.cpp" />
+    <ClCompile Include="particle\particle_impl_cuda.cpp">
+      <Filter>particle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="advection_method.h" />
@@ -69,6 +78,13 @@
     </ClInclude>
     <ClInclude Include="mem_piece.h" />
     <ClInclude Include="multi_precision.cuh" />
+    <ClInclude Include="particle\particle_advection.cuh">
+      <Filter>particle</Filter>
+    </ClInclude>
+    <ClInclude Include="particle\random.cuh" />
+    <ClInclude Include="particle\particle_impl_cuda.h">
+      <Filter>particle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="particle">

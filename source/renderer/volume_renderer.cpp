@@ -92,6 +92,9 @@ void VolumeRenderer::OnViewportSized(const glm::ivec2& viewport_size)
 void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
 {
     if (graphics_lib() == GRAPHICS_LIB_CUDA) {
+        if (!buf_owner->GetDensityVolume())
+            return;
+
         CudaMain::Instance()->Raycast(
             surf_, buf_owner->GetDensityVolume()->cuda_volume(),
             inverse_rotation_proj_, eye_position_,

@@ -34,6 +34,7 @@
 #include "cuda/fluid_impulse.h"
 #include "cuda/particle/flip_common.cuh"
 #include "flip.h"
+#include "random.cuh"
 
 surface<void, cudaSurfaceType3D> surf;
 surface<void, cudaSurfaceType3D> surf_x;
@@ -124,28 +125,6 @@ __device__ uint8_t AtomicIncrementUint8(uint8_t* addr)
     return 0;
 }
 
-__device__ uint Tausworthe(uint z, int s1, int s2, int s3, uint M)
-{
-    uint b = (((z << s1) ^ z) >> s2);
-    return (((z & M) << s3) ^ b);
-}
-
-__device__ float3 RandomCoord(uint* random_seed)
-{
-    uint seed = *random_seed;
-    uint seed0 = Tausworthe(seed,  (blockIdx.x  + 1) & 0xF, (blockIdx.y  + 2) & 0xF, (blockIdx.z  + 3) & 0xF, 0xFFFFFFFE);
-    uint seed1 = Tausworthe(seed0, (threadIdx.x + 1) & 0xF, (threadIdx.y + 2) & 0xF, (threadIdx.z + 3) & 0xF, 0xFFFFFFF8);
-    uint seed2 = Tausworthe(seed1, (threadIdx.y + 1) & 0xF, (threadIdx.z + 2) & 0xF, (threadIdx.x + 3) & 0xF, 0xFFFFFFF0);
-    uint seed3 = Tausworthe(seed2, (threadIdx.z + 1) & 0xF, (threadIdx.x + 2) & 0xF, (threadIdx.y + 3) & 0xF, 0xFFFFFFE0);
-
-    float rand_x = (seed1 & 127) / 129.5918f - 0.49f;
-    float rand_y = (seed2 & 127) / 129.5918f - 0.49f;
-    float rand_z = (seed3 & 127) / 129.5918f - 0.49f;
-
-    *random_seed = seed3;
-    return make_float3(rand_x, rand_y, rand_z);
-}
-
 // =============================================================================
 
 // Fields should be reset: particle_count, in_cell_index
@@ -205,10 +184,11 @@ __global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step,
 
 // Fields should be available: cell_index, particle_count, particle_index.
 template <typename Emission>
-__global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
-                                    float3 hotspot, float radius, float density,
-                                    float temperature, float3 velocity,
-                                    uint random_seed, uint3 volume_size)
+__global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
+                                        float3 hotspot, float radius,
+                                        float density, float temperature,
+                                        float3 velocity, uint random_seed,
+                                        uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -267,11 +247,13 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
 }
 
 // Fields should be available: cell_index, particle_count, particle_index.
-__global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
-                                              float3 center, float radius,
-                                              float density, float temperature,
-                                              float velocity, uint random_seed,
-                                              uint3 volume_size)
+__global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
+                                                  float3 center, float radius,
+                                                  float density,
+                                                  float temperature,
+                                                  float velocity,
+                                                  uint random_seed,
+                                                  uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -589,10 +571,11 @@ void DiffuseAndDecay(const FlipParticles& particles, float time_step,
                                            temperature_dissipation);
 }
 
-void EmitParticles(const FlipParticles& particles, float3 center,
-                   float3 hotspot, float radius, float density,
-                   float temperature, float3 velocity, FluidImpulse impulse,
-                   uint random_seed, uint3 volume_size, BlockArrangement* ba)
+void EmitFlipParticles(const FlipParticles& particles, float3 center,
+                       float3 hotspot, float radius, float density,
+                       float temperature, float3 velocity, FluidImpulse impulse,
+                       uint random_seed, uint3 volume_size,
+                       BlockArrangement* ba)
 {
 
     switch (impulse) {
@@ -604,7 +587,7 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitParticlesKernel<VerticalEmission><<<grid, block>>>(
+            EmitFlipParticlesKernel<VerticalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
             break;
@@ -616,7 +599,7 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitParticlesFromSphereKernel<<<grid, block>>>(
+            EmitFlipParticlesFromSphereKernel<<<grid, block>>>(
                 particles, center, radius, density, temperature, velocity.x,
                 random_seed, volume_size);
             break;
@@ -629,7 +612,7 @@ void EmitParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitParticlesKernel<HorizontalEmission><<<grid, block>>>(
+            EmitFlipParticlesKernel<HorizontalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
             break;

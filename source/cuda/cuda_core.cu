@@ -118,7 +118,7 @@ __global__ void CopyToVboKernel(void* point_vbo, void* extra_vbo,
         return;
 
     int stride = 3;
-    bool skip = i >= *num_of_active_particles ||
+    bool skip = (num_of_active_particles && i >= *num_of_active_particles) ||
         __half2float(density[i]) < crit_density;
 
     uint16_t* p_buf = reinterpret_cast<uint16_t*>(point_vbo);

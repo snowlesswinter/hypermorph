@@ -54,6 +54,7 @@ public:
     // Overridden from FluidBufferOwner:
     virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
     virtual GraphicsVolume* GetDensityVolume() override;
+    virtual GraphicsVolume3* GetVelocityField() override;
     virtual GraphicsLinearMemU16* GetParticleDensityField() override;
     virtual GraphicsLinearMemU16* GetParticlePosXField() override;
     virtual GraphicsLinearMemU16* GetParticlePosYField() override;
@@ -128,6 +129,7 @@ private:
     std::shared_ptr<GraphicsVolume> general1d_;
     std::shared_ptr<GraphicsVolume> diagnosis_volume_;
 
+    bool need_buoyancy_;
     int frame_;
 };
 

@@ -34,6 +34,7 @@ class FluidSolver;
 class FluidUnittest;
 class GraphicsVolume;
 class OpenBoundaryMultigridPoissonSolver;
+class Particles; // TODO
 class PoissonCore;
 class PoissonSolver;
 class FluidSimulator
@@ -49,7 +50,8 @@ public:
     void StartImpulsing(float x, float y);
     void StopImpulsing();
     void Update(float delta_time, double seconds_elapsed, int frame_count,
-                const glm::vec3* source, const glm::vec3* velocity);
+                const glm::vec3* source, const glm::vec3* velocity,
+                Particles* p);
     void UpdateImpulsing(float x, float y);
 
     FluidBufferOwner* buf_owner() const { return buf_owner_; }

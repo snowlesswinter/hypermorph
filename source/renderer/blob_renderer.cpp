@@ -328,23 +328,25 @@ bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
 
 bool BlobRenderer::CopyToVbo(FluidBufferOwner* buf_owner)
 {
-    if (!buf_owner->GetActiveParticleCountMemPiece() ||
-            !buf_owner->GetParticlePosXField() ||
+    if (!buf_owner->GetParticlePosXField() ||
             !buf_owner->GetParticlePosYField() ||
             !buf_owner->GetParticlePosZField() ||
-            !buf_owner->GetParticleDensityField() ||
-            !buf_owner->GetParticleTemperatureField())
+            !buf_owner->GetParticleDensityField())
         return false;
 
+    auto mem_piece = buf_owner->GetActiveParticleCountMemPiece();
+    std::shared_ptr<CudaMemPiece> count =
+        mem_piece ? mem_piece->cuda_mem_piece() : nullptr;
+    auto mem = buf_owner->GetParticleTemperatureField();
+    std::shared_ptr<CudaLinearMemU16> temp_field =
+        mem ? mem->cuda_linear_mem() : nullptr;
     return CudaMain::Instance()->CopyToVbo(
         point_vbo_, extra_vbo_,
         buf_owner->GetParticlePosXField()->cuda_linear_mem(),
         buf_owner->GetParticlePosYField()->cuda_linear_mem(),
         buf_owner->GetParticlePosZField()->cuda_linear_mem(),
         buf_owner->GetParticleDensityField()->cuda_linear_mem(),
-        buf_owner->GetParticleTemperatureField()->cuda_linear_mem(),
-        buf_owner->GetActiveParticleCountMemPiece()->cuda_mem_piece(),
-        crit_density_, particle_count_);
+        temp_field, count, crit_density_, particle_count_);
 }
 
 GLProgram* BlobRenderer::GetRenderProgram()

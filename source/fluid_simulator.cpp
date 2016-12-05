@@ -42,6 +42,8 @@
 #include "third_party/opengl/glew.h"
 #include "utility.h"
 
+#include "particles.h" // TODO
+
 const float kMaxTimeStep = 0.3f;
 
 FluidSimulator::FluidSimulator()
@@ -126,7 +128,7 @@ void FluidSimulator::StopImpulsing()
 
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count, const glm::vec3* source,
-                            const glm::vec3* velocity)
+                            const glm::vec3* velocity, Particles* p)
 {
     int debug = 0;
     if (debug) {
@@ -191,6 +193,9 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     if (do_impulse)
         fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,
                                impulse_temperature, initial_velocity);
+
+    if (do_impulse)
+        p->Emit(pos, splat_radius, impulse_density);
 
     fluid_solver_->Solve(proper_delta_time);
 }

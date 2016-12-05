@@ -44,21 +44,20 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 // Active particles should be consecutive, but could be freed during the
 // routine.
 template <typename AdvectionImpl>
-__global__ void AdvectFlipParticlesKernel(FlipParticles particles,
-                                          uint3 volume_size,
-                                          float time_step_over_cell_size,
-                                          bool outflow, AdvectionImpl advect)
+__global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
+                                      uint16_t* pos_z, uint16_t* density,
+                                      uint16_t* life, int num_of_particles,
+                                      uint3 volume_size,
+                                      float time_step_over_cell_size,
+                                      bool outflow, AdvectionImpl advect)
 {
-    FlipParticles& p = particles;
-
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= *p.num_of_actives_) // Maybe dynamic parallelism is a better
-                                 // choice.
+    if (i >= num_of_particles)
         return;
 
-    float x = __half2float(p.position_x_[i]);
-    float y = __half2float(p.position_y_[i]);
-    float z = __half2float(p.position_z_[i]);
+    float x = __half2float(pos_x[i]);
+    float y = __half2float(pos_y[i]);
+    float z = __half2float(pos_z[i]);
 
     // The fluid looks less bumpy with the re-sampled velocity. Don't know
     // the exact reason yet.
@@ -78,51 +77,41 @@ __global__ void AdvectFlipParticlesKernel(FlipParticles particles,
     float3 result = advect.Advect(make_float3(x, y, z),
                                   make_float3(v_x, v_y, v_z),
                                   time_step_over_cell_size);
-    float pos_x = result.x;
-    float pos_y = result.y;
-    float pos_z = result.z;
+    float new_x = result.x;
+    float new_y = result.y;
+    float new_z = result.z;
 
-    if (pos_x < 0.0f || pos_x >= volume_size.x)
-        p.velocity_x_[i] = 0;
+    if (new_x < 0.0f || new_x >= volume_size.x)
+        life[i] = 0.0f;
 
-    if (pos_y < 0.0f || pos_y >= volume_size.y) {
-        if (outflow)
-            FreeParticle(particles, i);
-        else
-            p.velocity_y_[i] = 0;
-    }
+    if (new_y < 0.0f || new_y >= volume_size.y)
+        life[i] = 0.0f;
 
-    if (pos_z < 0.0f || pos_z >= volume_size.z)
-        p.velocity_z_[i] = 0;
+    if (new_z < 0.0f || new_z >= volume_size.z)
+        life[i] = 0.0f;
 
-    pos_x = fminf(fmaxf(pos_x, 0.0f), volume_size.x - 1.0f);
-    pos_y = fminf(fmaxf(pos_y, 0.0f), volume_size.y - 1.0f);
-    pos_z = fminf(fmaxf(pos_z, 0.0f), volume_size.z - 1.0f);
+    new_x = fminf(fmaxf(new_x, 0.0f), volume_size.x - 1.0f);
+    new_y = fminf(fmaxf(new_y, 0.0f), volume_size.y - 1.0f);
+    new_z = fminf(fmaxf(new_z, 0.0f), volume_size.z - 1.0f);
 
-    p.position_x_[i] = __float2half_rn(pos_x);
-    p.position_y_[i] = __float2half_rn(pos_y);
-    p.position_z_[i] = __float2half_rn(pos_z);
-
-    int xi = static_cast<int>(pos_x);
-    int yi = static_cast<int>(pos_y);
-    int zi = static_cast<int>(pos_z);
-
-    uint cell_index = (zi * volume_size.y + yi) * volume_size.x + xi;
-    p.cell_index_[i] = cell_index;
+    pos_x[i] = __float2half_rn(new_x);
+    pos_y[i] = __float2half_rn(new_y);
+    pos_z[i] = __float2half_rn(new_z);
 }
 
 // =============================================================================
 
 namespace kern_launcher
 {
-void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vel_x,
-                         cudaArray* vel_y, cudaArray* vel_z, float time_step,
-                         float cell_size, bool outflow, uint3 volume_size,
-                         BlockArrangement* ba)
+void AdvectParticles(uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
+                     uint16_t* density, uint16_t* life, int num_of_particles,
+                     cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                     float time_step, float cell_size, bool outflow,
+                     uint3 volume_size, BlockArrangement* ba)
 {
     dim3 block;
     dim3 grid;
-    ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
+    ba->ArrangeLinear(&grid, &block, num_of_particles);
 
     auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
@@ -147,24 +136,32 @@ void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vel_x,
     int order = 3;
     switch (order) {
         case 1:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
-                                                       time_step / cell_size,
-                                                       outflow, adv_fe);
+            AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
+                                                   life, num_of_particles,
+                                                   volume_size,
+                                                   time_step / cell_size,
+                                                   outflow, adv_fe);
             break;
         case 2:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
-                                                       time_step / cell_size,
-                                                       outflow, adv_mp);
+            AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
+                                                   life, num_of_particles,
+                                                   volume_size,
+                                                   time_step / cell_size,
+                                                   outflow, adv_mp);
             break;
         case 3:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
-                                                       time_step / cell_size,
-                                                       outflow, adv_bs);
+            AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
+                                                   life, num_of_particles,
+                                                   volume_size,
+                                                   time_step / cell_size,
+                                                   outflow, adv_bs);
             break;
         case 4:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
-                                                       time_step / cell_size,
-                                                       outflow, adv_rk4);
+            AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
+                                                   life, num_of_particles,
+                                                   volume_size,
+                                                   time_step / cell_size,
+                                                   outflow, adv_rk4);
             break;
     }
 

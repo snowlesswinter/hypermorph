@@ -27,6 +27,7 @@
 class GraphicsLinearMemU16;
 class GraphicsMemPiece;
 class GraphicsVolume;
+class GraphicsVolume3;
 class FluidBufferOwner
 {
 public:
@@ -34,6 +35,7 @@ public:
 
     virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() = 0;
     virtual GraphicsVolume* GetDensityVolume() = 0;
+    virtual GraphicsVolume3* GetVelocityField() = 0;
     virtual GraphicsLinearMemU16* GetParticleDensityField() = 0;
     virtual GraphicsLinearMemU16* GetParticlePosXField() = 0;
     virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;

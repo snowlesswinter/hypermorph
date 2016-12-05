@@ -82,6 +82,7 @@ GridFluidSolver::GridFluidSolver()
     , general1c_()
     , general1d_()
     , diagnosis_volume_()
+    , need_buoyancy_(false)
     , frame_(0)
 {
 }
@@ -96,7 +97,7 @@ void GridFluidSolver::Impulse(float splat_radius,
                               float impulse_temperature,
                               const glm::vec3& impulse_velocity)
 {
-
+    need_buoyancy_ = std::abs(impulse_temperature) > 0.000001f;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->ApplyImpulse(velocity_->x()->cuda_volume(),
                                            velocity_->y()->cuda_volume(),
@@ -293,6 +294,18 @@ void GridFluidSolver::Solve(float delta_time)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
 
+    // Advect velocity
+    AdvectVelocity(delta_time);
+    Metrics::Instance()->OnVelocityAvected();
+
+    // Restore vorticity
+    RestoreVorticity(delta_time);
+    Metrics::Instance()->OnVorticityRestored();
+
+    // Apply buoyancy and gravity
+    ApplyBuoyancy(delta_time);
+    Metrics::Instance()->OnBuoyancyApplied();
+
     // Calculate divergence.
     ComputeDivergence(general1c_);
     Metrics::Instance()->OnDivergenceComputed();
@@ -311,18 +324,6 @@ void GridFluidSolver::Solve(float delta_time)
 
     AdvectDensity(delta_time);
     Metrics::Instance()->OnDensityAvected();
-
-    // Advect velocity
-    AdvectVelocity(delta_time);
-    Metrics::Instance()->OnVelocityAvected();
-
-    // Restore vorticity
-    RestoreVorticity(delta_time);
-    Metrics::Instance()->OnVorticityRestored();
-
-    // Apply buoyancy and gravity
-    ApplyBuoyancy(delta_time);
-    Metrics::Instance()->OnBuoyancyApplied();
 
     ReviseDensity();
 
@@ -350,6 +351,11 @@ GraphicsMemPiece* GridFluidSolver::GetActiveParticleCountMemPiece()
 GraphicsVolume* GridFluidSolver::GetDensityVolume()
 {
     return density_.get();
+}
+
+GraphicsVolume3* GridFluidSolver::GetVelocityField()
+{
+    return velocity_.get();
 }
 
 GraphicsLinearMemU16* GridFluidSolver::GetParticleDensityField()
@@ -491,17 +497,19 @@ void GridFluidSolver::ApplyBuoyancy(float delta_time)
     float smoke_weight = GetProperties().weight_;
     float ambient_temperature = GetProperties().ambient_temperature_;
     float buoyancy_coef = GetProperties().buoyancy_coef_;
+    
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyBuoyancy(velocity_->x()->cuda_volume(),
-                                            velocity_->y()->cuda_volume(),
-                                            velocity_->z()->cuda_volume(),
-                                            velocity_->x()->cuda_volume(),
-                                            velocity_->y()->cuda_volume(),
-                                            velocity_->z()->cuda_volume(),
-                                            temperature_->cuda_volume(),
-                                            density_->cuda_volume(), delta_time,
-                                            ambient_temperature,
-                                            buoyancy_coef, smoke_weight);
+        if (need_buoyancy_)
+            CudaMain::Instance()->ApplyBuoyancy(velocity_->x()->cuda_volume(),
+                                                velocity_->y()->cuda_volume(),
+                                                velocity_->z()->cuda_volume(),
+                                                velocity_->x()->cuda_volume(),
+                                                velocity_->y()->cuda_volume(),
+                                                velocity_->z()->cuda_volume(),
+                                                temperature_->cuda_volume(),
+                                                density_->cuda_volume(),
+                                                delta_time, ambient_temperature,
+                                                buoyancy_coef, smoke_weight);
     } else {
         glUseProgram(Programs.ApplyBuoyancy);
 

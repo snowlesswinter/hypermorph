@@ -19,60 +19,46 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _FLIP_IMPL_CUDA_H_
-#define _FLIP_IMPL_CUDA_H_
+#ifndef _PARTICLE_IMPL_CUDA_H_
+#define _PARTICLE_IMPL_CUDA_H_
 
 #include "third_party/glm/fwd.hpp"
 
 #include "cuda/fluid_impulse.h"
 
 struct cudaArray;
-struct FlipParticles;
 class AuxBufferManager;
 class BlockArrangement;
 class RandomHelper;
-class FlipImplCuda
+class ParticleImplCuda
 {
 public:
     class Observer
     {
     public:
         virtual void OnEmitted() = 0;
-        virtual void OnVelocityInterpolated() = 0;
-        virtual void OnResampled() = 0;
         virtual void OnAdvected() = 0;
-        virtual void OnCellBound() = 0;
-        virtual void OnPrefixSumCalculated() = 0;
-        virtual void OnSorted() = 0;
-        virtual void OnTransferred() = 0;
     };
 
-    FlipImplCuda(Observer* observer, BlockArrangement* ba, AuxBufferManager* bm,
-                 RandomHelper* rand);
-    ~FlipImplCuda();
+    ParticleImplCuda(Observer* observer, BlockArrangement* ba,
+                     AuxBufferManager* bm, RandomHelper* rand);
+    ~ParticleImplCuda();
 
-    void Advect(const FlipParticles& particles, int* num_active_particles,
-                const FlipParticles& aux, cudaArray* vnp1_x, cudaArray* vnp1_y,
-                cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y,
-                cudaArray* vn_z, cudaArray* density, cudaArray* temperature,
-                float time_step, float velocity_dissipation,
-                float density_dissipation, float temperature_dissipation,
-                const glm::ivec3& volume_size);
-    void Emit(const FlipParticles& particles, const glm::vec3& center_point,
-              const glm::vec3& hotspot, float radius, float density,
-              float temperature, const glm::vec3& velocity,
-              const glm::ivec3& volume_size);
-    void Reset(const FlipParticles& particles, const glm::ivec3& volume_size);
+    void Advect(uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
+                uint16_t* density, uint16_t* life, int num_of_particles,
+                cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z,
+                float time_step, const glm::ivec3& volume_size);
+    void Emit(uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
+              uint16_t* density, uint16_t* life, int* tail,
+              int num_of_particles, int num_to_emit, const glm::vec3& location,
+              float radius, float density_value);
+    void Reset(uint16_t* life, int num_of_particles);
 
     void set_cell_size(float cell_size) { cell_size_ = cell_size; }
     void set_fluid_impulse(FluidImpulse i) { impulse_ = i; }
     void set_outflow(bool outflow) { outflow_ = outflow; }
 
 private:
-    void CompactParticles(FlipParticles* particles, int* num_active_particles,
-                          const FlipParticles& aux,
-                          const glm::ivec3& volume_size);
-
     Observer* observer_;
     BlockArrangement* ba_;
     AuxBufferManager* bm_;
@@ -82,4 +68,4 @@ private:
     bool outflow_;
 };
 
-#endif // _FLIP_IMPL_CUDA_H_
+#endif // _PARTICLE_IMPL_CUDA_H_

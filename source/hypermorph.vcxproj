@@ -107,6 +107,7 @@
     <ClInclude Include="opengl\gl_texture.h" />
     <ClInclude Include="opengl\gl_volume.h" />
     <ClInclude Include="overlay_content.h" />
+    <ClInclude Include="particles.h" />
     <ClInclude Include="poisson_solver\full_multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\multigrid_poisson_solver.h" />
     <ClInclude Include="poisson_solver\open_boundary_multigrid_poisson_solver.h" />
@@ -148,6 +149,7 @@
     <ClCompile Include="opengl\gl_texture.cpp" />
     <ClCompile Include="opengl\gl_volume.cpp" />
     <ClCompile Include="overlay_content.cpp" />
+    <ClCompile Include="particles.cpp" />
     <ClCompile Include="poisson_solver\full_multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\multigrid_poisson_solver.cpp" />
     <ClCompile Include="poisson_solver\open_boundary_multigrid_poisson_solver.cpp" />

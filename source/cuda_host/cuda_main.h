@@ -36,6 +36,7 @@ class FluidImplCuda;
 class GLSurface;
 class GLTexture;
 class GraphicsResource;
+class ParticleImplCuda;
 class PoissonImplCuda;
 class CudaMain
 {
@@ -238,24 +239,46 @@ public:
                          std::shared_ptr<CudaVolume> vort_z, float time_step);
 
     // Particles
-    void EmitParticles(FlipParticles* particles, const glm::vec3& center_point,
-                       const glm::vec3& hotspot, float radius, float density,
-                       float temperature, const glm::vec3& velocity,
-                       const glm::ivec3& volume_size);
-    void MoveParticles(FlipParticles* particles, int* num_active_particles,
-                       const FlipParticles* aux_,
-                       std::shared_ptr<CudaVolume> vnp1_x,
-                       std::shared_ptr<CudaVolume> vnp1_y,
-                       std::shared_ptr<CudaVolume> vnp1_z,
-                       std::shared_ptr<CudaVolume> vn_x,
-                       std::shared_ptr<CudaVolume> vn_y,
-                       std::shared_ptr<CudaVolume> vn_z,
-                       std::shared_ptr<CudaVolume> density,
-                       std::shared_ptr<CudaVolume> temperature,
-                       float velocity_dissipation, float density_dissipation,
-                       float temperature_dissipation, float time_step);
-    void ResetParticles(FlipParticles* particles,
-                        const glm::ivec3& volume_size);
+    void EmitFlipParticles(FlipParticles* particles,
+                           const glm::vec3& center_point,
+                           const glm::vec3& hotspot, float radius,
+                           float density, float temperature,
+                           const glm::vec3& velocity,
+                           const glm::ivec3& volume_size);
+    void MoveFlipParticles(FlipParticles* particles, int* num_active_particles,
+                           const FlipParticles* aux_,
+                           std::shared_ptr<CudaVolume> vnp1_x,
+                           std::shared_ptr<CudaVolume> vnp1_y,
+                           std::shared_ptr<CudaVolume> vnp1_z,
+                           std::shared_ptr<CudaVolume> vn_x,
+                           std::shared_ptr<CudaVolume> vn_y,
+                           std::shared_ptr<CudaVolume> vn_z,
+                           std::shared_ptr<CudaVolume> density,
+                           std::shared_ptr<CudaVolume> temperature,
+                           float velocity_dissipation,
+                           float density_dissipation,
+                           float temperature_dissipation, float time_step);
+    void ResetFlipParticles(FlipParticles* particles,
+                            const glm::ivec3& volume_size);
+    void EmitParticles(std::shared_ptr<CudaLinearMemU16> pos_x,
+                       std::shared_ptr<CudaLinearMemU16> pos_y,
+                       std::shared_ptr<CudaLinearMemU16> pos_z,
+                       std::shared_ptr<CudaLinearMemU16> density,
+                       std::shared_ptr<CudaLinearMemU16> life,
+                       std::shared_ptr<CudaMemPiece> tail, int num_of_particles,
+                       int num_to_emit, const glm::vec3& location, float radius,
+                       float density_value);
+    void MoveParticles(std::shared_ptr<CudaLinearMemU16> pos_x,
+                       std::shared_ptr<CudaLinearMemU16> pos_y,
+                       std::shared_ptr<CudaLinearMemU16> pos_z,
+                       std::shared_ptr<CudaLinearMemU16> density,
+                       std::shared_ptr<CudaLinearMemU16> life,
+                       int num_of_particles,
+                       std::shared_ptr<CudaVolume> vel_x,
+                       std::shared_ptr<CudaVolume> vel_y,
+                       std::shared_ptr<CudaVolume> vel_z, float time_step);
+    void ResetParticles(std::shared_ptr<CudaLinearMemU16> life,
+                        int num_of_particles);
 
     // Rendering
     bool CopyToVbo(uint32_t point_vbo, uint32_t extra_vbo,
@@ -293,6 +316,7 @@ public:
 
 private:
     class FlipObserver;
+    class ParticleObserver;
 
     std::unique_ptr<CudaCore> core_;
     std::unique_ptr<FluidImplCuda> fluid_impl_;
@@ -300,6 +324,9 @@ private:
 
     std::shared_ptr<FlipObserver> flip_ob_;
     std::unique_ptr<FlipImplCuda> flip_impl_;
+
+    std::shared_ptr<ParticleObserver> particle_ob_;
+    std::unique_ptr<ParticleImplCuda> particle_impl_;
     std::map<std::shared_ptr<GLTexture>, std::unique_ptr<GraphicsResource>>
         registerd_textures_;
     std::map<uint32_t, std::unique_ptr<GraphicsResource>> registerd_buffers_;

@@ -82,9 +82,9 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                                    ba_);
     observer_->OnResampled();
 
-    kern_launcher::AdvectParticles(particles, vnp1_x, vnp1_y, vnp1_z, time_step,
-                                   cell_size_, outflow_,
-                                   FromGlmVector(volume_size), ba_);
+    kern_launcher::AdvectFlipParticles(particles, vnp1_x, vnp1_y, vnp1_z,
+                                       time_step, cell_size_, outflow_,
+                                       FromGlmVector(volume_size), ba_);
     observer_->OnAdvected();
 
     FlipParticles p = particles;
@@ -101,7 +101,7 @@ void FlipImplCuda::Emit(const FlipParticles& particles,
                         const glm::vec3& velocity,
                         const glm::ivec3& volume_size)
 {
-    kern_launcher::EmitParticles(
+    kern_launcher::EmitFlipParticles(
         particles, make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z), radius, density,
         temperature, make_float3(velocity.x, velocity.y, velocity.z),

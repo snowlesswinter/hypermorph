@@ -133,6 +133,7 @@ FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     , diagnosis_volume_()
     , particles_(new FlipParticles(graphics_lib_))
     , particles_aux_(new FlipParticles(graphics_lib_))
+    , need_buoyancy_(false)
     , frame_(0)
     , num_active_particles_(0)
 {
@@ -149,15 +150,14 @@ void FlipFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& impulse_velocity)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
-
+    need_buoyancy_ = std::abs(impulse_temperature) > 0.000001f;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
         SetCudaParticles(&p, particles_);
-        CudaMain::Instance()->EmitParticles(&p, impulse_position, hotspot,
-                                            splat_radius, impulse_density,
-                                            impulse_temperature,
-                                            impulse_velocity,
-                                            density_->cuda_volume()->size());
+        CudaMain::Instance()->EmitFlipParticles(
+            &p, impulse_position, hotspot, splat_radius, impulse_density,
+            impulse_temperature, impulse_velocity,
+            density_->cuda_volume()->size());
     }
 }
 
@@ -249,7 +249,7 @@ void FlipFluidSolver::Reset()
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
         CudaMain::FlipParticles p;
         SetCudaParticles(&p, particles_);
-        CudaMain::Instance()->ResetParticles(&p, grid_size_);
+        CudaMain::Instance()->ResetFlipParticles(&p, grid_size_);
     }
 
     frame_ = 0;
@@ -270,6 +270,14 @@ void FlipFluidSolver::Solve(float delta_time)
 {
     Metrics::Instance()->OnFrameUpdateBegins();
 
+    MoveParticles(delta_time);
+    Metrics::Instance()->OnVelocityAvected();
+    Metrics::Instance()->OnParticleNumberUpdated(num_active_particles_);
+
+    // Apply buoyancy and gravity
+    ApplyBuoyancy(delta_time);
+    Metrics::Instance()->OnBuoyancyApplied();
+
     // Calculate divergence.
     ComputeDivergence(general1a_);
     Metrics::Instance()->OnDivergenceComputed();
@@ -282,14 +290,6 @@ void FlipFluidSolver::Solve(float delta_time)
     SubtractGradient(general1b_);
     Metrics::Instance()->OnVelocityRectified();
 
-    MoveParticles(delta_time);
-    Metrics::Instance()->OnVelocityAvected();
-    Metrics::Instance()->OnParticleNumberUpdated(num_active_particles_);
-
-    // Apply buoyancy and gravity
-    ApplyBuoyancy(delta_time);
-    Metrics::Instance()->OnBuoyancyApplied();
-
     CudaMain::Instance()->RoundPassed(frame_++);
 }
 
@@ -301,6 +301,11 @@ GraphicsMemPiece* FlipFluidSolver::GetActiveParticleCountMemPiece()
 GraphicsVolume* FlipFluidSolver::GetDensityVolume()
 {
     return density_.get();
+}
+
+GraphicsVolume3* FlipFluidSolver::GetVelocityField()
+{
+    return velocity_.get();
 }
 
 GraphicsLinearMemU16* FlipFluidSolver::GetParticleDensityField()
@@ -371,16 +376,15 @@ void FlipFluidSolver::ApplyBuoyancy(float delta_time)
     float ambient_temperature = GetProperties().ambient_temperature_;
     float buoyancy_coef = GetProperties().buoyancy_coef_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        CudaMain::Instance()->ApplyBuoyancy(velocity_->x()->cuda_volume(),
-                                            velocity_->y()->cuda_volume(),
-                                            velocity_->z()->cuda_volume(),
-                                            velocity_prev_->x()->cuda_volume(),
-                                            velocity_prev_->y()->cuda_volume(),
-                                            velocity_prev_->z()->cuda_volume(),
-                                            temperature_->cuda_volume(),
-                                            density_->cuda_volume(), delta_time,
-                                            ambient_temperature,
-                                            buoyancy_coef, smoke_weight);
+        if (need_buoyancy_)
+            CudaMain::Instance()->ApplyBuoyancy(
+                velocity_->x()->cuda_volume(), velocity_->y()->cuda_volume(),
+                velocity_->z()->cuda_volume(),
+                velocity_prev_->x()->cuda_volume(),
+                velocity_prev_->y()->cuda_volume(),
+                velocity_prev_->z()->cuda_volume(),
+                temperature_->cuda_volume(), density_->cuda_volume(),
+                delta_time, ambient_temperature, buoyancy_coef, smoke_weight);
     }
 }
 
@@ -429,7 +433,7 @@ void FlipFluidSolver::MoveParticles(float delta_time)
         SetCudaParticles(&p, particles_);
         CudaMain::FlipParticles p_aux;
         SetCudaParticles(&p_aux, particles_aux_);
-        CudaMain::Instance()->MoveParticles(
+        CudaMain::Instance()->MoveFlipParticles(
             &p, &num_active_particles_, &p_aux, velocity_->x()->cuda_volume(),
             velocity_->y()->cuda_volume(), velocity_->z()->cuda_volume(),
             velocity_prev_->x()->cuda_volume(),

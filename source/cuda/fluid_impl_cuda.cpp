@@ -150,11 +150,13 @@ void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
         make_float3(center_point.x, center_point.y, center_point.z),
         make_float3(hotspot.x, hotspot.y, hotspot.z),
         radius, d_value, impulse_, FromGlmVector(volume_size), ba_);
-    kern_launcher::ImpulseScalar(
-        t_np1, temperature,
-        make_float3(center_point.x, center_point.y, center_point.z),
-        make_float3(hotspot.x, hotspot.y, hotspot.z), radius,
-        t_value, impulse_, FromGlmVector(volume_size), ba_);
+
+    if (std::abs(t_value) > 0.000001f)
+        kern_launcher::ImpulseScalar(
+            t_np1, temperature,
+            make_float3(center_point.x, center_point.y, center_point.z),
+            make_float3(hotspot.x, hotspot.y, hotspot.z), radius,
+            t_value, impulse_, FromGlmVector(volume_size), ba_);
 
     kern_launcher::ImpulseVelocity(
         vnp1_x, vnp1_y, vnp1_z,
