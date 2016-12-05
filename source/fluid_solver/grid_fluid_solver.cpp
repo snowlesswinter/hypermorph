@@ -93,7 +93,8 @@ GridFluidSolver::~GridFluidSolver()
 void GridFluidSolver::Impulse(float splat_radius,
                               const glm::vec3& impulse_position,
                               const glm::vec3& hotspot, float impulse_density,
-                              float impulse_temperature, float impulse_velocity)
+                              float impulse_temperature,
+                              const glm::vec3& impulse_velocity)
 {
 
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {

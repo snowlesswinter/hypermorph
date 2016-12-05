@@ -46,7 +46,8 @@ public:
 
     virtual void Impulse(float splat_radius, const glm::vec3& impulse_position,
                          const glm::vec3& hotspot, float impulse_density,
-                         float impulse_temperature, float impulse_velocity) = 0;
+                         float impulse_temperature,
+                         const glm::vec3& impulse_velocity) = 0;
     virtual bool Initialize(GraphicsLib graphics_lib, int width, int height,
                             int depth, int poisson_byte_width) = 0;
     virtual void Reset() = 0;

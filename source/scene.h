@@ -37,6 +37,7 @@ public:
 
     // TODO:
     glm::vec3 GetDancerPos() const;
+    glm::vec3 GetDancerVelocity() const;
 
 private:
     class Dancer;

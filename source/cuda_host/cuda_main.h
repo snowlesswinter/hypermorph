@@ -140,7 +140,7 @@ public:
                       std::shared_ptr<CudaVolume> temperature,
                       const glm::vec3& center_point,
                       const glm::vec3& hotspot, float radius,
-                      float vel_value, float d_value, float t_value);
+                      const glm::vec3& vel_value, float d_value, float t_value);
     void ComputeDivergence(std::shared_ptr<CudaVolume> div,
                            std::shared_ptr<CudaVolume> vel_x,
                            std::shared_ptr<CudaVolume> vel_y,

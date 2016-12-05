@@ -176,10 +176,11 @@ void UpdateFrame(unsigned int microseconds)
     if (simulate_fluid_) {
         scene_->Advance(FluidConfig::Instance()->fixed_time_step());
         glm::vec3 pos = scene_->GetDancerPos();
+        glm::vec3 vel = scene_->GetDancerVelocity() * -2.0f;
 
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
-        sim_->Update(delta_time, time_elapsed, frame_count, &pos);
+        sim_->Update(delta_time, time_elapsed, frame_count, &pos, &vel);
     }
 }
 

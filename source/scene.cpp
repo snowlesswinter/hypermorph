@@ -177,9 +177,7 @@ AnimateFunc g_ani_func[] = {
 };
 
 static const int g_num_func = sizeof(g_ani_func) / sizeof(*g_ani_func);
-}
-
-
+} // Anonymous namespace.
 
 class Scene::Dancer
 {
@@ -191,9 +189,11 @@ public:
     void Step(float time_step);
 
     const glm::vec3& position() const { return position_; }
+    const glm::vec3& velocity() const { return velocity_; }
 
 private:
     float ChooseTarget(float pos);
+    void PrepareRoute();
 
     glm::vec3 position_;
     glm::vec3 target_;
@@ -227,54 +227,55 @@ void Scene::Dancer::Init()
 {
     std::srand(0x77703331);
     std::srand(static_cast<unsigned>(std::time(nullptr)));
-    target_ = glm::vec3(ChooseTarget(position_.x), ChooseTarget(position_.y),
-                        ChooseTarget(position_.z));
-    distance_ = target_ - position_;
-    animation_duration_ = glm::length(distance_) * 4.0f;
-
-    for (auto i = func_.begin(); i != func_.end(); i++)
-        *i = g_ani_func[(rand() % g_num_func)];
+    PrepareRoute();
 }
 
 void Scene::Dancer::Step(float time_step)
 {
     time_elapsed_ += time_step;
-    if (time_elapsed_ >= animation_duration_) {
-        target_ = glm::vec3(ChooseTarget(position_.x),
-                            ChooseTarget(position_.y),
-                            ChooseTarget(position_.z));
+    if (time_elapsed_ >= animation_duration_)
+        PrepareRoute();
 
-        time_elapsed_ = 0.0f;
-        distance_ = target_ - position_;
-        animation_duration_ = glm::length(distance_) * 4.0f;
-        start_pos_ = position_;
-
-        for (auto i = func_.begin(); i != func_.end(); i++)
-            *i = g_ani_func[(rand() % g_num_func)];
-    }
-
-    float ratio = time_elapsed_ / animation_duration_;
-    glm::vec3 dir = glm::normalize(target_ - position_);
-    for (int i = 0; i < 3; i++)
+    glm::vec3 last_pos = position_;
+    for (size_t i = 0; i < func_.size(); i++)
         position_[i] = func_[i](start_pos_[i], distance_[i], time_elapsed_,
                                 animation_duration_);
+
+    velocity_ = (position_ - last_pos) / time_step;
 }
 
 float Scene::Dancer::ChooseTarget(float pos)
 {
-    int r = std::rand() % 1000;
-    float d = 0.5f;
-    int k = static_cast<int>(d * 1000);
+    float border = 0.2f;
+    int sample_count = 1000;
+    int r = std::rand() % sample_count;
+    float d = 0.6f;
+    int k = static_cast<int>(d * sample_count);
     float p;
     if (r > k) {
-        float t = static_cast<float>(r - k) / (1000.0f - k);
-        p = (pos > 0.5f ? 0.0f : 0.5f) + t * 0.5f;
+        float t = static_cast<float>(r - k) / (sample_count - k);
+        p = (pos > 0.5f ? border : 0.5f) + t * (0.5f - border);
     } else {
         float t = static_cast<float>(r) / k;
-        float p = (pos > 0.5f ? 0.5f : 0.0f) + t * 0.5f;
+        p = (pos > 0.5f ? 0.5f : border) + t * (0.5f - border);
     }
-    p = std::max(std::min(p, 0.9f), 0.1f);
     return p;
+}
+
+void Scene::Dancer::PrepareRoute()
+{
+    target_ = glm::vec3(ChooseTarget(position_.x),
+                        ChooseTarget(position_.y),
+                        ChooseTarget(position_.z));
+
+    time_elapsed_ = 0.0f;
+    distance_ = target_ - position_;
+    animation_duration_ = std::max(
+        std::sqrt(glm::length(distance_)) * 6.0f, 0.1f);
+    start_pos_ = position_;
+
+    for (auto i = func_.begin(); i != func_.end(); i++)
+        *i = g_ani_func[(rand() % g_num_func)];
 }
 
 Scene::Scene()
@@ -300,4 +301,9 @@ bool Scene::Init()
 glm::vec3 Scene::GetDancerPos() const
 {
     return dance_->position();
+}
+
+glm::vec3 Scene::GetDancerVelocity() const
+{
+    return dance_->velocity();
 }

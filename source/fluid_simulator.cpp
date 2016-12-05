@@ -125,7 +125,8 @@ void FluidSimulator::StopImpulsing()
 }
 
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
-                            int frame_count, const glm::vec3* source)
+                            int frame_count, const glm::vec3* source,
+                            const glm::vec3* velocity)
 {
     int debug = 0;
     if (debug) {
@@ -163,17 +164,17 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         do_impulse = true;
     }
 
-    float initial_velocity = FluidConfig::Instance()->impulse_velocity();
+    glm::vec3 initial_velocity(FluidConfig::Instance()->impulse_velocity());
     CudaMain::FluidImpulse impulse = FluidConfig::Instance()->fluid_impluse();
     if (impulse == CudaMain::IMPULSE_BUOYANT_JET) {
         int t = static_cast<int>(seconds_elapsed / time_stretch);
         if (t % 2) {
             float coef = static_cast<float>(std::sin(seconds_elapsed * 4 * ¦Ð));
-            initial_velocity =
+            initial_velocity = glm::vec3(
                 (1.0f /*+ coef * 0.5f*/) *
-                FluidConfig::Instance()->impulse_velocity();
+                FluidConfig::Instance()->impulse_velocity());
         } else {
-            initial_velocity = 0.0f;
+            initial_velocity = glm::vec3(0.0f);
         }
 
         pos.x = pos.y;
@@ -183,6 +184,9 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
 
     if (source)
         pos = *source * glm::vec3(grid_size_);
+
+    if (velocity)
+        initial_velocity = *velocity;
 
     if (do_impulse)
         fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,

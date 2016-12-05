@@ -46,7 +46,7 @@ extern void ApplyBuoyancy(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_
 extern void ComputeDivergence(cudaArray* div, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float cell_size, bool outflow, bool staggered, uint3 volume_size, BlockArrangement* ba);
 extern void ComputeResidualDiagnosis(cudaArray* residual, cudaArray* u, cudaArray* b, float cell_size, uint3 volume_size, BlockArrangement* ba);
 extern void DecayVelocity(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, float time_step, float velocity_dissipation, const uint3& volume_size, BlockArrangement* ba);
-extern void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, float3 center, float radius, float value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
+extern void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, float3 center, float radius, const float3& value, FluidImpulse impulse, uint3 volume_size, BlockArrangement* ba);
 extern void Relax(cudaArray* unp1, cudaArray* un, cudaArray* b, bool outflow, int num_of_iterations, uint3 volume_size, BlockArrangement* ba);
 extern void RoundPassed(int* dest_array, int round, int x);
 extern void SubtractGradient(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* pressure, float cell_size, bool staggered, uint3 volume_size, BlockArrangement* ba);

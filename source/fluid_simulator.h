@@ -49,7 +49,7 @@ public:
     void StartImpulsing(float x, float y);
     void StopImpulsing();
     void Update(float delta_time, double seconds_elapsed, int frame_count,
-                const glm::vec3* source);
+                const glm::vec3* source, const glm::vec3* velocity);
     void UpdateImpulsing(float x, float y);
 
     FluidBufferOwner* buf_owner() const { return buf_owner_; }

@@ -327,7 +327,8 @@ void CudaMain::ApplyImpulse(std::shared_ptr<CudaVolume> vnp1_x,
                             std::shared_ptr<CudaVolume> temperature,
                             const glm::vec3& center_point,
                             const glm::vec3& hotspot, float radius,
-                            float vel_value, float d_value, float t_value)
+                            const glm::vec3& vel_value, float d_value,
+                            float t_value)
 {
     fluid_impl_->ApplyImpulse(vnp1_x->dev_array(), vnp1_y->dev_array(),
                               vnp1_z->dev_array(), d_np1->dev_array(),

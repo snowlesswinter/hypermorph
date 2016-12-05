@@ -142,8 +142,8 @@ void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
                                  cudaArray* density, cudaArray* temperature,
                                  const glm::vec3& center_point,
                                  const glm::vec3& hotspot, float radius,
-                                 float vel_value, float d_value, float t_value,
-                                 const glm::ivec3& volume_size)
+                                 const glm::vec3& vel_value, float d_value,
+                                 float t_value, const glm::ivec3& volume_size)
 {
     kern_launcher::ImpulseScalar(
         d_np1, density,
@@ -159,7 +159,8 @@ void FluidImplCuda::ApplyImpulse(cudaArray* vnp1_x,cudaArray* vnp1_y,
     kern_launcher::ImpulseVelocity(
         vnp1_x, vnp1_y, vnp1_z,
         make_float3(center_point.x, center_point.y, center_point.z),
-        radius, vel_value, impulse_, FromGlmVector(volume_size), ba_);
+        radius, make_float3(vel_value.x, vel_value.y, vel_value.z), impulse_,
+        FromGlmVector(volume_size), ba_);
 }
 
 void FluidImplCuda::ApplyVorticityConfinement(cudaArray* vel_x,

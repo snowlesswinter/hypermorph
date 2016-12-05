@@ -120,19 +120,19 @@ __device__ bool ImpulseVelField(float3* vel, const float3& coord,
                                 const float3& offset, const float3& center,
                                 float radius, float value)
 {
+    bool anisotropic = false;
     float3 vel_c = coord + offset;
     float3 dir = vel_c - center;
     float d = norm3df(dir.x, dir.y, dir.z);
     if (d <= radius) {
-        *vel = normalize(dir) * value;
+        *vel = anisotropic ? normalize(dir) * value : make_float3(value);
         return true;
     }
-
     return false;
 }
 
 __global__ void ImpulseVelocitySphereKernel(float3 center, float radius,
-                                            float value, uint3 volume_size)
+                                            float3 value, uint3 volume_size)
 {
     int x = VolumeX();
     int y = VolumeY();
@@ -145,19 +145,19 @@ __global__ void ImpulseVelocitySphereKernel(float3 center, float radius,
 
     float3 vel;
     if (ImpulseVelField(&vel, coord, make_float3(0.0f, 0.5f, 0.5f), center,
-                        radius, value)) {
+                        radius, value.x)) {
         auto r_x = __float2half_rn(vel.x);
         surf3Dwrite(r_x, surf_x, x * sizeof(r_x), y, z, cudaBoundaryModeTrap);
     }
         
     if (ImpulseVelField(&vel, coord, make_float3(0.5f, 0.0f, 0.5f), center,
-                        radius, value)) {
+                        radius, value.y)) {
         auto r_y = __float2half_rn(vel.y);
         surf3Dwrite(r_y, surf_y, x * sizeof(r_y), y, z, cudaBoundaryModeTrap);
     }
 
     if (ImpulseVelField(&vel, coord, make_float3(0.5f, 0.5f, 0.0f), center,
-                        radius, value)) {
+                        radius, value.z)) {
         auto r_z = __float2half_rn(vel.z);
         surf3Dwrite(r_z, surf_z, x * sizeof(r_z), y, z, cudaBoundaryModeTrap);
     }
@@ -238,7 +238,7 @@ void ImpulseDensity(cudaArray* dest, cudaArray* original, float3 center_point,
 }
 
 void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
-                     float3 center, float radius, float value,
+                     float3 center, float radius, const float3& value,
                      FluidImpulse impulse, uint3 volume_size,
                      BlockArrangement* ba)
 {
@@ -273,7 +273,7 @@ void ImpulseVelocity(cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            BuoyantJetKernel<<<grid, block>>>(center, radius, value,
+            BuoyantJetKernel<<<grid, block>>>(center, radius, value.x,
                                               volume_size);
             break;
         }

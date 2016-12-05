@@ -64,8 +64,8 @@ public:
                       cudaArray* d_np1, cudaArray* t_np1, cudaArray* vel_x,
                       cudaArray* vel_y, cudaArray* vel_z, cudaArray* density,
                       cudaArray* temperature, const glm::vec3& center_point,
-                      const glm::vec3& hotspot, float radius, float vel_value,
-                      float d_value, float t_value,
+                      const glm::vec3& hotspot, float radius,
+                      const glm::vec3& vel_value, float d_value, float t_value,
                       const glm::ivec3& volume_size);
     void ApplyVorticityConfinement(cudaArray* vel_x, cudaArray* vel_y,
                                    cudaArray* vel_z, cudaArray* conf_x,
