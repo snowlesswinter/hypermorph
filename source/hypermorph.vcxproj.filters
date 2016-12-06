@@ -105,9 +105,6 @@
       <Filter>poisson_solver</Filter>
     </ClInclude>
     <ClInclude Include="graphics_linear_mem.h" />
-    <ClInclude Include="fluid_solver\fluid_buffer_owner.h">
-      <Filter>fluid_solver</Filter>
-    </ClInclude>
     <ClInclude Include="renderer\renderer.h">
       <Filter>renderer</Filter>
     </ClInclude>
@@ -122,6 +119,10 @@
     </ClInclude>
     <ClInclude Include="scene.h" />
     <ClInclude Include="particles.h" />
+    <ClInclude Include="particle_buffer_owner.h" />
+    <ClInclude Include="fluid_solver\fluid_field_owner.h">
+      <Filter>fluid_solver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />

@@ -24,7 +24,7 @@
 
 #include "cuda_host/cuda_main.h"
 #include "fluid_config.h"
-#include "fluid_solver/fluid_buffer_owner.h"
+#include "fluid_solver/fluid_field_owner.h"
 #include "graphics_volume.h"
 #include "opengl/gl_program.h"
 #include "opengl/gl_surface.h"
@@ -89,14 +89,15 @@ void VolumeRenderer::OnViewportSized(const glm::ivec2& viewport_size)
     }
 }
 
-void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
+void VolumeRenderer::Render(FluidFieldOwner* field_owner,
+                            ParticleBufferOwner* buf_owner)
 {
-    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
-        if (!buf_owner->GetDensityVolume())
-            return;
+    if (!field_owner)
+        return;
 
+    if (graphics_lib() == GRAPHICS_LIB_CUDA) {
         CudaMain::Instance()->Raycast(
-            surf_, buf_owner->GetDensityVolume()->cuda_volume(),
+            surf_, field_owner->GetDensityField()->cuda_volume(),
             inverse_rotation_proj_, eye_position_,
             FluidConfig::Instance()->light_color(),
             FluidConfig::Instance()->light_position(),
@@ -120,7 +121,7 @@ void VolumeRenderer::Render(FluidBufferOwner* buf_owner)
     if (graphics_lib() == GRAPHICS_LIB_CUDA) {
         RenderImplCuda();
     } else if (graphics_lib() == GRAPHICS_LIB_GLSL) {
-        RenderImplGlsl(buf_owner->GetDensityVolume(), focal_length_);
+        RenderImplGlsl(field_owner->GetDensityField(), focal_length_);
     }
 
     glDisable(GL_BLEND);

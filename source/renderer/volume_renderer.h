@@ -38,7 +38,8 @@ public:
 
     // Overridden from Renderer:
     virtual void OnViewportSized(const glm::ivec2& viewport_size) override;
-    virtual void Render(FluidBufferOwner* buf_owner) override;
+    virtual void Render(FluidFieldOwner* field_owner,
+                        ParticleBufferOwner* buf_owner) override;
     virtual void Update(float zoom, const glm::mat4& rotation) override;
 
     bool Init(const glm::ivec2& viewport_size);

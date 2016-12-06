@@ -29,12 +29,13 @@
 #include "poisson_solver/poisson_solver_enum.h"
 #include "third_party/glm/vec3.hpp"
 
-class FluidBufferOwner;
+class FluidFieldOwner;
 class FluidSolver;
 class FluidUnittest;
 class GraphicsVolume;
 class OpenBoundaryMultigridPoissonSolver;
-class Particles; // TODO
+class Particles;
+class ParticleBufferOwner;
 class PoissonCore;
 class PoissonSolver;
 class FluidSimulator
@@ -50,11 +51,11 @@ public:
     void StartImpulsing(float x, float y);
     void StopImpulsing();
     void Update(float delta_time, double seconds_elapsed, int frame_count,
-                const glm::vec3* source, const glm::vec3* velocity,
-                Particles* p);
+                const glm::vec3* source, const glm::vec3* velocity);
     void UpdateImpulsing(float x, float y);
 
-    FluidBufferOwner* buf_owner() const { return buf_owner_; }
+    FluidFieldOwner* field_owner() const { return field_owner_; }
+    ParticleBufferOwner* buf_owner() const { return buf_owner_; }
     void set_solver_choice(PoissonSolverEnum ps) { solver_choice_ = ps; }
     void set_diagnosis(int diagnosis);
     GraphicsLib graphics_lib() const { return graphics_lib_; }
@@ -72,12 +73,14 @@ private:
     int poisson_byte_width_;
     GraphicsLib graphics_lib_;
     std::unique_ptr<FluidSolver> fluid_solver_;
-    FluidBufferOwner* buf_owner_;
+    FluidFieldOwner* field_owner_;
+    ParticleBufferOwner* buf_owner_;
     PoissonSolverEnum solver_choice_;
     std::unique_ptr<PoissonCore> multigrid_core_;
     std::unique_ptr<PoissonSolver> pressure_solver_;
     std::unique_ptr<PoissonSolver> psi_solver_;
     std::shared_ptr<glm::vec2> manual_impulse_;
+    std::unique_ptr<Particles> particles_;
 };
 
 #endif // _FLUID_SIMULATOR_H_

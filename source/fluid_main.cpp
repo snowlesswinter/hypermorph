@@ -33,7 +33,6 @@
 #include "opengl/gl_program.h"
 #include "opengl/gl_volume.h"
 #include "overlay_content.h"
-#include "particles.h"
 #include "renderer/blob_renderer.h"
 #include "renderer/volume_renderer.h"
 #include "scene.h"
@@ -59,7 +58,6 @@ Renderer* renderer_ = nullptr;
 ConfigFileWatcher* watcher_ = nullptr;
 glm::ivec2 viewport_size_(0);
 Scene* scene_;
-Particles* particles_ = nullptr;
 
 
 struct
@@ -182,10 +180,7 @@ void UpdateFrame(unsigned int microseconds)
 
         glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
         glVertexAttribPointer(SlotPosition, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
-        sim_->Update(delta_time, time_elapsed, frame_count, nullptr, nullptr, particles_);// &pos, &vel, particles_);
-
-        particles_->Advect(FluidConfig::Instance()->fixed_time_step(),
-                           sim_->buf_owner()->GetVelocityField());
+        sim_->Update(delta_time, time_elapsed, frame_count, nullptr, nullptr);// &pos, &vel);
     }
 }
 
@@ -237,8 +232,7 @@ void RenderFrame()
 {
     Metrics::Instance()->OnFrameRenderingBegins();
 
-    //renderer_->Render(sim_->buf_owner());
-    renderer_->Render(particles_);
+    renderer_->Render(sim_->field_owner(), sim_->buf_owner());
 
     Metrics::Instance()->OnFrameRendered();
     DisplayMetrics();
@@ -470,10 +464,6 @@ void TimerProc(int value)
 
 bool Initialize()
 {
-    particles_ = new Particles(FluidConfig::Instance()->max_num_particles());
-    if (!particles_->Initialize(FluidConfig::Instance()->graphics_lib()))
-        return false;
-
     scene_ = new Scene();
     if (!scene_->Init())
         return false;

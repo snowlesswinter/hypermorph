@@ -19,44 +19,27 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _BLOB_RENDERER_H_
-#define _BLOB_RENDERER_H_
+#ifndef _PARTICLE_BUFFER_OWNER_H_
+#define _PARTICLE_BUFFER_OWNER_H_
 
-#include <memory>
+#include "graphics_lib_enum.h"
 
-#include "renderer/renderer.h"
-
-class GLProgram;
-class BlobRenderer : public Renderer
+class GraphicsLinearMemU16;
+class GraphicsMemPiece;
+class ParticleBufferOwner
 {
 public:
-    BlobRenderer();
-    virtual ~BlobRenderer();
+    virtual ~ParticleBufferOwner() {}
 
-    // Overridden from Renderer:
-    virtual void Render(FluidFieldOwner* field_owner,
-                        ParticleBufferOwner* buf_owner) override;
-    virtual void Update(float zoom, const glm::mat4& rotation) override;
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() = 0;
+    virtual GraphicsLinearMemU16* GetParticleDensityField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosXField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;
+    virtual GraphicsLinearMemU16* GetParticlePosZField() = 0;
+    virtual GraphicsLinearMemU16* GetParticleTemperatureField() = 0;
 
-    bool Init(int particle_count, const glm::ivec2& viewport_size);
-
-    void set_crit_density(float crit_density) { crit_density_ = crit_density; }
-    void set_impulse_temperature(float t) { impulse_temperature_ = t; }
-
-private:
-    bool CopyToVbo(ParticleBufferOwner* buf_owner);
-    GLProgram* GetRenderProgram();
-
-    int particle_count_;
-    glm::mat4 model_view_proj_;
-    glm::mat4 perspective_proj_;
-    float point_scale_;
-
-    std::shared_ptr<GLProgram> prog_;
-    uint32_t point_vbo_;
-    uint32_t extra_vbo_;
-    float crit_density_;
-    float impulse_temperature_;
+protected:
+    ParticleBufferOwner() {}
 };
 
-#endif // _BLOB_RENDERER_H_
+#endif  // _PARTICLE_BUFFER_OWNER_H_

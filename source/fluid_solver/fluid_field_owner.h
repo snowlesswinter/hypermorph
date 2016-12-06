@@ -19,32 +19,22 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#ifndef _FLUID_BUFFER_OWNER_H_
-#define _FLUID_BUFFER_OWNER_H_
+#ifndef _FLUID_FIELD_OWNER_H_
+#define _FLUID_FIELD_OWNER_H_
 
-#include "graphics_lib_enum.h"
-
-class GraphicsLinearMemU16;
-class GraphicsMemPiece;
 class GraphicsVolume;
 class GraphicsVolume3;
-class FluidBufferOwner
+class FluidFieldOwner
 {
 public:
-    virtual ~FluidBufferOwner() {}
+    virtual ~FluidFieldOwner() {}
 
-    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() = 0;
-    virtual GraphicsVolume* GetDensityVolume() = 0;
+    virtual GraphicsVolume* GetDensityField() = 0;
     virtual GraphicsVolume3* GetVelocityField() = 0;
-    virtual GraphicsLinearMemU16* GetParticleDensityField() = 0;
-    virtual GraphicsLinearMemU16* GetParticlePosXField() = 0;
-    virtual GraphicsLinearMemU16* GetParticlePosYField() = 0;
-    virtual GraphicsLinearMemU16* GetParticlePosZField() = 0;
-    virtual GraphicsLinearMemU16* GetParticleTemperatureField() = 0;
-    virtual GraphicsVolume* GetTemperatureVolume() = 0;
+    virtual GraphicsVolume* GetTemperatureField() = 0;
 
 protected:
-    FluidBufferOwner() {}
+    FluidFieldOwner() {}
 };
 
-#endif // _FLUID_BUFFER_OWNER_H_
+#endif  // _FLUID_FIELD_OWNER_H_

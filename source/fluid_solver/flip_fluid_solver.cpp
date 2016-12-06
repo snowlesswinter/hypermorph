@@ -118,7 +118,8 @@ struct FlipFluidSolver::FlipParticles
 
 FlipFluidSolver::FlipFluidSolver(int max_num_particles)
     : FluidSolver()
-    , FluidBufferOwner()
+    , FluidFieldOwner()
+    , ParticleBufferOwner()
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , grid_size_(128)
     , max_num_particles_(max_num_particles)
@@ -293,12 +294,7 @@ void FlipFluidSolver::Solve(float delta_time)
     CudaMain::Instance()->RoundPassed(frame_++);
 }
 
-GraphicsMemPiece* FlipFluidSolver::GetActiveParticleCountMemPiece()
-{
-    return particles_->num_of_actives_.get();
-}
-
-GraphicsVolume* FlipFluidSolver::GetDensityVolume()
+GraphicsVolume* FlipFluidSolver::GetDensityField()
 {
     return density_.get();
 }
@@ -306,6 +302,16 @@ GraphicsVolume* FlipFluidSolver::GetDensityVolume()
 GraphicsVolume3* FlipFluidSolver::GetVelocityField()
 {
     return velocity_.get();
+}
+
+GraphicsVolume* FlipFluidSolver::GetTemperatureField()
+{
+    return temperature_.get();
+}
+
+GraphicsMemPiece* FlipFluidSolver::GetActiveParticleCountMemPiece()
+{
+    return particles_->num_of_actives_.get();
 }
 
 GraphicsLinearMemU16* FlipFluidSolver::GetParticleDensityField()
@@ -331,11 +337,6 @@ GraphicsLinearMemU16* FlipFluidSolver::GetParticlePosZField()
 GraphicsLinearMemU16* FlipFluidSolver::GetParticleTemperatureField()
 {
     return particles_->temperature_.get();
-}
-
-GraphicsVolume* FlipFluidSolver::GetTemperatureVolume()
-{
-    return temperature_.get();
 }
 
 bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
@@ -372,19 +373,21 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
 
 void FlipFluidSolver::ApplyBuoyancy(float delta_time)
 {
+    if (!need_buoyancy_)
+        return;
+
     float smoke_weight = GetProperties().weight_;
     float ambient_temperature = GetProperties().ambient_temperature_;
     float buoyancy_coef = GetProperties().buoyancy_coef_;
     if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
-        if (need_buoyancy_)
-            CudaMain::Instance()->ApplyBuoyancy(
-                velocity_->x()->cuda_volume(), velocity_->y()->cuda_volume(),
-                velocity_->z()->cuda_volume(),
-                velocity_prev_->x()->cuda_volume(),
-                velocity_prev_->y()->cuda_volume(),
-                velocity_prev_->z()->cuda_volume(),
-                temperature_->cuda_volume(), density_->cuda_volume(),
-                delta_time, ambient_temperature, buoyancy_coef, smoke_weight);
+        CudaMain::Instance()->ApplyBuoyancy(
+            velocity_->x()->cuda_volume(), velocity_->y()->cuda_volume(),
+            velocity_->z()->cuda_volume(),
+            velocity_prev_->x()->cuda_volume(),
+            velocity_prev_->y()->cuda_volume(),
+            velocity_prev_->z()->cuda_volume(),
+            temperature_->cuda_volume(), density_->cuda_volume(),
+            delta_time, ambient_temperature, buoyancy_coef, smoke_weight);
     }
 }
 

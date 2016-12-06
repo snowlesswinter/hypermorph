@@ -27,14 +27,16 @@
 #include "third_party/glm/vec2.hpp"
 #include "third_party/glm/vec3.hpp"
 
-class FluidBufferOwner;
+class FluidFieldOwner;
+class ParticleBufferOwner;
 class Renderer
 {
 public:
     virtual ~Renderer();
 
     virtual void OnViewportSized(const glm::ivec2& viewport_size);
-    virtual void Render(FluidBufferOwner* buf_owner) = 0;
+    virtual void Render(FluidFieldOwner* field_owner,
+                        ParticleBufferOwner* buf_owner) = 0;
     virtual void Update(float zoom, const glm::mat4& rotation) = 0;
 
     void set_graphics_lib(GraphicsLib lib) { graphics_lib_ = lib; }

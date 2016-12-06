@@ -24,7 +24,7 @@
 
 #include <memory>
 
-#include "fluid_buffer_owner.h"
+#include "fluid_field_owner.h"
 #include "fluid_solver.h"
 #include "poisson_solver/poisson_solver_enum.h"
 #include "third_party/glm/vec3.hpp"
@@ -33,7 +33,7 @@ class GraphicsVolume;
 class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
-class GridFluidSolver : public FluidSolver, public FluidBufferOwner
+class GridFluidSolver : public FluidSolver, public FluidFieldOwner
 {
 public:
     GridFluidSolver();
@@ -51,16 +51,10 @@ public:
     virtual void SetPressureSolver(PoissonSolver* solver) override;
     virtual void Solve(float delta_time) override;
 
-    // Overridden from FluidBufferOwner:
-    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
-    virtual GraphicsVolume* GetDensityVolume() override;
+    // Overridden from FluidFieldOwner:
+    virtual GraphicsVolume* GetDensityField() override;
     virtual GraphicsVolume3* GetVelocityField() override;
-    virtual GraphicsLinearMemU16* GetParticleDensityField() override;
-    virtual GraphicsLinearMemU16* GetParticlePosXField() override;
-    virtual GraphicsLinearMemU16* GetParticlePosYField() override;
-    virtual GraphicsLinearMemU16* GetParticlePosZField() override;
-    virtual GraphicsLinearMemU16* GetParticleTemperatureField() override;
-    virtual GraphicsVolume* GetTemperatureVolume() override;
+    virtual GraphicsVolume* GetTemperatureField() override;
 
 private:
     friend class FluidUnittest;

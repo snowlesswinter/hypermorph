@@ -58,16 +58,6 @@ GraphicsMemPiece* Particles::GetActiveParticleCountMemPiece()
     return nullptr;
 }
 
-GraphicsVolume* Particles::GetDensityVolume()
-{
-    return nullptr;
-}
-
-GraphicsVolume3* Particles::GetVelocityField()
-{
-    return nullptr;
-}
-
 GraphicsLinearMemU16* Particles::GetParticleDensityField()
 {
     return density_.get();
@@ -89,11 +79,6 @@ GraphicsLinearMemU16* Particles::GetParticlePosZField()
 }
 
 GraphicsLinearMemU16* Particles::GetParticleTemperatureField()
-{
-    return nullptr;
-}
-
-GraphicsVolume* Particles::GetTemperatureVolume()
 {
     return nullptr;
 }

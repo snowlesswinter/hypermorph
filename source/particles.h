@@ -24,29 +24,26 @@
 
 #include <memory>
 
-#include "fluid_solver/fluid_buffer_owner.h"
+#include "particle_buffer_owner.h"
 #include "graphics_lib_enum.h"
 #include "graphics_linear_mem.h"
 #include "third_party/glm/fwd.hpp"
 
 class GraphicsMemPiece;
 class GraphicsVolume3;
-class Particles : public FluidBufferOwner
+class Particles : public ParticleBufferOwner
 {
 public:
     Particles(int max_num_particles);
     virtual ~Particles();
 
-    // Overridden from FluidBufferOwner:
+    // Overridden from ParticleBufferOwner:
     virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
-    virtual GraphicsVolume* GetDensityVolume() override;
-    virtual GraphicsVolume3* GetVelocityField() override;
     virtual GraphicsLinearMemU16* GetParticleDensityField() override;
     virtual GraphicsLinearMemU16* GetParticlePosXField() override;
     virtual GraphicsLinearMemU16* GetParticlePosYField() override;
     virtual GraphicsLinearMemU16* GetParticlePosZField() override;
     virtual GraphicsLinearMemU16* GetParticleTemperatureField() override;
-    virtual GraphicsVolume* GetTemperatureVolume() override;
 
     void Advect(float time_step, const GraphicsVolume3* velocity_field);
     void Emit(const glm::vec3& location, float radius, float density);

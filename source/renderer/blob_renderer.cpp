@@ -25,7 +25,7 @@
 #include <cassert>
 
 #include "cuda_host/cuda_main.h"
-#include "fluid_solver/fluid_buffer_owner.h"
+#include "particle_buffer_owner.h"
 #include "graphics_linear_mem.h"
 #include "graphics_mem_piece.h"
 #include "graphics_volume.h"
@@ -191,11 +191,9 @@ BlobRenderer::~BlobRenderer()
     }
 }
 
-void BlobRenderer::Render(FluidBufferOwner* buf_owner)
+void BlobRenderer::Render(FluidFieldOwner* field_owner,
+                          ParticleBufferOwner* buf_owner)
 {
-    if (!CopyToVbo(buf_owner))
-        return;
-
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
@@ -206,6 +204,9 @@ void BlobRenderer::Render(FluidBufferOwner* buf_owner)
     glViewport(0, 0, viewport_size().x, viewport_size().y);
     glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (!buf_owner || !CopyToVbo(buf_owner))
+        return;
 
     glDisable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -326,7 +327,7 @@ bool BlobRenderer::Init(int particle_count, const glm::ivec2& viewport_size)
     return true;
 }
 
-bool BlobRenderer::CopyToVbo(FluidBufferOwner* buf_owner)
+bool BlobRenderer::CopyToVbo(ParticleBufferOwner* buf_owner)
 {
     if (!buf_owner->GetParticlePosXField() ||
             !buf_owner->GetParticlePosYField() ||

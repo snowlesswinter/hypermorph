@@ -24,9 +24,10 @@
 
 #include <memory>
 
-#include "fluid_buffer_owner.h"
+#include "fluid_field_owner.h"
 #include "fluid_solver.h"
 #include "graphics_linear_mem.h"
+#include "particle_buffer_owner.h"
 #include "third_party/glm/vec3.hpp"
 
 class GraphicsMemPiece;
@@ -34,7 +35,8 @@ class GraphicsVolume;
 class GraphicsVolume3;
 class PoissonCore;
 class PoissonSolver;
-class FlipFluidSolver : public FluidSolver, public FluidBufferOwner
+class FlipFluidSolver : public FluidSolver, public FluidFieldOwner,
+                        public ParticleBufferOwner
 {
 public:
     explicit FlipFluidSolver(int max_num_particles);
@@ -52,16 +54,18 @@ public:
     virtual void SetPressureSolver(PoissonSolver* solver) override;
     virtual void Solve(float delta_time) override;
 
-    // Overridden from FluidBufferOwner:
-    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
-    virtual GraphicsVolume* GetDensityVolume() override;
+    // Overridden from FluidFieldOwner:
+    virtual GraphicsVolume* GetDensityField() override;
     virtual GraphicsVolume3* GetVelocityField() override;
+    virtual GraphicsVolume* GetTemperatureField() override;
+
+    // Overridden from ParticleBufferOwner:
+    virtual GraphicsMemPiece* GetActiveParticleCountMemPiece() override;
     virtual GraphicsLinearMemU16* GetParticleDensityField() override;
     virtual GraphicsLinearMemU16* GetParticlePosXField() override;
     virtual GraphicsLinearMemU16* GetParticlePosYField() override;
     virtual GraphicsLinearMemU16* GetParticlePosZField() override;
     virtual GraphicsLinearMemU16* GetParticleTemperatureField() override;
-    virtual GraphicsVolume* GetTemperatureVolume() override;
 
 private:
     struct FlipParticles;

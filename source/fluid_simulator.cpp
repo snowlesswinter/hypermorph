@@ -32,6 +32,7 @@
 #include "graphics_volume.h"
 #include "metrics.h"
 #include "opengl/gl_volume.h"
+#include "particles.h"
 #include "poisson_solver/full_multigrid_poisson_solver.h"
 #include "poisson_solver/poisson_core_cuda.h"
 #include "poisson_solver/poisson_core_glsl.h"
@@ -42,8 +43,6 @@
 #include "third_party/opengl/glew.h"
 #include "utility.h"
 
-#include "particles.h" // TODO
-
 const float kMaxTimeStep = 0.3f;
 
 FluidSimulator::FluidSimulator()
@@ -51,12 +50,14 @@ FluidSimulator::FluidSimulator()
     , poisson_byte_width_(2)
     , graphics_lib_(GRAPHICS_LIB_CUDA)
     , fluid_solver_()
+    , field_owner_(nullptr)
     , buf_owner_(nullptr)
     , solver_choice_(POISSON_SOLVER_FULL_MULTI_GRID)
     , multigrid_core_()
     , pressure_solver_()
     , psi_solver_()
     , manual_impulse_()
+    , particles_()
 {
 }
 
@@ -83,6 +84,17 @@ bool FluidSimulator::Init()
         return false;
 
     fluid_solver->SetPressureSolver(pressure_solver);
+
+    bool separated_particles = true;
+    if (separated_particles) {
+        particles_.reset(
+            new Particles(FluidConfig::Instance()->max_num_particles()));
+        if (!particles_->Initialize(FluidConfig::Instance()->graphics_lib()))
+            return false;
+
+        buf_owner_ = particles_.get();
+    }
+
     return true;
 }
 
@@ -128,7 +140,7 @@ void FluidSimulator::StopImpulsing()
 
 void FluidSimulator::Update(float delta_time, double seconds_elapsed,
                             int frame_count, const glm::vec3* source,
-                            const glm::vec3* velocity, Particles* p)
+                            const glm::vec3* velocity)
 {
     int debug = 0;
     if (debug) {
@@ -194,10 +206,13 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
         fluid_solver_->Impulse(splat_radius, pos, hotspot, impulse_density,
                                impulse_temperature, initial_velocity);
 
-    if (do_impulse)
-        p->Emit(pos, splat_radius, impulse_density);
+    if (particles_ && do_impulse)
+        particles_->Emit(pos, splat_radius, impulse_density);
 
     fluid_solver_->Solve(proper_delta_time);
+
+    if (particles_)
+        particles_->Advect(proper_delta_time, field_owner_->GetVelocityField());
 }
 
 void FluidSimulator::UpdateImpulsing(float x, float y)
@@ -273,11 +288,13 @@ FluidSolver* FluidSimulator::GetFluidSolver()
             FlipFluidSolver* solver = new FlipFluidSolver(
                 FluidConfig::Instance()->max_num_particles());
             fluid_solver_.reset(solver);
+            field_owner_ = solver;
             buf_owner_ = solver;
         } else {
             GridFluidSolver* solver = new GridFluidSolver();
             fluid_solver_.reset(solver);
-            buf_owner_ = solver;
+            field_owner_ = solver;
+            buf_owner_ = nullptr;
         }
     }
 
