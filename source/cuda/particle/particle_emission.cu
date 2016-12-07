@@ -51,8 +51,8 @@ __global__ void EmitParticlesFromSphereKernel(uint16_t* pos_x, uint16_t* pos_y,
     uint i = *tail + l;
     i = i >= num_of_particles ? i - num_of_particles : i;
 
-    uint seed = random_seed;
-    float3 coord = location + RandomCoord(&seed) * radius * 2.0f;
+    uint seed = random_seed + l;
+    float3 coord = location + RandomCoordSphere(&seed) * radius;
     pos_x[i]   = __float2half_rn(coord.x);
     pos_y[i]   = __float2half_rn(coord.y);
     pos_z[i]   = __float2half_rn(coord.z);

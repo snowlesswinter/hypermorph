@@ -213,9 +213,9 @@ __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
         }
 
         particles.particle_count_[cell_index] += new_particles;
-        uint seed = random_seed;
+        uint seed = random_seed + LinearIndexVolume(x, y, z, volume_size);
         for (int i = 0; i < new_particles; i++) {
-            float3 pos = coord + RandomCoord(&seed);
+            float3 pos = coord + RandomCoordCube(&seed);
 
             int index = base_index + i;
 
@@ -279,9 +279,9 @@ __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
         }
 
         particles.particle_count_[cell_index] += new_particles;
-        uint seed = random_seed;
+        uint seed = random_seed + LinearIndexVolume(x, y, z, volume_size);
         for (int i = 0; i < new_particles; i++) {
-            float3 pos = coord + RandomCoord(&seed);
+            float3 pos = coord + RandomCoordCube(&seed);
 
             int index = base_index + i;
 
@@ -426,9 +426,9 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     }
 
     // Reseed particles.
-    uint seed = random_seed;
+    uint seed = random_seed + LinearIndexVolume(x, y, z, volume_size);
     for (int i = 0; i < needed; i++) {
-        float3 pos = coord + RandomCoord(&seed);
+        float3 pos = coord + RandomCoordCube(&seed);
 
         // TODO: Accelerate with shared memory.
         v_x         = tex3D(tex_x, pos.x + 0.5f, pos.y,        pos.z);

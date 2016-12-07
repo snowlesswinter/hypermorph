@@ -105,7 +105,7 @@ void Particles::Emit(const glm::vec3& location, float radius, float density)
                                         density_->cuda_linear_mem(),
                                         life_->cuda_linear_mem(),
                                         tail_->cuda_mem_piece(),
-                                        max_num_particles_, 5000, location,
+                                        max_num_particles_, 200, location,
                                         radius, density);
 }
 
