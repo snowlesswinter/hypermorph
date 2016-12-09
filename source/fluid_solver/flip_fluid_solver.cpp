@@ -63,7 +63,6 @@ template <typename U, typename V>
 void SetCudaParticles(U* cuda_p, const V& p)
 {
     cuda_p->particle_index_   = p->particle_index_ ? p->particle_index_->cuda_linear_mem() : nullptr;
-    cuda_p->cell_index_       = p->cell_index_->cuda_linear_mem();
     cuda_p->in_cell_index_    = p->in_cell_index_->cuda_linear_mem();
     cuda_p->particle_count_   = p->particle_count_ ? p->particle_count_->cuda_linear_mem() : nullptr;
     cuda_p->position_x_       = p->position_x_->cuda_linear_mem();
@@ -83,7 +82,6 @@ struct FlipFluidSolver::FlipParticles
 {
     // TODO: Two set of particles can share some fields.
     std::shared_ptr<GraphicsLinearMemU32> particle_index_;
-    std::shared_ptr<GraphicsLinearMemU32> cell_index_;
     std::shared_ptr<GraphicsLinearMemU32> particle_count_;
     std::shared_ptr<GraphicsLinearMemU8>  in_cell_index_;
     std::shared_ptr<GraphicsLinearMemU16> position_x_;
@@ -99,7 +97,6 @@ struct FlipFluidSolver::FlipParticles
 
     FlipParticles(GraphicsLib lib)
         : particle_index_()
-        , cell_index_()
         , particle_count_()
         , in_cell_index_()
         , position_x_()
@@ -347,7 +344,6 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
     int n = max_num_particles;
     particles->num_of_particles_ = n;
 
-    result &= InitParticleField(&particles->cell_index_,    lib, n);
     result &= InitParticleField(&particles->in_cell_index_, lib, n);
     result &= InitParticleField(&particles->position_x_,    lib, n);
     result &= InitParticleField(&particles->position_y_,    lib, n);
@@ -474,7 +470,6 @@ void FlipFluidSolver::SubtractGradient(std::shared_ptr<GraphicsVolume> pressure)
 void FlipFluidSolver::SwapParticleFields(FlipParticles* particles,
                                          FlipParticles* aux)
 {
-    std::swap(particles->cell_index_,    aux->cell_index_);
     std::swap(particles->in_cell_index_, aux->in_cell_index_);
     std::swap(particles->position_x_,    aux->position_x_);
     std::swap(particles->position_y_,    aux->position_y_);

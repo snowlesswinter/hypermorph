@@ -135,7 +135,6 @@ void FlipImplCuda::CompactParticles(FlipParticles* particles,
                                  FromGlmVector(volume_size), ba_);
     observer_->OnSorted();
 
-    particles->cell_index_    = aux.cell_index_;
     particles->in_cell_index_ = aux.in_cell_index_;
     particles->position_x_    = aux.position_x_;
     particles->position_y_    = aux.position_y_;

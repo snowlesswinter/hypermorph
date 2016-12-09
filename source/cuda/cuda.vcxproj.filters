@@ -30,6 +30,9 @@
     <CudaCompile Include="particle\particle_advection.cu">
       <Filter>particle</Filter>
     </CudaCompile>
+    <CudaCompile Include="particle\flip_mapping_opt.cu">
+      <Filter>particle</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aux_buffer_manager.cpp" />

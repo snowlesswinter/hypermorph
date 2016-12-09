@@ -61,7 +61,6 @@ public:
     struct FlipParticles
     {
         std::shared_ptr<CudaLinearMemU32> particle_index_;
-        std::shared_ptr<CudaLinearMemU32> cell_index_;
         std::shared_ptr<CudaLinearMemU32> particle_count_;
         std::shared_ptr<CudaLinearMemU8>  in_cell_index_;
         std::shared_ptr<CudaLinearMemU16> position_x_;

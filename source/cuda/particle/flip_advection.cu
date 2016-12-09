@@ -102,13 +102,6 @@ __global__ void AdvectFlipParticlesKernel(FlipParticles particles,
     p.position_x_[i] = __float2half_rn(pos_x);
     p.position_y_[i] = __float2half_rn(pos_y);
     p.position_z_[i] = __float2half_rn(pos_z);
-
-    int xi = static_cast<int>(pos_x);
-    int yi = static_cast<int>(pos_y);
-    int zi = static_cast<int>(pos_z);
-
-    uint cell_index = (zi * volume_size.y + yi) * volume_size.x + xi;
-    p.cell_index_[i] = cell_index;
 }
 
 // =============================================================================

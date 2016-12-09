@@ -26,16 +26,30 @@
 
 #include "flip.h"
 
-const uint32_t kCellUndefined = static_cast<uint32_t>(-1);
+const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
 
-__device__ inline void SetUndefined(uint* cell_index)
+__device__ inline int CellIndex(uint16_t pos_x, uint16_t pos_y,
+                                uint16_t pos_z, const uint3& volume_size)
 {
-    *cell_index = kCellUndefined;
+    float x = __half2float(pos_x);
+    float y = __half2float(pos_y);
+    float z = __half2float(pos_z);
+
+    int xi = __float2int_rd(x);
+    int yi = __float2int_rd(y);
+    int zi = __float2int_rd(z);
+
+    return __mul24(__mul24(z, volume_size.y) + y, volume_size.x) + x;
 }
 
-__device__ inline bool IsCellUndefined(uint cell_index)
+__device__ inline void SetUndefined(uint16_t* pos_x)
 {
-    return cell_index == kCellUndefined;
+    *pos_x = kInvalidPos;
+}
+
+__device__ inline bool IsCellUndefined(uint16_t x)
+{
+    return x == kInvalidPos;
 }
 
 __device__ inline bool IsStopped(float v_x, float v_y, float v_z)
@@ -48,11 +62,9 @@ __device__ inline bool IsStopped(float v_x, float v_y, float v_z)
 
 __device__ inline void FreeParticle(const FlipParticles& p, uint i)
 {
-    SetUndefined(&p.cell_index_[i]);
-
     // Assign an invalid position value to indicate the binding kernel to
     // treat it as a free particle.
-    p.position_x_[i] = __float2half_rn(-1.0f);
+    p.position_x_[i] = kInvalidPos;
 }
 
 const uint32_t kMaxNumParticlesPerCell = 6;

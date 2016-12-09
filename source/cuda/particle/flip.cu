@@ -128,7 +128,6 @@ __device__ uint8_t AtomicIncrementUint8(uint8_t* addr)
 // =============================================================================
 
 // Fields should be reset: particle_count, in_cell_index
-// Fields should be available: cell_index.
 // Active particles may *NOT* be consecutive.
 __global__ void BindParticlesToCellsKernel(FlipParticles particles,
                                            uint3 volume_size)
@@ -137,11 +136,15 @@ __global__ void BindParticlesToCellsKernel(FlipParticles particles,
     if (i >= particles.num_of_particles_)
         return;
 
-    uint cell_index = particles.cell_index_[i];
-    if (IsCellUndefined(cell_index))
+    float xh = particles.position_x_[i];
+    float yh = particles.position_y_[i];
+    float zh = particles.position_z_[i];
+
+    if (IsCellUndefined(xh))
         return;
 
     // TODO: Free particles in resample kernel?
+    int cell_index = CellIndex(xh, yh, zh, volume_size);
     uint* p_count = particles.particle_count_;
     if (p_count[cell_index] >= kMaxNumParticlesPerCell) {
         FreeParticle(particles, i);
@@ -182,7 +185,7 @@ __global__ void DiffuseAndDecayKernel(FlipParticles particles, float time_step,
     particles.temperature_[i] = __float2half_rn((1.0f - temperature_dissipation * time_step) * __half2float(particles.temperature_[i]));
 }
 
-// Fields should be available: cell_index, particle_count, particle_index.
+// Fields should be available: particle_count, particle_index.
 template <typename Emission>
 __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
                                         float3 hotspot, float radius,
@@ -222,8 +225,6 @@ __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
             // Not necessary to initialize the in_cell_index field.
             // Particle-cell mapping will be done in the binding kernel.
 
-            // Assign a valid value to |cell_index_| to activate this particle.
-            particles.cell_index_ [index] = cell_index;
             particles.position_x_ [index] = __float2half_rn(pos.x);
             particles.position_y_ [index] = __float2half_rn(pos.y);
             particles.position_z_ [index] = __float2half_rn(pos.z);
@@ -246,7 +247,7 @@ __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
     }
 }
 
-// Fields should be available: cell_index, particle_count, particle_index.
+// Fields should be available: particle_count, particle_index.
 __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
                                                   float3 center, float radius,
                                                   float density,
@@ -291,8 +292,6 @@ __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
             // Not necessary to initialize the in_cell_index field.
             // Particle-cell mapping will be done in the binding kernel.
 
-            // Assign a valid value to |cell_index_| to activate this particle.
-            particles.cell_index_ [index] = cell_index;
             particles.position_x_ [index] = __float2half_rn(pos.x);
             particles.position_y_ [index] = __float2half_rn(pos.y);
             particles.position_z_ [index] = __float2half_rn(pos.z);
@@ -339,7 +338,7 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
 
     // Already constrained by |num_of_active_particles|.
     //
-    //if (IsCellUndefined(cell_index[i]))
+    //if (IsCellUndefined(pos_x[i]))
     //    return;
 
     float x = __half2float(pos_x[i]);
@@ -373,7 +372,7 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
 // created, its density and temperature are not gonna change during its life
 // time(except decaying).
 //
-// Fields should be available: cell_index, particle_count.
+// Fields should be available: particle_count.
 // Active particles should be consecutive.
 __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
                                uint3 volume_size)
@@ -442,8 +441,6 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         // Not necessary to initialize the in_cell_index field.
         // Particle-cell mapping will be done in the binding kernel.
 
-        // Assign a valid value to |cell_index_| to activate this particle.
-        particles.cell_index_ [index] = cell_index;
         particles.position_x_ [index] = __float2half_rn(pos.x);
         particles.position_y_ [index] = __float2half_rn(pos.y);
         particles.position_z_ [index] = __float2half_rn(pos.z);
@@ -476,11 +473,12 @@ __global__ void ResetParticlesKernel(FlipParticles particles)
         *particles.num_of_actives_ = 0;
 }
 
-// Fields should be available: cell_index, in_cell_index
+// Fields should be available: in_cell_index
 // Active particles may *NOT* be consecutive.
 template <typename Type>
-__global__ void SortFieldKernel(Type* field_np1, Type* field,
-                                uint32_t* cell_index, uint8_t* in_cell_index,
+__global__ void SortFieldKernel(Type* field_np1, Type* field, uint16_t* pos_x,
+                                uint16_t* pos_y, uint16_t* pos_z,
+                                uint8_t* in_cell_index,
                                 uint32_t* particle_index, uint num_of_particles,
                                 uint3 volume_size)
 {
@@ -488,13 +486,14 @@ __global__ void SortFieldKernel(Type* field_np1, Type* field,
     if (i >= num_of_particles)
         return;
 
-    if (!IsCellUndefined(cell_index[i])) {
-        uint sort_index = particle_index[cell_index[i]] + in_cell_index[i];
+    if (!IsCellUndefined(pos_x[i])) {
+        int cell_index = CellIndex(pos_x[i], pos_y[i], pos_z[i], volume_size);
+        uint sort_index = particle_index[cell_index] + in_cell_index[i];
         field_np1[sort_index] = field[i];
     }
 }
 
-// Fields should be available: cell_index, in_cell_index, particle_index
+// Fields should be available: in_cell_index, particle_index
 // Active particles may *NOT* be consecutive.
 __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
                                     int last_cell_index, uint3 volume_size)
@@ -511,16 +510,19 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
             p_src.particle_count_[last_cell_index];
     }
 
-    uint cell_index = p_src.cell_index_[i];
-    uint in_cell    = p_src.in_cell_index_[i];
-    if (!IsCellUndefined(cell_index)) {
+    float xh = p_src.position_x_[i];
+    float yh = p_src.position_y_[i];
+    float zh = p_src.position_z_[i];
+
+    if (!IsCellUndefined(xh)) {
+        uint in_cell    = p_src.in_cell_index_[i];
+        uint cell_index = CellIndex(xh, yh, zh, volume_size);
         uint sort_index = p_src.particle_index_[cell_index] + in_cell;
 
-        p_aux.cell_index_   [sort_index] = p_src.cell_index_[i];
         p_aux.in_cell_index_[sort_index] = p_src.in_cell_index_[i];
-        p_aux.position_x_   [sort_index] = p_src.position_x_[i];
-        p_aux.position_y_   [sort_index] = p_src.position_y_[i];
-        p_aux.position_z_   [sort_index] = p_src.position_z_[i];
+        p_aux.position_x_   [sort_index] = xh;
+        p_aux.position_y_   [sort_index] = yh;
+        p_aux.position_z_   [sort_index] = zh;
         p_aux.velocity_x_   [sort_index] = p_src.velocity_x_[i];
         p_aux.velocity_y_   [sort_index] = p_src.velocity_y_[i];
         p_aux.velocity_z_   [sort_index] = p_src.velocity_z_[i];
@@ -765,7 +767,9 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
 
         for (int i = 0; i < sizeof(fields) / sizeof(*fields); i++) {
             SortFieldKernel<<<grid, block>>>(aux.position_x_, fields[i],
-                                             particles.cell_index_,
+                                             particles.position_x_,
+                                             particles.position_y_,
+                                             particles.position_z_,
                                              particles.in_cell_index_,
                                              particles.particle_index_,
                                              particles.num_of_particles_,
@@ -781,18 +785,11 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
                 return;
         }
 
-        // Sort index fields.
-        SortFieldKernel<<<grid, block>>>(aux.cell_index_, particles.cell_index_,
-                                         particles.cell_index_,
-                                         particles.in_cell_index_,
-                                         particles.particle_index_,
-                                         particles.num_of_particles_,
-                                         volume_size);
-        DCHECK_KERNEL();
-
         SortFieldKernel<<<grid, block>>>(aux.in_cell_index_,
                                          particles.in_cell_index_,
-                                         particles.cell_index_,
+                                         particles.position_x_,
+                                         particles.position_y_,
+                                         particles.position_z_,
                                          particles.in_cell_index_,
                                          particles.particle_index_,
                                          particles.num_of_particles_,
@@ -800,14 +797,6 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
         DCHECK_KERNEL();
 
         cudaError_t e = cudaMemcpyAsync(
-            particles.cell_index_, aux.cell_index_,
-            particles.num_of_particles_ * sizeof(*particles.cell_index_),
-            cudaMemcpyDeviceToDevice);
-        assert(e == cudaSuccess);
-        if (e != cudaSuccess)
-            return;
-
-        e = cudaMemcpyAsync(
             particles.in_cell_index_, aux.in_cell_index_,
             particles.num_of_particles_ * sizeof(*particles.in_cell_index_),
             cudaMemcpyDeviceToDevice);
