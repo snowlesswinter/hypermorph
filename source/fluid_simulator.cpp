@@ -85,7 +85,7 @@ bool FluidSimulator::Init()
 
     fluid_solver->SetPressureSolver(pressure_solver);
 
-    bool separated_particles = true;
+    bool separated_particles = false;
     if (separated_particles) {
         particles_.reset(
             new Particles(FluidConfig::Instance()->max_num_particles()));

@@ -40,9 +40,6 @@ surface<void, cudaSurfaceType3D> surf_y;
 surface<void, cudaSurfaceType3D> surf_z;
 surface<void, cudaSurfaceType3D> surf_d;
 surface<void, cudaSurfaceType3D> surf_t;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
-texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 
 const uint32_t kMaxParticlesInCell = 4;
 const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
