@@ -45,7 +45,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 // routine.
 template <typename AdvectionImpl>
 __global__ void AdvectFlipParticlesKernel(FlipParticles particles,
-                                          uint3 volume_size,
+                                          float3 bounds,
                                           float time_step_over_cell_size,
                                           bool outflow, AdvectionImpl advect)
 {
@@ -78,30 +78,25 @@ __global__ void AdvectFlipParticlesKernel(FlipParticles particles,
     float3 result = advect.Advect(make_float3(x, y, z),
                                   make_float3(v_x, v_y, v_z),
                                   time_step_over_cell_size);
-    float pos_x = result.x;
-    float pos_y = result.y;
-    float pos_z = result.z;
 
-    if (pos_x < 0.0f || pos_x >= volume_size.x)
+    if (result.x < 0.0f || result.x > bounds.x)
         p.velocity_x_[i] = 0;
 
-    if (pos_y < 0.0f || pos_y >= volume_size.y) {
+    if (result.y < 0.0f || result.y > bounds.y) {
         if (outflow)
             FreeParticle(particles, i);
         else
             p.velocity_y_[i] = 0;
     }
 
-    if (pos_z < 0.0f || pos_z >= volume_size.z)
+    if (result.z < 0.0f || result.z > bounds.z)
         p.velocity_z_[i] = 0;
 
-    pos_x = fminf(fmaxf(pos_x, 0.0f), volume_size.x - 1.0f);
-    pos_y = fminf(fmaxf(pos_y, 0.0f), volume_size.y - 1.0f);
-    pos_z = fminf(fmaxf(pos_z, 0.0f), volume_size.z - 1.0f);
+    float3 pos = clamp(result, make_float3(0.0f), bounds);
 
-    p.position_x_[i] = __float2half_rn(pos_x);
-    p.position_y_[i] = __float2half_rn(pos_y);
-    p.position_z_[i] = __float2half_rn(pos_z);
+    p.position_x_[i] = __float2half_rn(pos.x);
+    p.position_y_[i] = __float2half_rn(pos.y);
+    p.position_z_[i] = __float2half_rn(pos.z);
 }
 
 // =============================================================================
@@ -137,25 +132,26 @@ void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vel_x,
     AdvectionBogackiShampine adv_bs;
     AdvectionRK4 adv_rk4;
 
+    float3 bounds = make_float3(volume_size) - 1.0f;
     int order = 3;
     switch (order) {
         case 1:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
+            AdvectFlipParticlesKernel<<<grid, block>>>(particles, bounds,
                                                        time_step / cell_size,
                                                        outflow, adv_fe);
             break;
         case 2:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
+            AdvectFlipParticlesKernel<<<grid, block>>>(particles, bounds,
                                                        time_step / cell_size,
                                                        outflow, adv_mp);
             break;
         case 3:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
+            AdvectFlipParticlesKernel<<<grid, block>>>(particles, bounds,
                                                        time_step / cell_size,
                                                        outflow, adv_bs);
             break;
         case 4:
-            AdvectFlipParticlesKernel<<<grid, block>>>(particles, volume_size,
+            AdvectFlipParticlesKernel<<<grid, block>>>(particles, bounds,
                                                        time_step / cell_size,
                                                        outflow, adv_rk4);
             break;

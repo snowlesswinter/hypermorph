@@ -47,7 +47,7 @@ template <typename AdvectionImpl>
 __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
                                       uint16_t* pos_z, uint16_t* density,
                                       uint16_t* life, int num_of_particles,
-                                      uint3 volume_size,
+                                      float3 bounds,
                                       float time_step_over_cell_size,
                                       bool outflow, AdvectionImpl advect)
 {
@@ -77,26 +77,21 @@ __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
     float3 result = advect.Advect(make_float3(x, y, z),
                                   make_float3(v_x, v_y, v_z),
                                   time_step_over_cell_size);
-    float new_x = result.x;
-    float new_y = result.y;
-    float new_z = result.z;
 
-    if (new_x < 0.0f || new_x >= volume_size.x)
+    if (result.x < 0.0f || result.x > bounds.x)
         life[i] = 0.0f;
 
-    if (new_y < 0.0f || new_y >= volume_size.y)
+    if (result.y < 0.0f || result.y > bounds.y)
         life[i] = 0.0f;
 
-    if (new_z < 0.0f || new_z >= volume_size.z)
+    if (result.z < 0.0f || result.z > bounds.z)
         life[i] = 0.0f;
 
-    new_x = fminf(fmaxf(new_x, 0.0f), volume_size.x - 1.0f);
-    new_y = fminf(fmaxf(new_y, 0.0f), volume_size.y - 1.0f);
-    new_z = fminf(fmaxf(new_z, 0.0f), volume_size.z - 1.0f);
+    float3 pos = clamp(result, make_float3(0.0f), bounds);
 
-    pos_x[i] = __float2half_rn(new_x);
-    pos_y[i] = __float2half_rn(new_y);
-    pos_z[i] = __float2half_rn(new_z);
+    pos_x[i] = __float2half_rn(pos.x);
+    pos_y[i] = __float2half_rn(pos.y);
+    pos_z[i] = __float2half_rn(pos.z);
 }
 
 // =============================================================================
@@ -133,33 +128,34 @@ void AdvectParticles(uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z,
     AdvectionBogackiShampine adv_bs;
     AdvectionRK4 adv_rk4;
 
+    float3 bounds = make_float3(volume_size) - 1.0f;
     int order = 3;
     switch (order) {
         case 1:
             AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
                                                    life, num_of_particles,
-                                                   volume_size,
+                                                   bounds,
                                                    time_step / cell_size,
                                                    outflow, adv_fe);
             break;
         case 2:
             AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
                                                    life, num_of_particles,
-                                                   volume_size,
+                                                   bounds,
                                                    time_step / cell_size,
                                                    outflow, adv_mp);
             break;
         case 3:
             AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
                                                    life, num_of_particles,
-                                                   volume_size,
+                                                   bounds,
                                                    time_step / cell_size,
                                                    outflow, adv_bs);
             break;
         case 4:
             AdvectParticlesKernel<<<grid, block>>>(pos_x, pos_y, pos_z, density,
                                                    life, num_of_particles,
-                                                   volume_size,
+                                                   bounds,
                                                    time_step / cell_size,
                                                    outflow, adv_rk4);
             break;
