@@ -45,6 +45,20 @@ void BlockArrangement::Init(int dev_id)
     cudaGetDeviceProperties(dev_prop_.get(), dev_id);
 }
 
+void BlockArrangement::Arrange8x8x8(dim3* grid, dim3* block,
+                                    const uint3& volume_size)
+{
+    if (!grid || !block)
+        return;
+
+    int bw = 8;
+    int bh = 8;
+    int bd = 8;
+    *block = dim3(bw, bh, bd);
+    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
+                 (volume_size.z + bd - 1) / bd);
+}
+
 void BlockArrangement::ArrangeGrid(dim3* grid, const dim3& block,
                                    const uint3& volume_size)
 {
@@ -121,15 +135,7 @@ void BlockArrangement::ArrangeLinearReduction(dim3* grid, dim3* block,
 void BlockArrangement::ArrangePrefer3dLocality(dim3* grid, dim3* block,
                                                const uint3& volume_size)
 {
-    if (!grid || !block)
-        return;
-
-    int bw = 8;
-    int bh = 8;
-    int bd = 8;
-    *block = dim3(bw, bh, bd);
-    *grid = dim3((volume_size.x + bw - 1) / bw, (volume_size.y + bh - 1) / bh,
-                 (volume_size.z + bd - 1) / bd);
+    Arrange8x8x8(grid, block, volume_size);
 }
 
 void BlockArrangement::ArrangeRowScan(dim3* grid, dim3* block, 

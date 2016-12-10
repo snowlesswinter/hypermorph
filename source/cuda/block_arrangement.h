@@ -35,6 +35,7 @@ public:
 
     void Init(int dev_id);
 
+    void Arrange8x8x8(dim3* grid, dim3* block, const uint3& volume_size);
     void ArrangeGrid(dim3* grid, const dim3& block, const uint3& volume_size);
     void ArrangeLinear(dim3* grid, dim3* block, int num_of_elements);
     void ArrangeLinearReduction(dim3* grid, dim3* block, int* num_of_blocks,

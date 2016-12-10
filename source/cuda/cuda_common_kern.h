@@ -37,7 +37,6 @@ __device__ inline uint VolumeZ()
     return __umul24(blockIdx.z, blockDim.z) + threadIdx.z;
 }
 
-
 __device__ inline uint LinearIndex()
 {
     return __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
@@ -46,8 +45,7 @@ __device__ inline uint LinearIndex()
 __device__ inline uint LinearIndexVolume(uint x, uint y, uint z,
                                          const uint3& volume_size)
 {
-    return __umul24(z, __umul24(volume_size.x, volume_size.y)) +
-        __umul24(y, volume_size.x) + x;
+    return __umul24(__umul24(z, volume_size.y) + y, volume_size.x) + x;
 }
 
 
