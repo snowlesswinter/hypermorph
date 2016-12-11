@@ -41,8 +41,7 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
 
 namespace
 {
-// Active particles should be consecutive, but could be freed during the
-// routine.
+// Active particles are always *NOT* consecutive.
 template <typename AdvectionImpl>
 __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
                                       float time_step_over_cell_size,
@@ -51,11 +50,14 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
     FlipParticles& p = particles;
 
     uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= *p.num_of_actives_) // Maybe dynamic parallelism is a better
-                                 // choice.
+    if (i >= p.num_of_particles_)
         return;
 
-    float x = __half2float(p.position_x_[i]);
+    uint16_t xh = p.position_x_[i];
+    if (IsCellUndefined(xh))
+        return;
+
+    float x = __half2float(xh);
     float y = __half2float(p.position_y_[i]);
     float z = __half2float(p.position_z_[i]);
 
@@ -78,12 +80,13 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
                                   make_float3(v_x, v_y, v_z),
                                   time_step_over_cell_size);
 
+    bool out_of_bounds = false;
     if (result.x < 0.0f || result.x > bounds.x)
         p.velocity_x_[i] = 0;
 
     if (result.y < 0.0f || result.y > bounds.y) {
         if (outflow)
-            FreeParticle(particles, i);
+            out_of_bounds = true;
         else
             p.velocity_y_[i] = 0;
     }
@@ -91,11 +94,15 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
     if (result.z < 0.0f || result.z > bounds.z)
         p.velocity_z_[i] = 0;
 
-    float3 pos = clamp(result, make_float3(0.0f), bounds);
+    if (out_of_bounds) {
+        FreeParticle(particles, i);
+    } else {
+        float3 pos = clamp(result, make_float3(0.0f), bounds);
 
-    p.position_x_[i] = __float2half_rn(pos.x);
-    p.position_y_[i] = __float2half_rn(pos.y);
-    p.position_z_[i] = __float2half_rn(pos.z);
+        p.position_x_[i] = __float2half_rn(pos.x);
+        p.position_y_[i] = __float2half_rn(pos.y);
+        p.position_z_[i] = __float2half_rn(pos.z);
+    }
 }
 
 template <typename TexType>
@@ -200,7 +207,7 @@ __global__ void AdvectParticlesKernel_smem(FlipParticles particles,
     uint cell_index = LinearIndexVolume(x, y, z, volume_size);
     int count = p.particle_count_[cell_index];
     for (int n = 0; n < count; n++) {
-        int i = p.particle_index_[cell_index] + n;
+        int i = cell_index * kMaxNumParticlesPerCell + n;
         if (i >= *p.num_of_actives_) // FIXME
             return;
 

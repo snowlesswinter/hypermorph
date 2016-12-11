@@ -121,21 +121,10 @@ void FlipImplCuda::CompactParticles(FlipParticles* particles,
                                     const FlipParticles& aux,
                                     const glm::ivec3& volume_size)
 {
-    uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
-    kern_launcher::BindParticlesToCells(*particles, FromGlmVector(volume_size),
-                                        ba_);
-    observer_->OnCellBound();
-
-    kern_launcher::BuildCellOffsets(particles->particle_index_,
-                                    particles->particle_count_, num_of_cells,
-                                    ba_, bm_);
-    observer_->OnPrefixSumCalculated();
-
     kern_launcher::SortParticles(*particles, num_active_particles, aux,
-                                 FromGlmVector(volume_size), ba_);
+                                 FromGlmVector(volume_size), ba_, bm_);
     observer_->OnSorted();
 
-    particles->in_cell_index_ = aux.in_cell_index_;
     particles->position_x_    = aux.position_x_;
     particles->position_y_    = aux.position_y_;
     particles->position_z_    = aux.position_z_;

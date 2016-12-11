@@ -81,8 +81,6 @@ namespace
 ::FlipParticles ToCudaFlipParticles(const CudaMain::FlipParticles& p)
 {
     ::FlipParticles cuda_p;
-    cuda_p.particle_index_   = p.particle_index_ ? p.particle_index_->mem() : nullptr;
-    cuda_p.in_cell_index_    = p.in_cell_index_->mem();
     cuda_p.particle_count_   = p.particle_count_ ? p.particle_count_->mem() : nullptr;
     cuda_p.position_x_       = p.position_x_->mem();
     cuda_p.position_y_       = p.position_y_->mem();

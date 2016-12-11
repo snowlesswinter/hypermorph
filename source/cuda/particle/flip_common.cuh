@@ -27,6 +27,9 @@
 #include "flip.h"
 
 const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
+const uint32_t kMaxNumParticlesPerCell = 6;
+const uint32_t kMaxNumSamplesForOneTime = 5;
+const uint32_t kMinNumParticlesPerCell = 2;
 
 __device__ inline int CellIndex(uint16_t pos_x, uint16_t pos_y,
                                 uint16_t pos_z, const uint3& volume_size)
@@ -66,9 +69,5 @@ __device__ inline void FreeParticle(const FlipParticles& p, uint i)
     // treat it as a free particle.
     p.position_x_[i] = kInvalidPos;
 }
-
-const uint32_t kMaxNumParticlesPerCell = 6;
-const uint32_t kMinNumParticlesPerCell = 2;
-const uint32_t kMaxNumSamplesForOneTime = 5;
 
 #endif // _FLIP_COMMON_H_

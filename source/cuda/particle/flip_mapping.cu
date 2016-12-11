@@ -235,12 +235,11 @@ __device__ void ReadPosAndField_iterative(ParticleFields* smem_fields,
                                           uint smem_i, int start_i,
                                           uint3 volume_size)
 {
-    uint32_t* p_index = particles.particle_index_;
     uint32_t* p_count = particles.particle_count_;
 
-    int cell = (grid_z * volume_size.y + grid_y) * volume_size.x + grid_x;
+    uint cell = LinearIndexVolume(grid_x, grid_y, grid_z, volume_size);
     int count = min(static_cast<int>(p_count[cell]) - start_i, step);
-    int index = p_index[cell] + start_i;
+    uint index = cell * kMaxNumParticlesPerCell + start_i;
 
     const uint16_t* pos_x       = particles.position_x_  + index;
     const uint16_t* pos_y       = particles.position_y_  + index;
@@ -392,12 +391,11 @@ __device__ void ReadPosAndField(ushort3* smem_pos, uint16_t* smem_¦Õ,
                                 const uint16_t* field, uint grid_x, uint grid_y,
                                 uint grid_z, uint smem_i, uint3 volume_size)
 {
-    uint32_t* p_index = particles.particle_index_;
     uint32_t* p_count = particles.particle_count_;
 
     int cell = (grid_z * volume_size.y + grid_y) * volume_size.x + grid_x;
     int count = p_count[cell];
-    int index = p_index[cell];
+    int index = cell * kMaxNumParticlesPerCell;
 
     const uint16_t* pos_x   = particles.position_x_ + index;
     const uint16_t* pos_y   = particles.position_y_ + index;
@@ -490,7 +488,6 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
     if (x < 1 || y < 1 || z < 1)
         return;
 
-    uint*     p_index     = particles.particle_index_;
     uint*     p_count     = particles.particle_count_;
     uint16_t* pos_x       = particles.position_x_;
     uint16_t* pos_y       = particles.position_y_;
@@ -520,7 +517,7 @@ __global__ void TransferToGridKernel(FlipParticles particles, uint3 volume_size)
         if (!count)
             continue;
 
-        int index = p_index[cell];
+        int index = cell * kMaxNumParticlesPerCell;
         float3 coord = make_float3(x, y, z) + 0.5f;
         ComputeWeightedAverage(&avg_vel_x,       &weight_vel_x,       pos_x + index, pos_y + index, pos_z + index, coord + make_float3(-0.5f, 0.0f, 0.0f), vel_x + index,       count);
         ComputeWeightedAverage(&avg_vel_y,       &weight_vel_y,       pos_x + index, pos_y + index, pos_z + index, coord + make_float3(0.0f, -0.5f, 0.0f), vel_y + index,       count);
@@ -562,7 +559,6 @@ __global__ void TransferFieldToGridKernel(FlipParticles particles,
     if (x < 1 || y < 1 || z < 1)
         return;
 
-    uint*     p_index = particles.particle_index_;
     uint*     p_count = particles.particle_count_;
     uint16_t* pos_x   = particles.position_x_;
     uint16_t* pos_y   = particles.position_y_;
@@ -579,7 +575,7 @@ __global__ void TransferFieldToGridKernel(FlipParticles particles,
         if (!count)
             continue;
 
-        int index = p_index[cell];
+        int index = cell * kMaxNumParticlesPerCell;
         float3 coord = make_float3(x, y, z) + 0.5f;
         ComputeWeightedAverage(&avg, &weight, pos_x + index, pos_y + index,
                                pos_z + index, coord + offset, field + index,
