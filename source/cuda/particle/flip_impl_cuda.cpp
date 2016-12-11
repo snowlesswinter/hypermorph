@@ -77,9 +77,6 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
     kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
                             temperature, rand_->Iterate(),
                             FromGlmVector(volume_size), ba_);
-    kern_launcher::DiffuseAndDecay(particles, time_step, velocity_dissipation,
-                                   density_dissipation, temperature_dissipation,
-                                   ba_);
     observer_->OnResampled();
 
     kern_launcher::AdvectFlipParticles(particles, vnp1_x, vnp1_y, vnp1_z,
@@ -87,8 +84,22 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                                        FromGlmVector(volume_size), ba_);
     observer_->OnAdvected();
 
+    kern_launcher::SortParticles(particles, num_active_particles, aux,
+                                 time_step, velocity_dissipation,
+                                 density_dissipation, temperature_dissipation,
+                                 FromGlmVector(volume_size), ba_, bm_);
+    observer_->OnSorted();
+
     FlipParticles p = particles;
-    CompactParticles(&p, num_active_particles, aux, volume_size);
+    p.position_x_  = aux.position_x_;
+    p.position_y_  = aux.position_y_;
+    p.position_z_  = aux.position_z_;
+    p.velocity_x_  = aux.velocity_x_;
+    p.velocity_y_  = aux.velocity_y_;
+    p.velocity_z_  = aux.velocity_z_;
+    p.density_     = aux.density_;
+    p.temperature_ = aux.temperature_;
+
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
                                   p, particles, FromGlmVector(volume_size),
                                   ba_);
@@ -114,23 +125,4 @@ void FlipImplCuda::Reset(const FlipParticles& particles,
                          const glm::ivec3& volume_size)
 {
     kern_launcher::ResetParticles(particles, FromGlmVector(volume_size), ba_);
-}
-
-void FlipImplCuda::CompactParticles(FlipParticles* particles,
-                                    int* num_active_particles,
-                                    const FlipParticles& aux,
-                                    const glm::ivec3& volume_size)
-{
-    kern_launcher::SortParticles(*particles, num_active_particles, aux,
-                                 FromGlmVector(volume_size), ba_, bm_);
-    observer_->OnSorted();
-
-    particles->position_x_    = aux.position_x_;
-    particles->position_y_    = aux.position_y_;
-    particles->position_z_    = aux.position_z_;
-    particles->velocity_x_    = aux.velocity_x_;
-    particles->velocity_y_    = aux.velocity_y_;
-    particles->velocity_z_    = aux.velocity_z_;
-    particles->density_       = aux.density_;
-    particles->temperature_   = aux.temperature_;
 }

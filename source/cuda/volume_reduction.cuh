@@ -20,11 +20,11 @@ Parallel reduction kernels
 #ifndef _VOLUME_REDUCTION_H_
 #define _VOLUME_REDUCTION_H_
 
-template <uint BlockSize, typename FPType>
-__device__ void ReduceBlock(volatile uint* sdata_raw, FPType my_sum,
+template <uint BlockSize, typename T>
+__device__ void ReduceBlock(volatile uint* sdata_raw, T my_sum,
                             const uint tid)
 {
-    volatile FPType* sdata = reinterpret_cast<volatile FPType*>(sdata_raw);
+    volatile T* sdata = reinterpret_cast<volatile T*>(sdata_raw);
     sdata[tid] = my_sum;
     __syncthreads();
 
@@ -97,18 +97,18 @@ __device__ void ReduceBlock(volatile uint* sdata_raw, FPType my_sum,
     }
 }
 
-template <uint BlockSize, bool IsPow2, typename FPType, typename DataScheme>
-__device__ void ReduceBlocks(FPType* block_results, uint total_elements,
+template <uint BlockSize, bool IsPow2, typename T, typename DataScheme>
+__device__ void ReduceBlocks(T* block_results, uint total_elements,
                              uint row_stride, uint slice_stride,
                              DataScheme scheme)
 {
     extern __shared__ uint sdata_raw[];
-    FPType* sdata = reinterpret_cast<FPType*>(sdata_raw);
+    T* sdata = reinterpret_cast<T*>(sdata_raw);
 
     uint tid = threadIdx.x;
     uint i = blockIdx.x * (BlockSize * 2) + threadIdx.x;
     uint grid_size = BlockSize * 2 * gridDim.x;
-    FPType my_sum = 0.0f;
+    T my_sum = 0;
 
     while (i < total_elements) {
         my_sum += scheme.Load(i, row_stride, slice_stride);
@@ -126,8 +126,8 @@ __device__ void ReduceBlocks(FPType* block_results, uint total_elements,
 
 __device__ uint retirement_count = 0;
 
-template <uint BlockSize, bool IsPow2, typename FPType, typename DataScheme>
-__global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
+template <uint BlockSize, bool IsPow2, typename T, typename DataScheme>
+__global__ void ReduceVolumeKernel(T* dest, T* block_results,
                                    uint total_elements, uint row_stride,
                                    uint slice_stride, DataScheme scheme)
 {
@@ -149,7 +149,7 @@ __global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
 
     if (last_block) {
         int i = tid;
-        FPType my_sum = 0.0f;
+        T my_sum = 0;
 
         while (i < gridDim.x) {
             my_sum += block_results[i];
@@ -159,7 +159,7 @@ __global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
         ReduceBlock<BlockSize>(smem, my_sum, tid);
 
         if (tid == 0) {
-            scheme.Save(dest, reinterpret_cast<FPType*>(smem)[0]);
+            scheme.Save(dest, reinterpret_cast<T*>(smem)[0]);
             retirement_count = 0;
         }
     }
@@ -167,8 +167,8 @@ __global__ void ReduceVolumeKernel(FPType* dest, FPType* block_results,
 
 // =============================================================================
 
-template <typename FPType, typename DataScheme>
-void ReduceVolume(FPType* dest, const DataScheme& scheme, uint3 volume_size,
+template <typename T, typename DataScheme>
+void ReduceVolume(T* dest, const DataScheme& scheme, uint3 volume_size,
                   BlockArrangement* ba, AuxBufferManager* bm)
 {
     uint total_elements = volume_size.x * volume_size.y * volume_size.z;
@@ -177,12 +177,12 @@ void ReduceVolume(FPType* dest, const DataScheme& scheme, uint3 volume_size,
     dim3 block;
     ba->ArrangeSequential(&grid, &block, volume_size);
 
-    std::unique_ptr<FPType, std::function<void(void*)>> block_results(
-        reinterpret_cast<FPType*>(bm->Allocate(grid.x * sizeof(FPType))),
+    std::unique_ptr<T, std::function<void(void*)>> block_results(
+        reinterpret_cast<T*>(bm->Allocate(grid.x * sizeof(T))),
         [&bm](void* p) { bm->Free(p); });
 
     uint num_of_threads = block.x;
-    uint smem_size = num_of_threads * sizeof(FPType);
+    uint smem_size = num_of_threads * sizeof(T);
     uint row_stride = volume_size.x;
     uint slice_stride = volume_size.x * volume_size.y;
 

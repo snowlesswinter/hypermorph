@@ -69,10 +69,6 @@ public:
     void set_outflow(bool outflow) { outflow_ = outflow; }
 
 private:
-    void CompactParticles(FlipParticles* particles, int* num_active_particles,
-                          const FlipParticles& aux,
-                          const glm::ivec3& volume_size);
-
     Observer* observer_;
     BlockArrangement* ba_;
     AuxBufferManager* bm_;
