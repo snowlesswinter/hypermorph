@@ -49,7 +49,7 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
 {
     FlipParticles& p = particles;
 
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= p.num_of_particles_)
         return;
 
@@ -111,7 +111,7 @@ __device__ void LoadVelToSmem_8x8x8(float3* smem, TexType tex_x_obj,
                                     const uint3& volume_size)
 {
     // Linear index in the kernel block.
-    uint i = __umul24(__umul24(threadIdx.z, 8) + threadIdx.y, 8) + threadIdx.x;
+    uint i = LinearIndexBlock();
 
     uint smem_block_width = 16;
     uint smem_slice_size = 16 * 16;
@@ -185,7 +185,6 @@ __global__ void AdvectParticlesKernel_smem(FlipParticles particles,
     __shared__ float3 smem[16 * 16 * 16]; // 4096
 
     LoadVelToSmem_8x8x8(smem, tex_x, tex_y, tex_z, volume_size);
-
     __syncthreads();
 
     uint x = VolumeX();
@@ -208,16 +207,12 @@ __global__ void AdvectParticlesKernel_smem(FlipParticles particles,
     int count = p.particle_count_[cell_index];
     for (int n = 0; n < count; n++) {
         int i = cell_index * kMaxNumParticlesPerCell + n;
-        if (i >= *p.num_of_actives_) // FIXME
-            return;
-
 
         float3 coord = make_float3(__half2float(p.position_x_[i]),
                                    __half2float(p.position_y_[i]),
                                    __half2float(p.position_z_[i]));
 
         // The fluid looks less bumpy with the grid velocity.
-
         float3 vel = LoadVelFromSmem_8x8x8(smem, coord - my_coord, si);
 
         if (IsStopped(vel.x, vel.y, vel.z)) {

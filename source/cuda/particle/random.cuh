@@ -27,6 +27,30 @@
 #include <helper_math.h>
 #include <math_constants.h>
 
+struct SymHalfExclusive
+{
+    __device__ static inline float Bake(uint r)
+    {
+        return -0.49999f + r * ((0.49999f * 2.0f) / 4294967295.0f);
+    }
+};
+
+struct SymOneExclusive
+{
+    __device__ static inline float Bake(uint r)
+    {
+        return -0.99999f + r * ((0.99999f * 2.0f) / 4294967295.0f);
+    }
+};
+
+struct ZeroInclusiveOneExclusive
+{
+    __device__ static inline float Bake(uint r)
+    {
+        return r * (1.0f / 4294967296.0f);
+    }
+};
+
 // Reference:
 // http://www.reedbeta.com/blog/quick-and-easy-gpu-random-numbers-in-d3d11/
 //
@@ -58,7 +82,8 @@
 // but what I need is actually something that 'spread things out as early as
 // possible(going wide)' inside the threads.
 
-// Generates a random number of float between [0, 1).
+// Generates a random number of float between [lo, hi].
+template <typename ScopeBuilder>
 __device__ inline float WangHash(uint* seed)
 {
     uint local_seed = *seed;
@@ -68,18 +93,18 @@ __device__ inline float WangHash(uint* seed)
     local_seed *= 0x27d4eb2d;
     local_seed = local_seed ^ (local_seed >> 15);
     *seed = local_seed;
-    return local_seed * (1.0f / 4294967296.0f);
+    return ScopeBuilder::Bake(local_seed);
 }
 
 __device__ inline float3 RandomCoordCube(uint* seed)
 {
     uint local_seed = *seed;
-    float x = WangHash(&local_seed);
-    float y = WangHash(&local_seed);
-    float z = WangHash(&local_seed);
+    float x = WangHash<SymHalfExclusive>(&local_seed);
+    float y = WangHash<SymHalfExclusive>(&local_seed);
+    float z = WangHash<SymHalfExclusive>(&local_seed);
 
     *seed = local_seed;
-    return make_float3(x, y, z) - 0.49999f;
+    return make_float3(x, y, z);
 }
 
 // Generates uniform distributed coordinates within a sphere.
@@ -97,15 +122,16 @@ __device__ inline float3 RandomCoordCube(uint* seed)
 __device__ inline float3 RandomCoordSphere(uint* seed)
 {
     uint local_seed = *seed;
-    float rvals = 2.0f * WangHash(&local_seed) - 0.9999f;
+    float rvals = WangHash<SymOneExclusive>(&local_seed);
     float cos_elevation = __fsqrt_rn(1.0f - rvals * rvals);
 
-    float azimuth = (2.0f * CUDART_PI_F) * WangHash(&local_seed);
+    float azimuth = (2.0f * CUDART_PI_F) *
+        WangHash<ZeroInclusiveOneExclusive>(&local_seed);
     float cos_azi;
     float sin_azi;
     __sincosf(azimuth, &sin_azi, &cos_azi);
 
-    float radii = cbrtf(WangHash(&local_seed));
+    float radii = cbrtf(WangHash<ZeroInclusiveOneExclusive>(&local_seed));
 
     *seed = local_seed;
 

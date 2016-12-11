@@ -31,18 +31,18 @@ const uint32_t kMaxNumParticlesPerCell = 6;
 const uint32_t kMaxNumSamplesForOneTime = 5;
 const uint32_t kMinNumParticlesPerCell = 2;
 
-__device__ inline int CellIndex(uint16_t pos_x, uint16_t pos_y,
-                                uint16_t pos_z, const uint3& volume_size)
+__device__ inline uint CellIndex(uint16_t pos_x, uint16_t pos_y,
+                                 uint16_t pos_z, const uint3& volume_size)
 {
     float x = __half2float(pos_x);
     float y = __half2float(pos_y);
     float z = __half2float(pos_z);
 
-    int xi = __float2int_rd(x);
-    int yi = __float2int_rd(y);
-    int zi = __float2int_rd(z);
+    uint xi = __float2uint_rd(x);
+    uint yi = __float2uint_rd(y);
+    uint zi = __float2uint_rd(z);
 
-    return __mul24(__mul24(z, volume_size.y) + y, volume_size.x) + x;
+    return (__umul24(zi, volume_size.y) + yi) * volume_size.x + xi;
 }
 
 __device__ inline void SetUndefined(uint16_t* pos_x)
@@ -68,6 +68,11 @@ __device__ inline void FreeParticle(const FlipParticles& p, uint i)
     // Assign an invalid position value to indicate the binding kernel to
     // treat it as a free particle.
     p.position_x_[i] = kInvalidPos;
+}
+
+__device__ inline uint ParticleIndex(uint cell_index)
+{
+    return cell_index * kMaxNumParticlesPerCell;
 }
 
 #endif // _FLIP_COMMON_H_

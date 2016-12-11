@@ -44,7 +44,7 @@ __global__ void EmitParticlesFromSphereKernel(uint16_t* pos_x, uint16_t* pos_y,
                                               float radius, float density_value,
                                               uint random_seed)
 {
-    uint l = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint l = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (l >= num_to_emit)
         return;
 

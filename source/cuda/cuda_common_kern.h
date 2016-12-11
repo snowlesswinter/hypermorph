@@ -39,14 +39,20 @@ __device__ inline uint VolumeZ()
 
 __device__ inline uint LinearIndex()
 {
-    return __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    return blockIdx.x * blockDim.x + threadIdx.x;
+}
+
+__device__ inline uint LinearIndexBlock()
+{
+    return
+        __umul24(__umul24(threadIdx.z, blockDim.y) + threadIdx.y, blockDim.x) +
+            threadIdx.x;
 }
 
 __device__ inline uint LinearIndexVolume(uint x, uint y, uint z,
                                          const uint3& volume_size)
 {
-    return __umul24(__umul24(z, volume_size.y) + y, volume_size.x) + x;
+    return (__umul24(z, volume_size.y) + y) * volume_size.x + x;
 }
-
 
 #endif // _CUDA_COMMON_KERN_H_

@@ -89,7 +89,7 @@ extern void BindParticlesToCells(const FlipParticles& particles, uint3 volume_si
 extern void BuildCellOffsets(uint* cell_offsets, const uint* cell_particles_counts, int num_of_cells, BlockArrangement* ba, AuxBufferManager* bm);
 extern void EmitFlipParticles(const FlipParticles& particles, float3 center, float3 hotspot, float radius, float density, float temperature, float3 velocity, FluidImpulse impulse, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 extern void EmitParticles(uint16_t* pos_x, uint16_t* pos_y, uint16_t* pos_z, uint16_t* density, uint16_t* life, int* tail, int num_of_particles, int num_to_emit, float3 location, float radius, float density_value, uint random_seed, BlockArrangement* ba);
-extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, BlockArrangement* ba);
+extern void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x, cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z, const uint3& volume_size, BlockArrangement* ba);
 extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, uint random_seed, uint3 volume_size, BlockArrangement* ba);
 extern void ResetParticles(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void SortParticles(FlipParticles particles, int* num_active_particles, FlipParticles aux, float time_step, float velocity_dissipation, float density_dissipation, float temperature_dissipation, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);

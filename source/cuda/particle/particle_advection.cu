@@ -51,7 +51,7 @@ __global__ void AdvectParticlesKernel(uint16_t* pos_x, uint16_t* pos_y,
                                       float time_step_over_cell_size,
                                       bool outflow, AdvectionImpl advect)
 {
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= num_of_particles)
         return;
 

@@ -113,7 +113,7 @@ __global__ void CopyToVboKernel(void* point_vbo, void* extra_vbo,
                                 int* num_of_active_particles,
                                 int num_of_particles)
 {
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= num_of_particles)
         return;
 

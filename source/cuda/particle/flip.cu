@@ -53,6 +53,8 @@ texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zp;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_d;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_t;
 
+namespace
+{
 __device__ bool IsCellActive(float v_x, float v_y, float v_z, float density,
                              float temperature)
 {
@@ -283,7 +285,7 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
                                                const uint16_t* pos_z,
                                                int num_of_particles)
 {
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= num_of_particles)
         return;
 
@@ -311,6 +313,137 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     vel_x[i] = __float2half_rn(__half2float(vel_x[i]) + ¦Ä_x);
     vel_y[i] = __float2half_rn(__half2float(vel_y[i]) + ¦Ä_y);
     vel_z[i] = __float2half_rn(__half2float(vel_z[i]) + ¦Ä_z);
+}
+
+template <typename TexType>
+__device__ void LoadVelToSmem_10x10x10(float3* smem, TexType tex_x_obj,
+                                       TexType tex_y_obj, TexType tex_z_obj,
+                                       const uint3& volume_size)
+{
+    uint smem_block_width = 10;
+    uint smem_slice_size = 10 * 10;
+    uint smem_stride = 8 * 8 * 8;
+
+    // Linear index in the kernel block.
+    uint i = LinearIndexBlock();
+
+    // Shared memory block(including halo) coordinates.
+    uint sz = i / smem_slice_size;
+    uint t =  i - __umul24(sz, smem_slice_size);
+    uint sy = t / smem_block_width;
+    uint sx = t - __umul24(sy, smem_block_width);
+
+    uint i2 = i + smem_stride;
+    uint sz2 = i2 / smem_slice_size;
+    t =  i2 - __umul24(sz2, smem_slice_size);
+    uint sy2 = t / smem_block_width;
+    uint sx2 = t - __umul24(sy2, smem_block_width);
+
+    // Grid coordinates.
+    float gx = __uint2float_rn(blockIdx.x * blockDim.x + sx - 1) + 0.5f;
+    float gy = __uint2float_rn(blockIdx.y * blockDim.y + sy - 1) + 0.5f;
+    float gz = __uint2float_rn(blockIdx.z * blockDim.z + sz - 1) + 0.5f;
+
+    float gx2 = __uint2float_rn(blockIdx.x * blockDim.x + sx2 - 1) + 0.5f;
+    float gy2 = __uint2float_rn(blockIdx.y * blockDim.y + sy2 - 1) + 0.5f;
+    float gz2 = __uint2float_rn(blockIdx.z * blockDim.z + sz2 - 1) + 0.5f;
+
+    smem[i              ].x = tex3D(tex_x_obj, gx  + 0.5f, gy,         gz);
+    smem[i + smem_stride].x = tex3D(tex_x_obj, gx2 + 0.5f, gy2,        gz2);
+
+    smem[i              ].y = tex3D(tex_y_obj, gx,         gy  + 0.5f, gz);
+    smem[i + smem_stride].y = tex3D(tex_y_obj, gx2,        gy2 + 0.5f, gz2);
+
+    smem[i              ].z = tex3D(tex_z_obj, gx,         gy ,        gz  + 0.5f);
+    smem[i + smem_stride].z = tex3D(tex_z_obj, gx2,        gy2,        gz2 + 0.5f);
+}
+
+__device__ float3 LoadVelFromSmem_10x10x10(const float3* smem,
+                                           const float3& coord, uint si)
+{
+    int3 p0 = make_int3(__float2int_rd(coord.x), __float2int_rd(coord.y),
+                        __float2int_rd(coord.z));
+    float3 t = coord - make_float3(__int2float_rn(p0.x), __int2float_rn(p0.y),
+                                   __int2float_rn(p0.z));
+
+    // p0 should always stay between [-1, 1].
+
+    int row_stride = 10;
+    int slice_stride = 10 * 10;
+
+    int i = si + p0.z * slice_stride + p0.y * row_stride + p0.x;
+
+    float3 x0y0z0 = smem[i];
+    float3 x1y0z0 = smem[i + 1];
+    float3 x0y1z0 = smem[i + row_stride];
+    float3 x0y0z1 = smem[i + slice_stride];
+    float3 x1y1z0 = smem[i + row_stride + 1];
+    float3 x0y1z1 = smem[i + slice_stride + row_stride];
+    float3 x1y0z1 = smem[i + slice_stride + 1];
+    float3 x1y1z1 = smem[i + slice_stride + row_stride + 1];
+
+    float3 a = lerp(x0y0z0, x1y0z0, t.x);
+    float3 b = lerp(x0y1z0, x1y1z0, t.x);
+    float3 c = lerp(x0y0z1, x1y0z1, t.x);
+    float3 d = lerp(x0y1z1, x1y1z1, t.x);
+
+    float3 e = lerp(a, b, t.y);
+    float3 f = lerp(c, d, t.y);
+
+    return lerp(e, f, t.z);
+}
+
+__global__ void InterpolateDeltaVelocityKernel_smem(
+    uint16_t* vel_x, uint16_t* vel_y, uint16_t* vel_z, const uint16_t* pos_x,
+    const uint16_t* pos_y, const uint16_t* pos_z,
+    const uint32_t* particle_count, uint3 volume_size)
+{
+    __shared__ float3 smem[1024];
+    __shared__ float3 smemp[1024];
+
+    uint x = VolumeX();
+    uint y = VolumeY();
+    uint z = VolumeZ();
+
+    bool inside_volume =
+        !(x >= volume_size.x || y >= volume_size.y || z >= volume_size.z);
+
+    float3 my_coord = make_float3(x, y, z) + 0.5f;
+
+    // Coordinates in the shared memory block(including halo).
+    uint3 ti = threadIdx + 1;
+
+    // Linear index in the shared memory block(including halo).
+    uint si = __umul24(__umul24(ti.z, 10) + ti.y, 10) + ti.x;
+
+    uint cell_index = LinearIndexVolume(x, y, z, volume_size);
+    uint index = ParticleIndex(cell_index);
+    int count = inside_volume ? particle_count[cell_index] : 0;
+    if (count) { // Little help to performance, since most of the cells are
+                 // not empty.
+        LoadVelToSmem_10x10x10(smem,  tex_x,  tex_y,  tex_z,  volume_size);
+        LoadVelToSmem_10x10x10(smemp, tex_xp, tex_yp, tex_zp, volume_size);
+    }
+
+    __syncthreads();
+
+    for (int i = 0; i < count; i++) {
+        // IsCellUndefined(pos_x[index + i])) should always return *TRUE*.
+        // All active particles within a cell should be consecutive.
+        float3 coord = make_float3(__half2float(pos_x[index + i]),
+                                   __half2float(pos_y[index + i]),
+                                   __half2float(pos_z[index + i]));
+
+        float3 vel  = LoadVelFromSmem_10x10x10(smem,  coord - my_coord, si);
+        float3 velp = LoadVelFromSmem_10x10x10(smemp, coord - my_coord, si);
+        float3 delta = velp - vel;
+
+        // v_np1 = (1 - ¦Á) * v_n_pic + ¦Á * v_n_flip.
+        // We are using ¦Á = 1.
+        vel_x[index + i] = __float2half_rn(__half2float(vel_x[index + i]) + delta.x);
+        vel_y[index + i] = __float2half_rn(__half2float(vel_y[index + i]) + delta.y);
+        vel_z[index + i] = __float2half_rn(__half2float(vel_z[index + i]) + delta.z);
+    }
 }
 
 // Should be invoked *AFTER* interpolation kernel. Since the newly inserted
@@ -394,7 +527,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
 
 __global__ void ResetParticlesKernel(FlipParticles particles)
 {
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= particles.num_of_particles_)
         return;
 
@@ -454,6 +587,7 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
         }
     }
 }
+} // Anonymous namespace.
 
 struct SchemeDefault
 {
@@ -533,7 +667,7 @@ void EmitFlipParticles(const FlipParticles& particles, float3 center,
 void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x,
                               cudaArray* vnp1_y, cudaArray* vnp1_z,
                               cudaArray* vn_x, cudaArray* vn_y, cudaArray* vn_z,
-                              BlockArrangement* ba)
+                              const uint3& volume_size, BlockArrangement* ba)
 {
     auto bound_xp = BindHelper::Bind(&tex_xp, vnp1_x, false,
                                      cudaFilterModeLinear,
@@ -570,14 +704,22 @@ void InterpolateDeltaVelocity(const FlipParticles& particles, cudaArray* vnp1_x,
 
     dim3 block;
     dim3 grid;
-    ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
-    InterpolateDeltaVelocityKernel<<<grid, block>>>(particles.velocity_x_,
-                                                    particles.velocity_y_,
-                                                    particles.velocity_z_,
-                                                    particles.position_x_,
-                                                    particles.position_y_,
-                                                    particles.position_z_,
-                                                    particles.num_of_particles_);
+
+    bool smem = false;
+    if (smem) {
+        ba->Arrange8x8x8(&grid, &block, volume_size);
+        InterpolateDeltaVelocityKernel_smem<<<grid, block>>>(
+            particles.velocity_x_, particles.velocity_y_, particles.velocity_z_,
+            particles.position_x_, particles.position_y_, particles.position_z_,
+            particles.particle_count_, volume_size);
+
+    } else {
+        ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
+        InterpolateDeltaVelocityKernel<<<grid, block>>>(
+            particles.velocity_x_, particles.velocity_y_, particles.velocity_z_,
+            particles.position_x_, particles.position_y_, particles.position_z_,
+            particles.num_of_particles_);
+    }
     DCHECK_KERNEL();
 }
 

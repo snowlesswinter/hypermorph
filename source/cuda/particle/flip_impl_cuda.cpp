@@ -71,7 +71,8 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                           const glm::ivec3& volume_size)
 {
     kern_launcher::InterpolateDeltaVelocity(particles, vnp1_x, vnp1_y, vnp1_z,
-                                            vn_x, vn_y, vn_z, ba_);
+                                            vn_x, vn_y, vn_z,
+                                            FromGlmVector(volume_size), ba_);
     observer_->OnVelocityInterpolated();
 
     kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,

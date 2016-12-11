@@ -59,7 +59,7 @@ __device__ void ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
     for (int i = blockDim.x; i > 0; i >>= 1) {
         __syncthreads();
         if (tid < i) {
-            base_offset = __mul24(__mul24(2, stride), tid) + stride - 1;
+            base_offset = __umul24(__umul24(2, stride), tid) + stride - 1;
             offset0 = base_offset;
             offset1 = base_offset + stride;
 
@@ -81,7 +81,7 @@ __device__ void ParallelPrefixSum(uint* block_sums, uint* smem, uint tid,
         __syncthreads();
 
         if (tid < i) {
-            base_offset = __mul24(__mul24(2, stride), tid) + stride - 1;
+            base_offset = __umul24(__umul24(2, stride), tid) + stride - 1;
             offset0 = base_offset;
             offset1 = base_offset + stride;
 
@@ -102,7 +102,7 @@ __global__ void ApplyBlockResultsKernel(uint* prefix_sum,
     if (threadIdx.x == 0)
         sum = block_sums[blockIdx.x + block_offset];
 
-    uint index = __mul24(blockIdx.x, (blockDim.x << 1)) + base_index +
+    uint index = __umul24(blockIdx.x, (blockDim.x << 1)) + base_index +
         threadIdx.x;
 
     __syncthreads();
@@ -122,7 +122,7 @@ __global__ void BuildPrefixSumKernel(uint* prefix_sum, uint* block_sums,
 
     uint tid = threadIdx.x;
     uint base_index = element_index ?
-        element_index : __mul24(blockIdx.x, (blockDim.x << 1));
+        element_index : __umul24(blockIdx.x, (blockDim.x << 1));
     uint i0 = base_index + threadIdx.x;
     uint i1 = base_index + threadIdx.x + blockDim.x;
 

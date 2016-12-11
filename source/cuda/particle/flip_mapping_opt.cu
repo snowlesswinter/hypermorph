@@ -104,7 +104,7 @@ __global__ void TransferToGridLopKernel(FlipParticles particles,
 {
     // save the lookup table into smem
 
-    uint i = __mul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (i >= *particles.num_of_actives_)
         return;
 
