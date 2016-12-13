@@ -55,4 +55,21 @@ __device__ inline uint LinearIndexVolume(uint x, uint y, uint z,
     return (__umul24(z, volume_size.y) + y) * volume_size.x + x;
 }
 
+__device__ inline float3 Half2Float(uint16_t x, uint16_t y, uint16_t z)
+{
+    return make_float3(__half2float(x), __half2float(y), __half2float(z));
+}
+
+__device__ inline int3 Float2Int(const float3& f)
+{
+    return make_int3(__float2int_rd(f.x), __float2int_rd(f.y),
+                     __float2int_rd(f.z));
+}
+
+__device__ inline float3 Int2Float(const int3& i)
+{
+    return make_float3(__int2float_rn(i.x), __int2float_rn(i.y),
+                       __int2float_rn(i.z));
+}
+
 #endif // _CUDA_COMMON_KERN_H_

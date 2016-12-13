@@ -103,15 +103,53 @@ __global__ void TransferToGridLopKernel(FlipParticles particles,
                                         uint3 volume_size)
 {
     // save the lookup table into smem
+    __shared__ int8_t adj_route[8];
+    __shared__ float smem_vx_wsum  [8 * 8 * 8];
+    __shared__ float smem_vy_wsum  [8 * 8 * 8];
+    __shared__ float smem_vz_wsum  [8 * 8 * 8];
+    __shared__ float smem_d_wsum   [8 * 8 * 8];
+    __shared__ float smem_t_wsum   [8 * 8 * 8];
+    __shared__ float smem_vx_weight[8 * 8 * 8];
+    __shared__ float smem_vy_weight[8 * 8 * 8];
+    __shared__ float smem_vz_weight[8 * 8 * 8];
+    __shared__ float smem_d_weight [8 * 8 * 8];
+    __shared__ float smem_t_weight [8 * 8 * 8];
 
     uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= *particles.num_of_actives_)
+
+    if (i == 0) {
+        adj_route[0] = -64 - 8 - 1;
+        adj_route[1] = -64 - 8 - 0;
+        adj_route[2] = -64 - 0 - 1;
+        adj_route[3] = -64 - 0 - 0;
+        adj_route[4] = -0  - 8 - 1;
+        adj_route[5] = -0  - 8 - 0;
+        adj_route[6] = -0  - 0 - 1;
+        adj_route[7] = -0  - 0 - 0;
+    }
+
+    __syncthreads();
+
+    if (IsCellUndefined(particles.position_x_[i]))
         return;
 
-    int x = __float2int_rd(particles.position_x_[i]);
-    int y = __float2int_rd(particles.position_y_[i]);
-    int z = __float2int_rd(particles.position_z_[i]);
-    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    float3 coord = Half2Float(particles.position_x_[i],
+                              particles.position_y_[i],
+                              particles.position_z_[i]);
+
+    int3 coord_i = Float2Int(coord);
+
+    float3 center = Int2Float(coord_i);
+    int3 table_index = Float2Int((coord - center) * 2.0f);
+    int table_i = (table_index.z << 1 + table_index.y) << 1 + table_index.x;
+    int offset = adj_route[table_i];
+
+    // Classify the particle by its situation of adjacency.
+    float3 diff = coord - center;
+
+    for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) for (int k = 0; k < 2; k++) {
+        int n = (i << 1 + j) << 1 + k;
+        int v = adj_table[n];
         // Calculate weighted average to the nearest cell.
 
         // Use atomic add to the cell fields.
