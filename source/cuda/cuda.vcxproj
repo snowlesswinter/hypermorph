@@ -206,6 +206,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="particle\flip_advection.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
     </CudaCompile>
+    <CudaCompile Include="particle\flip_delta_vel.cu">
+      <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
+      <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">64</MaxRegCount>
+    </CudaCompile>
     <CudaCompile Include="particle\flip_mapping.cu">
       <GenerateLineInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateLineInfo>
       <MaxRegCount Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">80</MaxRegCount>
