@@ -75,4 +75,11 @@ __device__ inline uint ParticleIndex(uint cell_index)
     return cell_index * kMaxNumParticlesPerCell;
 }
 
+__device__ inline float3 Coordinates(const FlipParticles& p, uint i)
+{
+    return make_float3(__half2float(p.position_x_[i]),
+                       __half2float(p.position_y_[i]),
+                       __half2float(p.position_z_[i]));
+}
+
 #endif // _FLIP_COMMON_H_

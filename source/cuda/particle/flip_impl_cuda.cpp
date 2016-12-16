@@ -70,19 +70,16 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
                           float temperature_dissipation,
                           const glm::ivec3& volume_size)
 {
-    kern_launcher::InterpolateDeltaVelocity(particles, vnp1_x, vnp1_y, vnp1_z,
-                                            vn_x, vn_y, vn_z,
-                                            FromGlmVector(volume_size), ba_);
-    observer_->OnVelocityInterpolated();
-
-    kern_launcher::Resample(particles, vnp1_x, vnp1_y, vnp1_z, density,
-                            temperature, rand_->Iterate(),
+    // Sample the last step's velocity.
+    kern_launcher::Resample(particles, vn_x, vn_y, vn_z, density, temperature,
+                            rand_->Iterate(),
                             FromGlmVector(volume_size), ba_);
     observer_->OnResampled();
 
-    kern_launcher::AdvectFlipParticles(particles, vnp1_x, vnp1_y, vnp1_z,
-                                       time_step, cell_size_, outflow_,
-                                       FromGlmVector(volume_size), ba_);
+    kern_launcher::AdvectFlipParticles(particles, vnp1_x, vnp1_y, vnp1_z, vn_x,
+                                       vn_y, vn_z, time_step, cell_size_,
+                                       outflow_, FromGlmVector(volume_size),
+                                       ba_);
     observer_->OnAdvected();
 
     kern_launcher::SortParticles(particles, num_active_particles, aux,

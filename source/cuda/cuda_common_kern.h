@@ -55,4 +55,13 @@ __device__ inline uint LinearIndexVolume(uint x, uint y, uint z,
     return (__umul24(z, volume_size.y) + y) * volume_size.x + x;
 }
 
+template <typename TexType>
+__device__ inline float3 LoadVel(TexType tex_x, TexType tex_y, TexType tex_z,
+                                 const float3& coord)
+{
+    return make_float3(tex3D(tex_x, coord.x + 0.5f, coord.y,        coord.z),
+                       tex3D(tex_y, coord.x,        coord.y + 0.5f, coord.z),
+                       tex3D(tex_z, coord.x,        coord.y,        coord.z + 0.5f));
+}
+
 #endif // _CUDA_COMMON_KERN_H_

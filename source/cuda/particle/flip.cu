@@ -266,8 +266,8 @@ __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
     }
 }
 
-// Should be invoked *AFTER* interpolation kernel. Since the newly inserted
-// particles sample the new velocity filed, they don't need any correction.
+// The new particles sample the velocity of the last step. Please see the
+// comments of FLIP particle advection kernel.
 //
 // One should be very careful designing the mechanism of re-sampling: an
 // important difference between particles and grid is that once a particle is
@@ -302,23 +302,16 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     if (needed <= 0)
         return;
 
-    float3 coord = make_float3(x, y, z) + 0.5f;
-
-    float v_x =         tex3D(tex_x, coord.x + 0.5f, coord.y,        coord.z);
-    float v_y =         tex3D(tex_y, coord.x,        coord.y + 0.5f, coord.z);
-    float v_z =         tex3D(tex_z, coord.x,        coord.y,        coord.z + 0.5f);
-    float density =     tex3D(tex_d, coord.x,        coord.y,        coord.z);
-    float temperature = tex3D(tex_t, coord.x,        coord.y,        coord.z);
-
-    if (!IsCellActive(v_x, v_y, v_z, density, temperature)) {
-        // FIXME: Recycle inactive particles.
-        return;
-    }
+    // Used to be: IsCellActive(center_vel, center_density, center_temperature).
+    // But that is not correct. We should not judge all the particles only by
+    // the state right at the center of the cell.
 
     if (!IsThereEnoughFreeParticles(particles, needed))
         return;
 
     // FIXME: Rectify particle count.
+
+    float3 coord = make_float3(x, y, z) + 0.5f;
 
     // Reseed particles.
     uint seed = random_seed + cell_index;
@@ -326,20 +319,18 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         float3 pos = coord + RandomCoordCube(&seed);
 
         // TODO: Accelerate with shared memory.
-        v_x         = tex3D(tex_x, pos.x + 0.5f, pos.y,        pos.z);
-        v_y         = tex3D(tex_y, pos.x,        pos.y + 0.5f, pos.z);
-        v_z         = tex3D(tex_z, pos.x,        pos.y,        pos.z + 0.5f);
-        density     = tex3D(tex_d, pos.x,        pos.y,        pos.z);
-        temperature = tex3D(tex_t, pos.x,        pos.y,        pos.z);
+        float3 v           = LoadVel(tex_x, tex_y, tex_z, pos);
+        float  density     = tex3D  (tex_d, pos.x, pos.y, pos.z);
+        float  temperature = tex3D  (tex_t, pos.x, pos.y, pos.z);
 
         int index = cell_index * kMaxNumParticlesPerCell + count + i;
 
         particles.position_x_ [index] = __float2half_rn(pos.x);
         particles.position_y_ [index] = __float2half_rn(pos.y);
         particles.position_z_ [index] = __float2half_rn(pos.z);
-        particles.velocity_x_ [index] = __float2half_rn(v_x);
-        particles.velocity_y_ [index] = __float2half_rn(v_y);
-        particles.velocity_z_ [index] = __float2half_rn(v_z);
+        particles.velocity_x_ [index] = __float2half_rn(v.x);
+        particles.velocity_y_ [index] = __float2half_rn(v.y);
+        particles.velocity_z_ [index] = __float2half_rn(v.z);
         particles.density_    [index] = __float2half_rn(density);
         particles.temperature_[index] = __float2half_rn(temperature);
     }

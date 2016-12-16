@@ -36,11 +36,35 @@
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_y;
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_z;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_xn;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_yn;
+texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_zn;
 
 #include "particle_advection.cuh"
 
-namespace
+namespace flip
 {
+__device__ void InterpolateVelocity(const FlipParticles& p, uint i,
+                                    const float3& coord, const float3& vnp1)
+{
+    float3 vn = LoadVel(tex_xn, tex_yn, tex_zn, coord);
+    float3 delta = vnp1 - vn;
+
+    // v_np1 = (1 - ¦Á) * v_n_pic + ¦Á * v_n_flip.
+    // We are using ¦Á = 1.
+    p.velocity_x_[i] = __float2half_rn(__half2float(p.velocity_x_[i]) + delta.x);
+    p.velocity_y_[i] = __float2half_rn(__half2float(p.velocity_y_[i]) + delta.y);
+    p.velocity_z_[i] = __float2half_rn(__half2float(p.velocity_z_[i]) + delta.z);
+}
+
+// To save memory access, velocity interpolation is merged into the advection
+// kernel. Even though we need to do a bit more interpolation(some new
+// particles were added in resampling kernel), we have saved one velocity
+// texture read during the FLIP step.
+//
+// Not gonna use shared memory yet. Same reason as in former interpolation
+// kernel.
+//
 // Active particles are always *NOT* consecutive.
 template <typename AdvectionImpl>
 __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
@@ -49,7 +73,7 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
 {
     FlipParticles& p = particles;
 
-    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    uint i = LinearIndex();
     if (i >= p.num_of_particles_)
         return;
 
@@ -57,28 +81,21 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
     if (IsCellUndefined(xh))
         return;
 
-    float x = __half2float(xh);
-    float y = __half2float(p.position_y_[i]);
-    float z = __half2float(p.position_z_[i]);
+    float3 coord = Coordinates(p, i);
 
     // The fluid looks less bumpy with the re-sampled velocity. Don't know
     // the exact reason yet.
-    float v_x = tex3D(tex_x, x + 0.5f, y,        z);
-    float v_y = tex3D(tex_y, x,        y + 0.5f, z);
-    float v_z = tex3D(tex_z, x,        y,        z + 0.5f);
+    float3 v = LoadVel(tex_x, tex_y, tex_z, coord);
+    InterpolateVelocity(particles, i, coord, v);
 
-    if (IsStopped(v_x, v_y, v_z)) {
+    if (IsStopped(v.x, v.y, v.z)) {
         // Don't eliminate the particle. It may contains density/temperature
         // information.
-        //
-        // We don't need the number of active particles until the sorting is
-        // done.
+
         return;
     }
 
-    float3 result = advect.Advect(make_float3(x, y, z),
-                                  make_float3(v_x, v_y, v_z),
-                                  time_step_over_cell_size);
+    float3 result = advect.Advect(coord, v, time_step_over_cell_size);
 
     bool out_of_bounds = false;
     if (result.x < 0.0f || result.x > bounds.x)
@@ -104,212 +121,46 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
         p.position_z_[i] = __float2half_rn(pos.z);
     }
 }
-
-template <typename TexType>
-__device__ void LoadVelToSmem_8x8x8(float3* smem, TexType tex_x_obj,
-                                    TexType tex_y_obj, TexType tex_z_obj,
-                                    const uint3& volume_size)
-{
-    // Linear index in the kernel block.
-    uint i = LinearIndexBlock();
-
-    uint smem_block_width = 16;
-    uint smem_slice_size = 16 * 16;
-    uint smem_stride = 8 * 8 * 8;
-
-    // Shared memory block(including halo) coordinates.
-    uint sz = i > smem_slice_size ? 1 : 0;
-    uint t =  i - __umul24(sz, smem_slice_size);
-    uint sy = t / smem_block_width;
-    uint sx = t - __umul24(sy, smem_block_width);
-
-    // Grid coordinates.
-    //
-    // Note that we still need to use linear filtering, as some particles may
-    // go out of the block.
-    float gx = __uint2float_rn(blockIdx.x * blockDim.x + sx - 4) + 0.5f;
-    float gy = __uint2float_rn(blockIdx.y * blockDim.y + sy - 4) + 0.5f;
-    float gz = __uint2float_rn(blockIdx.z * blockDim.z + sz - 4) + 0.5f;
-
-    for (int j = 0; j < 8; j++)
-        smem[i + j * smem_stride].x = tex3D(tex_x_obj, gx + 0.5f, gy, gz + 2.0f * j);
-
-    for (int j = 0; j < 8; j++)
-        smem[i + j * smem_stride].y = tex3D(tex_y_obj, gx, gy + 0.5f, gz + 2.0f * j);
-
-    for (int j = 0; j < 8; j++)
-        smem[i + j * smem_stride].z = tex3D(tex_z_obj, gx, gy, gz + 0.5f + 2.0f * j);
-
-}
-
-__device__ float3 LoadVelFromSmem_8x8x8(const float3* smem, const float3& coord,
-                                        uint si)
-{
-    uint3 p0 = make_uint3(__float2uint_rd(coord.x), __float2uint_rd(coord.y),
-                          __float2uint_rd(coord.z));
-    float3 t = coord - make_float3(__uint2float_rn(p0.x), __uint2float_rn(p0.y),
-                                   __uint2float_rn(p0.z));
-
-    uint row_stride = 16;
-    uint slice_stride = 16 * 16;
-
-    uint i = si + p0.z * slice_stride + p0.y * row_stride + p0.x;
-
-    float3 x0y0z0 = smem[i];
-    float3 x1y0z0 = smem[i + 1];
-    float3 x0y1z0 = smem[i + row_stride];
-    float3 x0y0z1 = smem[i + slice_stride];
-    float3 x1y1z0 = smem[i + row_stride + 1];
-    float3 x0y1z1 = smem[i + slice_stride + row_stride];
-    float3 x1y0z1 = smem[i + slice_stride + 1];
-    float3 x1y1z1 = smem[i + slice_stride + row_stride + 1];
-
-    float3 a = lerp(x0y0z0, x1y0z0, t.x);
-    float3 b = lerp(x0y1z0, x1y1z0, t.x);
-    float3 c = lerp(x0y0z1, x1y0z1, t.x);
-    float3 d = lerp(x0y1z1, x1y1z1, t.x);
-
-    float3 e = lerp(a, b, t.y);
-    float3 f = lerp(c, d, t.y);
-
-    return lerp(e, f, t.z);
-}
-
-template <typename AdvectionImpl>
-__global__ void AdvectParticlesKernel_smem(FlipParticles particles,
-                                           float3 bounds,
-                                           float time_step_over_cell_size,
-                                           bool outflow, AdvectionImpl advect,
-                                           uint3 volume_size)
-{
-    __shared__ float3 smem[16 * 16 * 16]; // 4096
-
-    LoadVelToSmem_8x8x8(smem, tex_x, tex_y, tex_z, volume_size);
-    __syncthreads();
-
-    uint x = VolumeX();
-    uint y = VolumeY();
-    uint z = VolumeZ();
-
-    if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
-        return;
-
-    FlipParticles& p = particles;
-    float3 my_coord = make_float3(x, y, z) + 0.5f;
-
-    // Coordinates in the shared memory block(including halo).
-    uint3 ti = threadIdx + 4;
-
-    // Linear index in the shared memory block(including halo).
-    uint si = __umul24(__umul24(ti.z, 16) + ti.y, 16) + ti.x;
-
-    uint cell_index = LinearIndexVolume(x, y, z, volume_size);
-    int count = p.particle_count_[cell_index];
-    for (int n = 0; n < count; n++) {
-        int i = cell_index * kMaxNumParticlesPerCell + n;
-
-        float3 coord = make_float3(__half2float(p.position_x_[i]),
-                                   __half2float(p.position_y_[i]),
-                                   __half2float(p.position_z_[i]));
-
-        // The fluid looks less bumpy with the grid velocity.
-        float3 vel = LoadVelFromSmem_8x8x8(smem, coord - my_coord, si);
-
-        if (IsStopped(vel.x, vel.y, vel.z)) {
-            // Don't eliminate the particle. It may contains density/temperature
-            // information.
-            //
-            // We don't need the number of active particles until the sorting is
-            // done.
-            return;
-        }
-
-        float3 result = advect.Advect(make_float3(x, y, z), vel,
-                                      time_step_over_cell_size);
-
-        if (result.x < 0.0f || result.x > bounds.x)
-            p.velocity_x_[i] = 0;
-
-        if (result.y < 0.0f || result.y > bounds.y) {
-            if (outflow)
-                FreeParticle(particles, i);
-            else
-                p.velocity_y_[i] = 0;
-        }
-
-        if (result.z < 0.0f || result.z > bounds.z)
-            p.velocity_z_[i] = 0;
-
-        float3 pos = clamp(result, make_float3(0.0f), bounds);
-
-        p.position_x_[i] = __float2half_rn(pos.x);
-        p.position_y_[i] = __float2half_rn(pos.y);
-        p.position_z_[i] = __float2half_rn(pos.z);
-    }
-}
-
-void AdvectParticles_smem(const FlipParticles& particles, cudaArray* vel_x,
-                          cudaArray* vel_y, cudaArray* vel_z, float time_step,
-                          float cell_size, bool outflow, uint3 volume_size,
-                          BlockArrangement* ba)
-{
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_x.error() != cudaSuccess)
-        return;
-
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_y.error() != cudaSuccess)
-        return;
-
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
-                                    cudaAddressModeClamp);
-    if (bound_z.error() != cudaSuccess)
-        return;
-
-    dim3 block;
-    dim3 grid;
-    ba->Arrange8x8x8(&grid, &block, volume_size);
-
-    AdvectionBogackiShampine adv_rk3;
-    float3 bounds = make_float3(volume_size) - 1.0f;
-    AdvectParticlesKernel_smem<<<grid, block>>>(particles, bounds,
-                                                time_step / cell_size,
-                                                outflow, adv_rk3, volume_size);
-    DCHECK_KERNEL();
-}
-}
+} // namespace flip
 
 // =============================================================================
 
 namespace kern_launcher
 {
-void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vel_x,
-                         cudaArray* vel_y, cudaArray* vel_z, float time_step,
+void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vnp1_x,
+                         cudaArray* vnp1_y, cudaArray* vnp1_z, cudaArray* vn_x,
+                         cudaArray* vn_y, cudaArray* vn_z,  float time_step,
                          float cell_size, bool outflow, uint3 volume_size,
                          BlockArrangement* ba)
 {
-    bool smem = false;
-    if (smem) {
-        AdvectParticles_smem(particles, vel_x, vel_y, vel_z, time_step,
-                             cell_size, outflow, volume_size, ba);
-        return;
-    }
-
-    auto bound_x = BindHelper::Bind(&tex_x, vel_x, false, cudaFilterModeLinear,
+    auto bound_x = BindHelper::Bind(&tex_x, vnp1_x, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_x.error() != cudaSuccess)
         return;
 
-    auto bound_y = BindHelper::Bind(&tex_y, vel_y, false, cudaFilterModeLinear,
+    auto bound_y = BindHelper::Bind(&tex_y, vnp1_y, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_y.error() != cudaSuccess)
         return;
 
-    auto bound_z = BindHelper::Bind(&tex_z, vel_z, false, cudaFilterModeLinear,
+    auto bound_z = BindHelper::Bind(&tex_z, vnp1_z, false, cudaFilterModeLinear,
                                     cudaAddressModeClamp);
     if (bound_z.error() != cudaSuccess)
+        return;
+
+    auto bound_xn = BindHelper::Bind(&tex_xn, vn_x, false, cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_xn.error() != cudaSuccess)
+        return;
+
+    auto bound_yn = BindHelper::Bind(&tex_yn, vn_y, false, cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_yn.error() != cudaSuccess)
+        return;
+
+    auto bound_zn = BindHelper::Bind(&tex_zn, vn_z, false, cudaFilterModeLinear,
+                                     cudaAddressModeClamp);
+    if (bound_zn.error() != cudaSuccess)
         return;
 
     dim3 block;
@@ -325,24 +176,24 @@ void AdvectFlipParticles(const FlipParticles& particles, cudaArray* vel_x,
     int order = 3;
     switch (order) {
         case 1:
-            AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
-                                                   time_step / cell_size,
-                                                   outflow, adv_fe);
+            flip::AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
+                                                         time_step / cell_size,
+                                                         outflow, adv_fe);
             break;
         case 2:
-            AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
-                                                   time_step / cell_size,
-                                                   outflow, adv_mp);
+            flip::AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
+                                                         time_step / cell_size,
+                                                         outflow, adv_mp);
             break;
         case 3:
-            AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
-                                                   time_step / cell_size,
-                                                   outflow, adv_bs);
+            flip::AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
+                                                         time_step / cell_size,
+                                                         outflow, adv_bs);
             break;
         case 4:
-            AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
-                                                   time_step / cell_size,
-                                                   outflow, adv_rk4);
+            flip::AdvectParticlesKernel<<<grid, block>>>(particles, bounds,
+                                                         time_step / cell_size,
+                                                         outflow, adv_rk4);
             break;
     }
 
