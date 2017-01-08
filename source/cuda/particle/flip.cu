@@ -34,8 +34,8 @@
 #include "cuda/cuda_common_kern.h"
 #include "cuda/cuda_debug.h"
 #include "cuda/fluid_impulse.h"
+#include "cuda/particle/flip.h"
 #include "cuda/particle/flip_common.cuh"
-#include "flip.h"
 #include "random.cuh"
 
 texture<ushort, cudaTextureType3D, cudaReadModeNormalizedFloat> tex_x;
@@ -136,16 +136,19 @@ __device__ uint8_t AtomicIncrementUint8(uint8_t* addr)
 
     return 0;
 }
+} // Anonymous namespace.
 
 // =============================================================================
 
+namespace flip
+{
+
 // Fields should be available: particle_count.
 template <typename Emission>
-__global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
-                                        float3 hotspot, float radius,
-                                        float density, float temperature,
-                                        float3 velocity, uint random_seed,
-                                        uint3 volume_size)
+__global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
+                                    float3 hotspot, float radius, float density,
+                                    float temperature, float3 velocity,
+                                    uint random_seed, uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -173,9 +176,9 @@ __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
 
             int index = cell_index * kMaxNumParticlesPerCell + i;
 
-            particles.position_x_ [index] = __float2half_rn(pos.x);
-            particles.position_y_ [index] = __float2half_rn(pos.y);
-            particles.position_z_ [index] = __float2half_rn(pos.z);
+            particles.position_x_ [index] = flip::Position16(pos.x);
+            particles.position_y_ [index] = flip::Position16(pos.y);
+            particles.position_z_ [index] = flip::Position16(pos.z);
             particles.velocity_x_ [index] = 0;
             particles.velocity_y_ [index] = 0;
             particles.velocity_z_ [index] = 0;
@@ -196,13 +199,11 @@ __global__ void EmitFlipParticlesKernel(FlipParticles particles, float3 center,
 }
 
 // Fields should be available: particle_count.
-__global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
-                                                  float3 center, float radius,
-                                                  float density,
-                                                  float temperature,
-                                                  float velocity,
-                                                  uint random_seed,
-                                                  uint3 volume_size)
+__global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
+                                              float3 center, float radius,
+                                              float density, float temperature,
+                                              float velocity, uint random_seed,
+                                              uint3 volume_size)
 {
     uint x = VolumeX();
     uint y = VolumeY();
@@ -237,9 +238,9 @@ __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
             // Not necessary to initialize the in_cell_index field.
             // Particle-cell mapping will be done in the binding kernel.
 
-            particles.position_x_ [index] = __float2half_rn(pos.x);
-            particles.position_y_ [index] = __float2half_rn(pos.y);
-            particles.position_z_ [index] = __float2half_rn(pos.z);
+            particles.position_x_ [index] = flip::Position16(pos.x);
+            particles.position_y_ [index] = flip::Position16(pos.y);
+            particles.position_z_ [index] = flip::Position16(pos.z);
             particles.velocity_x_ [index] = __float2half_rn(vel.x);
             particles.velocity_y_ [index] = __float2half_rn(vel.y);
             particles.velocity_z_ [index] = __float2half_rn(vel.z);
@@ -249,10 +250,7 @@ __global__ void EmitFlipParticlesFromSphereKernel(FlipParticles particles,
     } else {
         uint p_index = cell_index * kMaxNumParticlesPerCell;
         for (int i = 0; i < count; i++) {
-            float pos_x = __half2float(particles.position_x_[p_index + i]);
-            float pos_y = __half2float(particles.position_y_[p_index + i]);
-            float pos_z = __half2float(particles.position_z_[p_index + i]);
-            float3 pos = make_float3(pos_x, pos_y, pos_z);
+            float3 pos = flip::Position(particles, p_index + i);
 
             float3 dir = pos - center;
             float3 vel = normalize(dir) * velocity;
@@ -325,9 +323,9 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
 
         int index = cell_index * kMaxNumParticlesPerCell + count + i;
 
-        particles.position_x_ [index] = __float2half_rn(pos.x);
-        particles.position_y_ [index] = __float2half_rn(pos.y);
-        particles.position_z_ [index] = __float2half_rn(pos.z);
+        particles.position_x_ [index] = flip::Position16(pos.x);
+        particles.position_y_ [index] = flip::Position16(pos.y);
+        particles.position_z_ [index] = flip::Position16(pos.z);
         particles.velocity_x_ [index] = __float2half_rn(v.x);
         particles.velocity_y_ [index] = __float2half_rn(v.y);
         particles.velocity_z_ [index] = __float2half_rn(v.z);
@@ -372,10 +370,10 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
     uint16_t yh = p_src.position_y_[i];
     uint16_t zh = p_src.position_z_[i];
 
-    if (IsCellUndefined(xh))
+    if (IsParticleUndefined(xh))
         return;
 
-    int cell_index = CellIndex(xh, yh, zh, volume_size);
+    int cell_index = flip::CellIndex(xh, yh, zh, volume_size);
     uint* p_count = p_src.particle_count_;
     if (p_count[cell_index] < kMaxNumParticlesPerCell) {
         uint old_count = atomicAdd(p_count + cell_index, 1);
@@ -398,7 +396,8 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
         }
     }
 }
-} // Anonymous namespace.
+
+} // namespace flip
 
 struct SchemeDefault
 {
@@ -440,7 +439,7 @@ void EmitFlipParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitFlipParticlesKernel<VerticalEmission><<<grid, block>>>(
+            flip::EmitParticlesKernel<VerticalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
             break;
@@ -452,7 +451,7 @@ void EmitFlipParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitFlipParticlesFromSphereKernel<<<grid, block>>>(
+            flip::EmitParticlesFromSphereKernel<<<grid, block>>>(
                 particles, center, radius, density, temperature, velocity.x,
                 random_seed, volume_size);
             break;
@@ -465,7 +464,7 @@ void EmitFlipParticles(const FlipParticles& particles, float3 center,
             dim3 grid;
             dim3 block;
             ba->ArrangeRowScan(&grid, &block, actual_size);
-            EmitFlipParticlesKernel<HorizontalEmission><<<grid, block>>>(
+            flip::EmitParticlesKernel<HorizontalEmission><<<grid, block>>>(
                 particles, center, hotspot, radius, density, temperature,
                 velocity, random_seed, volume_size);
             break;
@@ -508,7 +507,7 @@ void Resample(const FlipParticles& particles, cudaArray* vel_x,
     dim3 grid;
     dim3 block;
     ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
-    ResampleKernel<<<grid, block>>>(particles, random_seed, volume_size);
+    flip::ResampleKernel<<<grid, block>>>(particles, random_seed, volume_size);
     DCHECK_KERNEL();
 }
 
@@ -518,7 +517,7 @@ void ResetParticles(const FlipParticles& particles, uint3 volume_size,
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, particles.num_of_particles_);
-    ResetParticlesKernel<<<grid, block>>>(particles);
+    flip::ResetParticlesKernel<<<grid, block>>>(particles);
 
     uint num_of_cells = volume_size.x * volume_size.y * volume_size.z;
     cudaMemsetAsync(particles.particle_count_, 0,
@@ -550,10 +549,11 @@ void SortParticles(FlipParticles particles, int* num_active_particles,
     dim3 block;
     dim3 grid;
     ba->ArrangeLinear(&grid, &block, p_src.num_of_particles_);
-    SortParticlesKernel<<<grid, block>>>(p_aux, p_src, time_step,
-                                         velocity_dissipation,
-                                         density_dissipation,
-                                         temperature_dissipation, volume_size);
+    flip::SortParticlesKernel<<<grid, block>>>(p_aux, p_src, time_step,
+                                               velocity_dissipation,
+                                               density_dissipation,
+                                               temperature_dissipation,
+                                               volume_size);
     DCHECK_KERNEL();
 
     SchemeDefault scheme(p_src.particle_count_);

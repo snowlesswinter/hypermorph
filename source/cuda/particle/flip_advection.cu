@@ -78,10 +78,10 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
         return;
 
     uint16_t xh = p.position_x_[i];
-    if (IsCellUndefined(xh))
+    if (IsParticleUndefined(xh))
         return;
 
-    float3 coord = Coordinates(p, i);
+    float3 coord = Position(p, i);
 
     // The fluid looks less bumpy with the re-sampled velocity. Don't know
     // the exact reason yet.
@@ -116,9 +116,9 @@ __global__ void AdvectParticlesKernel(FlipParticles particles, float3 bounds,
     } else {
         float3 pos = clamp(result, make_float3(0.0f), bounds);
 
-        p.position_x_[i] = __float2half_rn(pos.x);
-        p.position_y_[i] = __float2half_rn(pos.y);
-        p.position_z_[i] = __float2half_rn(pos.z);
+        p.position_x_[i] = Position16(pos.x);
+        p.position_y_[i] = Position16(pos.y);
+        p.position_z_[i] = Position16(pos.z);
     }
 }
 } // namespace flip

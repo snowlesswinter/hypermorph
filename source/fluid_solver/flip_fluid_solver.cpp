@@ -360,8 +360,20 @@ bool FlipFluidSolver::InitParticles(FlipParticles* particles, GraphicsLib lib,
 
 void FlipFluidSolver::ApplyBuoyancy(float delta_time)
 {
-    if (!need_buoyancy_)
+    if (!need_buoyancy_) {
+        if (graphics_lib_ == GRAPHICS_LIB_CUDA) {
+            CudaMain::Instance()->CopyVolume(
+                velocity_->x()->cuda_volume(),
+                velocity_prev_->x()->cuda_volume());
+            CudaMain::Instance()->CopyVolume(
+                velocity_->y()->cuda_volume(),
+                velocity_prev_->y()->cuda_volume());
+            CudaMain::Instance()->CopyVolume(
+                velocity_->z()->cuda_volume(),
+                velocity_prev_->z()->cuda_volume());
+        }
         return;
+    }
 
     float smoke_weight = GetProperties().weight_;
     float ambient_temperature = GetProperties().ambient_temperature_;

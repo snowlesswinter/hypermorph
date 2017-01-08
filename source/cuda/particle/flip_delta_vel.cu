@@ -177,12 +177,11 @@ __global__ void InterpolateDeltaVelocityKernel_smem(
     __syncthreads();
 
     for (int i = 0; inside_volume && i < kMaxNumParticlesPerCell; i++) {
-        if (IsCellUndefined(pos_x[index + i]))
+        if (IsParticleUndefined(pos_x[index + i]))
             break; // All active particles within a cell should be consecutive.
         
-        float3 coord = make_float3(__half2float(pos_x[index + i]),
-                                   __half2float(pos_y[index + i]),
-                                   __half2float(pos_z[index + i]));
+        float3 coord = flip::Position32(pos_x[index + i], pos_y[index + i],
+                                        pos_z[index + i]);
 
         float3 vel  = LoadVelFromSmem_10x10xX(smem,  coord - center, si);
         float3 velp = LoadVelFromSmem_10x10xX(smemp, coord - center, si);
@@ -293,9 +292,8 @@ __global__ void InterpolateDeltaVelocityKernel_smem_8x8x8_no_halo(
     for (int i = 0; i < count; i++) {
         // IsCellUndefined(pos_x[index + i])) should always return *TRUE*.
         // All active particles within a cell should be consecutive.
-        float3 coord = make_float3(__half2float(pos_x[index + i]),
-                                   __half2float(pos_y[index + i]),
-                                   __half2float(pos_z[index + i]));
+        float3 coord = flip::Position32(pos_x[index + i], pos_y[index + i],
+                                        pos_z[index + i]);
 
         float3 vel  = LoadVelFromSmemNoHalo<8,8,8>(smem,   tex_x,  tex_y,
                                                    tex_z,  coord,  center, si);
@@ -325,20 +323,18 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     if (i >= num_of_particles)
         return;
 
-    if (IsCellUndefined(pos_x[i]))
+    if (IsParticleUndefined(pos_x[i]))
         return;
 
-    float x = __half2float(pos_x[i]);
-    float y = __half2float(pos_y[i]);
-    float z = __half2float(pos_z[i]);
+    float3 pos = flip::Position32(pos_x[i], pos_y[i], pos_z[i]);
 
-    float v_x =  tex3D(tex_x,  x + 0.5f, y,        z);
-    float v_y =  tex3D(tex_y,  x,        y + 0.5f, z);
-    float v_z =  tex3D(tex_z,  x,        y,        z + 0.5f);
+    float v_x =  tex3D(tex_x,  pos.x + 0.5f, pos.y,        pos.z);
+    float v_y =  tex3D(tex_y,  pos.x,        pos.y + 0.5f, pos.z);
+    float v_z =  tex3D(tex_z,  pos.x,        pos.y,        pos.z + 0.5f);
 
-    float v_xp = tex3D(tex_xp, x + 0.5f, y,        z);
-    float v_yp = tex3D(tex_yp, x,        y + 0.5f, z);
-    float v_zp = tex3D(tex_zp, x,        y,        z + 0.5f);
+    float v_xp = tex3D(tex_xp, pos.x + 0.5f, pos.y,        pos.z);
+    float v_yp = tex3D(tex_yp, pos.x,        pos.y + 0.5f, pos.z);
+    float v_zp = tex3D(tex_zp, pos.x,        pos.y,        pos.z + 0.5f);
 
     float ¦Ä_x = v_xp - v_x;
     float ¦Ä_y = v_yp - v_y;

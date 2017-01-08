@@ -41,7 +41,9 @@ surface<void, cudaSurfaceType3D> surf_z;
 surface<void, cudaSurfaceType3D> surf_d;
 surface<void, cudaSurfaceType3D> surf_t;
 
-const uint32_t kMaxParticlesInCell = 4;
+namespace flip
+{
+//const uint32_t kMaxParticlesInCell = 4;
 //const uint16_t kInvalidPos = 48128; // __float2half_rn(-1.0f);
 
 struct ParticleFields
@@ -99,23 +101,92 @@ union FloatSignExtraction
 
 // =============================================================================
 
+__device__ inline float WeightKernel(float p, float p0)
+{
+    return 1.0f - __saturatef(fabsf(p - p0));
+}
+
+__device__ float DistanceWeight(const float3& p, const float3& p0)
+{
+    return WeightKernel(p.x, p0.x) * WeightKernel(p.y, p0.y) * WeightKernel(p.z, p0.z);
+}
+
+template <int Pow>
 __global__ void TransferToGridLopKernel(FlipParticles particles,
                                         uint3 volume_size)
 {
+    const int step = 1 << Pow;
+
     // save the lookup table into smem
+    __shared__ float smem_vx_wsum  [10 * 6 * 6];
+    __shared__ float smem_vy_wsum  [10 * 6 * 6];
+    __shared__ float smem_vz_wsum  [10 * 6 * 6];
+    __shared__ float smem_d_wsum   [10 * 6 * 6];
+    __shared__ float smem_t_wsum   [10 * 6 * 6];
+    __shared__ float smem_vx_weight[10 * 6 * 6];
+    __shared__ float smem_vy_weight[10 * 6 * 6];
+    __shared__ float smem_vz_weight[10 * 6 * 6];
+    __shared__ float smem_c_weight [10 * 6 * 6];
 
-    uint i = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (i >= *particles.num_of_actives_)
-        return;
+    int smem_row_stride = 10;
+    int smem_slice_stride = 10 * 6;
 
-    int x = __float2int_rd(particles.position_x_[i]);
-    int y = __float2int_rd(particles.position_y_[i]);
-    int z = __float2int_rd(particles.position_z_[i]);
-    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
-        // Calculate weighted average to the nearest cell.
+    uint i = LinearIndex() << Pow;
+    for (int p = 0; p < step; p++, i++) {
+        if (i >= particles.num_of_particles_) // TODO: Should be constrained
+            return;                           //       by kernel configuration.
 
-        // Use atomic add to the cell fields.
+        // Active particles should be consecutive.
+        if (IsParticleUndefined(particles.position_x_[i])) 
+            return;
+
+        float3 coord = flip::Position(particles, i);
+        float3 corner = floorf(coord);
+
+        // Classify the particle by its situation of adjacency.
+        float3 offset = floorf((coord - corner) * 2.0f);
+        int3 offset_i = Float2Int(offset);
+
+        float3 center = corner + 0.5f;
+        for (int i = -1; i < 1; i++) for (int j = -1; j < 1; j++) for (int k = -1; k < 1; k++) {
+            float3 ref_point = center - make_float3(k, j, i) + offset;
+            int3 o = offset_i + make_int3(k, j, i);
+            float weight = DistanceWeight(coord, ref_point);
+            int si = LinearIndexBlock() >> Pow;
+
+            // Careful of the sign of the numbers.
+            si += o.z * smem_slice_stride + o.y * smem_row_stride + o.x;
+
+            float3 ref_point_x = center - make_float3(k, j, i) + make_float3(1.0f, offset.y, offset.z);
+            float3 ref_point_y = center - make_float3(k, j, i) + make_float3(offset.x, 1.0f, offset.z);
+            float3 ref_point_z = center - make_float3(k, j, i) + make_float3(offset.x, offset.y, 1.0f);
+
+            float wx = DistanceWeight(coord, ref_point_x);
+            float wy = DistanceWeight(coord, ref_point_y);
+            float wz = DistanceWeight(coord, ref_point_z);
+
+            atomicAdd(smem_vx_weight + si, wx);
+            atomicAdd(smem_vy_weight + si, wy);
+            atomicAdd(smem_vz_weight + si, wz);
+
+            float vx = __half2float(particles.velocity_x_[i]);
+            float vy = __half2float(particles.velocity_y_[i]);
+            float vz = __half2float(particles.velocity_z_[i]);
+
+            atomicAdd(smem_vx_wsum + si, weight * vx);
+            atomicAdd(smem_vy_wsum + si, weight * vy);
+            atomicAdd(smem_vz_wsum + si, weight * vz);
+
+            atomicAdd(smem_c_weight + si, weight);
+
+            float density = __half2float(particles.density_[i]);
+            atomicAdd(smem_d_wsum + si, weight * density);
+
+            float temperature = __half2float(particles.temperature_[i]);
+            atomicAdd(smem_t_wsum + si, weight * temperature);
+        }
     }
+}
 }
 
 namespace kern_launcher

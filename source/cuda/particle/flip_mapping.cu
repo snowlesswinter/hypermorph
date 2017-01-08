@@ -176,11 +176,8 @@ __device__ void ComputeWeightedAverage(float* total_value, float* total_weight,
                                        const uint16_t* field, int count)
 {
     for (int i = 0; i < count; i++) {
-        float x = __half2float(*(pos_x + i));
-        float y = __half2float(*(pos_y + i));
-        float z = __half2float(*(pos_z + i));
-
-        float weight = DistanceWeight(x, y, z, pos.x, pos.y, pos.z);
+        float3 p = flip::Position32(*(pos_x + i), *(pos_y + i), *(pos_z + i));
+        float weight = DistanceWeight(p.x, p.y, p.z, pos.x, pos.y, pos.z);
 
         *total_weight += weight;
         *total_value += weight * __half2float(*(field + i));
@@ -202,17 +199,15 @@ __device__ void ComputeWeightedAverage_iterative(
     const uint16_t* temperature = smem_fields->temperature_ + strided;
 
     for (int i = 0; i < step; i++) {
-        float x = __half2float(*pos_x++);
-        if (x < 0.0f) // Empty cell.
-            return;
+        if (*pos_x == kInvalidPos)
+            return; // Empty cell.
 
-        float y = __half2float(*pos_y++);
-        float z = __half2float(*pos_z++);
+        float3 p = flip::Position32(*pos_x++, *pos_y++, *pos_z++);
 
-        float weight_vel_x = DistanceWeight(x, y, z, p0.x - 0.5f, p0.y,        p0.z);
-        float weight_vel_y = DistanceWeight(x, y, z, p0.x,        p0.y - 0.5f, p0.z);
-        float weight_vel_z = DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z - 0.5f);
-        float weight =       DistanceWeight(x, y, z, p0.x,        p0.y,        p0.z);
+        float weight_vel_x = DistanceWeight(p.x, p.y, p.z, p0.x - 0.5f, p0.y,        p0.z);
+        float weight_vel_y = DistanceWeight(p.x, p.y, p.z, p0.x,        p0.y - 0.5f, p0.z);
+        float weight_vel_z = DistanceWeight(p.x, p.y, p.z, p0.x,        p0.y,        p0.z - 0.5f);
+        float weight =       DistanceWeight(p.x, p.y, p.z, p0.x,        p0.y,        p0.z);
 
         w->weight_vel_x_       += weight_vel_x;
         w->weight_vel_y_       += weight_vel_y;
@@ -453,14 +448,11 @@ __device__ void ComputeWeightedAverage_smem(float* total_value,
 {
     for (int i = 0; i < kMaxParticlesInCell; i++) {
         const ushort3* pos = smem_pos + i;
-        float x = __half2float(pos->x);
-        if (x < 0.0f)
-            return;
+        if (pos->x == kInvalidPos)
+            return; // Empty cell.
 
-        float y = __half2float(pos->y);
-        float z = __half2float(pos->z);
-
-        float weight = DistanceWeight(x, y, z, p0.x, p0.y, p0.z);
+        float3 p = flip::Position32(pos->x, pos->y, pos->z);
+        float weight = DistanceWeight(p.x, p.y, p.z, p0.x, p0.y, p0.z);
 
         *total_weight += weight;
         *total_value += weight * __half2float(*(smem_¦Õ + i));
@@ -951,14 +943,12 @@ __device__ void ComputeWeightedAverage_prune_z(
     const uint16_t* vel_z = smem_fields->velocity_z_ + strided;
 
     for (int i = 0; i < step; i++) {
-        float x = __half2float(*pos_x++);
-        if (x < 0.0f) // Empty cell.
-            return;
+        if (*pos_x == kInvalidPos)
+            return; // Empty cell.
 
-        float y = __half2float(*pos_y++);
-        float z = __half2float(*pos_z++);
+        float3 p = flip::Position32(*pos_x++, *pos_y++, *pos_z++);
 
-        float  weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
+        float  weight_vel_z = DistanceWeight(p.x, p.y, p.z, x0, y0, z0 - 0.5f);
         w->weight_vel_z_ += weight_vel_z;
         w->sum_vel_z_    += weight_vel_z * __half2float(*(vel_z + i));
     }
@@ -982,35 +972,33 @@ __device__ void ComputeWeightedAverage_prune(FieldWeightAndWeightedSum* w,
 
     WeightStorage storage;
     for (int i = 0; i < step; i++) {
-        float x = __half2float(*pos_x++);
-        if (x < 0.0f) // Empty cell.
-            return;
+        if (*pos_x == kInvalidPos)
+            return; // Empty cell.
 
-        float y = __half2float(*pos_y++);
-        float z = __half2float(*pos_z++);
+        float3 p = flip::Position32(*pos_x++, *pos_y++, *pos_z++);
 
         if (!(prune_mask & PRUNE_X)) {
-            float weight_vel_x = DistanceWeight(x, y, z, x0 - 0.5f, y0, z0);
+            float weight_vel_x = DistanceWeight(p.x, p.y, p.z, x0 - 0.5f, y0, z0);
             storage.Store(&w->weight_vel_x_, weight_vel_x);
             storage.Store(&w->sum_vel_x_,    weight_vel_x * __half2float(*(vel_x + i)));
         }
 
         if (!(prune_mask & PRUNE_Y)) {
-            float weight_vel_y = DistanceWeight(x, y, z, x0, y0 - 0.5f, z0);
+            float weight_vel_y = DistanceWeight(p.x, p.y, p.z, x0, y0 - 0.5f, z0);
             storage.Store(&w->weight_vel_y_, weight_vel_y);
             storage.Store(&w->sum_vel_y_,    weight_vel_y * __half2float(*(vel_y + i)));
         }
 
         if (!(prune_mask & PRUNE_Z)) {
-            float weight_vel_z = DistanceWeight(x, y, z, x0, y0, z0 - 0.5f);
+            float weight_vel_z = DistanceWeight(p.x, p.y, p.z, x0, y0, z0 - 0.5f);
             storage.Store(&w->weight_vel_z_, weight_vel_z);
             storage.Store(&w->sum_vel_z_,    weight_vel_z * __half2float(*(vel_z + i)));
         }
 
         if (z_prune)
-            *z_prune = GetFloatSign(z - z0);
+            *z_prune = GetFloatSign(p.z - z0);
 
-        float weight = DistanceWeight(x, y, z, x0, y0, z0);
+        float weight = DistanceWeight(p.x, p.y, p.z, x0, y0, z0);
         
         storage.Store(&w->weight_density_,     weight);
         storage.Store(&w->weight_temperature_, weight);
