@@ -44,9 +44,10 @@ surface<void, cudaSurfaceType3D> surf_t;
 const uint32_t kMaxParticlesInCell = kMaxNumParticlesPerCell;
 
 #define DIV_SYNC_BEGIN(condition) \
-     {
+    if (condition) \
+    {
 #define DIV_SYNC_END() \
-        }
+    }
 
 enum PruneFlag
 {
@@ -856,9 +857,10 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
     int x = VolumeX();
     int y = VolumeY();
 
-    if (x >= volume_size.x || y >= volume_size.y)
-        return;
+    bool drop_thread = (x >= volume_size.x || y >= volume_size.y);
 
+    // The memory load operation should always be executed whatever
+    // |drop_thread| is, as the threads are not 1:1 mapped to the cells.
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 0, tx, ty, start_i, volume_size);
     __syncthreads();
 
@@ -872,12 +874,15 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
     float3 coord       =         make_float3(x, y, 0) + 0.5f;
     float3 coord_temp  = coord + make_float3(0, 0, 1);
     float3 coord_temp2 = coord + make_float3(0, 0, 2);
+
+    DIV_SYNC_BEGIN(!drop_thread);
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
         uint strided = smem_i * step;
         ComputeWeightedAverage_iterative<step>(&w_near, &smem, strided, coord);
         ComputeWeightedAverage_iterative<step>(&w_mid,  &smem, strided, coord_temp);
     }
+    DIV_SYNC_END();
 
     __syncthreads();
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 1, tx, ty, start_i, volume_size);
@@ -889,6 +894,7 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
     for (; z < volume_size.z - 1; z++) {
         __syncthreads();
 
+        DIV_SYNC_BEGIN(!drop_thread);
         for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
             uint smem_i = (ty + i + 1) * bw + tx + j + 8;
             uint strided = smem_i * step;
@@ -908,12 +914,14 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
         coord.z       += 1.0f;
         coord_temp.z  += 1.0f;
         coord_temp2.z += 1.0f;
+        DIV_SYNC_END();
 
         __syncthreads();
         FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, z + 1, tx, ty, start_i, volume_size);
     }
     __syncthreads();
 
+    DIV_SYNC_BEGIN(!drop_thread);
     coord = make_float3(x, y, z - 1) + 0.5f;
     for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
         uint smem_i = (ty + i + 1) * bw + tx + j + 8;
@@ -929,6 +937,7 @@ __global__ void TransferToGridKernel_iterative(FlipParticles particles,
         SaveToSurface_iterative<false, last_step>(w_near, x, y, z - 1, aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
         SaveToSurface_iterative<false, last_step>(w_mid,  x, y, z,     aux.velocity_x_, aux.velocity_y_, aux.velocity_z_, aux.density_, aux.temperature_, volume_size);
     }
+    DIV_SYNC_END();
 }
 
 // =============================================================================
@@ -1148,16 +1157,8 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
     int y = VolumeY();
 
     bool drop_thread = (x >= volume_size.x || y >= volume_size.y);
-    if (drop_thread) {
-        for (int i = 0; i < (volume_size.z * 2 - 1); i++)
-            __syncthreads();
 
-        return;
-    }
-
-    DIV_SYNC_BEGIN(!drop_thread);
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 0, tx, ty, start_i, volume_size);
-    DIV_SYNC_END();
     __syncthreads();
 
     FieldWeightAndWeightedSum w_sum[3];
@@ -1177,9 +1178,7 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
 
     DIV_SYNC_END();
     __syncthreads();
-    DIV_SYNC_BEGIN(!drop_thread);
     FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, 1, tx, ty, start_i, volume_size);
-    DIV_SYNC_END();
 
     // For each plane, we calculate the weighted average value of the
     // farthest/middle/nearest plane of the last/current/next point, so as to
@@ -1200,12 +1199,10 @@ __global__ void TransferToGridKernel_prune(FlipParticles particles, int start_i,
         ResetWeight(&w_sum[2]);
 
         coord.z += 1.0f;
+        DIV_SYNC_END();
 
-        DIV_SYNC_END();
         __syncthreads();
-        DIV_SYNC_BEGIN(!drop_thread);
         FlipReadBlockAndHalo_32x6_iterative<step>(&smem, particles, z + 1, tx, ty, start_i, volume_size);
-        DIV_SYNC_END();
     }
     __syncthreads();
 
@@ -1267,8 +1264,10 @@ void TransferToGrid_iterative(cudaArray* vel_x, cudaArray* vel_y,
                               const FlipParticles& aux, uint3 volume_size,
                               BlockArrangement* ba)
 {
-    assert(static_cast<uint>(particles.num_of_particles_) >
-           volume_size.x * volume_size.y * volume_size.z * 2);
+    assert(
+        static_cast<uint>(particles.num_of_particles_) >=
+            volume_size.x * volume_size.y * volume_size.z *
+                kMaxNumParticlesPerCell);
 
     if (BindCudaSurfaceToArray(&surf_x, vel_x) != cudaSuccess)
         return;

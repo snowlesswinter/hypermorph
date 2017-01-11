@@ -94,6 +94,7 @@ extern void Resample(const FlipParticles& particles, cudaArray* vel_x, cudaArray
 extern void ResetParticles(const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 extern void SortParticles(FlipParticles particles, int* num_active_particles, FlipParticles aux, float time_step, float velocity_dissipation, float density_dissipation, float temperature_dissipation, uint3 volume_size, BlockArrangement* ba, AuxBufferManager* bm);
 extern void TransferToGrid(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, const FlipParticles& particles, const FlipParticles& aux, uint3 volume_size, BlockArrangement* ba);
+extern void TransferToGridOpt(cudaArray* vel_x, cudaArray* vel_y, cudaArray* vel_z, cudaArray* density, cudaArray* temperature, const FlipParticles& particles, uint3 volume_size, BlockArrangement* ba);
 }
 
 #endif // _KERNEL_LAUNCHER_H_
