@@ -162,6 +162,7 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
     if (d >= radius)
         return;
 
+    uint volume_stride = volume_size.x * volume_size.y * volume_size.z;
     uint cell_index = LinearIndexVolume(x, y, z, volume_size);
     int count = particles.particle_count_[cell_index];
     if (!count) {
@@ -174,7 +175,7 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
         for (int i = 0; i < new_particles; i++) {
             float3 pos = coord + RandomCoordCube(&seed);
 
-            int index = cell_index * kMaxNumParticlesPerCell + i;
+            int index = cell_index + i * volume_stride;
 
             particles.position_x_ [index] = flip::Position16(pos.x);
             particles.position_y_ [index] = flip::Position16(pos.y);
@@ -188,12 +189,11 @@ __global__ void EmitParticlesKernel(FlipParticles particles, float3 center,
             Emission::SetVelX(&particles.velocity_x_[index], velocity);
         }
     } else {
-        uint p_index = cell_index * kMaxNumParticlesPerCell;
         for (int i = 0; i < count; i++) {
-            particles.density_    [p_index + i] = __float2half_rn(density);
-            particles.temperature_[p_index + i] = __float2half_rn(temperature);
+            particles.density_    [cell_index + i * volume_stride] = __float2half_rn(density);
+            particles.temperature_[cell_index + i * volume_stride] = __float2half_rn(temperature);
 
-            Emission::SetVelX(&particles.velocity_x_[p_index + i], velocity);
+            Emission::SetVelX(&particles.velocity_x_[cell_index + i * volume_stride], velocity);
         }
     }
 }
@@ -218,6 +218,7 @@ __global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
     if (d >= radius)
         return;
 
+    uint volume_stride = volume_size.x * volume_size.y * volume_size.z;
     uint cell_index = LinearIndexVolume(x, y, z, volume_size);
     int count = particles.particle_count_[cell_index];
     if (!count) {
@@ -230,7 +231,7 @@ __global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
         for (int i = 0; i < new_particles; i++) {
             float3 pos = coord + RandomCoordCube(&seed);
 
-            int index = cell_index * kMaxNumParticlesPerCell + i;
+            int index = cell_index + i * volume_stride;
 
             float3 dir = pos - center;
             float3 vel = normalize(dir) * velocity;
@@ -248,18 +249,17 @@ __global__ void EmitParticlesFromSphereKernel(FlipParticles particles,
             particles.temperature_[index] = __float2half_rn(temperature);
         }
     } else {
-        uint p_index = cell_index * kMaxNumParticlesPerCell;
         for (int i = 0; i < count; i++) {
-            float3 pos = flip::Position(particles, p_index + i);
+            float3 pos = flip::Position(particles, cell_index + i * volume_stride);
 
             float3 dir = pos - center;
             float3 vel = normalize(dir) * velocity;
 
-            particles.velocity_x_ [p_index + i] = __float2half_rn(vel.x);
-            particles.velocity_y_ [p_index + i] = __float2half_rn(vel.y);
-            particles.velocity_z_ [p_index + i] = __float2half_rn(vel.z);
-            particles.density_    [p_index + i] = __float2half_rn(density);
-            particles.temperature_[p_index + i] = __float2half_rn(temperature);
+            particles.velocity_x_ [cell_index + i * volume_stride] = __float2half_rn(vel.x);
+            particles.velocity_y_ [cell_index + i * volume_stride] = __float2half_rn(vel.y);
+            particles.velocity_z_ [cell_index + i * volume_stride] = __float2half_rn(vel.z);
+            particles.density_    [cell_index + i * volume_stride] = __float2half_rn(density);
+            particles.temperature_[cell_index + i * volume_stride] = __float2half_rn(temperature);
         }
     }
 }
@@ -284,6 +284,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
     if (x >= volume_size.x || y >= volume_size.y || z >= volume_size.z)
         return;
 
+    uint volume_stride = volume_size.x * volume_size.y * volume_size.z;
     uint cell_index = LinearIndexVolume(x, y, z, volume_size);
     int count = particles.particle_count_[cell_index];
 
@@ -321,7 +322,7 @@ __global__ void ResampleKernel(FlipParticles particles, uint random_seed,
         float  density     = tex3D  (tex_d, pos.x, pos.y, pos.z);
         float  temperature = tex3D  (tex_t, pos.x, pos.y, pos.z);
 
-        int index = cell_index * kMaxNumParticlesPerCell + count + i;
+        int index = (count + i) * volume_stride + cell_index;
 
         particles.position_x_ [index] = flip::Position16(pos.x);
         particles.position_y_ [index] = flip::Position16(pos.y);
@@ -373,7 +374,8 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
     if (IsParticleUndefined(xh))
         return;
 
-    int cell_index = flip::CellIndex(xh, yh, zh, volume_size);
+    uint volume_stride = volume_size.x * volume_size.y * volume_size.z;
+    uint cell_index = flip::CellIndex(xh, yh, zh, volume_size);
     uint* p_count = p_src.particle_count_;
     if (p_count[cell_index] < kMaxNumParticlesPerCell) {
         uint old_count = atomicAdd(p_count + cell_index, 1);
@@ -383,7 +385,7 @@ __global__ void SortParticlesKernel(FlipParticles p_aux, FlipParticles p_src,
             //       kernel. But the active number calculation is a problem.
             atomicAdd(p_count + cell_index, static_cast<uint>(-1));
         } else {
-            uint sort_index = cell_index * kMaxNumParticlesPerCell + old_count;
+            uint sort_index = cell_index + old_count * volume_stride;
 
             p_aux.position_x_ [sort_index] = xh;
             p_aux.position_y_ [sort_index] = yh;
