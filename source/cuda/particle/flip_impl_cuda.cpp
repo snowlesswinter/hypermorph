@@ -101,6 +101,8 @@ void FlipImplCuda::Advect(const FlipParticles& particles,
     kern_launcher::TransferToGrid(vn_x, vn_y, vn_z, density, temperature,
                                   p, particles, FromGlmVector(volume_size),
                                   ba_);
+//     kern_launcher::TransferToGridOpt(vn_x, vn_y, vn_z, density, temperature,
+//                                      p, FromGlmVector(volume_size), ba_);
     observer_->OnTransferred();
 }
 

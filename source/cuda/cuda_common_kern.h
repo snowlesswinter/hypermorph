@@ -75,6 +75,12 @@ __device__ inline int3 Float2Int(const float3& f)
                      __float2int_rd(f.z));
 }
 
+__device__ inline int3 Float2IntRoundToNearest(const float3& f)
+{
+    return make_int3(__float2int_rn(f.x), __float2int_rn(f.y),
+                     __float2int_rn(f.z));
+}
+
 __device__ inline float3 Int2Float(const int3& i)
 {
     return make_float3(__int2float_rn(i.x), __int2float_rn(i.y),
