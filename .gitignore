@@ -13,3 +13,4 @@
 /cuda/*.user
 /source/cuda/*.user
 *.user
+/.vs

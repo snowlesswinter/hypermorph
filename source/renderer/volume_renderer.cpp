@@ -144,8 +144,8 @@ void VolumeRenderer::Update(float zoom, const glm::mat4& rotation)
     float aspect_ratio =
         static_cast<float>(viewport_size().x) / viewport_size().y;
     if (aspect_ratio > 1.0f) {
-        float ¦È = std::atan(std::tan(fov() / 2.0f) * aspect_ratio);
-        eye_dist = half_diag / std::sin(¦È);
+        float theta = std::atan(std::tan(fov() / 2.0f) * aspect_ratio);
+        eye_dist = half_diag / std::sin(theta);
         near_pos = eye_dist - half_diag;
         far_pos = eye_dist + half_diag;
     }

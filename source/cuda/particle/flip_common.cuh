@@ -41,9 +41,9 @@ __device__ inline bool IsCellUndefined(uint cell_index)
 __device__ inline bool IsStopped(float v_x, float v_y, float v_z)
 {
     // To determine the time to recycle particles.
-    const float v_¦Å = 0.0001f;
-    return !(v_x > v_¦Å || v_x < -v_¦Å || v_y > v_¦Å || v_y < -v_¦Å ||
-             v_z > v_¦Å || v_z < -v_¦Å);
+    const float v_epsilon= 0.0001f;
+    return !(v_x > v_epsilon || v_x < -v_epsilon || v_y > v_epsilon ||
+        v_y < -v_epsilon || v_z > v_epsilon || v_z < -v_epsilon);
 }
 
 __device__ inline void FreeParticle(const FlipParticles& p, uint i)

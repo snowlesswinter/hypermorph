@@ -83,25 +83,25 @@ __global__ void AdvectFieldBfeccStaggeredOffsetKernel(float3 offset, float time_
     float3 vel = GetVelocityStaggeredOffset(coord + offset);
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
-    float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-    float ¦Õ4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
 
-    float ¦Õ_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
-    float ¦Õ_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+    float phi_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
+    float phi_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
 
-    float ¦Õ_new = tex3D(tex_aux, back_traced.x, back_traced.y, back_traced.z);
-    float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
-    if (clamped != ¦Õ_new) // New extrema found, revert to the first order
-                          // accurate semi-Lagrangian method.
-        ¦Õ_new = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
+    float phi_new = tex3D(tex_aux, back_traced.x, back_traced.y, back_traced.z);
+    float clamped = fmaxf(fminf(phi_new, phi_max), phi_min);
+    if (clamped != phi_new) // New extrema found, revert to the first order
+                            // accurate semi-Lagrangian method.
+        phi_new = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
 
-    auto r = __float2half_rn(dissipation * ¦Õ_new);
+    auto r = __float2half_rn(dissipation * phi_new);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -120,31 +120,31 @@ __global__ void AdvectFieldMacCormackStaggeredOffsetKernel(float3 offset, float 
     float3 vel = GetVelocityStaggeredOffset(coord + offset);
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
-    float ¦Õ_n = tex3D(tex, coord.x, coord.y, coord.z);
+    float phi_n = tex3D(tex, coord.x, coord.y, coord.z);
 
-    float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-    float ¦Õ4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
 
-    float ¦Õ_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
-    float ¦Õ_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+    float phi_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
+    float phi_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
 
-    float ¦Õ_np1_hat = tex3D(tex_aux, coord.x, coord.y, coord.z);
+    float phi_np1_hat = tex3D(tex_aux, coord.x, coord.y, coord.z);
 
     float3 forward_trace = AdvectImpl<MidPoint>(vel, coord, -time_step_over_cell_size);
-    float ¦Õ_n_hat = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
+    float phi_n_hat = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
 
-    float ¦Õ_new = ¦Õ_np1_hat + 0.5f * (¦Õ_n - ¦Õ_n_hat);
-    float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
-    if (clamped != ¦Õ_new)
-        ¦Õ_new = ¦Õ_np1_hat;
+    float phi_new = phi_np1_hat + 0.5f * (phi_n - phi_n_hat);
+    float clamped = fmaxf(fminf(phi_new, phi_max), phi_min);
+    if (clamped != phi_new)
+        phi_new = phi_np1_hat;
 
-    auto r = __float2half_rn(¦Õ_new * dissipation);
+    auto r = __float2half_rn(phi_new * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -165,8 +165,8 @@ __global__ void AdvectFieldSemiLagrangianStaggeredOffsetKernel(
     float3 vel = GetVelocityStaggeredOffset(coord + offset);
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord,
                                               time_step_over_cell_size);
-    float ¦Õ = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
-    auto r = __float2half_rn(¦Õ * dissipation);
+    float phi = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
+    auto r = __float2half_rn(phi * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -186,9 +186,9 @@ __global__ void BfeccRemoveErrorStaggeredOffsetKernel(
     float3 forward_trace = AdvectImpl<MidPoint>(vel, coord,
                                                 -time_step_over_cell_size);
 
-    float ¦Õ = tex3D(tex, coord.x, coord.y, coord.z);
+    float phi = tex3D(tex, coord.x, coord.y, coord.z);
     float r = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
-    r = 0.5f * (3.0f * ¦Õ - r);
+    r = 0.5f * (3.0f * phi - r);
     surf3Dwrite(__float2half_rn(r), surf, x * sizeof(ushort), y, z,
                 cudaBoundaryModeTrap);
 }
@@ -223,7 +223,7 @@ void AdvectFieldsBfeccStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
     dim3 block;
     ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     for (int i = 0; i < num_of_fields; i++) {
-        // Pass 1: Calculate ¦Õ_n_plus_1_hat, and store in |fnp1[i]|.
+        // Pass 1: Calculate phi_n_plus_1_hat, and store in |fnp1[i]|.
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
@@ -239,7 +239,7 @@ void AdvectFieldsBfeccStaggeredOffset(cudaArray** fnp1, cudaArray** fn,
             AdvectFieldSemiLagrangianStaggeredOffsetKernel<false><<<grid, block>>>(
                 offset[i], time_step / cell_size, 1.0f, volume_size);
 
-        // Pass 2: Calculate ¦Õ_n_hat, and store in |aux|.
+        // Pass 2: Calculate phi_n_hat, and store in |aux|.
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
 

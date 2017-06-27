@@ -120,14 +120,14 @@ void GraphicsVolume3::Swap(std::shared_ptr<GraphicsVolume>* x,
                            std::shared_ptr<GraphicsVolume>* y,
                            std::shared_ptr<GraphicsVolume>* z)
 {
-    std::shared_ptr<GraphicsVolume> ¦Á = *x;
-    std::shared_ptr<GraphicsVolume> ¦Â = *y;
-    std::shared_ptr<GraphicsVolume> ¦Ã = *z;
+    std::shared_ptr<GraphicsVolume> alpha = *x;
+    std::shared_ptr<GraphicsVolume> beta = *y;
+    std::shared_ptr<GraphicsVolume> gamma = *z;
 
     *x = x_;
     *y = y_;
     *z = z_;
-    Assign(¦Á, ¦Â, ¦Ã);
+    Assign(alpha, beta, gamma);
 }
 
 const std::shared_ptr<GraphicsVolume>& GraphicsVolume3::operator[](int n) const

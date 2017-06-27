@@ -41,17 +41,18 @@ __device__ float TrilinearInterpolationSingle(float x0y0z0, float x1y0z0,
                                               float x0y1z0, float x0y0z1,
                                               float x1y1z0, float x0y1z1,
                                               float x1y0z1, float x1y1z1,
-                                              float ¦Á, float ¦Â, float ¦Ã)
+                                              float alpha, float beta,
+                                              float gamma)
 {
-    float xy0z0 = (1 - ¦Á) * x0y0z0 + ¦Á * x1y0z0;
-    float xy1z0 = (1 - ¦Á) * x0y1z0 + ¦Á * x1y1z0;
-    float xy0z1 = (1 - ¦Á) * x0y0z1 + ¦Á * x1y0z1;
-    float xy1z1 = (1 - ¦Á) * x0y1z1 + ¦Á * x1y1z1;
+    float xy0z0 = (1 - alpha) * x0y0z0 + alpha * x1y0z0;
+    float xy1z0 = (1 - alpha) * x0y1z0 + alpha * x1y1z0;
+    float xy0z1 = (1 - alpha) * x0y0z1 + alpha * x1y0z1;
+    float xy1z1 = (1 - alpha) * x0y1z1 + alpha * x1y1z1;
 
-    float yz0 = (1 - ¦Â) * xy0z0 + ¦Â * xy1z0;
-    float yz1 = (1 - ¦Â) * xy0z1 + ¦Â * xy1z1;
+    float yz0 = (1 - beta) * xy0z0 + beta * xy1z0;
+    float yz1 = (1 - beta) * xy0z1 + beta * xy1z1;
 
-    return (1 - ¦Ã) * yz0 + ¦Ã * yz1;
+    return (1 - gamma) * yz0 + gamma * yz1;
 }
 
 __device__ float3 TrilinearInterpolation(float3* cache, float3 coord,
@@ -61,9 +62,9 @@ __device__ float3 TrilinearInterpolation(float3* cache, float3 coord,
     float int_y = floorf(coord.y);
     float int_z = floorf(coord.z);
 
-    float ¦Á = fracf(coord.x);
-    float ¦Â = fracf(coord.y);
-    float ¦Ã = fracf(coord.z);
+    float alpha = fracf(coord.x);
+    float beta = fracf(coord.y);
+    float gamma = fracf(coord.z);
 
     int index = int_z * slice_stride + int_y * row_stride + int_x;
     float3 x0y0z0 = cache[index];
@@ -75,9 +76,9 @@ __device__ float3 TrilinearInterpolation(float3* cache, float3 coord,
     float3 x1y0z1 = cache[index + slice_stride + 1];
     float3 x1y1z1 = cache[index + slice_stride + row_stride + 1];
 
-    float x = TrilinearInterpolationSingle(x0y0z0.x, x1y0z0.x, x0y1z0.x, x0y0z1.x, x1y1z0.x, x0y1z1.x, x1y0z1.x, x1y1z1.x, ¦Á, ¦Â, ¦Ã);
-    float y = TrilinearInterpolationSingle(x0y0z0.y, x1y0z0.y, x0y1z0.y, x0y0z1.y, x1y1z0.y, x0y1z1.y, x1y0z1.y, x1y1z1.y, ¦Á, ¦Â, ¦Ã);
-    float z = TrilinearInterpolationSingle(x0y0z0.z, x1y0z0.z, x0y1z0.z, x0y0z1.z, x1y1z0.z, x0y1z1.z, x1y0z1.z, x1y1z1.z, ¦Á, ¦Â, ¦Ã);
+    float x = TrilinearInterpolationSingle(x0y0z0.x, x1y0z0.x, x0y1z0.x, x0y0z1.x, x1y1z0.x, x0y1z1.x, x1y0z1.x, x1y1z1.x, alpha, beta, gamma);
+    float y = TrilinearInterpolationSingle(x0y0z0.y, x1y0z0.y, x0y1z0.y, x0y0z1.y, x1y1z0.y, x0y1z1.y, x1y0z1.y, x1y1z1.y, alpha, beta, gamma);
+    float z = TrilinearInterpolationSingle(x0y0z0.z, x1y0z0.z, x0y1z0.z, x0y0z1.z, x1y1z0.z, x0y1z1.z, x1y0z1.z, x1y1z1.z, alpha, beta, gamma);
     return make_float3(x, y, z);
 }
 
@@ -166,25 +167,25 @@ __global__ void AdvectFieldBfeccKernel(float time_step_over_cell_size, float dis
     float3 vel = GetVelocity(coord);
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
-    float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-    float ¦Õ4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
 
-    float ¦Õ_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
-    float ¦Õ_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+    float phi_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
+    float phi_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
 
-    float ¦Õ_new = tex3D(tex_aux, back_traced.x, back_traced.y, back_traced.z);
-    float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
-    if (clamped != ¦Õ_new) // New extrema found, revert to the first order
-                          // accurate semi-Lagrangian method.
-        ¦Õ_new = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
+    float phi_new = tex3D(tex_aux, back_traced.x, back_traced.y, back_traced.z);
+    float clamped = fmaxf(fminf(phi_new, phi_max), phi_min);
+    if (clamped != phi_new) // New extrema found, revert to the first order
+                            // accurate semi-Lagrangian method.
+        phi_new = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
 
-    auto r = __float2half_rn(dissipation * ¦Õ_new);
+    auto r = __float2half_rn(dissipation * phi_new);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -200,31 +201,31 @@ __global__ void AdvectFieldMacCormackKernel(float time_step_over_cell_size, floa
     float3 vel = GetVelocity(coord);
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord, time_step_over_cell_size);
 
-    float ¦Õ_n = tex3D(tex, coord.x, coord.y, coord.z);
+    float phi_n = tex3D(tex, coord.x, coord.y, coord.z);
 
-    float ¦Õ0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
-    float ¦Õ4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
-    float ¦Õ5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
-    float ¦Õ6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
-    float ¦Õ7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi0 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi1 = tex3D(tex, back_traced.x - 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi2 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi3 = tex3D(tex, back_traced.x - 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
+    float phi4 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z - 0.5f);
+    float phi5 = tex3D(tex, back_traced.x + 0.5f, back_traced.y - 0.5f, back_traced.z + 0.5f);
+    float phi6 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z - 0.5f);
+    float phi7 = tex3D(tex, back_traced.x + 0.5f, back_traced.y + 0.5f, back_traced.z + 0.5f);
 
-    float ¦Õ_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
-    float ¦Õ_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(¦Õ0, ¦Õ1), ¦Õ2), ¦Õ3), ¦Õ4), ¦Õ5), ¦Õ6), ¦Õ7);
+    float phi_min = fminf(fminf(fminf(fminf(fminf(fminf(fminf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
+    float phi_max = fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(fmaxf(phi0, phi1), phi2), phi3), phi4), phi5), phi6), phi7);
 
-    float ¦Õ_np1_hat = tex3D(tex_aux, coord.x, coord.y, coord.z);
+    float phi_np1_hat = tex3D(tex_aux, coord.x, coord.y, coord.z);
 
     float3 forward_trace = AdvectImpl<MidPoint>(vel, coord, -time_step_over_cell_size);
-    float ¦Õ_n_hat = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
+    float phi_n_hat = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
 
-    float ¦Õ_new = ¦Õ_np1_hat + 0.5f * (¦Õ_n - ¦Õ_n_hat);
-    float clamped = fmaxf(fminf(¦Õ_new, ¦Õ_max), ¦Õ_min);
-    if (clamped != ¦Õ_new)
-        ¦Õ_new = ¦Õ_np1_hat;
+    float phi_new = phi_np1_hat + 0.5f * (phi_n - phi_n_hat);
+    float clamped = fmaxf(fminf(phi_new, phi_max), phi_min);
+    if (clamped != phi_new)
+        phi_new = phi_np1_hat;
 
-    auto r = __float2half_rn(¦Õ_new * dissipation);
+    auto r = __float2half_rn(phi_new * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -243,8 +244,8 @@ __global__ void AdvectFieldSemiLagrangianKernel(float time_step_over_cell_size,
     float3 back_traced = AdvectImpl<MidPoint>(vel, coord,
                                               time_step_over_cell_size);
 
-    float ¦Õ = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
-    auto r = __float2half_rn(¦Õ * dissipation);
+    float phi = tex3D(tex, back_traced.x, back_traced.y, back_traced.z);
+    auto r = __float2half_rn(phi * dissipation);
     surf3Dwrite(r, surf, x * sizeof(r), y, z, cudaBoundaryModeTrap);
 }
 
@@ -261,9 +262,9 @@ __global__ void BfeccRemoveErrorKernel(float time_step_over_cell_size,
     float3 forward_trace = AdvectImpl<MidPoint>(vel, coord,
                                                 -time_step_over_cell_size);
 
-    float ¦Õ = tex3D(tex, coord.x, coord.y, coord.z);
+    float phi = tex3D(tex, coord.x, coord.y, coord.z);
     float r = tex3D(tex_aux, forward_trace.x, forward_trace.y, forward_trace.z);
-    r = 0.5f * (3.0f * ¦Õ - r);
+    r = 0.5f * (3.0f * phi - r);
     surf3Dwrite(__float2half_rn(r), surf, x * sizeof(ushort), y, z,
                 cudaBoundaryModeTrap);
 }
@@ -298,7 +299,7 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
     dim3 block;
     ba->ArrangePrefer3dLocality(&grid, &block, volume_size);
     for (int i = 0; i < num_of_fields; i++) {
-        // Pass 1: Calculate ¦Õ_n_plus_1_hat, and store in |fnp1[i]|.
+        // Pass 1: Calculate phi_n_plus_1_hat, and store in |fnp1[i]|.
         if (BindCudaSurfaceToArray(&surf, fnp1[i]) != cudaSuccess)
             return;
 
@@ -314,7 +315,7 @@ void AdvectFieldsBfecc(cudaArray** fnp1, cudaArray** fn, int num_of_fields,
             AdvectFieldSemiLagrangianKernel<false><<<grid, block>>>(
                 time_step / cell_size, 1.0f, volume_size);
 
-        // Pass 2: Calculate ¦Õ_n_hat, and store in |aux|.
+        // Pass 2: Calculate phi_n_hat, and store in |aux|.
         if (BindCudaSurfaceToArray(&surf, aux) != cudaSuccess)
             return;
 

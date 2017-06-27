@@ -184,9 +184,9 @@ struct SchemeDefault
         float zf = static_cast<float>(z);
 
         Tex3d<StorageType> t3d;
-        FPType ¦Õ0 = t3d(TexSel<StorageType>::Tex(tex_0, texf_0, texd_0), xf, yf, zf);
-        FPType ¦Õ1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), xf, yf, zf);
-        return ¦Õ0 * ¦Õ1;
+        FPType phi0 = t3d(TexSel<StorageType>::Tex(tex_0, texf_0, texd_0), xf, yf, zf);
+        FPType phi1 = t3d(TexSel<StorageType>::Tex(tex_1, texf_1, texd_1), xf, yf, zf);
+        return phi0 * phi1;
     }
     __device__ void Save(FPType* dest, FPType result)
     {

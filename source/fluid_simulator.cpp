@@ -160,10 +160,10 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
 
     glm::vec3 pos =
         FluidConfig::Instance()->emit_position() * glm::vec3(grid_size_);
-    double ¦Ð = 3.1415926;
+    double pi = 3.1415926;
     float splat_radius = std::min(grid_size_.x, grid_size_.y) * radius_factor;
-    float sin_factor = static_cast<float>(sin(seconds_elapsed * 0.5 * ¦Ð));
-    float cos_factor = static_cast<float>(cos(seconds_elapsed * 0.5 * ¦Ð));
+    float sin_factor = static_cast<float>(sin(seconds_elapsed * 0.5 * pi));
+    float cos_factor = static_cast<float>(cos(seconds_elapsed * 0.5 * pi));
     float hotspot_x = pos.x; //cos_factor * splat_radius * 0.8f + pos.x;
     float hotspot_z = pos.z; //sin_factor * splat_radius * 0.8f + pos.z;
     glm::vec3 hotspot(hotspot_x, 0.0f, hotspot_z);
@@ -183,7 +183,7 @@ void FluidSimulator::Update(float delta_time, double seconds_elapsed,
     if (impulse == CudaMain::IMPULSE_BUOYANT_JET) {
         int t = static_cast<int>(seconds_elapsed / time_stretch);
         if (t % 2) {
-            float coef = static_cast<float>(std::sin(seconds_elapsed * 4 * ¦Ð));
+            float coef = static_cast<float>(std::sin(seconds_elapsed * 4 * pi));
             initial_velocity = glm::vec3(
                 (1.0f /*+ coef * 0.5f*/) *
                 FluidConfig::Instance()->impulse_velocity());

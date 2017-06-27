@@ -354,15 +354,15 @@ __global__ void InterpolateDeltaVelocityKernel(uint16_t* vel_x, uint16_t* vel_y,
     float v_yp = tex3D(tex_yp, x,        y + 0.5f, z);
     float v_zp = tex3D(tex_zp, x,        y,        z + 0.5f);
 
-    float ¦Ä_x = v_xp - v_x;
-    float ¦Ä_y = v_yp - v_y;
-    float ¦Ä_z = v_zp - v_z;
+    float delta_x = v_xp - v_x;
+    float delta_y = v_yp - v_y;
+    float delta_z = v_zp - v_z;
 
-    // v_np1 = (1 - ¦Á) * v_n_pic + ¦Á * v_n_flip.
-    // We are using ¦Á = 1.
-    vel_x[i] = __float2half_rn(__half2float(vel_x[i]) + ¦Ä_x);
-    vel_y[i] = __float2half_rn(__half2float(vel_y[i]) + ¦Ä_y);
-    vel_z[i] = __float2half_rn(__half2float(vel_z[i]) + ¦Ä_z);
+    // v_np1 = (1 - alpha) * v_n_pic + alpha * v_n_flip.
+    // We are using alpha = 1.
+    vel_x[i] = __float2half_rn(__half2float(vel_x[i]) + delta_x);
+    vel_y[i] = __float2half_rn(__half2float(vel_y[i]) + delta_y);
+    vel_z[i] = __float2half_rn(__half2float(vel_z[i]) + delta_z);
 }
 
 // Should be invoked *AFTER* interpolation kernel. Since the newly inserted

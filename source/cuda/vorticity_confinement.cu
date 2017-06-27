@@ -58,22 +58,22 @@ __global__ void AddCurlPsiKernel(float inverse_cell_size, uint3 volume_size)
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
-    float ¦·_y0 = tex3D(tex_y, coord.x, coord.y, coord.z);
-    float ¦·_y1 = tex3D(tex_y, coord.x, coord.y, coord.z + 1.0f);
-    float ¦·_z0 = tex3D(tex_z, coord.x, coord.y, coord.z);
-    float ¦·_z1 = tex3D(tex_z, coord.x, coord.y + 1.0f, coord.z);
+    float psi_y0 = tex3D(tex_y, coord.x, coord.y, coord.z);
+    float psi_y1 = tex3D(tex_y, coord.x, coord.y, coord.z + 1.0f);
+    float psi_z0 = tex3D(tex_z, coord.x, coord.y, coord.z);
+    float psi_z1 = tex3D(tex_z, coord.x, coord.y + 1.0f, coord.z);
 
-    float u = inverse_cell_size * (¦·_z1 - ¦·_z0 - ¦·_y1 + ¦·_y0);
+    float u = inverse_cell_size * (psi_z1 - psi_z0 - psi_y1 + psi_y0);
 
-    float ¦·_x0 = tex3D(tex_x, coord.x, coord.y, coord.z);
-    float ¦·_x1 = tex3D(tex_x, coord.x, coord.y, coord.z + 1.0f);
-    float ¦·_z2 = tex3D(tex_z, coord.x + 1.0f, coord.y, coord.z);
+    float psi_x0 = tex3D(tex_x, coord.x, coord.y, coord.z);
+    float psi_x1 = tex3D(tex_x, coord.x, coord.y, coord.z + 1.0f);
+    float psi_z2 = tex3D(tex_z, coord.x + 1.0f, coord.y, coord.z);
 
-    float v = inverse_cell_size * (¦·_x1 - ¦·_x0 - ¦·_z2 + ¦·_z0);
+    float v = inverse_cell_size * (psi_x1 - psi_x0 - psi_z2 + psi_z0);
 
-    float ¦·_y2 = tex3D(tex_y, coord.x + 1.0f, coord.y, coord.z);
-    float ¦·_x2 = tex3D(tex_x, coord.x, coord.y + 1.0f, coord.z);
-    float w = inverse_cell_size * (¦·_y2 - ¦·_y0 - ¦·_x2 + ¦·_x0);
+    float psi_y2 = tex3D(tex_y, coord.x + 1.0f, coord.y, coord.z);
+    float psi_x2 = tex3D(tex_x, coord.x, coord.y + 1.0f, coord.z);
+    float w = inverse_cell_size * (psi_y2 - psi_y0 - psi_x2 + psi_x0);
 
     float v_x = tex3D(tex_vx, coord.x, coord.y, coord.z);
     auto r_x = __float2half_rn(v_x + u);
@@ -166,20 +166,20 @@ __global__ void BuildVorticityConfinementStaggeredKernel(
     float far_vort_z =    tex3D(tex_z, coord.x + 0.5f, coord.y + 0.5f, coord.z + 1.0f);
     float far_vort = __fsqrt_rn(far_vort_x * far_vort_x + far_vort_y * far_vort_y + far_vort_z * far_vort_z);
 
-    // Calculate normalized ¦Ç.
-    float ¦Ç_x = half_inverse_cell_size * (east_vort - west_vort);
-    float ¦Ç_y = half_inverse_cell_size * (north_vort - south_vort);
-    float ¦Ç_z = half_inverse_cell_size * (far_vort - near_vort);
+    // Calculate normalized eta.
+    float eta_x = half_inverse_cell_size * (east_vort - west_vort);
+    float eta_y = half_inverse_cell_size * (north_vort - south_vort);
+    float eta_z = half_inverse_cell_size * (far_vort - near_vort);
 
-    float r_¦Ç_mag = __frsqrt_rn(¦Ç_x * ¦Ç_x + ¦Ç_y * ¦Ç_y + ¦Ç_z * ¦Ç_z + 0.00001f);
-    ¦Ç_x *= r_¦Ç_mag;
-    ¦Ç_y *= r_¦Ç_mag;
-    ¦Ç_z *= r_¦Ç_mag;
+    float r_eta_mag = __frsqrt_rn(eta_x * eta_x + eta_y * eta_y + eta_z * eta_z + 0.00001f);
+    eta_x *= r_eta_mag;
+    eta_y *= r_eta_mag;
+    eta_z *= r_eta_mag;
 
     // Vorticity confinement at the center of the grid.
-    float conf_x = coeff * cell_size * (¦Ç_y * center_vort_z - ¦Ç_z * center_vort_y);
-    float conf_y = coeff * cell_size * (¦Ç_z * center_vort_x - ¦Ç_x * center_vort_z);
-    float conf_z = coeff * cell_size * (¦Ç_x * center_vort_y - ¦Ç_y * center_vort_x);
+    float conf_x = coeff * cell_size * (eta_y * center_vort_z - eta_z * center_vort_y);
+    float conf_y = coeff * cell_size * (eta_z * center_vort_x - eta_x * center_vort_z);
+    float conf_z = coeff * cell_size * (eta_x * center_vort_y - eta_y * center_vort_x);
 
     ushort result_x = __float2half_rn(conf_x);
     surf3Dwrite(result_x, surf_x, x * sizeof(result_x), y, z, cudaBoundaryModeTrap);
@@ -326,49 +326,49 @@ __global__ void StretchVorticesStaggeredKernel(float scale, uint3 volume_size)
 
     float3 coord = make_float3(x, y, z) + 0.5f;
 
-    float ¦Ø_xx = tex3D(tex_x, coord.x, coord.y, coord.z);
-    float ¦Ø_xy = tex3D(tex_y, coord.x + 0.5f, coord.y - 0.5f, coord.z);
-    float ¦Ø_xz = tex3D(tex_z, coord.x + 0.5f, coord.y, coord.z - 0.5f);
+    float psi_xx = tex3D(tex_x, coord.x, coord.y, coord.z);
+    float psi_xy = tex3D(tex_y, coord.x + 0.5f, coord.y - 0.5f, coord.z);
+    float psi_xz = tex3D(tex_z, coord.x + 0.5f, coord.y, coord.z - 0.5f);
 
-    float mag_x = sqrtf(¦Ø_xx * ¦Ø_xx + ¦Ø_xy * ¦Ø_xy + ¦Ø_xz * ¦Ø_xz + 0.00001f);
-    float dx_x = ¦Ø_xx / mag_x;
-    float dy_x = ¦Ø_xy / mag_x;
-    float dz_x = ¦Ø_xz / mag_x;
+    float mag_x = sqrtf(psi_xx * psi_xx + psi_xy * psi_xy + psi_xz * psi_xz + 0.00001f);
+    float dx_x = psi_xx / mag_x;
+    float dy_x = psi_xy / mag_x;
+    float dz_x = psi_xz / mag_x;
 
     float v_x0 = tex3D(tex_vx, coord.x + dx_x + 0.5f, coord.y + dy_x - 0.5f, coord.z + dz_x - 0.5f);
     float v_x1 = tex3D(tex_vx, coord.x - dx_x + 0.5f, coord.y - dy_x - 0.5f, coord.z - dz_x - 0.5f);
 
-    auto result_x = __float2half_rn(scale * (v_x0 - v_x1) * mag_x + ¦Ø_xx);
+    auto result_x = __float2half_rn(scale * (v_x0 - v_x1) * mag_x + psi_xx);
     surf3Dwrite(result_x, surf_x, x * sizeof(result_x), y, z, cudaBoundaryModeTrap);
 
-    float ¦Ø_yx = tex3D(tex_x, coord.x - 0.5f, coord.y + 0.5f, coord.z);
-    float ¦Ø_yy = tex3D(tex_y, coord.x, coord.y, coord.z);
-    float ¦Ø_yz = tex3D(tex_z, coord.x, coord.y + 0.5f, coord.z - 0.5f);
+    float psi_yx = tex3D(tex_x, coord.x - 0.5f, coord.y + 0.5f, coord.z);
+    float psi_yy = tex3D(tex_y, coord.x, coord.y, coord.z);
+    float psi_yz = tex3D(tex_z, coord.x, coord.y + 0.5f, coord.z - 0.5f);
 
-    float mag_y = sqrtf(¦Ø_yx * ¦Ø_yx + ¦Ø_yy * ¦Ø_yy + ¦Ø_yz * ¦Ø_yz + 0.00001f);
-    float dx_y = ¦Ø_yx / mag_y;
-    float dy_y = ¦Ø_yy / mag_y;
-    float dz_y = ¦Ø_yz / mag_y;
+    float mag_y = sqrtf(psi_yx * psi_yx + psi_yy * psi_yy + psi_yz * psi_yz + 0.00001f);
+    float dx_y = psi_yx / mag_y;
+    float dy_y = psi_yy / mag_y;
+    float dz_y = psi_yz / mag_y;
 
     float v_y0 = tex3D(tex_vy, coord.x + dx_y - 0.5f, coord.y + dy_y + 0.5f, coord.z + dz_y - 0.5f);
     float v_y1 = tex3D(tex_vy, coord.x - dx_y - 0.5f, coord.y - dy_y + 0.5f, coord.z - dz_y - 0.5f);
 
-    auto result_y = __float2half_rn(scale * (v_y0 - v_y1) * mag_y + ¦Ø_yy);
+    auto result_y = __float2half_rn(scale * (v_y0 - v_y1) * mag_y + psi_yy);
     surf3Dwrite(result_y, surf_y, x * sizeof(result_y), y, z, cudaBoundaryModeTrap);
 
-    float ¦Ø_zx = tex3D(tex_x, coord.x - 0.5f, coord.y, coord.z + 0.5f);
-    float ¦Ø_zy = tex3D(tex_y, coord.x, coord.y - 0.5f, coord.z + 0.5f);
-    float ¦Ø_zz = tex3D(tex_z, coord.x, coord.y, coord.z);
+    float psi_zx = tex3D(tex_x, coord.x - 0.5f, coord.y, coord.z + 0.5f);
+    float psi_zy = tex3D(tex_y, coord.x, coord.y - 0.5f, coord.z + 0.5f);
+    float psi_zz = tex3D(tex_z, coord.x, coord.y, coord.z);
 
-    float mag_z = sqrtf(¦Ø_zx * ¦Ø_zx + ¦Ø_zy * ¦Ø_zy + ¦Ø_zz * ¦Ø_zz + 0.00001f);
-    float dx_z = ¦Ø_zx / mag_z;
-    float dy_z = ¦Ø_zy / mag_z;
-    float dz_z = ¦Ø_zz / mag_z;
+    float mag_z = sqrtf(psi_zx * psi_zx + psi_zy * psi_zy + psi_zz * psi_zz + 0.00001f);
+    float dx_z = psi_zx / mag_z;
+    float dy_z = psi_zy / mag_z;
+    float dz_z = psi_zz / mag_z;
 
     float v_z0 = tex3D(tex_vz, coord.x + dx_z - 0.5f, coord.y + dy_z - 0.5f, coord.z + dz_z + 0.5f);
     float v_z1 = tex3D(tex_vz, coord.x - dx_z - 0.5f, coord.y - dy_z - 0.5f, coord.z - dz_z + 0.5f);
 
-    auto result_z = __float2half_rn(scale * (v_z0 - v_z1) * mag_z + ¦Ø_zz);
+    auto result_z = __float2half_rn(scale * (v_z0 - v_z1) * mag_z + psi_zz);
     surf3Dwrite(result_z, surf_z, x * sizeof(result_z), y, z, cudaBoundaryModeTrap);
 }
 
